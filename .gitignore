@@ -1,0 +1,15 @@
+*.swp
+#*
+'#*
+*#
+emacs/.emacs.d/history
+emacs/.emacs.d/emacs-desktop
+emacs/.emacs.d/tramp
+emacs/.emacs.d/recentf
+emacs/.emacs.d/smex-items
+emacs/.emacs.d/anaconda-mode/
+emacs/.emacs.d/auto-save-lit/
+emacs/.emacs.d/elpa/
+emacs/.emacs.d/persp-confs/
+emacs/.emacs.d/straight/
+emacs/.emacs.d/straight/
