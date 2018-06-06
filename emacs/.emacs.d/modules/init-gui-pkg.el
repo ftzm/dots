@@ -14,6 +14,10 @@
   (add-hook 'prog-mode-hook 'rainbow-delimiters-mode)
   )
 
+(use-package fringe-helper
+  :straight t
+  )
+
 (use-package git-gutter
   :straight t
   :diminish git-gutter-mode
@@ -25,7 +29,7 @@
   :straight t
   :config
   (require 'git-gutter) ;; needs to be loaded to set the below I think
-  (load-theme 'gruvbox t)
+  ;;(load-theme 'gruvbox t)
   (set-face-attribute 'git-gutter:modified nil :foreground 'unspecified :inherit 'font-lock-type-face)
   (set-face-attribute 'git-gutter:added nil :foreground 'unspecified :inherit 'font-lock-string-face)
   (set-face-attribute 'git-gutter:deleted nil :foreground 'unspecified :inherit 'font-lock-keyword-face)
@@ -43,7 +47,12 @@
     "XX......"
     "XXX....."
     "XXXX....")
-
-
   )
+
+(use-package default-text-scale
+  :straight t
+  :config
+  (setq default-text-scale-amount 60)
+  )
+
 (provide 'init-gui-pkg)

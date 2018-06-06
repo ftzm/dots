@@ -76,6 +76,10 @@
 
   )
 
+(use-package ag
+  :straight t
+  )
+
 (use-package counsel
   :straight t
   )

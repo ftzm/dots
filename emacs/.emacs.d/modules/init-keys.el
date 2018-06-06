@@ -17,7 +17,7 @@
 
   ("e" evil-window-increase-width)
   ("c" evil-window-decrease-width))
-  
+
   )
 
 (use-package general
@@ -70,7 +70,7 @@
   (define-prefix-command 'buffer-keys)
   (define-key leader-menu "b" 'buffer-keys)
   (general-define-key :keymaps 'buffer-keys
-                      "d" 'evil-delete-buffer
+                      "d" 'kill-this-buffer
                       "e" 'eval-buffer
                       "k" 'evil-prev-buffer
                       "j" 'evil-next-buffer
@@ -263,6 +263,11 @@
     (define-key capture-mode-map-keys "r" 'org-capture-refile)
     (define-key capture-mode-map-keys "c" 'org-capture-finalize)
     (define-key capture-mode-map-keys "t" 'counsel-org-tag)
+
+  (define-prefix-command 'flycheck-keys)
+  (define-key leader-menu "e" 'flycheck-keys)
+  (define-key flycheck-keys "p" 'flycheck-previous-error)
+  (define-key flycheck-keys "n" 'flycheck-next-error)
 
   )
 

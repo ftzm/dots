@@ -2,6 +2,8 @@
 ; File handling
 ;------------------------------------------------------------------------------
 
+(setq vc-follow-symlinks t)
+
 (use-package undo-tree
   :diminish undo-tree-mode
   )
@@ -17,5 +19,13 @@
   ;;:config
   ;;(setq recentf-max-menu-items 25)
   ;;)
+
+
+;------------------------------------------------------------------------------
+; Assorted
+;------------------------------------------------------------------------------
+
+(setq-default fill-column 79)
+(diminish 'auto-fill-function)
 
 (provide 'init-settings)

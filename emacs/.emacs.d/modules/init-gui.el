@@ -14,9 +14,15 @@
 ;; highlint current line
 (global-hl-line-mode)
 
+(setq-default ;display-line-numbers-current-absolute t
+              display-line-numbers-width 4
+              display-line-numbers-widen t)
+;(global-display-line-numbers-mode)
+
+
 (setq inhibit-startup-screen t)
-(setq initial-scratch-message "￼
-This work is licensed to you under version 2 of the GNU General Public License. Alternatively, you may choose to receive this work under any other license that grants the right to use, copy, modify, and/or distribute the work, as long as that license imposes the restriction that derivative works have to grant the same rights and impose the same restriction. For example, you may choose to receive this work under the GNU Free Documentation License, the CreativeCommons ShareAlike License, the XEmacs manual license, or similar licenses.
+
+(setq initial-scratch-message "This work is licensed to you under version 2 of the GNU General Public License. Alternatively, you may choose to receive this work under any other license that grants the right to use, copy, modify, and/or distribute the work, as long as that license imposes the restriction that derivative works have to grant the same rights and impose the same restriction. For example, you may choose to receive this work under the GNU Free Documentation License, the CreativeCommons ShareAlike License, the XEmacs manual license, or similar licenses.
 
 Please note our Privacy Statement.")
 
