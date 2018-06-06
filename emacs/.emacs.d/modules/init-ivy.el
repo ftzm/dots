@@ -1,3 +1,7 @@
+(use-package ag
+  :straight t
+  )
+
 (use-package ivy
   :straight t
   :diminish ivy-mode
@@ -74,10 +78,6 @@
   (ivy-set-display-transformer #'ivy-switch-buffer-other-window #'+ivy-buffer-transformer)
   (ivy-set-display-transformer #'counsel-recentf #'abbreviate-file-name)
 
-  )
-
-(use-package ag
-  :straight t
   )
 
 (use-package counsel
