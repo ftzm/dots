@@ -15,4 +15,8 @@
   :diminish auto-revert-mode
   )
 
+(use-package evil-magit
+  :straight t
+  )
+
 (provide 'init-magit)
