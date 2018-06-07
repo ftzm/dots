@@ -22,6 +22,7 @@
 (require 'init-elisp)
 (require 'init-nix)
 (require 'init-json)
+(require 'init-yaml)
 (require 'init-haskell)
 (require 'init-elm)
 (require 'init-python)
