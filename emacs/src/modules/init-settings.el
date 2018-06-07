@@ -35,4 +35,6 @@
 (setq-default fill-column 79)
 (diminish 'auto-fill-function)
 
+(global-eldoc-mode -1)
+
 (provide 'init-settings)

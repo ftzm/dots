@@ -15,6 +15,8 @@
       )
     )
 
+  (setq spaceline-minor-modes-separator "•")
+
   (spaceline-emacs-theme)
 
   (spaceline-toggle-buffer-size-off)

@@ -1,5 +1,6 @@
 (use-package persp-mode
   :straight t
+  :diminish
   :init
   ;; switch off animation, for restore
   (setq wg-morph-on nil)
