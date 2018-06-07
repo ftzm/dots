@@ -15,7 +15,7 @@
       )
     )
 
-  (spaceline-spacemacs-theme)
+  (spaceline-emacs-theme)
 
   (spaceline-toggle-buffer-size-off)
   (spaceline-toggle-hud-off)
@@ -31,6 +31,7 @@
   (set-face-attribute 'spaceline-flycheck-error nil :foreground 'unspecified :inherit 'font-lock-keyword-face)
 
   ;; for gruvbox
+  (set-face-attribute 'powerline-active1 nil :foreground 'unspecified :inherit 'mode-line)
   (set-face-attribute 'powerline-inactive2 nil :background 'unspecified :inherit 'powerline-inactive1)
 
   ;; Redefine version control segment because it was too verbose
