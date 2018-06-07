@@ -12,5 +12,5 @@ emacs/src/anaconda-mode/
 emacs/src/auto-save-lit/
 emacs/src/elpa/
 emacs/src/persp-confs/
-emacs/src/straight/
-emacs/src/straight/
+emacs/src/straight/build/
+emacs/src/straight/repos/
