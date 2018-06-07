@@ -23,6 +23,12 @@
 (require 'init-nix)
 (require 'init-json)
 (require 'init-haskell)
+(require 'init-elm)
+(require 'init-python)
+(require 'init-lua)
+(require 'init-dockerfile)
+(require 'init-markdown)
+(require 'init-prose)
 
 ;;centralized key mappings
 (require 'init-keys)

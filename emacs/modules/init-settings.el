@@ -25,6 +25,13 @@
 ; Assorted
 ;------------------------------------------------------------------------------
 
+;; Camel Case recognition, works with evil mode movement
+(use-package subword
+  :diminish subword-mode
+  :config
+  (add-hook 'prog-mode-hook 'subword-mode)
+  )
+
 (setq-default fill-column 79)
 (diminish 'auto-fill-function)
 
