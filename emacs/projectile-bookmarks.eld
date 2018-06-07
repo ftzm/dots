@@ -1,1 +1,0 @@
-("~/.dots/" "~/org/" "~/dev/ftzm-blog/" "~/dev/tempo/dolly/" "~/dev/typespeed/" "~/.stack/global-project/")

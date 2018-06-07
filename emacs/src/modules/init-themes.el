@@ -17,10 +17,6 @@
     :weight 'normal
     )
     )
-  (with-eval-after-load 'powerline-themes
-    (set-face-background 'powerline-inactive2 (face-attribute
-					       'powerline-inactive1 :background))
-    )
-   )
+  )
 
 (provide 'init-themes)

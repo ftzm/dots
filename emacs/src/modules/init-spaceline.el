@@ -30,6 +30,9 @@
   (set-face-attribute 'spaceline-flycheck-warning nil :foreground 'unspecified :inherit 'font-lock-function-name-face)
   (set-face-attribute 'spaceline-flycheck-error nil :foreground 'unspecified :inherit 'font-lock-keyword-face)
 
+  ;; for gruvbox
+  (set-face-attribute 'powerline-inactive2 nil :background 'unspecified :inherit 'powerline-inactive1)
+
   ;; Redefine version control segment because it was too verbose
   ;;(spaceline-define-segment version-control
   ;;"Version control information."
