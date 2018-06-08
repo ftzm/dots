@@ -5,6 +5,8 @@
     (setq org-directory "~/org")
     (setq org-agenda-files (quote ("~/org/work.org" "~/org/refile.org" "~/org/main.org")))
 
+    ;;There are other options for this that may deserve investigation
+    (setq org-agenda-window-setup 'current-window)
 
     ;;handles hiding leading stars and indenting text
     (add-hook 'org-mode-hook 'org-indent-mode)
@@ -233,7 +235,7 @@ are equal return t."
 (use-package org-super-agenda
   :straight t
   :config
-  ()
+  (org-super-agenda-mode 1)
   (setq org-super-agenda-groups
        '(;; Each group has an implicit boolean OR operator between its selectors.
 
