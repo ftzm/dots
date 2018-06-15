@@ -1,5 +1,8 @@
 (use-package org
-  :mode (("\\.org$" . org-mode))
+  ;:mode (("\\.org$" . org-mode))
+  :straight (:host github
+	:repo "emacsmirror/org"
+	:files ("lisp/*.el" "contrib/lisp/*.el"))
   :config
   (progn
     (setq org-directory "~/org")
