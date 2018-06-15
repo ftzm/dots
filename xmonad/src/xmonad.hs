@@ -14,6 +14,7 @@ import XMonad.Hooks.FloatNext
 import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.EwmhDesktops(fullscreenEventHook,ewmh)
 import XMonad.Actions.CopyWindow
+import System.IO
 import Data.Maybe
 import Data.List
 
@@ -28,22 +29,11 @@ cyan    = "#2AA198"
 violet  = "#6C71C4"
 green   = "#859900"
 
-
-main = xmonad =<< statusBar myBar myPP toggleStrutsKey myConfig
-
-myBar = "pkill xmobar; xmobar"
-
-myPP = xmobarPP
-  { ppCurrent = xmobarColor "#ebdbb2" ""
-  , ppHidden  = wrap "" ""
-  , ppWsSep   = " "
-  , ppSep     = "  •  "
-  , ppOrder   = take 2
-  , ppLayout  = layoutRenamer
-  }
+main = do
+  spawn "pipestatus"
+  xmonad $ myConfig
 
 toggleStrutsKey XConfig {XMonad.modMask = modMask} = (modMask, xK_b)
-
 
 myConfig = ewmh defaultConfig
     { terminal           = myTerminal
@@ -52,12 +42,17 @@ myConfig = ewmh defaultConfig
     , focusedBorderColor = "#bdae93"
     , normalBorderColor  = "#504945"
     , keys               = myKeys
-    , logHook            = dynamicLog >> historyHook
+    , logHook            = myLogHook --statusHandle
     , layoutHook         = myLayouts
     , manageHook         = myManageHook <+> manageDocks
     , workspaces         = myWorkspaces
     , handleEventHook    = handleEventHook defaultConfig <+> fullscreenEventHook
     }
+
+-- TODO: organize this better
+writeFileLn f s = writeFile f $ "x;" ++ s ++ "\n"
+
+myLogHook = dynamicLogWithPP $ def { ppOutput = writeFileLn "/tmp/statuspipe.fifo" }
 
 myTabsTheme = def
   { fontName            = "xft:Fira Code:medium:size=14"
