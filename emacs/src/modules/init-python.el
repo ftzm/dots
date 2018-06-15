@@ -47,4 +47,8 @@
   :straight t
   )
 
+(use-package company-anaconda
+  :straight t
+  )
+
 (provide 'init-python)
