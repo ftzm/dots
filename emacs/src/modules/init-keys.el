@@ -65,11 +65,13 @@
   (general-define-key
    :keymaps '(dired-mode-map
     	      magit-mode-map
+	      magit-blame-mode-map
     	      evil-normal-state-map)
    "SPC"
    'leader-menu)
 
   (general-evil-setup)
+
   (general-nmap "c" ;; this must be defined after evil to bind c
               (general-key-dispatch 'evil-change
                 "c" (general-simulate-key ('evil-change "e"))
@@ -149,7 +151,7 @@
   (define-prefix-command 'magit-keys)
   (define-key leader-menu "g" 'magit-keys)
   (define-key magit-keys "s" 'magit-status)
-  (define-key magit-keys "b" 'magit-blame-toggle)
+  (define-key magit-keys "b" 'magit-blame)
   (define-key magit-keys "B" 'magit-blame-quit)
 
   (define-key toggle-keys "g" 'global-git-gutter-mode)
