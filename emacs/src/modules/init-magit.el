@@ -1,13 +1,14 @@
 (use-package magit
   :straight t
   :config
-  (defun magit-blame-toggle()
-    "WORKAROUND https://github.com/magit/magit/issues/1987"
-    (interactive)
-    (let* ((active (--filter (and (boundp it) (symbol-value it)) minor-mode-list)))
-      (if (member 'magit-blame-mode active)
-          (magit-blame-quit)
-        (magit-blame nil buffer-file-name))))
+  ;; just quit using q, goes to commit message which is useful
+  ;;(defun magit-blame-toggle()
+    ;;"WORKAROUND https://github.com/magit/magit/issues/1987"
+    ;;(interactive)
+    ;;(let* ((active (--filter (and (boundp it) (symbol-value it)) minor-mode-list)))
+      ;;(if (member 'magit-blame-mode active)
+          ;;(magit-blame-quit)
+        ;;(magit-blame))))
 
   )
 
