@@ -1,0 +1,119 @@
+Config {
+
+   -- appearance
+     font =         "xft:Fira Code:size=14:medium:antialias=true, FontAwesome:pixelsize=18"
+   , bgColor =      "#282828"
+   , fgColor =      "#7c6f64"
+   , position =     Top
+   , border =       BottomB
+   , borderColor =  "#504945"
+
+   -- layout
+   , sepChar =  "%"   -- delineator between plugin names and straight text
+   , alignSep = "}{"  -- separator between left-right alignment
+   --, template = "%StdinReader% }{ %battery% | %multicpu% | %coretemp% | %memory% | %dynnetwork% | %RJTT% | %kbd% | %date%"
+   , template = " %StdinReader% }{ %spotify%%mpd%  %wireless% %coretemp%  %cpu%  %memory%   %volume%   %brightness%  %kbd%  %battery%  %date% "
+
+   -- general behavior
+   , lowerOnStart =     True    -- send to bottom of window stack on start
+   , hideOnStart =      False   -- start with window unmapped (hidden)
+   , allDesktops =      True    -- show on all desktops
+   , overrideRedirect = True    -- set the Override Redirect flag (Xlib)
+   , pickBroadest =     False   -- choose widest display (multi-monitor)
+   , persistent =       True    -- enable/disable hiding (True = disabled)
+
+   -- plugins
+   --   Numbers can be automatically colored according to their value. xmobar
+   --   decides color based on a three-tier/two-cutoff system, controlled by
+   --   command options:
+   --     --Low sets the low cutoff
+   --     --High sets the high cutoff
+   --
+   --     --low sets the color below --Low cutoff
+   --     --normal sets the color between --Low and --High cutoffs
+   --     --High sets the color above --High cutoff
+   --
+   --   The --template option controls how the plugin is displayed. Text
+   --   color can be set by enclosing in <fc></fc> tags. For more details
+   --   see http://projects.haskell.org/xmobar/#system-monitor-plugins.
+   , commands =
+
+        -- weather monitor
+        [  Run StdinReader
+
+        --,  Run Weather "RJTT" [ "--template", "<skyCondition> | <fc=#4682B4><tempC></fc>°C | <fc=#4682B4><rh></fc>% | <fc=#4682B4><pressure></fc>hPa"
+        --                     ] 36000
+
+        -- cpu activity monitor
+        , Run Cpu            [ "--template" , " <total>"
+                             , "--Low"      , "50"         -- units: %
+                             , "--High"     , "85"         -- units: %
+                             --, "--low"      , "darkgreen"
+                             --, "--normal"   , "darkorange"
+                             , "--high"     , "#cc241d"
+                             ] 10
+
+        -- cpu core temperature monitor
+        , Run CoreTemp       [ "--template" , " <core0>°C"
+                             , "--Low"      , "70"        -- units: °C
+                             , "--High"     , "80"        -- units: °C
+                             --, "--low"      , "darkgreen"
+                             --, "--normal"   , "darkorange"
+                             , "--high"     , "#cc241d"
+                             ] 50
+
+
+        -- brightness monitor
+        , Run Com "sh" ["/home/matt/bin/backlight.sh"] "brightness" 10
+
+        -- volume monitor
+        , Run Com "sh" ["/home/matt/bin/volume.sh"] "volume" 10
+
+        -- MPD
+        , Run Com "sh" ["/home/matt/bin/mpd_stats.sh"] "mpd" 10
+
+        -- Spotify
+        , Run Com "sh" ["/home/matt/bin/spotify_status.sh"] "spotify" 10
+
+        -- Wifi
+        , Run Com "sh" ["/home/matt/bin/wireless.sh"] "wireless" 600
+
+        -- memory usage monitor
+        , Run Memory         [ "--template" ," <usedratio>"
+                             , "--Low"      , "20"        -- units: %
+                             , "--High"     , "90"        -- units: %
+                             --, "--low"      , "darkgreen"
+                             --, "--normal"   , "#000000"
+                             --, "--high"     , "darkred"
+                             , "--high"     , "#cc241d"
+                             ] 10
+
+        -- battery monitor
+        , Run Battery        [ "--template" , "<acstatus>"
+                             , "--Low"      , "10"        -- units: %
+                             , "--High"     , "80"        -- units: %
+                             , "--low"      , "#cc241d"
+                             --, "--normal"   , "darkorange"
+                             --, "--high"     , "darkgreen"
+
+                             , "--" -- battery specific options
+                                       -- discharging status
+                                       , "-o"	, " <left>/<timeleft>"
+                                       -- AC "on" status
+                                       , "-O"	, " <left>"
+                                       -- charged status
+                                       , "-i"	, " 100"
+                             ] 500
+
+        -- time and date indicator
+        --   (%F = y-m-d date, %a = day of week, %T = h:m:s time)
+        , Run Date           " %H:%M" "date" 10
+
+        -- keyboard layout indicator
+        , Run Kbd            [ ("us"         , " US")
+                             , ("is"         , " <fc=#cc241d>IS</fc>")
+                             , ("se"         , " <fc=#cc241d>SE</fc>")
+                             , ("dk"         , " <fc=#cc241d>DK</fc>")
+                             ]
+        ]
+   }

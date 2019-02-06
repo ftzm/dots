@@ -37,7 +37,7 @@
       packages.")
 
   ;; Use `ag' all the time if available
-  (defun modi/advice-projectile-use-ag ()
+  (defun modi/advice-projectile-use-ag (&optional idontknowwhythisispassedsometimes)
     "Always use `ag' for getting a list of all files in the project."
     (mapconcat 'identity
            (append '("\\ag") ; used unaliased version of `ag': \ag

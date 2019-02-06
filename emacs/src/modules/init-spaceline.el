@@ -7,11 +7,11 @@
   :config
   (if (display-graphic-p)
       (progn
-  	(setq powerline-default-separator 'slant)
+  	(setq powerline-default-separator nil)
   	)
     (progn
       ;(setq powerline-default-separator nil)
-      (setq powerline-default-separator 'slant)
+      (setq powerline-default-separator nil)
       )
     )
 

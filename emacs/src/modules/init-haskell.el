@@ -3,6 +3,8 @@
   :mode "\\.hs\\'"
   :config
   (add-hook 'haskell-mode-hook 'auto-fill-mode)
+
+
   )
 
 (use-package intero
@@ -13,5 +15,6 @@
   (with-eval-after-load 'flycheck
     (flycheck-add-next-checker 'intero '(warning . haskell-hlint)))
   )
+
 
 (provide 'init-haskell)

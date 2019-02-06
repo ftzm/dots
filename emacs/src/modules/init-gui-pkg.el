@@ -52,7 +52,11 @@
 (use-package default-text-scale
   :straight t
   :config
-  (setq default-text-scale-amount 60)
+  (setq default-text-scale-amount 35)
+  )
+
+(use-package rotate
+  :straight t
   )
 
 (provide 'init-gui-pkg)

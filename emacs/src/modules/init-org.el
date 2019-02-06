@@ -1,18 +1,64 @@
+;; org requires this hacky shit, this will install it on every run, should
+;; optimize this. Got this recipe from the straight.el readme
+
+(require 'subr-x)
+(straight-use-package 'git)
+
+(defun org-git-version ()
+  "The Git version of org-mode.
+Inserted by installing org-mode or when a release is made."
+  (require 'git)
+  (let ((git-repo (expand-file-name
+                   "straight/repos/org/" user-emacs-directory)))
+    (string-trim
+     (git-run "describe"
+              "--match=release\*"
+              "--abbrev=6"
+              "HEAD"))))
+
+(defun org-release ()
+  "The release version of org-mode.
+Inserted by installing org-mode or when a release is made."
+  (require 'git)
+  (let ((git-repo (expand-file-name
+                   "straight/repos/org/" user-emacs-directory)))
+    (string-trim
+     (string-remove-prefix
+      "release_"
+      (git-run "describe"
+               "--match=release\*"
+               "--abbrev=0"
+               "HEAD")))))
+
+(provide 'org-version)
+
+(straight-use-package 'org-plus-contrib) ;; or org-plus-contrib if desired
+
 (use-package org
   ;:mode (("\\.org$" . org-mode))
-  :straight (:host github
-	:repo "emacsmirror/org"
-	:files ("lisp/*.el" "contrib/lisp/*.el"))
   :config
+  (add-hook 'org-mode-hook #'visual-line-mode)
   (progn
     (setq org-directory "~/org")
-    (setq org-agenda-files (quote ("~/org/work.org" "~/org/refile.org" "~/org/main.org")))
+    (setq org-agenda-files (quote ("~/org/work.org"
+				   "~/org/inbox.org"
+				   "~/org/gcal/matthew.org"
+				   "~/org/gcal/work.org"
+				   "~/org/todo.org"
+				   "~/org/projects.org"
+				   "~/org/main.org")))
 
     ;;There are other options for this that may deserve investigation
     (setq org-agenda-window-setup 'current-window)
 
     ;;handles hiding leading stars and indenting text
     (add-hook 'org-mode-hook 'org-indent-mode)
+
+    ;; Autosave
+    ;; passive saving
+    (add-hook 'auto-save-hook 'org-save-all-org-buffers)
+    ;; save on specific actions
+    (advice-add 'org-agenda-quit :before 'org-save-all-org-buffers)
 
     ;;(add-hook 'org-mode-hook 'olivetti-mode)
 
@@ -76,8 +122,8 @@
 
 
     (setq org-capture-templates
-	  (quote (("t" "todo" entry (file+headline "~/org/refile.org" "Tasks")
-		   "* TODO %?\n  SCHEDULED: %t")
+	  (quote (("t" "todo" entry (file "~/org/inbox.org")
+		   "* TODO %?")
 		  ("n" "note" entry (file+datetree "~/org/notes.org")
 		   "* %(ftzm/var-defaulted 'title '(read-string \"Title\"))\
                       :note:%(ftzm/var-defaulted 'tag '\"\") \n%?")
@@ -148,7 +194,68 @@
       (org-agenda-schedule '(4))
       )
 
+    (setq org-todo-keywords
+      '((sequence "TODO" "NEXT" "DONE")))
 
+    ;; for GTD
+
+    (setq org-agenda-block-separator nil)
+    (setq ftzm/org-agenda-todo-view
+      `(" " "Agenda"
+        ((agenda ""
+                 ((org-agenda-span 'day)
+		  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
+                 ))
+         (todo "TODO|NEXT"
+               ((org-agenda-overriding-header "To Refile")
+                (org-agenda-files '("~/org/inbox.org"))))
+	 ;; Exclude todo entries scheduled in the future. This way entries can
+	 ;; be postponed by scheduling them, as a sort of integrated "tickler" function.
+         (tags "TODO=\"TODO\"-SCHEDULED>=\"<today>\"|TODO=\"Next\""
+               ((org-agenda-overriding-header "Single tasks")
+                (org-agenda-files '("~/org/todo.org"))))
+         (todo "NEXT"
+               ((org-agenda-overriding-header "Work")
+                (org-agenda-files '("~/org/work.org"))
+	       ))
+         (todo "NEXT"
+               ((org-agenda-overriding-header "Projects")
+                (org-agenda-files '("~/org/main.org"
+                                    "~/org/projects.org"))
+	       ))
+         (tags "CLOSED>=\"<today>\""
+               ((org-agenda-overriding-header "Completed Tasks")
+                ))
+	 ;;(agenda ""
+	 ;;	 ((org-agenda-overriding-header "Completed Tasks")
+	 ;;	  (org-agenda-span 'day)
+         ;;         (org-agenda-start-with-log-mode t)
+	 ;;	  (org-agenda-use-time-grid nil)
+         ;;         (org-agenda-skip-function
+         ;;          '(org-agenda-skip-entry-if 'nottodo 'done))
+         ;;        ))
+         ;;(todo "TODO"
+         ;;      ((org-agenda-overriding-header "Projects")
+         ;;       (org-agenda-files '("~/.org/gtd/projects.org"))
+         ;;       ))
+         ;;(todo "TODO"
+         ;;      ((org-agenda-overriding-header "One-off Tasks")
+         ;;       (org-agenda-files '("~/.org/gtd/next.org"))
+         ;;       (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))))
+         nil)))
+
+    (setq org-agenda-custom-commands
+      `(;;,jethro/org-agenda-inbox-view
+        ;;,jethro/org-agenda-someday-view
+        ,ftzm/org-agenda-todo-view
+        ;; ,jethro/org-agenda-papers-view ;; archived
+        ))
+
+    (defun ftzm/switch-to-agenda ()
+    (interactive)
+    (org-agenda nil " "))
+
+    (bind-key "<f1>" 'ftzm/switch-to-agenda)
 
     )
 
@@ -199,46 +306,77 @@ are equal return t."
       (if (eq cmp t) nil (signum cmp))
       ))))
 
-  (setq org-agenda-custom-commands
-      '(("h" "Agenda and Home-related tasks"
-         ((agenda "")
-          (tags-todo "home")
-          (tags "garden")))
-        ("o" "Agenda and Office-related tasks"
-         ((agenda "")
-          (tags-todo "work")
-          (tags "office")))
+  ;; (setq org-agenda-custom-commands
+  ;;     '(("h" "Agenda and Home-related tasks"
+  ;;        ((agenda "")
+  ;;         (tags-todo "home")
+  ;;         (tags "garden")))
+  ;;       ("o" "Agenda and Office-related tasks"
+  ;;        ((agenda "")
+  ;;         (tags-todo "work")
+  ;;         (tags "office")))
 
-        (" " "Agenda"
-               ((tags "+TODO=\"TODO\"+REFILE"
-                      ((org-agenda-overriding-header "Tasks to Refile")
-                       (org-tags-match-list-sublevels nil)))
+  ;;       (" " "Agenda"
+  ;;              ((tags "+TODO=\"TODO\"+REFILE"
+  ;;                     ((org-agenda-overriding-header "Tasks to Refile")
+  ;;                      (org-tags-match-list-sublevels nil)))
 
-		(tags "+TODO=\"DONE\"+CLOSED>\"<today>\""
-		      ((org-agenda-overriding-header "Done tasks")
-		       )
-		      )
-
-
-
-		)
-          ((org-agenda-overriding-columns-format "%40ITEM %TODO %SCHEDULED %CLOSED")
-		       (org-agenda-view-columns-initially t))
-
-	       )
+  ;; 		(tags "+TODO=\"DONE\"+CLOSED>\"<today>\""
+  ;; 		      ((org-agenda-overriding-header "Done tasks")
+  ;; 		       )
+  ;; 		      )
 
 
-	)
 
-      )
+  ;; 		)
+  ;;         ((org-agenda-overriding-columns-format "%40ITEM %TODO %SCHEDULED %CLOSED")
+  ;; 		       (org-agenda-view-columns-initially t))
+
+  ;; 	       )
+
+
+  ;; 	)
+
+  ;;     )
+  (defun org-todo-with-date (&optional arg)
+  (interactive "P")
+  (cl-letf* ((org-read-date-prefer-future nil)
+             (my-current-time (org-read-date t t nil "when:" nil nil nil))
+            ((symbol-function #'org-current-effective-time)
+             #'(lambda () my-current-time)))
+    (org-todo arg)
+    ))
+
+  (defun org-agenda-todo-with-date (&optional arg)
+  (interactive "P")
+  (cl-letf* ((org-read-date-prefer-future nil)
+             (my-current-time (org-read-date t t nil "when:" nil nil nil))
+            ((symbol-function #'org-current-effective-time)
+             #'(lambda () my-current-time)))
+    (org-agenda-todo arg)
+    ))
   )
 
 (use-package org-habit)
 
+;; (use-package org-depend
+  ;; :config
+  ;; ;; This make it so that when a TODO item is moved from NEXT to DONE, the one
+  ;; ;; below will automaticaly be set to NEXT.
+  ;; (defun mm/org-insert-trigger ()
+  ;; "Automatically insert chain-find-next trigger when entry becomes NEXT"
+  ;; (cond ((equal org-state "NEXT")
+         ;; (unless org-depend-doing-chain-find-next
+           ;; (org-set-property "TRIGGER" "chain-find-next(NEXT,from-current,priority-up,effort-down)")))
+        ;; ((not (member org-state org-done-keywords))
+         ;; (org-delete-property "TRIGGER"))))
+  ;; (add-hook 'org-after-todo-state-change-hook 'mm/org-insert-trigger)
+  ;; )
+
 (use-package org-super-agenda
   :straight t
   :config
-  (org-super-agenda-mode 1)
+  (org-super-agenda-mode 0)
   (setq org-super-agenda-groups
        '(;; Each group has an implicit boolean OR operator between its selectors.
 
@@ -276,6 +414,14 @@ are equal return t."
 
 (use-package org-indent
   :diminish org-indent-mode
+  )
+
+(use-package calfw
+  :straight t
+  )
+
+(use-package calfw-org
+  :straight t
   )
 
 (provide 'init-org)

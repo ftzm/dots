@@ -54,7 +54,27 @@
   ;(define-key Buffer-menu-mode-map "." 'hydra-buffer-menu/body)
 
 
+ (defhydra hydra-rotate-menu (:color pink
+                              :hint nil)
+   "
+ ^Layouts^                ^Maniplation^
+ ^^^^^^^^-----------------------------------
+ _h_: even horizontal     _l_: unmark
+ _v_: even vertical       _r_: unmark up
+ _H_: main horizontal
+ _V_: main vertical
+ _t_: tiled
 
+ "
+ ("h" rotate:even-horizontal)
+ ("v" rotate:even-vertical)
+ ("H" rotate:main-horizontal)
+ ("V" rotate:main-vertical)
+ ("t" rotate:tiled)
+ ("l" rotate-layout)
+ ("r" rotate-window)
+ ("<escape>" nil "cancel")
+)
   )
 
 
@@ -80,7 +100,7 @@
 
   (define-prefix-command 'leader-menu)
   (define-key leader-menu (kbd "SPC") 'counsel-M-x)
-  (define-key leader-menu (kbd "TAB") 'switch-to-previous-buffer)
+  (define-key leader-menu (kbd "'") 'switch-to-previous-buffer)
   (define-key leader-menu (kbd ",") 'evil-window-next)
   (define-prefix-command 'apps-keys)
   (define-prefix-command 'toggle-keys)
@@ -102,7 +122,7 @@
                       "J" 'evil-window-move-very-bottom
                       "K" 'evil-window-move-very-top
                       "L" 'evil-window-move-far-right
-                      "r" 'evil-window-rotate-downwards
+                      "r" 'hydra-rotate-menu/body
                       "R" 'evil-window-rotate-upwards
                       "d" 'delete-window
                       "w" 'evil-window-next)
@@ -282,6 +302,7 @@
     (define-prefix-command 'org-keys)
     (define-key leader-menu "o" 'org-keys)
     (define-key org-keys "c" 'org-capture)
+    (define-key org-keys "g" (lambda () (interactive) (org-agenda nil " ")))
     (define-key org-keys "a" 'org-agenda)
     (define-key org-keys "l" 'org-agenda-list)
     (define-key org-keys "t" (lambda () (interactive) (org-capture nil "t")))
@@ -319,7 +340,7 @@
   (setq which-key-idle-delay 0.3)
   (which-key-add-key-based-replacements
     "SPC SPC" "command"
-    "SPC TAB" "prev buffer"
+    "SPC '" "prev buffer"
     "SPC a" "app"
     "SPC b" "buffer"
     "SPC e" "error"

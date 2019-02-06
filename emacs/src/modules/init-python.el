@@ -6,7 +6,7 @@
   (add-hook 'python-mode-hook 'auto-fill-mode)
   (add-hook 'python-mode-hook (lambda ()
   			      (flycheck-mode 1)
-  			      (setq flycheck-checker 'python-pylint
+  			      (setq flycheck-checker 'python-mypy
   				    flycheck-checker-error-threshold 900)))
 
   (defun pyvenv-and-fly (directory)
@@ -22,6 +22,8 @@
   (evil-define-key 'normal python-mode-map (kbd ",") 'python-mode-keys)
   (define-key python-mode-keys "v" 'pyvenv-and-fly)
   (define-key python-mode-keys "d" 'dumb-jump-go)
+
+  (set-variable 'flycheck-python-mypy-args '("--ignore-missing-imports" "--check-untyped-defs" "--follow-imports=skip"))
 
   ;(require 'auto-virtualenv)
   ;(add-hook 'python-mode-hook 'auto-virtualenv-set-virtualenv)
@@ -48,6 +50,10 @@
   )
 
 (use-package company-anaconda
+  :straight t
+  )
+
+(use-package blacken
   :straight t
   )
 

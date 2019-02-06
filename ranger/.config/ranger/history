@@ -1,0 +1,44 @@
+rename _nagayama_kai08.otf
+rename _nagayama_kai08.ttf
+rename AozoraMinchoRegular.ttf
+search ttf
+rename _AozoraMinchoRegular.ttf
+del 
+open_with vlc
+rename Caint Chonamara Notes.xml
+rename Caint Chonamara Notes.zip
+open_with 1
+rename 1-easy
+rename 2-intermediate
+rename 3-hard
+rename easy
+rename intermediate
+rename hard
+rename datecalc.py
+mkdir 12
+touch permute.py
+rename permute.py
+mkdir 13
+rename day_in_year.py
+rename settings.cfg
+rename 21
+rename highest_num.py
+w
+open_with 0
+mkdir pictures
+rename hs
+search .[29@~!
+search >``
+rename todo.txt
+
+touch thang
+open_with 
+touch thing
+touch do
+search mkdir dev
+mkdir dev
+mkdir oh-my-zsh
+delete 
+rename mod
+rename in
+rename pic

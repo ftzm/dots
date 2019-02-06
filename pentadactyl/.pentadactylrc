@@ -1,0 +1,18 @@
+"1.1
+
+loadplugins '\.(js|penta)$'
+group user
+highlight AddonBar padding-left: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; min-height: 10px !important; max-height: 12px !important; -moz-appearance: none !important;
+highlight FontFixed font-family: monospace !important; font: 10px "lemon" !important;
+highlight -link=FontFixed StatusLine /* The status bar */ -moz-appearance: none !important; font-weight: bold; background: transparent !important; border: 0px !important; padding-right: 2px !important; max-height: 12px !important; text-shadow: none !important;
+highlight StatusLineBroken color: white !important; background: #002B36 !important;
+highlight StatusLineExtended color: white !important; background: #002B36 !important;
+highlight StatusLineSecure color: white !important; background: #002B36 !important;
+set autocomplete=
+set buftabs-elem=nt
+set guioptions=Cs
+set showtabline=never
+
+
+
+" vim: set ft=pentadactyl:

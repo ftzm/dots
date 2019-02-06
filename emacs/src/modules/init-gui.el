@@ -3,7 +3,11 @@
 (when (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
 
 ;Set font
-(add-to-list 'default-frame-alist '(font . "Fira Mono Medium-16" ))
+;to set in existing window:
+(set-frame-font "Iosevka-19" nil t)
+
+; this only works on startup
+(add-to-list 'default-frame-alist '(font . "Fira Mono Medium-17" ))
 (set-fontset-font t 'japanese-jisx0208
                   (font-spec :family "IPAGothic" :size 24))
 
@@ -18,6 +22,7 @@
               display-line-numbers-width 4
               display-line-numbers-widen t)
 ;(global-display-line-numbers-mode)
+
 
 
 (setq inhibit-startup-screen t)

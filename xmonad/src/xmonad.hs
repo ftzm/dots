@@ -14,6 +14,8 @@ import XMonad.Hooks.FloatNext
 import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.EwmhDesktops(fullscreenEventHook,ewmh)
 import XMonad.Actions.CopyWindow
+import XMonad.Actions.Submap
+import XMonad.Util.EZConfig (mkKeymap)
 import System.IO
 import Data.Maybe
 import Data.List
@@ -41,7 +43,7 @@ myConfig = ewmh defaultConfig
     , borderWidth        = myBorderWidth
     , focusedBorderColor = "#bdae93"
     , normalBorderColor  = "#504945"
-    , keys               = myKeys
+    , keys               = emacsStyleKeys
     , logHook            = myLogHook --statusHandle
     , layoutHook         = myLayouts
     , manageHook         = myManageHook <+> manageDocks
@@ -80,7 +82,6 @@ myTerminal    = "urxvt"
 myModMask     = mod4Mask -- Win key or Super_L
 myBorderWidth = 1
 
---spacing 2 adds 2px spacing around all windows in all layouts
 myLayouts = avoidStruts
           $ (smartBorders
           $ rT
@@ -88,7 +89,6 @@ myLayouts = avoidStruts
           ||| Full
           ||| emptyBSP
           ||| (tabbedBottom shrinkText myTabsTheme))
---myLayouts = rT ||| Mirror rT ||| Full ||| emptyBSP ||| tabbed shrinkText myTabsTheme
   where
      rT = ResizableTall 1 (6/100) (8/13) []
      -- default tiling algorithm partitions the screen into two panes
@@ -108,6 +108,69 @@ layoutRenamer x = case x of
   "BSP"                    -> "bsp"
   "Tabbed Bottom Simplest" -> "tabbed"
   x                        -> x
+
+--fgcrl
+--dhtns
+--bmwvz
+emacsStyleKeys :: XConfig Layout -> M.Map (KeyMask, KeySym) (X ())
+emacsStyleKeys l = M.union
+  (mkKeymap l
+    [ ("M-<Return>", spawn $ terminal l)
+    , ("M-x w", spawn "xmessage 'woohoo!'")  -- type mod+x then w to pop up 'woohoo!'
+    , ("M-x y", spawn "xmessage 'yay!'")     -- type mod+x then y to pop up 'yay!'
+    , ("M-S-c", kill)
+    --windows
+    , ("M-n", windows W.focusDown)
+    , ("M-S-n", windows W.focusUp)
+    , ("M-m", windows W.swapDown)
+    , ("M-S-m", windows W.swapUp)
+    , ("M-w", sendMessage Expand)
+    , ("M-S-w", sendMessage Shrink)
+    , ("M-l", sendMessage NextLayout)
+    --system
+    , ("M-p", spawn "mpc toggle")
+    , ("M-v", spawn "panel_volume +")
+    , ("M-S-v", spawn "panel_volume -")
+    , ("M-s", submap screenKeys)
+    , ("M-a", submap appsKeys)
+    --applications
+    , ("M-S-z", spawn "clip_key")
+    , ("M-<Space>", spawn "my_dmenu.sh")
+
+    ])
+  (workspaceKeys l)
+  where
+    screenKeys = mkKeymap l $
+      [ ("s", spawn "scrot -s")
+      , ("l", spawn "slock")
+      ]
+      ++
+      [(show i, spawn ("xbacklight -set " ++ show ((i + 1) * 10))) | i <- [0..9]]
+    appsKeys = mkKeymap l $
+      [ ("e", spawn "e")
+      ]
+
+workspaceKeys :: XConfig Layout -> M.Map (KeyMask, KeySym) (X ())
+workspaceKeys conf@XConfig {XMonad.modMask = modMask} =
+  let mm = modMask
+      sm = shiftMask
+      m1m = mod1Mask
+  in M.fromList $
+    -- @greedyView@ will move the given workspace to the current screen, while
+    -- @view@ will simply move to another screen if the workspace is there.
+    -- mod-[1..9] %! Switch to workspace N
+    -- mod-shift-[1..9] %! Move client to workspace N
+    [((m .|. mm, k), windows $ f i)
+        | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]
+        , (f, m) <- [(W.view, 0), (W.shift, sm)]]
+    ++
+    -- mod-{w,e,r} %! Switch to physical/Xinerama screens 1, 2, or 3
+    -- mod-shift-{w,e,r} %! Move client to screen 1, 2, or 3
+    -- [((mm .|. sm, key), screenWorkspace sc >>= flip whenJust (windows . f))
+    --     | (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
+    --     , (f, m) <- [(W.view, 0), (W.shift, sm)]]
+    [((sm .|. m1m, k), windows $ copyWorkspace i)
+        | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]]
 
 myKeys :: XConfig Layout -> M.Map (KeyMask, KeySym) (X ())
 myKeys conf@XConfig {XMonad.modMask = modMask} =
@@ -134,6 +197,13 @@ myKeys conf@XConfig {XMonad.modMask = modMask} =
     , ((mm .|. m1m, xK_m), windows W.swapMaster) -- %! Swap the focused window and the master window
     , ((mm .|. m1m, xK_j), windows W.swapDown  ) -- %! Swap the focused window with the next window
     , ((mm .|. m1m, xK_k), windows W.swapUp    ) -- %! Swap the focused window with the previous window
+
+    -- submap for window operations to alleviate reliance on complicated
+    -- modifier combinations
+    , ((mm, xK_w), submap . M.fromList $
+        [ ((0, xK_j), windows W.swapDown)
+        , ((0, xK_k), windows W.swapUp)
+        ])
 
     -- resizing the master/slave ratio
     , ((mm, xK_h), sendMessage Shrink) -- %! Shrink the master area
@@ -186,7 +256,10 @@ myKeys conf@XConfig {XMonad.modMask = modMask} =
     , ((mm .|. m1m, xK_t), spawn "toggle_mouse.sh")
     , ((mm .|. m1m, xK_r), spawn "konsole -e ranger")
     , ((mm .|. sm, xK_z), spawn "clip_key")
+    , ((mm .|. sm, xK_d), spawn "monitor.sh")
     , ((mm .|. m1m, xK_s), spawn "slock")
+    , ((mm, xK_o), screenWorkspace 0 >>= flip whenJust (windows . W.view))
+    , ((mm, xK_a), screenWorkspace 1 >>= flip whenJust (windows . W.view))
     ]
     ++
     -- @greedyView@ will move the given workspace to the current screen, while
@@ -199,9 +272,11 @@ myKeys conf@XConfig {XMonad.modMask = modMask} =
     ++
     -- mod-{w,e,r} %! Switch to physical/Xinerama screens 1, 2, or 3
     -- mod-shift-{w,e,r} %! Move client to screen 1, 2, or 3
-    -- [((m .|. m1m, key), screenWorkspace sc >>= flip whenJust (windows . f))
+    -- [((mm .|. sm, key), screenWorkspace sc >>= flip whenJust (windows . f))
     --     | (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
     --     , (f, m) <- [(W.view, 0), (W.shift, sm)]]
+
+    -- ++
 
     [((sm .|. m1m, k), windows $ copyWorkspace i)
         | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]]

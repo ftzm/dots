@@ -19,4 +19,10 @@
     )
   )
 
+(use-package solarized-theme
+  :straight t
+  :config
+  ;(load-theme 'solarized-light t)
+  )
+
 (provide 'init-themes)
