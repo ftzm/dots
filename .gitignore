@@ -14,3 +14,16 @@ emacs/src/elpa/
 emacs/src/persp-confs/
 emacs/src/straight/build/
 emacs/src/straight/repos/
+emacs/src/org-gcal
+emacs/src/projectile.cache
+emacs/src/straight/build-cache.el
+emacs/src/straight/modified
+emacs/src/url
+emacs/src/request
+
+
+
+xmonad.hi
+xmonad.o
+xmonad.errors
+xmonad-x86_64-linux
