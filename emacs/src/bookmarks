@@ -9,7 +9,7 @@
  (position . 2245))
 ("org-capture-last-stored"
  (filename . "~/org/inbox.org")
- (front-context-string . "* TODO add nixos")
- (rear-context-string . "osave org files\n")
- (position . 1115))
+ (front-context-string . "* TODO install d")
+ (rear-context-string . "defined package\n")
+ (position . 1476))
 )
