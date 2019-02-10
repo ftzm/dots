@@ -1,0 +1,10 @@
+* System configs
+put it all in /etc/nixos/
+** configuration.nix
+** secrets
+- Just secrets for configuration.nix.
+- not to be checked in.
+* User configs
+** nixpkgs
+- symlink to ~/config/nixpkgs
+- Run `nix-env -riA` to update after editing desktop.nix. -r: remove other packages, -i: install, -A something weird I'm not sure, but it seems important
