@@ -39,13 +39,16 @@ title () { echo -e "$1\n${1//?/${2:--}}\n";}
 prompt () {
   local message=$1
   local pass=$2
+  if [ "$AUTOCONFIRM" == true ]; then
+    return 0
+  fi
   read -p "${message}. Enter y to continue: " -n 1 -r
   echo  # move to a new line
-  if ! [[ $REPLY =~ ^[Yy]$ ]]; then
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    return 0
+  else
     echo "${pass}"
     return 1
-  else
-    return 0
   fi
 }
 
