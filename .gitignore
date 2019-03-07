@@ -20,6 +20,7 @@ emacs/src/emacs.d/straight/build-cache.el
 emacs/src/emacs.d/straight/modified
 emacs/src/emacs.d/url
 emacs/src/emacs.d/request
+emacs/src/emacs.d/eshell
 
 
 
