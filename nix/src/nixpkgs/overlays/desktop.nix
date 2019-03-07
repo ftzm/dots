@@ -20,6 +20,7 @@ self: super: {
       (dunst.override { dunstify = true;})
       acpi
       jq
+      killall
 
       # webz
       chromium

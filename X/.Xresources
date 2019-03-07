@@ -2,8 +2,8 @@ URxvt.transparent:   false
 
 !#include "/home/matt/.colors/green"
 urxvt*smoothResize: true
-URxvt.boldFont:xft:Fira Code:Medium:size=13,xft:Source Code Pro:Medium:size=13
-URxvt.font:xft:Fira Code:Medium:size=13,xft:Source Code Pro:Medium:size=13
+URxvt.boldFont:xft:Fira Code:Medium:size=16,xft:Source Code Pro:Medium:size=16
+URxvt.font:xft:Fira Code:Medium:size=16,xft:Source Code Pro:Medium:size=16
 URxvt.letterSpace: -1.8
 
 URxvt.scrollBar: false

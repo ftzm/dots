@@ -9,7 +9,7 @@
  (position . 2245))
 ("org-capture-last-stored"
  (filename . "~/org/inbox.org")
- (front-context-string . "* TODO install d")
- (rear-context-string . "defined package\n")
- (position . 1476))
+ (front-context-string . "* TODO if a buil")
+ (rear-context-string . "2-06 Wed 15:45]\n")
+ (position . 1041))
 )
