@@ -9,7 +9,7 @@ emacs/src/emacs.d/recentf
 emacs/src/emacs.d/smex-items
 emacs/src/emacs.d/projectile-bookmarks.eld
 emacs/src/emacs.d/anaconda-mode/
-emacs/src/emacs.d/auto-save-lit/
+emacs/src/emacs.d/auto-save-list/
 emacs/src/emacs.d/elpa/
 emacs/src/emacs.d/persp-confs/
 emacs/src/emacs.d/straight/build/
