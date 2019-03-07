@@ -38,7 +38,7 @@ touch do
 search mkdir dev
 mkdir dev
 mkdir oh-my-zsh
-delete 
 rename mod
 rename in
 rename pic
+delete 
