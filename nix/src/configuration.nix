@@ -15,7 +15,7 @@ in
 {
   imports =
     [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
+      /etc/nixos/hardware-configuration.nix
     ];
 
   nixpkgs.config.allowUnfree = true;
@@ -58,6 +58,8 @@ in
 
   programs.zsh.enable = true;
 
+  hardware.bluetooth.enable = true;
+
   # ---------------------------------------------------------------------------
   # Security
 
@@ -76,6 +78,7 @@ in
 
   hardware.pulseaudio = {
     enable = true;
+    package = pkgs.pulseaudioFull; # For bluetooth
     support32Bit = true;
     tcp = {
       # for mopidy
