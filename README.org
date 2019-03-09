@@ -1,15 +1,14 @@
 * Dotfiles
 These are my dotfiles. They may be of use or inspiration to others.
-** Installation
-To install the dotfiles, run ~install.sh -f MODULES~
-** Module System
+* Quick Start
+Dotfiles for each application are stored in the ~src~ directory within each top-level directory. To install the dotfiles for a particular application, run ~install.sh <name>~
+* Module System
 The configuration files for each application are divided up into modules. Modules follow a standard layout. each is a directory containing the following:
-*** a src/ directory
+** src directory
 The src/ directory contains the dotfiles or other configuration files for an application.
-*** a MODULE file
+** MODULE file
 The MODULE file contains the following declarations:
-**** paths
-A list of files/directories in the src/ directory and the locations to which they will be installed. Each line contains a single pairing. On the left is the relative path to the source file in src/, on the right is the path to the installation location (~ may be used to represent the home directory), and the two are separated by a tab.
+- *paths*: A list of files/directories in the src/ directory and the locations to which they will be installed. Each line contains a single pairing. On the left is the relative path to the source file in src/, on the right is the path to the installation location (~ may be used to represent the home directory), and the two are separated by a tab.
 
 Example:
 #+BEGIN_SRC bash
@@ -18,5 +17,5 @@ example_one<tab>~/.example_one
 example_two<tab>/etc/example_two
 "
 #+END_SRC
-** ~install.sh~
-~install.sh~ performs the task of creating symlinks to files in src/ throughout the system. When the installation path already contains a symlink this is removed, and when it contains a file or directory this is backed up to a directory within the respective module.
+* Installation
+~install.sh~ performs the task of creating symlinks to files in ~src~ throughout the system. When the installation path already contains a symlink this is removed, and when it contains a file or directory this is backed up to a directory within the respective module.
