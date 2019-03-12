@@ -219,6 +219,7 @@ create_link () {
   local target_path=$2
   local module_path=$3
   if [ -f "${source_path}" ] || [ -d "${source_path}" ]; then
+    sudo_retry mkdir -p $(dirname "${target_path}")
     sudo_retry ln -s "${source_path}" "${target_path}"
   else
     >&2 echo "No file or directory exists at ${source_path}"
