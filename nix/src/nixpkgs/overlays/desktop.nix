@@ -18,6 +18,7 @@ self: super: {
       slack
       firefox
       (dunst.override { dunstify = true;})
+      libnotify # for notify-send in scripts
       acpi
       jq
       killall

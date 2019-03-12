@@ -146,6 +146,7 @@ in
             xsetroot -cursor_name left_ptr &
             xrdb -merge ~/.Xresources
             ${pkgs.dunst}/bin/dunst &
+            rm /tmp/statuspipe.fifo; /home/matt/.local/bin/pipestatus &
           '';
         }
       ];
