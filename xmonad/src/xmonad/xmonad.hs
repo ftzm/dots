@@ -32,7 +32,6 @@ violet  = "#6C71C4"
 green   = "#859900"
 
 main = do
-  spawn "pipestatus"
   xmonad $ myConfig
 
 toggleStrutsKey XConfig {XMonad.modMask = modMask} = (modMask, xK_b)
@@ -131,18 +130,18 @@ emacsStyleKeys l = M.union
     , ("M-p", spawn "mpc toggle")
     , ("M-v", spawn "panel_volume +")
     , ("M-S-v", spawn "panel_volume -")
-    , ("M-s", submap screenKeys)
+    , ("M-s", submap sysKeys)
     , ("M-a", submap appsKeys)
     --applications
     , ("M-S-z", spawn "clip_key")
     , ("M-<Space>", spawn "my_dmenu.sh")
-
     ])
   (workspaceKeys l)
   where
-    screenKeys = mkKeymap l $
+    sysKeys = mkKeymap l $
       [ ("s", spawn "scrot -s")
       , ("l", spawn "slock")
+      , ("h", spawn "boseqc.sh")
       ]
       ++
       [(show i, spawn ("xbacklight -set " ++ show ((i + 1) * 10))) | i <- [0..9]]
