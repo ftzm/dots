@@ -25,6 +25,8 @@
 (require 'init-elisp)
 (require 'init-nix)
 (require 'init-json)
+(require 'init-dhall)
+(require 'init-jsonnet)
 (require 'init-yaml)
 (require 'init-json)
 (require 'init-haskell)

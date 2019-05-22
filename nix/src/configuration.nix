@@ -21,6 +21,16 @@ in
   nixpkgs.config.allowUnfree = true;
 
   # ---------------------------------------------------------------------------
+  # Cache
+  nix = {
+    binaryCaches = [ "https://cache.nixos.org" "https://cache.dhall-lang.org" ];
+
+    binaryCachePublicKeys = [
+      "cache.dhall-lang.org:I9/H18WHd60olG5GsIjolp7CtepSgJmM2CsO813VTmM="
+    ];
+  };
+
+  # ---------------------------------------------------------------------------
   # Boot
 
   # Use the systemd-boot EFI boot loader.
@@ -52,6 +62,7 @@ in
     git
     gnupg
     hsetroot # for desktopManager
+    steam
   ];
 
   virtualisation.docker.enable = true;
@@ -59,6 +70,10 @@ in
   programs.zsh.enable = true;
 
   hardware.bluetooth.enable = true;
+
+  services.cron = {
+    enable = true;
+  };
 
   # ---------------------------------------------------------------------------
   # Security

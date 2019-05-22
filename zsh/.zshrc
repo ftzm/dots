@@ -111,6 +111,8 @@ t () {
 
 }
 
+alias tempoc="t"
+
 alias tap="t admin production"
 alias tas="t admin staging"
 alias tad="t admin development"

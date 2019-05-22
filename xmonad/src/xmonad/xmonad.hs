@@ -108,12 +108,17 @@ layoutRenamer x = case x of
   "Tabbed Bottom Simplest" -> "tabbed"
   x                        -> x
 
---fgcrl
---dhtns
---bmwvz
+showMap :: XConfig Layout -> [(String, String, X ())] -> X ()
+showMap l xs = spawn ("notify-send '" ++ legend ++ "'") >> (submap $ mkKeymap l keyMap)
+  where
+    legend :: String
+    legend = intercalate "\n" $ map (\(key,name,_) -> key ++ " " ++ name ) xs
+    keyMap :: [(String, X ())]
+    keyMap = map (\(key,_,cmd) -> (key,cmd)) xs
+
 emacsStyleKeys :: XConfig Layout -> M.Map (KeyMask, KeySym) (X ())
 emacsStyleKeys l = M.union
-  (mkKeymap l
+  (mkKeymap l $
     [ ("M-<Return>", spawn $ terminal l)
     , ("M-x w", spawn "xmessage 'woohoo!'")  -- type mod+x then w to pop up 'woohoo!'
     , ("M-x y", spawn "xmessage 'yay!'")     -- type mod+x then y to pop up 'yay!'
@@ -130,8 +135,9 @@ emacsStyleKeys l = M.union
     , ("M-p", spawn "mpc toggle")
     , ("M-v", spawn "panel_volume +")
     , ("M-S-v", spawn "panel_volume -")
-    , ("M-s", submap sysKeys)
+    , ("M-s", spawn "notify-send 'woohoo'" >> submap sysKeys)
     , ("M-a", submap appsKeys)
+    , ("M-t", testMap)
     --applications
     , ("M-S-z", spawn "clip_key")
     , ("M-<Space>", spawn "my_dmenu.sh")
@@ -148,6 +154,10 @@ emacsStyleKeys l = M.union
     appsKeys = mkKeymap l $
       [ ("e", spawn "e")
       ]
+    testMap = showMap l $
+                [ ("a", "ayy", spawn "notify-send 'ayy'")
+                , ("b", "bee", spawn "notify-send 'bee")
+		]
 
 workspaceKeys :: XConfig Layout -> M.Map (KeyMask, KeySym) (X ())
 workspaceKeys conf@XConfig {XMonad.modMask = modMask} =

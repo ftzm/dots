@@ -2,7 +2,7 @@
 "   Plugin Initialization
 "------------------------------------------------------------
 
-call plug#begin('~/.vim/plugged')
+call plug#begin('~/.local/share/nvim/plugged')
 "--------------------------------------------------
 "Session Managements
 Plug 'tpope/vim-obsession'
@@ -404,4 +404,3 @@ function! s:fzf_statusline()
 endfunction
 
 autocmd! User FzfStatusLine call <SID>fzf_statusline()
-

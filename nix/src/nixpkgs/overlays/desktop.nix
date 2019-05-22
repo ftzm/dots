@@ -3,6 +3,8 @@ self: super: {
     name = "desktop";
     paths = with self.pkgs; [
       nix cacert # nothing else works without these
+      zlib.dev # also needed for a lot
+      zlib.out# also needed for a lot
 
       # system
       dmenu
@@ -22,6 +24,14 @@ self: super: {
       acpi
       jq
       killall
+      unzip
+      pciutils
+      libreoffice
+      deluge
+
+      # latex
+      texlive.combined.scheme-full
+      pandoc
 
       # webz
       chromium
@@ -31,7 +41,8 @@ self: super: {
       openvpn
 
       # fun
-      steam
+      # steam define in system
+      discord
 
       # appearance
       hsetroot
