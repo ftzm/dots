@@ -78,6 +78,8 @@ pack_module () {
   local module_name=$1
   local module_dir=$2
   local paths=$3
+  local pre=$4
+  local post=$5
 
   # link paths
   declare -a linklinearray
@@ -92,7 +94,8 @@ pack_module () {
   local IFS=$OLDIFS
   linklines=$(join_by , "${linklinearray[@]}")
 
-  output_module="${module_name}:${module_dir}:${linklines}"
+  output_module="${module_name}:${module_dir}:${linklines}:${pre}:${post}"
+  >&2 echo "${output_module}"
   echo "${output_module}"
 }
 
@@ -101,13 +104,17 @@ unpack_module () {
   local -n nameref=$2
   local -n dirref=$3
   local -n pathsref=$4
+  local -n preref=$5
+  local -n postref=$6
 
-  IFS=':' read name dir paths <<< "${packed_module}"
+  IFS=':' read name dir paths pre post <<< "${packed_module}"
   IFS="," read -a paths <<< ${paths//;/ }
 
-  outref="{$name}"
+  nameref="${name}"
   dirref="${dir}"
   pathsref=$paths
+  preref="${pre}"
+  postref="${post}"
 }
 
 # ----------------------------------------------------------------------
@@ -117,18 +124,32 @@ parse_module () {
   local module=$1
   local module_dir="${SCRIPT_DIR}/${module}"
   local module_file="${module_dir}/MODULE"
+  local pre_script="${module_dir}/pre.sh"
+  local post_script="${module_dir}/post.sh"
+
   if ! [ -f "${module_file}" ]; then
     >&2 echo "No 'MODULE file exists at ${module_file}"
     return
   fi
+
+  if ! [ -f "${pre_script}" ]; then
+    pre_script=""
+  fi
+
+  if ! [ -f "${post_script}" ]; then
+    post_script=""
+  fi
+
   source "${module_file}"
   if [ "$paths" ]; then
-    output_module=$(pack_module $module $module_dir "${paths}")
+    output_module=$(pack_module $module $module_dir "${paths}" \
+                                $pre_script $post_script)
     unset paths
   else
     >&2 echo "No paths defined for module '${module}'. Skipping."
     return
   fi
+
   echo "${output_module}"
 }
 
@@ -172,7 +193,7 @@ source_exists () {
 preview_changes () {
   printf "Symlinks to create:\n\n"
   for module_obj in "${MODULE_OBJS[@]}"; do
-    unpack_module "${module_obj}" name dir paths
+    unpack_module "${module_obj}" name dir paths pre post
     title "Module: ${name}"
     for pathset in "${paths[@]}"; do
       read source dest <<< "${pathset}"
@@ -181,6 +202,13 @@ preview_changes () {
       source_exists "${source}"
       printf "${color}$source\t->\t$dest\n${UNSET}"
     done
+    echo
+    if [ "$pre" ]; then
+      echo "pre-setup script: ${pre}"
+    fi
+    if [ "$post" ]; then
+      echo "post-setup script: ${post}"
+    fi
     echo
   done
 }
@@ -236,10 +264,28 @@ process_paths () {
   done
 }
 
+run_script () {
+  local script_path=$1
+
+  bash "$script_path"
+}
+
 process_module () {
   local module_obj=$1
-  unpack_module "${module_obj}" name dir paths
+  unpack_module "${module_obj}" name dir paths pre post
+
+  if [ "$pre" ]; then
+    echo "Running pre-setup script..."
+    run_script "$pre"
+  fi
+
+  echo "Linking files..."
   process_paths paths "${dir}" # quote so not split in multiple args
+
+  if [ "$pre" ]; then
+    echo "Running post-setup script..."
+    run_script "$post"
+  fi
 }
 
 process_modules () {
@@ -292,9 +338,14 @@ main () {
   if [ "$MODULES_FILE" ]; then
     if [ "$ARG_MODULES" ]; then
       >&2 echo "Can't specify modules as args while using module file."
+      exit 1
     fi
     MODULES=$(cat "${MODULES_FILE}" | tr '\n' ' ')
   else
+    if ! [ "$ARG_MODULES" ]; then
+      >&2 echo "You must specify at least one module to act upon."
+      exit 1
+    fi
     MODULES="$ARG_MODULES"
   fi
   parse_modules
