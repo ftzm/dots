@@ -1,11 +1,8 @@
-direnv
 xmonad
-emacs
-mail
-ncmpcpp
-neovim
+dunst
 qutebrowser
+emacs
+ncmpcpp
 ranger
-X
 zathura
 nix
