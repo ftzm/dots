@@ -211,7 +211,7 @@ Inserted by installing org-mode or when a release is made."
                 (org-agenda-files '("~/org/inbox.org"))))
 	 ;; Exclude todo entries scheduled in the future. This way entries can
 	 ;; be postponed by scheduling them, as a sort of integrated "tickler" function.
-         (tags "TODO=\"TODO\"-SCHEDULED>=\"<today>\"|TODO=\"Next\""
+         (tags "TODO=\"TODO\"+SCHEDULED<=\"<today>\"|TODO=\"Next\""
                ((org-agenda-overriding-header "Single tasks")
                 (org-agenda-files '("~/org/todo.org"))))
          (todo "NEXT"
