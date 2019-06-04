@@ -21,24 +21,27 @@
 (require 'init-security)
 
 ;;context specific
-(require 'init-org)
 (require 'init-elisp)
+(require 'init-lisp)
 (require 'init-nix)
-(require 'init-json)
-(require 'init-dhall)
-(require 'init-jsonnet)
-(require 'init-yaml)
-(require 'init-json)
 (require 'init-haskell)
 (require 'init-elm)
 (require 'init-python)
 (require 'init-lua)
-(require 'init-dockerfile)
+
+(require 'init-yaml)
+(require 'init-json)
+(require 'init-dhall)
+(require 'init-jsonnet)
 (require 'init-markdown)
-(require 'init-terraform)
 (require 'init-prose)
+
+(require 'init-dockerfile)
+(require 'init-terraform)
+
 (require 'init-jira)
 (require 'init-mail)
+(require 'init-org)
 
 ;;centralized key mappings
 (require 'init-keys)
