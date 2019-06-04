@@ -10,6 +10,13 @@
 # Define secrets in a separate file
 let
   secrets = import /etc/nixos/secrets.nix;
+  sleepCheck = pkgs.writeScript "sleepCheck.sh" ''
+  STATUS=$(cat /sys/class/power_supply/BAT0/device/power_supply/BAT0/status)
+  CAPACITY=$(cat /sys/class/power_supply/BAT0/capacity)
+  if [ "''${STATUS}" = "Discharging" ] && [ $CAPACITY -lt 5 ]; then
+    systemctl hibernate
+  fi
+  '';
 in
 
 {
@@ -20,6 +27,7 @@ in
     ];
 
   nixpkgs.config.allowUnfree = true;
+
 
   # ---------------------------------------------------------------------------
   # Cache
@@ -66,6 +74,8 @@ in
     steam
   ];
 
+  environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
+
   virtualisation.docker.enable = true;
 
   programs.zsh.enable = true;
@@ -74,7 +84,12 @@ in
 
   services.cron = {
     enable = true;
+    systemCronJobs = [
+    "*/5 * * * * root ${sleepCheck}"
+    ];
   };
+
+  services.upower.enable = true;
 
   # ---------------------------------------------------------------------------
   # Security
