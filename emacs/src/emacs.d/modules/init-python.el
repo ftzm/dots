@@ -57,4 +57,8 @@
   :straight t
   )
 
+(use-package python-pytest
+  :straight t
+  )
+
 (provide 'init-python)
