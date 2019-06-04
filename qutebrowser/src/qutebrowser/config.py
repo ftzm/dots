@@ -89,7 +89,7 @@ c.tabs.favicons.show = "never"
 c.tabs.indicator.width = 0
 c.tabs.title.format = "{title}"
 
-c.zoom.default = "125%"
+c.zoom.default = "100%"
 c.url.start_pages = ["file:///home/matt/dev/homepage/index.html"]
 c.url.searchengines = {"DEFAULT": "https://www.google.com/search?hl=en&q={}", "wa": "https://wiki.archlinux.org/?search={}"}
 
