@@ -80,12 +80,23 @@
 
 (use-package general
   :straight t
-  :after (evil)
+  :init
+  ;; to override evil-collection
+  (setq general-override-states '(insert
+                                  emacs
+                                  hybrid
+                                  normal
+                                  visual
+                                  motion
+                                  operator
+                                  replace))
   :config
   (general-define-key
-   :keymaps '(dired-mode-map
+   :states '(normal visual motion)
+   :keymaps '(override
+              dired-mode-map
     	      magit-mode-map
-	      magit-blame-mode-map
+	          magit-blame-mode-map
     	      evil-normal-state-map)
    "SPC"
    'leader-menu)
