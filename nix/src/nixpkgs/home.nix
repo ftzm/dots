@@ -1,9 +1,18 @@
 { config, pkgs, ... }:
 
-let dots = "${config.home.homeDirectory}/.dots/"; in
+let
+  dots = "${config.home.homeDirectory}/.dots/";
+  ps = import (
+         pkgs.fetchFromGitHub {
+           owner = "ftzm";
+           repo = "pipestatus";
+           rev = "fababa4417f394786c61eeccf13a2f371cb57a40";
+           sha256 = "1ivb80y4b09d2s3zh63qw9wi3n5h36di735pp8rsnwz6hl6dhxk1";
+         } + "/release.nix"
+       );
+in
 
 {
-
   home.packages = with pkgs; [
       nix cacert # nothing else works without these
       zlib.dev # also needed for a lot
@@ -79,6 +88,10 @@ let dots = "${config.home.homeDirectory}/.dots/"; in
       mu
       isync
       protonmail-bridge
+
+      #custom
+      ps.pipestatus
+      ps.ps_scripts
   ];
 
   programs.zsh = {
