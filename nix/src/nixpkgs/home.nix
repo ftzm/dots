@@ -1,6 +1,7 @@
 { config, pkgs, ... }:
 
 let
+  font_size = 10;
   dots = "${config.home.homeDirectory}/.dots/";
   ps = import (
          pkgs.fetchFromGitHub {
@@ -20,7 +21,6 @@ in
 
       # system
       dmenu
-      rxvt_unicode
       ranger
       htop
       arandr
@@ -89,9 +89,12 @@ in
       isync
       protonmail-bridge
 
-      #custom
+      # custom
       ps.pipestatus
       ps.ps_scripts
+
+      # fonts
+      source-sans-pro
   ];
 
   programs.zsh = {
@@ -154,6 +157,55 @@ in
     ];
   };
 
+  services.dunst = {
+    enable = true;
+    settings = {
+      global = {
+        geometry = "0x5-20+20";
+        transparency = 0;
+        notification_height = 0;
+        separator_height = 3;
+        padding = 12;
+        horizontal_padding = 12;
+        frame_width = 3;
+        frame_color = "#bdae93";
+        separator_color = "frame";
+        idle_threshold = 120;
+        font = "Fira Mono Medium ${toString font_size}";
+        line_height = 0;
+        markup = "full";
+        format = "<b>%s</b>\n%b";
+        alignment = "left";
+        show_age_threshold = 60;
+        word_wrap = "yes";
+        ellipsize = "middle";
+        ignore_newline = "no";
+        stack_duplicates = "true";
+        hide_duplicate_count = false;
+        show_indicators = "yes";
+        icon_position = "off";
+        sticky_history = "yes";
+        history_length = 20;
+      };
+      urgency_low = {
+        background = "#222222";
+        foreground = "#888888";
+        timeout = 10;
+      };
+      urgency_normal = {
+        background = "#282828";
+        foreground = "#ebdbb2";
+        timeout = 10;
+      };
+      urgency_critical = {
+        background = "#900000";
+        foreground = "#ffffff";
+        frame_color = "#ff0000";
+        timeout = 0;
+      };
+    };
+  };
+
   programs.direnv = {
     enable = true;
     enableZshIntegration = true;
@@ -161,10 +213,6 @@ in
 
   # home.file.".xmonad/xmonad.hs" = {
   #   source = dots + "xmonad/src/xmonad/xmonad.hs";
-  # };
-
-  # home.file.".config/dunst/dunstrc" = {
-  #   source = dots + "dunst/src/dunstrc";
   # };
 
   # home.file.".config/qutebrowser" = {
@@ -191,6 +239,88 @@ in
   #   source = dots + "zathura/src/zathura";
   #   recursive = true;
   # };
+
+  # programs.firefox= {
+  #   enable = true;
+  #   profiles = {
+  #     main = {
+  #       settings = {
+  #         "browser.startup.homepage" = "https://nixos.org";
+  #       };
+  #       userChrome = ''
+  #       /* hides the native tabs */
+  #       #TabsToolbar {
+  #         visibility: collapse;
+  #       }
+
+  #       '';
+  #     };
+  #   };
+  # };
+
+  programs.urxvt = {
+    enable = true;
+    fonts = [
+      "xft:Fira Code:Regular:size=10"
+      "xft:Source Code Pro:Regular:size=10"
+    ];
+    extraConfig = {
+      scrollBar = false;
+      letterSpace = -1.6;
+      smoothResize = true;
+      interalBorder = 5;
+      urgentOnBell = true;
+    };
+  };
+  xresources.properties = {
+    "*background" = "#282828";
+    "*foreground" = "#ebdbb2";
+    "*color0" = "#282828";
+    "*color8" = "#928374";
+    "*color1" = "#cc241d";
+    "*color9" = "#fb4934";
+    "*color2" = "#98971a";
+    "*color10" = "#b8bb26";
+    "*color3" = "#d79921";
+    "*color11" = "#fabd2f";
+    "*color4" = "#458588";
+    "*color12" = "#83a598";
+    "*color5" = "#b16286";
+    "*color13" = "#d3869b";
+    "*color6" = "#689d6a";
+    "*color14" = "#8ec07c";
+    "*color7" = "#a89984";
+    "*color15" = "#ebdbb2";
+  };
+
+  programs.git = {
+    enable = true;
+    ignores = [
+      "*~"
+    ];
+    userEmail = "matthew@fitzsimmons.org";
+    userName = "ftzm";
+  };
+
+  xsession = {
+    enable = true;
+    windowManager = {
+      xmonad = {
+        enable = true;
+        enableContribAndExtras = true;
+      };
+    };
+    initExtra = ''
+      ${pkgs.hsetroot}/bin/hsetroot -solid "#282828" &
+      rm /tmp/statuspipe.fifo; pipestatus &
+      export FONT_SIZE=${toString font_size}
+    '';
+    pointerCursor = {
+      package = pkgs.vanilla-dmz;
+      name = "Vanilla-DMZ";
+    };
+  };
+
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
