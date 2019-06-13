@@ -261,7 +261,7 @@ in
   programs.urxvt = {
     enable = true;
     fonts = [
-      "xft:Fira Code:Regular:size=10"
+      "xft:Fira Mono Medium:Regular:size=10"
       "xft:Source Code Pro:Regular:size=10"
     ];
     extraConfig = {
