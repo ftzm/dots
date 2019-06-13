@@ -21,6 +21,9 @@
 (require 'init-security)
 
 ;;context specific
+(require 'init-org) ; Loading org later/below this point breaks it. There must
+		    ; be a loading order incompatibility with one of the
+		    ; modules below.
 (require 'init-elisp)
 (require 'init-lisp)
 (require 'init-nix)
@@ -41,7 +44,6 @@
 
 (require 'init-jira)
 (require 'init-mail)
-(require 'init-org)
 
 ;;centralized key mappings
 (require 'init-keys)

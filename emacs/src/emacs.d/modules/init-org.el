@@ -1,49 +1,48 @@
 ;; org requires this hacky shit, this will install it on every run, should
 ;; optimize this. Got this recipe from the straight.el readme
 
-(require 'subr-x)
-(straight-use-package 'git)
+(setq debug-on-error t)
 
-(defun org-git-version ()
-  "The Git version of org-mode.
-Inserted by installing org-mode or when a release is made."
-  (require 'git)
-  (let ((git-repo (expand-file-name
-                   "straight/repos/org/" user-emacs-directory)))
-    (string-trim
-     (git-run "describe"
-              "--match=release\*"
-              "--abbrev=6"
-              "HEAD"))))
-
-(defun org-release ()
-  "The release version of org-mode.
-Inserted by installing org-mode or when a release is made."
-  (require 'git)
-  (let ((git-repo (expand-file-name
-                   "straight/repos/org/" user-emacs-directory)))
-    (string-trim
-     (string-remove-prefix
-      "release_"
-      (git-run "describe"
-               "--match=release\*"
-               "--abbrev=0"
-               "HEAD")))))
-
-(provide 'org-version)
-
-(straight-use-package 'org-plus-contrib) ;; or org-plus-contrib if desired
+; (require 'subr-x)
+; (straight-use-package 'git)
+;
+; (defun org-git-version ()
+;   "The Git version of org-mode.
+; Inserted by installing org-mode or when a release is made."
+;   (require 'git)
+;   (let ((git-repo (expand-file-name
+;                    "straight/repos/org/" user-emacs-directory)))
+;     (string-trim
+;      (git-run "describe"
+;               "--match=release\*"
+;               "--abbrev=6"
+;               "HEAD"))))
+;
+; (defun org-release ()
+;   "The release version of org-mode.
+; Inserted by installing org-mode or when a release is made."
+;   (require 'git)
+;   (let ((git-repo (expand-file-name
+;                    "straight/repos/org/" user-emacs-directory)))
+;     (string-trim
+;      (string-remove-prefix
+;       "release_"
+;       (git-run "describe"
+;                "--match=release\*"
+;                "--abbrev=0"
+;                "HEAD")))))
+;
+; (provide 'org-version)
 
 (use-package org
   ;:mode (("\\.org$" . org-mode))
+  :straight (org org-plus-contrib)
   :config
   (add-hook 'org-mode-hook #'visual-line-mode)
   (progn
     (setq org-directory "~/org")
     (setq org-agenda-files (quote ("~/org/work.org"
 				   "~/org/inbox.org"
-				   "~/org/gcal/matthew.org"
-				   "~/org/gcal/work.org"
 				   "~/org/todo.org"
 				   "~/org/projects.org"
 				   "~/org/main.org")))
@@ -373,55 +372,55 @@ are equal return t."
   ;; (add-hook 'org-after-todo-state-change-hook 'mm/org-insert-trigger)
   ;; )
 
-(use-package org-super-agenda
-  :straight t
-  :config
-  (org-super-agenda-mode 0)
-  (setq org-super-agenda-groups
-       '(;; Each group has an implicit boolean OR operator between its selectors.
-
-	 ;; discard duplicate closed entries
-	 (:discard (:and (:todo "DONE" :regexp "Scheduled")))
-
-         (:name "Closed"  ; Optionally specify section name
-                ;:todo "DONE"  ; Items that have this TODO keyword
-		:regexp "Closed"
-		:order 99
-		)
-
-	 (:name "Habits"
-		:habit t
-		:order 15)
-
-	 (:name "To Refile"
-		:tag "REFILE"
-		:order 1)
-
-	 (:name "Work"
-		:tag "work"
-		:order 5)
-
-	 (:name "Personal"
-		:todo "TODO"
-		:order 10)
-
-	 (:discard (:anything t)) ;; discard final non-matching entries
-
-	)
-	)
-
-  )
+; (use-package org-super-agenda
+;   :straight t
+;   :config
+;   (org-super-agenda-mode 0)
+;   (setq org-super-agenda-groups
+;        '(;; Each group has an implicit boolean OR operator between its selectors.
+;
+; 	 ;; discard duplicate closed entries
+; 	 (:discard (:and (:todo "DONE" :regexp "Scheduled")))
+;
+;          (:name "Closed"  ; Optionally specify section name
+;                 ;:todo "DONE"  ; Items that have this TODO keyword
+; 		:regexp "Closed"
+; 		:order 99
+; 		)
+;
+; 	 (:name "Habits"
+; 		:habit t
+; 		:order 15)
+;
+; 	 (:name "To Refile"
+; 		:tag "REFILE"
+; 		:order 1)
+;
+; 	 (:name "Work"
+; 		:tag "work"
+; 		:order 5)
+;
+; 	 (:name "Personal"
+; 		:todo "TODO"
+; 		:order 10)
+;
+; 	 (:discard (:anything t)) ;; discard final non-matching entries
+;
+; 	)
+; 	)
+;
+;   )
 
 (use-package org-indent
   :diminish org-indent-mode
   )
 
-(use-package calfw
-  :straight t
-  )
-
-(use-package calfw-org
-  :straight t
-  )
+; (use-package calfw
+;   :straight t
+;   )
+;
+; (use-package calfw-org
+;   :straight t
+;   )
 
 (provide 'init-org)
