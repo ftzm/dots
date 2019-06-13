@@ -11,7 +11,7 @@
 let
   secrets = import /etc/nixos/secrets.nix;
   sleepCheck = pkgs.writeScript "sleepCheck.sh" ''
-  STATUS=$(cat /sys/class/power_supply/BAT0/device/power_supply/BAT0/status)
+  STATUS=$(cat /sys/class/power_supply/BAT0/status)
   CAPACITY=$(cat /sys/class/power_supply/BAT0/capacity)
   if [ "''${STATUS}" = "Discharging" ] && [ $CAPACITY -lt 5 ]; then
     systemctl hibernate
@@ -22,6 +22,7 @@ in
 {
   imports =
     [ # Include the results of the hardware scan.
+      <nixos-hardware/lenovo/thinkpad/t480s>
       /etc/nixos/hardware-configuration.nix
       /etc/nixos/state-version.nix
     ];
@@ -32,7 +33,10 @@ in
   # ---------------------------------------------------------------------------
   # Cache
   nix = {
-    binaryCaches = [ "https://cache.nixos.org" "https://cache.dhall-lang.org" ];
+    binaryCaches = [
+      "https://cache.nixos.org"
+      "https://cache.dhall-lang.org"
+    ];
 
     binaryCachePublicKeys = [
       "cache.dhall-lang.org:I9/H18WHd60olG5GsIjolp7CtepSgJmM2CsO813VTmM="
@@ -91,6 +95,8 @@ in
 
   services.upower.enable = true;
 
+  hardware.brightnessctl.enable = true;
+
   # ---------------------------------------------------------------------------
   # Security
 
@@ -144,47 +150,15 @@ in
   # Needed for steam
   hardware.opengl.driSupport32Bit = true;
 
-  hardware.nvidia.optimus_prime.enable = true;
-  # Bus ID of the NVIDIA GPU. You can find it using lspci
-  hardware.nvidia.optimus_prime.nvidiaBusId = "PCI:02:00:0";
-  # Bus ID of the Intel GPU. You can find it using lspci
-  hardware.nvidia.optimus_prime.intelBusId = "PCI:00:02:0";
-
   services.xserver = {
     enable = true;
     layout = "us";
-
-    videoDrivers = [ "nvidiaBeta" ];
 
     displayManager.lightdm = {
       enable = true;
       autoLogin.enable = true;
       autoLogin.user = "matt";
     };
-
-    windowManager = {
-      xmonad.enable = true;
-      xmonad.enableContribAndExtras = true;
-      default = "xmonad";
-    };
-
-    desktopManager = {
-      session = [
-        {
-          name = "custom";
-          start = ''
-            ${pkgs.hsetroot}/bin/hsetroot -solid "#282828" &
-            xsetroot -cursor_name left_ptr &
-            xrdb -merge ~/.Xresources
-            ${pkgs.dunst}/bin/dunst &
-            rm /tmp/statuspipe.fifo; /home/matt/.local/bin/pipestatus &
-          '';
-        }
-      ];
-      xterm.enable = false;
-      default = "custom";
-    };
-  };
 
   # Enable slock for screen locking
   programs.slock.enable = true;
