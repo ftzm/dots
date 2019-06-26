@@ -150,7 +150,7 @@ emacsStyleKeys l = M.union
       , ("h", spawn "boseqc.sh")
       ]
       ++
-      [(show i, spawn ("xbacklight -set " ++ show ((i + 1) * 10))) | i <- [0..9]]
+      [(show i, spawn ("brightnessctl s " ++ show ((i + 1) * 10) ++ "%")) | i <- [0..9]]
     appsKeys = mkKeymap l $
       [ ("e", spawn "e")
       ]

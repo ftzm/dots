@@ -33,6 +33,7 @@ in
       killall
       unzip
       pciutils
+      brightnessctl
 
       # office/document/media
       libreoffice
