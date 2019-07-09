@@ -112,16 +112,14 @@ showMap :: XConfig Layout -> [(String, String, X ())] -> X ()
 showMap l xs = spawn ("notify-send '" ++ legend ++ "'") >> (submap $ mkKeymap l keyMap)
   where
     legend :: String
-    legend = intercalate "\n" $ map (\(key,name,_) -> key ++ " " ++ name ) xs
+    legend = intercalate "\n" [key ++ " " ++ name | (key,name,_) <- xs]
     keyMap :: [(String, X ())]
-    keyMap = map (\(key,_,cmd) -> (key,cmd)) xs
+    keyMap = [(key,cmd) | (key,_,cmd) <- xs]
 
 emacsStyleKeys :: XConfig Layout -> M.Map (KeyMask, KeySym) (X ())
 emacsStyleKeys l = M.union
   (mkKeymap l $
     [ ("M-<Return>", spawn $ terminal l)
-    , ("M-x w", spawn "xmessage 'woohoo!'")  -- type mod+x then w to pop up 'woohoo!'
-    , ("M-x y", spawn "xmessage 'yay!'")     -- type mod+x then y to pop up 'yay!'
     , ("M-S-c", kill)
     --windows
     , ("M-n", windows W.focusDown)
@@ -131,13 +129,15 @@ emacsStyleKeys l = M.union
     , ("M-w", sendMessage Expand)
     , ("M-S-w", sendMessage Shrink)
     , ("M-l", sendMessage NextLayout)
+    , ("M-t", withFocused $ windows . W.sink)
     --system
     , ("M-p", spawn "mpc toggle")
-    , ("M-v", spawn "panel_volume +")
-    , ("M-S-v", spawn "panel_volume -")
-    , ("M-s", spawn "notify-send 'woohoo'" >> submap sysKeys)
+    , ("M-v", spawn "Volume up" >> spawn "panel_volume +")
+    , ("M-S-v", spawn "Volume down" >> spawn "panel_volume -")
+    , ("M-<F3>", spawn "amixer set Master toggle")
+    , ("M-s", submap sysKeys)
     , ("M-a", submap appsKeys)
-    , ("M-t", testMap)
+    , ("M-S-t", testMap)
     --applications
     , ("M-S-z", spawn "clip_key")
     , ("M-<Space>", spawn "my_dmenu.sh")
@@ -148,9 +148,12 @@ emacsStyleKeys l = M.union
       [ ("s", spawn "scrot -s")
       , ("l", spawn "slock")
       , ("h", spawn "boseqc.sh")
+      , ("S-s", spawn "systemctl suspend")
+      , ("S-h", spawn "systemctl hibernate")
+      , ("m", spawn "toggle_mouse.sh")
       ]
       ++
-      [(show i, spawn ("brightnessctl s " ++ show ((i + 1) * 10) ++ "%")) | i <- [0..9]]
+      [(show i, brightness i)| i <- [0..9]]
     appsKeys = mkKeymap l $
       [ ("e", spawn "e")
       ]
@@ -181,114 +184,12 @@ workspaceKeys conf@XConfig {XMonad.modMask = modMask} =
     [((sm .|. m1m, k), windows $ copyWorkspace i)
         | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]]
 
-myKeys :: XConfig Layout -> M.Map (KeyMask, KeySym) (X ())
-myKeys conf@XConfig {XMonad.modMask = modMask} =
-  let mm = modMask
-      sm = shiftMask
-      m1m = mod1Mask
-  in M.fromList $
-    -- launching and killing programs
-    [ ((mm, xK_Return), spawn $ XMonad.terminal conf) -- %! Launch terminal
-    , ((mm, xK_space),  spawn "my_dmenu.sh")          -- %! Launch dmenu
-    , ((mm .|. sm, xK_q),      kill)                         -- %! Close the focused window
-
-    , ((mm, xK_Tab ), sendMessage NextLayout) -- %! Rotate through the available layout algorithms
-    , ((mm .|. sm, xK_space ), setLayout $ XMonad.layoutHook conf) -- %!  Reset the layouts on the current workspace to default
-
-    , ((mm, xK_n), refresh) -- %! Resize viewed windows to the correct size
-
-    -- move focus up or down the window stack
-    , ((mm, xK_j), windows W.focusDown)   -- %! Move focus to the next window
-    , ((mm, xK_k), windows W.focusUp)     -- %! Move focus to the previous window
-    , ((mm, xK_m), windows W.focusMaster) -- %! Move focus to the master window
-
-    -- modifying the window order
-    , ((mm .|. m1m, xK_m), windows W.swapMaster) -- %! Swap the focused window and the master window
-    , ((mm .|. m1m, xK_j), windows W.swapDown  ) -- %! Swap the focused window with the next window
-    , ((mm .|. m1m, xK_k), windows W.swapUp    ) -- %! Swap the focused window with the previous window
-
-    -- submap for window operations to alleviate reliance on complicated
-    -- modifier combinations
-    , ((mm, xK_w), submap . M.fromList $
-        [ ((0, xK_j), windows W.swapDown)
-        , ((0, xK_k), windows W.swapUp)
-        ])
-
-    -- resizing the master/slave ratio
-    , ((mm, xK_h), sendMessage Shrink) -- %! Shrink the master area
-    , ((mm, xK_l), sendMessage Expand) -- %! Expand the master area
-
-    -- floating layer support
-    , ((mm, xK_t), withFocused $ windows . W.sink) -- %! Push window back into tiling
-
-    -- increase or decrease number of windows in the master area
-    , ((mm , xK_comma),  sendMessage (IncMasterN 1)) -- %! Increment the number of windows in the master area
-    , ((mm , xK_period), sendMessage (IncMasterN (-1))) -- %! Deincrement the number of windows in the master area
-
-    -- quit, or restart
-    , ((mm .|. sm .|. m1m, xK_q), io exitSuccess) -- %! Quit xmonad
-    --, ((mm .|. sm .|. m1m, xK_r), spawn "if type xmonad; then xmonad --recompile && xmonad --restart; else xmessage xmonad not in \\$PATH: \"$PATH\"; fi") -- %! Restart xmonad
-    , ((mm .|. sm .|. m1m, xK_r), spawn "if type xmonad; then xmonad --recompile && xmonad --restart; else xmessage xmonad not in \\$PATH: \"$PATH\"; fi") -- %! Restart xmonad
-
-    --ResizableTile keys
-    , ((mm, xK_a), sendMessage MirrorShrink)
-    , ((mm, xK_z), sendMessage MirrorExpand)
-
-    --historical
-    , ((mm, xK_semicolon), nextMatch History (return True))
-
-    --bsp keys
-    , ((mm .|. sm, xK_p),         sendMessage FocusParent)
-    , ((mm .|. sm, xK_s),         sendMessage Swap)
-    , ((mm .|. sm, xK_r),         sendMessage Rotate)
-    , ((mm .|. sm, xK_n),         sendMessage SelectNode)
-    , ((mm .|. sm, xK_m),         sendMessage MoveNode)
-    , ((mm .|. sm, xK_l),         sendMessage $ ExpandTowards R)
-    , ((mm .|. sm, xK_h),         sendMessage $ ExpandTowards L)
-    , ((mm .|. sm, xK_j),         sendMessage $ ExpandTowards D)
-    , ((mm .|. sm, xK_k),         sendMessage $ ExpandTowards U)
-    , ((mm .|. sm .|. m1m, xK_l), sendMessage $ ShrinkFrom R)
-    , ((mm .|. sm .|. m1m, xK_h), sendMessage $ ShrinkFrom L)
-    , ((mm .|. sm .|. m1m, xK_j), sendMessage $ ShrinkFrom D)
-    , ((mm .|. sm .|. m1m, xK_k), sendMessage $ ShrinkFrom U)
-
-    --My desktop keys
-    , ((mm, xK_Down),      spawn "panel_volume -")
-    , ((mm, xK_Up),        spawn "panel_volume +")
-    , ((mm, xK_F3),        spawn "amixer set Master toggle")
-    , ((mm, xK_F5),        spawn "xbacklight -dec 10")
-    , ((mm, xK_F10),       spawn "scrot -s")
-    , ((mm, xK_F6),        spawn "xbacklight -inc 10")
-    , ((mm .|. m1m, xK_b), spawn "kbds")
-    , ((mm .|. m1m, xK_h), spawn "systemctl hibernate")
-    , ((mm, xK_F7),        spawn "playerctl play-pause")
-    , ((mm .|. m1m, xK_t), spawn "toggle_mouse.sh")
-    , ((mm .|. m1m, xK_r), spawn "konsole -e ranger")
-    , ((mm .|. sm, xK_z), spawn "clip_key")
-    , ((mm .|. sm, xK_d), spawn "monitor.sh")
-    , ((mm .|. m1m, xK_s), spawn "slock")
-    , ((mm, xK_o), screenWorkspace 0 >>= flip whenJust (windows . W.view))
-    , ((mm, xK_a), screenWorkspace 1 >>= flip whenJust (windows . W.view))
-    ]
-    ++
-    -- @greedyView@ will move the given workspace to the current screen, while
-    -- @view@ will simply move to another screen if the workspace is there.
-    -- mod-[1..9] %! Switch to workspace N
-    -- mod-shift-[1..9] %! Move client to workspace N
-    [((m .|. mm, k), windows $ f i)
-        | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]
-        , (f, m) <- [(W.view, 0), (W.shift, sm)]]
-    ++
-    -- mod-{w,e,r} %! Switch to physical/Xinerama screens 1, 2, or 3
-    -- mod-shift-{w,e,r} %! Move client to screen 1, 2, or 3
-    -- [((mm .|. sm, key), screenWorkspace sc >>= flip whenJust (windows . f))
-    --     | (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
-    --     , (f, m) <- [(W.view, 0), (W.shift, sm)]]
-
-    -- ++
-
-    [((sm .|. m1m, k), windows $ copyWorkspace i)
-        | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]]
+brightness x =
+  let
+    percentage = show $ 10 * if x == 0 then 10 else x
+  in do
+    spawn $ "notify-send 'Brightness " ++ percentage ++ "%'"
+    spawn $ "brightnessctl s " ++ percentage ++ "%"
 
 -- | Copy all windows in the specified workspace to the current workspace
 copyWorkspace :: (Eq s, Eq i, Eq a) => i -> W.StackSet i l a s sd -> W.StackSet i l a s sd

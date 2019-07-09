@@ -65,7 +65,7 @@ in
   networking.networkmanager.enable = true;
 
   # Set your time zone.
-  time.timeZone = "US/Eastern";
+  time.timeZone = "Europe/Copenhagen";
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
@@ -159,6 +159,7 @@ in
       autoLogin.enable = true;
       autoLogin.user = "matt";
     };
+  };
 
   # Enable slock for screen locking
   programs.slock.enable = true;

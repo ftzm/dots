@@ -1,7 +1,6 @@
 ;; org requires this hacky shit, this will install it on every run, should
 ;; optimize this. Got this recipe from the straight.el readme
 
-(setq debug-on-error t)
 
 ; (require 'subr-x)
 ; (straight-use-package 'git)
@@ -55,9 +54,9 @@
 
     ;; Autosave
     ;; passive saving
-    (add-hook 'auto-save-hook 'org-save-all-org-buffers)
+    (add-hook 'auto-save-hook (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
     ;; save on specific actions
-    (advice-add 'org-agenda-quit :before 'org-save-all-org-buffers)
+    (advice-add 'org-agenda-quit :before (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
 
     ;;(add-hook 'org-mode-hook 'olivetti-mode)
 

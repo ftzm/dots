@@ -96,6 +96,11 @@ in
 
       # fonts
       source-sans-pro
+
+      # For Haskell dev
+      cabal-install
+      cabal2nix
+      nix-prefetch-git
   ];
 
   programs.zsh = {
