@@ -2,6 +2,7 @@
 
 let
   font_size = 10;
+  isNixos = builtins.pathExists /etc/nixos;
   dots = "${config.home.homeDirectory}/.dots/";
   ps = import (
          pkgs.fetchFromGitHub {
@@ -18,13 +19,13 @@ in
       nix cacert # nothing else works without these
       zlib.dev # also needed for a lot
       zlib.out# also needed for a lot
+      glibcLocales # for non-broken locales in non-nixos
 
       # system
       dmenu
       ranger
       htop
       arandr
-      termite
       pass
       xdotool
       (dunst.override { dunstify = true;})
@@ -96,6 +97,8 @@ in
 
       # fonts
       source-sans-pro
+      fira-mono
+      fira-code
 
       # For Haskell dev
       cabal-install
@@ -141,13 +144,16 @@ in
     history.ignoreDups = true;
     initExtra = "
     EDITOR='vim'
-    export PATH=\"$PATH:/home/matt/.local/bin\"
-    export PATH=\"$PATH:/home/matt/bin\"
+    export PATH=\"$PATH:$HOME/.local/bin\"
+    export PATH=\"$PATH:$HOME/bin\"
     # Ask for passwords in cli
     unset SSH_ASKPASS
     unset GIT_ASKPASS
     # unalias conflicting aliases for bashmarks
     unalias l
+    [[ -f ~/.falcon ]] && source ~/.falcon
+    # for home manager on ubuntu
+    export NIX_PATH=$HOME/.nix-defexpr/channels\${NIX_PATH:+:}$NIX_PATH
     ";
   };
 
@@ -269,6 +275,7 @@ in
     fonts = [
       "xft:Fira Mono Medium:Regular:size=10"
       "xft:Source Code Pro:Regular:size=10"
+      "xft:Monospace:Regular:size=10"
     ];
     extraConfig = {
       scrollBar = false;
@@ -276,6 +283,7 @@ in
       smoothResize = true;
       interalBorder = 5;
       urgentOnBell = true;
+      boldFont = null;
     };
   };
   xresources.properties = {
@@ -297,14 +305,18 @@ in
     "*color14" = "#8ec07c";
     "*color7" = "#a89984";
     "*color15" = "#ebdbb2";
-  };
+    } // (if isNixos then {} else {"Xft.dpi" = "180";});
+
+  fonts.fontconfig.enable = true;
+
+  qt.enable = true;
 
   programs.git = {
     enable = true;
     ignores = [
       "*~"
     ];
-    userEmail = "matthew@fitzsimmons.org";
+    userEmail = "matthew@fitzsimmons.io";
     userName = "ftzm";
   };
 
@@ -317,9 +329,12 @@ in
       };
     };
     initExtra = ''
+      export LOCALE_ARCHIVE="$(nix-env --installed --no-name --out-path --query glibc-locales)/lib/locale/locale-archive"
       ${pkgs.hsetroot}/bin/hsetroot -solid "#282828" &
       rm /tmp/statuspipe.fifo; pipestatus &
       export FONT_SIZE=${toString font_size}
+      # For non-broken locale on non-nixos
+      xsetroot -cursor_name left_ptr
     '';
     pointerCursor = {
       package = pkgs.vanilla-dmz;
