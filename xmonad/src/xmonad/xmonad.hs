@@ -16,6 +16,7 @@ import XMonad.Hooks.EwmhDesktops(fullscreenEventHook,ewmh)
 import XMonad.Actions.CopyWindow
 import XMonad.Actions.Submap
 import XMonad.Util.EZConfig (mkKeymap)
+import XMonad.Util.Run
 import System.IO
 import Data.Maybe
 import Data.List
@@ -109,7 +110,10 @@ layoutRenamer x = case x of
   x                        -> x
 
 showMap :: XConfig Layout -> [(String, String, X ())] -> X ()
-showMap l xs = spawn ("notify-send '" ++ legend ++ "'") >> (submap $ mkKeymap l keyMap)
+showMap l xs = do
+  i <- runProcessWithInput "dunstify" [legend, "-p"] ""
+  submap $ mkKeymap l keyMap
+  spawn $ "dunstify -C " ++ i
   where
     legend :: String
     legend = intercalate "\n" [key ++ " " ++ name | (key,name,_) <- xs]
@@ -136,7 +140,7 @@ emacsStyleKeys l = M.union
     , ("M-S-v", spawn "Volume down" >> spawn "panel_volume -")
     , ("M-<F3>", spawn "amixer set Master toggle")
     , ("M-s", submap sysKeys)
-    , ("M-a", submap appsKeys)
+    , ("M-a", appsKeys)
     , ("M-S-t", testMap)
     --applications
     , ("M-S-z", spawn "clip_key")
@@ -154,8 +158,9 @@ emacsStyleKeys l = M.union
       ]
       ++
       [(show i, brightness i)| i <- [0..9]]
-    appsKeys = mkKeymap l $
-      [ ("e", spawn "e")
+    appsKeys = showMap l $
+      [ ("e", "emacsclient", spawn "e")
+      , ("q", "qutebrowser", spawn "/usr/bin/qutebrowser || qutebrowser")
       ]
     testMap = showMap l $
                 [ ("a", "ayy", spawn "notify-send 'ayy'")
