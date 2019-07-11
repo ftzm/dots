@@ -310,13 +310,15 @@ in
   fonts.fontconfig.enable = true;
 
   qt.enable = true;
+  gtk.enable = true;
 
   programs.git = {
     enable = true;
     ignores = [
       "*~"
+      "#*#"
     ];
-    userEmail = "matthew@fitzsimmons.io";
+    userEmail = "fitz.matt.d@gmail.com";
     userName = "ftzm";
   };
 
@@ -335,11 +337,13 @@ in
       export FONT_SIZE=${toString font_size}
       # For non-broken locale on non-nixos
       xsetroot -cursor_name left_ptr
+      # Mainly for ubuntu
+      export XCURSOR_PATH=$HOME/.nix-profile/share/icons:$XCURSOR_PATH
     '';
     pointerCursor = {
       package = pkgs.vanilla-dmz;
       name = "Vanilla-DMZ";
-    };
+    } // (if isNixos then {} else {size = 64;});
   };
 
 

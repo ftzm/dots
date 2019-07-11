@@ -150,7 +150,7 @@ emacsStyleKeys l = M.union
   where
     sysKeys = mkKeymap l $
       [ ("s", spawn "scrot -s")
-      , ("l", spawn "slock")
+      , ("l", spawn "gnome-screensaver-command -l || slock")
       , ("h", spawn "boseqc.sh")
       , ("S-s", spawn "systemctl suspend")
       , ("S-h", spawn "systemctl hibernate")
@@ -161,6 +161,7 @@ emacsStyleKeys l = M.union
     appsKeys = showMap l $
       [ ("e", "emacsclient", spawn "e")
       , ("q", "qutebrowser", spawn "/usr/bin/qutebrowser || qutebrowser")
+      , ("s", "slack", spawn "slack")
       ]
     testMap = showMap l $
                 [ ("a", "ayy", spawn "notify-send 'ayy'")
