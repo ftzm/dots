@@ -318,7 +318,7 @@ in
       "*~"
       "#*#"
     ];
-    userEmail = "fitz.matt.d@gmail.com";
+    userEmail = "matthew@fitzsimmons.io";
     userName = "ftzm";
   };
 
