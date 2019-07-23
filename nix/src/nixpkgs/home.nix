@@ -318,6 +318,8 @@ in
     ignores = [
       "*~"
       "#*#"
+      ".mypy_cache"
+      ".direnv"
     ];
     userEmail = "matthew@fitzsimmons.io";
     userName = "ftzm";
