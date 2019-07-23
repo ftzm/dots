@@ -26,6 +26,7 @@
 		    ; modules below.
 (require 'init-elisp)
 (require 'init-lisp)
+(require 'init-shell)
 (require 'init-nix)
 (require 'init-haskell)
 (require 'init-elm)
@@ -43,7 +44,7 @@
 (require 'init-terraform)
 
 (require 'init-jira)
-(require 'init-mail)
+;(require 'init-mail)
 
 ;;centralized key mappings
 (require 'init-keys)

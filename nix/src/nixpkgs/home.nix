@@ -142,6 +142,7 @@ in
       k = "kubectl";
     };
     history.ignoreDups = true;
+    history.extended = true;
     initExtra = "
     EDITOR='vim'
     export PATH=\"$PATH:$HOME/.local/bin\"
@@ -275,7 +276,7 @@ in
     fonts = [
       "xft:Fira Mono Medium:Regular:size=10"
       "xft:Source Code Pro:Regular:size=10"
-      "xft:Monospace:Regular:size=10"
+      "xft:DejaVu Sans Mono:Regular:size=10"
     ];
     extraConfig = {
       scrollBar = false;
