@@ -321,6 +321,11 @@ in
     ];
     userEmail = "matthew@fitzsimmons.io";
     userName = "ftzm";
+    extraConfig = {
+      status = {
+        showUntrackedFiles = "all"; # allows magit to show dir contents
+      };
+    };
   };
 
   xsession = {
