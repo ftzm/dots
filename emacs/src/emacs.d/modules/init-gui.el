@@ -4,7 +4,8 @@
 
 ;Set font
 ;to set in existing window:
-(set-frame-font (format "Fira Mono Medium-%s" (or (getenv "FONT_SIZE") "16")) nil t)
+(set-frame-font (format "Fira Mono Medium-%s"
+			(or (getenv "FONT_SIZE") "16")) nil t)
 
 ; this only works on startup
 ; (add-to-list 'default-frame-alist '(font . "Fira Mono Medium-16" ))

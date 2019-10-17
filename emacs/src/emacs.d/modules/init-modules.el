@@ -31,6 +31,7 @@
 (require 'init-haskell)
 (require 'init-elm)
 (require 'init-python)
+(require 'init-go)
 (require 'init-lua)
 
 (require 'init-yaml)

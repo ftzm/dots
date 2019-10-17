@@ -4,106 +4,106 @@ let
   font_size = 10;
   isNixos = builtins.pathExists /etc/nixos;
   dots = "${config.home.homeDirectory}/.dots/";
-  ps = import (
-         pkgs.fetchFromGitHub {
-           owner = "ftzm";
-           repo = "pipestatus";
-           rev = "fababa4417f394786c61eeccf13a2f371cb57a40";
-           sha256 = "1ivb80y4b09d2s3zh63qw9wi3n5h36di735pp8rsnwz6hl6dhxk1";
-         } + "/release.nix"
-       );
-in
+  ps = import (pkgs.fetchFromGitHub {
+    owner = "ftzm";
+    repo = "pipestatus";
+    rev = "fababa4417f394786c61eeccf13a2f371cb57a40";
+    sha256 = "1ivb80y4b09d2s3zh63qw9wi3n5h36di735pp8rsnwz6hl6dhxk1";
+  } + "/release.nix");
 
-{
+in {
   home.packages = with pkgs; [
-      nix cacert # nothing else works without these
-      zlib.dev # also needed for a lot
-      zlib.out# also needed for a lot
-      glibcLocales # for non-broken locales in non-nixos
+    nix
+    cacert # nothing else works without these
+    zlib.dev # also needed for a lot
+    zlib.out # also needed for a lot
+    glibcLocales # for non-broken locales in non-nixos
 
-      # system
-      dmenu
-      ranger
-      htop
-      arandr
-      pass
-      xdotool
-      (dunst.override { dunstify = true;})
-      libnotify # for notify-send in scripts
-      acpi
-      killall
-      unzip
-      pciutils
-      brightnessctl
+    # system
+    dmenu
+    ranger
+    htop
+    arandr
+    pass
+    xdotool
+    (dunst.override { dunstify = true; })
+    libnotify # for notify-send in scripts
+    acpi
+    killall
+    unzip
+    pciutils
+    brightnessctl
+    gotop
 
-      # office/document/media
-      libreoffice
-      gimp
-      slack
-      vlc
-      zathura
+    # office/document/media
+    libreoffice
+    gimp
+    slack
+    vlc
+    zathura
+    keybase-gui
 
-      # latex
-      texlive.combined.scheme-full
-      pandoc
+    # latex
+    # texlive.combined.scheme-full
+    # pandoc
 
-      # webz
-      chromium
-      firefox
-      qutebrowser
-      wget
-      openvpn
-      deluge
+    # webz
+    chromium
+    firefox
+    qutebrowser
+    wget
+    openvpn
+    deluge
 
-      # fun
-      # steam define in system
-      discord
+    # fun
+    # steam define in system
+    discord
 
-      # appearance
-      hsetroot
-      lxappearance
-      arc-theme
-      xorg.xcursorthemes
-      gnome3.adwaita-icon-theme
-      gnome3.gnome-tweak-tool
-      vanilla-dmz
+    # appearance
+    hsetroot
+    lxappearance
+    arc-theme
+    xorg.xcursorthemes
+    gnome3.adwaita-icon-theme
+    gnome3.gnome-tweak-tool
+    vanilla-dmz
 
-      # programming
-      emacs
-      neovim
-      git
-      git-crypt
-      ag
-      stack
-      gnumake
-      jq
+    # programming
+    emacs
+    neovim
+    git
+    git-crypt
+    ag
+    stack
+    gnumake
+    jq
 
-      # cloud
-      kops
-      kubernetes
+    # cloud
+    kops
+    kubernetes
 
-      # mpd
-      mpc_cli
-      ncmpcpp
+    # mpd
+    mpc_cli
+    ncmpcpp
 
-      # email
-      mu
-      isync
-      protonmail-bridge
+    # email
+    mu
+    isync
+    protonmail-bridge
 
-      # custom
-      ps.pipestatus
-      ps.ps_scripts
+    # custom
+    ps.pipestatus
+    ps.ps_scripts
 
-      # fonts
-      source-sans-pro
-      fira-mono
-      fira-code
+    # fonts
+    source-sans-pro
+    fira-mono
+    fira-code
 
-      # For Haskell dev
-      cabal-install
-      cabal2nix
-      nix-prefetch-git
+    # For Haskell dev
+    cabal-install
+    cabal2nix
+    nix-prefetch-git
   ];
 
   programs.zsh = {
@@ -143,22 +143,26 @@ in
     };
     history.ignoreDups = true;
     history.extended = true;
-    initExtra = "
-    EDITOR='vim'
-    export PATH=\"$PATH:$HOME/.local/bin\"
-    export PATH=\"$PATH:$HOME/bin\"
-    # Ask for passwords in cli
-    unset SSH_ASKPASS
-    unset GIT_ASKPASS
-    # unalias conflicting aliases for bashmarks
-    unalias l
-    [[ -f ~/.falcon ]] && source ~/.falcon
-    # for home manager on ubuntu
-    export NIX_PATH=$HOME/.nix-defexpr/channels\${NIX_PATH:+:}$NIX_PATH
-    ";
+    initExtra = ''
+      EDITOR='vim'
+      export PATH=$HOME/bin:$HOME/.local/bin:$PATH
+      # Ask for passwords in cli
+      unset SSH_ASKPASS
+      unset GIT_ASKPASS
+      # unalias conflicting aliases for bashmarks
+      unalias l
+      [[ -f ~/.falcon ]] && source ~/.falcon
+      # for home manager on ubuntu
+      export NIX_PATH=$HOME/.nix-defexpr/channels''${NIX_PATH:+:}$NIX_PATH
+    '';
   };
 
   services.udiskie.enable = true;
+  services.syncthing.enable = true;
+
+  # Keybase
+  services.kbfs.enable = true;
+  services.keybase.enable = true;
 
   programs.fzf = {
     enable = true;
@@ -187,18 +191,20 @@ in
         font = "Fira Mono Medium ${toString font_size}";
         line_height = 0;
         markup = "full";
-        format = "<b>%s</b>\n%b";
-        alignment = "left";
-        show_age_threshold = 60;
-        word_wrap = "yes";
-        ellipsize = "middle";
-        ignore_newline = "no";
-        stack_duplicates = "true";
-        hide_duplicate_count = false;
-        show_indicators = "yes";
-        icon_position = "off";
-        sticky_history = "yes";
-        history_length = 20;
+        format = ''
+          <b>%s</b>
+          %b'';
+          alignment = "left";
+          show_age_threshold = 60;
+          word_wrap = "yes";
+          ellipsize = "middle";
+          ignore_newline = "no";
+          stack_duplicates = "true";
+          hide_duplicate_count = false;
+          show_indicators = "yes";
+          icon_position = "off";
+          sticky_history = "yes";
+          history_length = 20;
       };
       urgency_low = {
         background = "#222222";
@@ -223,53 +229,6 @@ in
     enable = true;
     enableZshIntegration = true;
   };
-
-  # home.file.".xmonad/xmonad.hs" = {
-  #   source = dots + "xmonad/src/xmonad/xmonad.hs";
-  # };
-
-  # home.file.".config/qutebrowser" = {
-  #   source = dots + "qutebrowser/src";
-  #   recursive = true;
-  # };
-
-  # home.file.".emacs.d" = {
-  #   source = dots + "emacs/src/emacs.d";
-  #   recursive = true;
-  # };
-
-  # home.file.".ncmpcpp" = {
-  #   source = dots + "ncmpcpp/src/ncmpcpp";
-  #   recursive = true;
-  # };
-
-  # home.file.".config/ranger" = {
-  #   source = dots + "ranger/src/ranger";
-  #   recursive = true;
-  # };
-
-  # home.file.".config/zathura" = {
-  #   source = dots + "zathura/src/zathura";
-  #   recursive = true;
-  # };
-
-  # programs.firefox= {
-  #   enable = true;
-  #   profiles = {
-  #     main = {
-  #       settings = {
-  #         "browser.startup.homepage" = "https://nixos.org";
-  #       };
-  #       userChrome = ''
-  #       /* hides the native tabs */
-  #       #TabsToolbar {
-  #         visibility: collapse;
-  #       }
-
-  #       '';
-  #     };
-  #   };
-  # };
 
   programs.urxvt = {
     enable = true;
@@ -306,7 +265,7 @@ in
     "*color14" = "#8ec07c";
     "*color7" = "#a89984";
     "*color15" = "#ebdbb2";
-    } // (if isNixos then {} else {"Xft.dpi" = "180";});
+  } // (if isNixos then { } else { "Xft.dpi" = "180"; });
 
   fonts.fontconfig.enable = true;
 
@@ -315,12 +274,7 @@ in
 
   programs.git = {
     enable = true;
-    ignores = [
-      "*~"
-      "#*#"
-      ".mypy_cache"
-      ".direnv"
-    ];
+    ignores = [ "*~" "#*#" ".mypy_cache" ".direnv" ];
     userEmail = "matthew@fitzsimmons.io";
     userName = "ftzm";
     extraConfig = {
@@ -339,7 +293,7 @@ in
       };
     };
     initExtra = ''
-      export LOCALE_ARCHIVE="$(nix-env --installed --no-name --out-path --query glibc-locales)/lib/locale/locale-archive"
+      export LOCALE_ARCHIVE_2_27="$(nix-build --no-out-link "<nixpkgs>" -A glibcLocales)/lib/locale/locale-archive"
       ${pkgs.hsetroot}/bin/hsetroot -solid "#282828" &
       rm /tmp/statuspipe.fifo; pipestatus &
       export FONT_SIZE=${toString font_size}
@@ -351,9 +305,8 @@ in
     pointerCursor = {
       package = pkgs.vanilla-dmz;
       name = "Vanilla-DMZ";
-    } // (if isNixos then {} else {size = 64;});
+    } // (if isNixos then { } else { size = 64; });
   };
-
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;

@@ -25,4 +25,11 @@
   ;(load-theme 'solarized-light t)
   )
 
+;(use-package darktooth-theme
+;  :straight t
+;  :config
+;  (load-theme 'darktooth t)
+;  (darktooth-modeline)
+;  )
+
 (provide 'init-themes)

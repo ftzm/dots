@@ -14,10 +14,47 @@
   (define-key evil-visual-state-map "L" 'evil-last-non-blank)
   (define-key evil-normal-state-map "H" 'beginning-of-line-text)
   (define-key evil-visual-state-map "H" 'beginning-of-line-text)
-  (define-key evil-normal-state-map (kbd "[ SPC") 'add-line-above)
-  (define-key evil-normal-state-map (kbd "] SPC") 'add-line-below)
+  (define-key evil-normal-state-map (kbd "[ SPC") 'insert-line-above)
+  (define-key evil-normal-state-map (kbd "] SPC") 'insert-line-below)
+  (define-key evil-normal-state-map (kbd "[ d") 'delete-line-above)
+  (define-key evil-normal-state-map (kbd "] d") 'delete-line-below)
 
+  (defun insert-line-below ()
+  "Insert an empty line below the current line."
+  (interactive)
+  (save-excursion
+    (end-of-line)
+    (open-line 1))
+  (undo-boundary)
   )
+
+  (defun insert-line-above ()
+  "Insert an empty line above the current line."
+  (interactive)
+  (save-excursion
+    (end-of-line 0)
+    (open-line 1))
+  (undo-boundary))
+  )
+
+  (defun delete-line-above ()
+  "Delete line below the current line."
+  (interactive)
+  (save-excursion
+    (previous-line)
+    (kill-whole-line))
+  (undo-boundary)
+  )
+
+  (defun delete-line-below ()
+  "Delete line below the current line."
+  (interactive)
+  (save-excursion
+    (next-line)
+    (kill-whole-line))
+  (undo-boundary)
+  )
+
 
 (use-package evil-collection
   :straight t

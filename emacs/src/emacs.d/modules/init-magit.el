@@ -10,6 +10,10 @@
           ;;(magit-blame-quit)
         ;;(magit-blame))))
 
+  (define-key transient-map        (kbd "<escape>") 'transient-quit-one)
+  (define-key transient-edit-map   (kbd "<escape>") 'transient-quit-one)
+  (define-key transient-sticky-map (kbd "<escape>") 'transient-quit-seq)
+
   )
 
 (use-package autorevert
@@ -18,6 +22,7 @@
 
 (use-package evil-magit
   :straight t
+  :config
   )
 
 (provide 'init-magit)
