@@ -4,12 +4,8 @@ let
   font_size = 10;
   isNixos = builtins.pathExists /etc/nixos;
   dots = "${config.home.homeDirectory}/.dots/";
-  ps = import (pkgs.fetchFromGitHub {
-    owner = "ftzm";
-    repo = "pipestatus";
-    rev = "fababa4417f394786c61eeccf13a2f371cb57a40";
-    sha256 = "1ivb80y4b09d2s3zh63qw9wi3n5h36di735pp8rsnwz6hl6dhxk1";
-  } + "/release.nix");
+  ps = import
+  (builtins.toPath "${config.home.homeDirectory}/dev/pipestatus/release.nix");
 
 in {
   home.packages = with pkgs; [
@@ -94,10 +90,6 @@ in {
     mu
     isync
     protonmail-bridge
-
-    # custom
-    ps.pipestatus
-    ps.ps_scripts
 
     # fonts
     source-sans-pro
@@ -198,17 +190,17 @@ in {
         format = ''
           <b>%s</b>
           %b'';
-          alignment = "left";
-          show_age_threshold = 60;
-          word_wrap = "yes";
-          ellipsize = "middle";
-          ignore_newline = "no";
-          stack_duplicates = "true";
-          hide_duplicate_count = false;
-          show_indicators = "yes";
-          icon_position = "off";
-          sticky_history = "yes";
-          history_length = 20;
+        alignment = "left";
+        show_age_threshold = 60;
+        word_wrap = "yes";
+        ellipsize = "middle";
+        ignore_newline = "no";
+        stack_duplicates = "true";
+        hide_duplicate_count = false;
+        show_indicators = "yes";
+        icon_position = "off";
+        sticky_history = "yes";
+        history_length = 20;
       };
       urgency_low = {
         background = "#222222";
@@ -278,7 +270,18 @@ in {
 
   programs.git = {
     enable = true;
-    ignores = [ "*~" "#*#" ".mypy_cache" ".direnv" ];
+    ignores = [
+      # Emacs
+      "**/*~"
+      "**/*#"
+      ".mypy_cache"
+      ".direnv"
+      # Haskell
+      "*.hi"
+      "*.o"
+      # Nix
+      "result/*"
+    ];
     userEmail = "matthew@fitzsimmons.io";
     userName = "ftzm";
     extraConfig = {
@@ -310,6 +313,34 @@ in {
       package = pkgs.vanilla-dmz;
       name = "Vanilla-DMZ";
     } // (if isNixos then { } else { size = 64; });
+  };
+
+  systemd.user.services.pipestatus = {
+    Unit = { Description = "pipestatus"; };
+    Service = {
+      Restart = "always";
+      ExecStart = "${ps.pipestatus-wrapped}/bin/pipestatus-wrapped";
+      PrivateTmp = "false";
+    };
+    Install = { WantedBy = [ "graphical-session.target" ]; };
+  };
+
+  systemd.user.services.pipestatus_battery = {
+    Unit = { Description = "pipestatus battery checker"; };
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${ps.scripts}/bin/battery.sh";
+    };
+  };
+
+  systemd.user.timers.pipestatus_battery = {
+    Unit = { Description = "pipestatus battery checker"; };
+    Timer = {
+      OnBootSec = "1m";
+      OnUnitInactiveSec = "3m";
+      Unit = "pipestatus_battery.service";
+    };
+    Install = { WantedBy = [ "timers.target" ]; };
   };
 
   # Let Home Manager install and manage itself.

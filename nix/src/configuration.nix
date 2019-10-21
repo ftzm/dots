@@ -2,8 +2,8 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-  # ---------------------------------------------------------------------------
-  # Setup
+# ---------------------------------------------------------------------------
+# Setup
 
 { config, pkgs, ... }:
 
@@ -11,36 +11,29 @@
 let
   secrets = import /etc/nixos/secrets.nix;
   sleepCheck = pkgs.writeScript "sleepCheck.sh" ''
-  STATUS=$(cat /sys/class/power_supply/BAT0/status)
-  CAPACITY=$(cat /sys/class/power_supply/BAT0/capacity)
-  if [ "''${STATUS}" = "Discharging" ] && [ $CAPACITY -lt 5 ]; then
-    systemctl hibernate
-  fi
+    STATUS=$(cat /sys/class/power_supply/BAT0/status)
+    CAPACITY=$(cat /sys/class/power_supply/BAT0/capacity)
+    if [ "''${STATUS}" = "Discharging" ] && [ $CAPACITY -lt 5 ]; then
+      systemctl hibernate
+    fi
   '';
-in
 
-{
-  imports =
-    [ # Include the results of the hardware scan.
-      <nixos-hardware/lenovo/thinkpad/t480s>
-      /etc/nixos/hardware-configuration.nix
-      /etc/nixos/state-version.nix
-    ];
+in {
+  imports = [ # Include the results of the hardware scan.
+    <nixos-hardware/lenovo/thinkpad/t480s>
+    /etc/nixos/hardware-configuration.nix
+    /etc/nixos/state-version.nix
+  ];
 
   nixpkgs.config.allowUnfree = true;
-
 
   # ---------------------------------------------------------------------------
   # Cache
   nix = {
-    binaryCaches = [
-      "https://cache.nixos.org"
-      "https://cache.dhall-lang.org"
-    ];
+    binaryCaches = [ "https://cache.nixos.org" "https://cache.dhall-lang.org" ];
 
-    binaryCachePublicKeys = [
-      "cache.dhall-lang.org:I9/H18WHd60olG5GsIjolp7CtepSgJmM2CsO813VTmM="
-    ];
+    binaryCachePublicKeys =
+    [ "cache.dhall-lang.org:I9/H18WHd60olG5GsIjolp7CtepSgJmM2CsO813VTmM=" ];
   };
 
   # ---------------------------------------------------------------------------
@@ -50,13 +43,11 @@ in
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  boot.initrd.luks.devices = [
-    {
-      name = "root";
-      device = "/dev/nvme0n1p2";
-      preLVM = true;
-    }
-  ];
+  boot.initrd.luks.devices = [{
+    name = "root";
+    device = "/dev/nvme0n1p2";
+    preLVM = true;
+  }];
 
   # ---------------------------------------------------------------------------
   # System
@@ -88,9 +79,7 @@ in
 
   services.cron = {
     enable = true;
-    systemCronJobs = [
-    "*/5 * * * * root ${sleepCheck}"
-    ];
+    systemCronJobs = [ "*/5 * * * * root ${sleepCheck}" ];
   };
 
   services.upower.enable = true;
@@ -120,14 +109,12 @@ in
     tcp = {
       # for mopidy
       enable = true;
-      anonymousClients.allowedIpRanges = ["127.0.0.1"];
+      anonymousClients.allowedIpRanges = [ "127.0.0.1" ];
     };
   };
 
   # Don't conflict with mopdiy
-  services.mpd = {
-    enable = false;
-  };
+  services.mpd = { enable = false; };
 
   services.mopidy = {
     enable = true;
@@ -195,14 +182,7 @@ in
   # };
   users.extraUsers.matt = {
     createHome = true;
-    extraGroups = [
-      "wheel"
-      "video"
-      "audio"
-      "disk"
-      "networkmanager"
-      "docker"
-    ];
+    extraGroups = [ "wheel" "video" "audio" "disk" "networkmanager" "docker" ];
     group = "users";
     home = "/home/matt";
     isNormalUser = true;
