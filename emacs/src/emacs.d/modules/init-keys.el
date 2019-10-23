@@ -318,12 +318,12 @@
     (define-key org-keys "l" 'org-agenda-list)
     (define-key org-keys "t" (lambda () (interactive) (org-capture nil "t")))
     (define-key org-keys "wt" (lambda () (interactive) (org-capture nil "w")))
-    (define-key org-keys "wn" 'ftzm/capture-work-note)
+    (define-key org-keys "wn" 'ftzm/capture-work-diary)
     (define-key org-keys "W" 'ftzm/org-agenda-list-work)
     (define-key org-keys "T" 'org-todo-list)
     (define-key org-keys "m" 'create-meeting-file)
     (define-key org-keys "sn" 'ftzm/search-notes)
-    (define-key org-keys "n" 'ftzm/capture-note)
+    (define-key org-keys "d" 'ftzm/capture-diary)
 
     ;;;; org-capture setting
     ;; Start capture mode in evil insert state

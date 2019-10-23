@@ -19,6 +19,7 @@
 (require 'init-company)
 (require 'init-direnv)
 (require 'init-security)
+(require 'init-spell)
 
 ;;context specific
 (require 'init-org) ; Loading org later/below this point breaks it. There must
@@ -44,7 +45,7 @@
 (require 'init-dockerfile)
 (require 'init-terraform)
 
-(require 'init-jira)
+;(require 'init-jira)
 ;(require 'init-mail)
 
 ;;centralized key mappings

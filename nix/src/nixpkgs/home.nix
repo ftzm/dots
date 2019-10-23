@@ -28,6 +28,7 @@ in {
     xdotool
     (dunst.override { dunstify = true; })
     libnotify # for notify-send in scripts
+
     acpi
     killall
     unzip
@@ -77,6 +78,9 @@ in {
     stack
     gnumake
     jq
+
+    # for spelling in emacs
+    hunspell
 
     # cloud
     kops

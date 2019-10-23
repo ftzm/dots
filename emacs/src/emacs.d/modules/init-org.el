@@ -52,13 +52,16 @@
     ;;handles hiding leading stars and indenting text
     (add-hook 'org-mode-hook 'org-indent-mode)
 
+    (add-hook 'org-mode-hook 'flyspell-mode)
+
+    (add-hook 'org-mode-hook 'olivetti-mode)
+
     ;; Autosave
     ;; passive saving
     (add-hook 'auto-save-hook (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
     ;; save on specific actions
     (advice-add 'org-agenda-quit :before (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
 
-    ;;(add-hook 'org-mode-hook 'olivetti-mode)
 
     ;; automatically save org buffers when agenda open
     ;;;(add-hook 'org-agenda-mode-hook
@@ -100,16 +103,16 @@
               (widen)
               (setq-local org-tag-alist (org-get-buffer-tags)))))
 
-    (defun ftzm/capture-note ()
+    (defun ftzm/capture-diary ()
       (interactive)
       (let ((title (read-string "Title: ")))
-	(org-capture nil "n")))
+	(org-capture nil "d")))
 
-    (defun ftzm/capture-work-note ()
+    (defun ftzm/capture-work-diary ()
       (interactive)
       (let ((title (read-string "Title: "))
 	    (tag "work:"))
-	(org-capture nil "n")))
+	(org-capture nil "d")))
 
     (defun ftzm/var-defaulted (variable def-val)
       "Args: quoted var, quoted expression that returns string
@@ -122,17 +125,17 @@
     (setq org-capture-templates
 	  (quote (("t" "todo" entry (file "~/org/inbox.org")
 		   "* TODO %?")
-		  ("n" "note" entry (file+datetree "~/org/notes.org")
+		  ("d" "diary entry" entry (file+datetree "~/org/diary.org")
 		   "* %(ftzm/var-defaulted 'title '(read-string \"Title\"))\
-                      :note:%(ftzm/var-defaulted 'tag '\"\") \n%?")
+                      :diary:%(ftzm/var-defaulted 'tag '\"\") \n%?")
 		  ("w" "work todo" entry (file+headline "~/org/work.org" "Tasks")
 		   "* TODO %?\n  SCHEDULED: %t")
 		  )))
 
 
-    (defun ftzm/search-notes ()
+    (defun ftzm/search-diary ()
       (interactive)
-      (let ((org-agenda-files '( "~/org/notes.org"))
+      (let ((org-agenda-files '( "~/org/diary.org"))
 	    (searchstring (read-string "Search: ")))
 	(org-search-view nil (concat "" searchstring))))
 	;(org-agenda-manipulate-query-gdd))
@@ -421,5 +424,9 @@ are equal return t."
 ; (use-package calfw-org
 ;   :straight t
 ;   )
+
+(use-package org-board
+  :straight t
+  )
 
 (provide 'init-org)
