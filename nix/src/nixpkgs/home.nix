@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  font_size = 10;
+  font_size = if isNixos then "10.5" else "16";
   isNixos = builtins.pathExists /etc/nixos;
   dots = "${config.home.homeDirectory}/.dots/";
   ps = import (builtins.toPath "${config.home.homeDirectory}/dev/pipestatus/release.nix");
@@ -188,7 +188,7 @@ in {
         frame_color = "#bdae93";
         separator_color = "frame";
         idle_threshold = 120;
-        font = "Fira Mono Medium ${toString font_size}";
+        font = "Iosevka ${font_size}";
         line_height = 0;
         markup = "full";
         format = ''
@@ -233,13 +233,13 @@ in {
   programs.urxvt = {
     enable = true;
     fonts = [
-      "xft:Iosevka:Medium:size=10"
-      "xft:Source Code Pro:Regular:size=10"
-      "xft:DejaVu Sans Mono:Regular:size=10"
+      "xft:Iosevka:Medium:size=${font_size}"
+      "xft:Source Code Pro:Regular:size=${font_size}"
+      "xft:DejaVu Sans Mono:Regular:size=${font_size}"
     ];
     extraConfig = {
       scrollBar = false;
-      letterSpace = -1.6;
+      letterSpace = .5;
       smoothResize = true;
       interalBorder = 5;
       urgentOnBell = true;
@@ -307,7 +307,7 @@ in {
       export LOCALE_ARCHIVE_2_27="$(nix-build --no-out-link "<nixpkgs>" -A glibcLocales)/lib/locale/locale-archive"
       ${pkgs.hsetroot}/bin/hsetroot -solid "#282828" &
       rm /tmp/statuspipe.fifo; pipestatus &
-      export FONT_SIZE=${toString font_size}
+      export FONT_SIZE=${font_size}
       # For non-broken locale on non-nixos
       xsetroot -cursor_name left_ptr
       # Mainly for ubuntu
