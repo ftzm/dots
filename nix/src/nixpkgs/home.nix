@@ -5,8 +5,7 @@ let
   isNixos = builtins.pathExists /etc/nixos;
   dots = "${config.home.homeDirectory}/.dots/";
   ps = import (builtins.toPath "${config.home.homeDirectory}/dev/pipestatus/release.nix");
-
-
+  iosevkaLig = pkgs.callPackage ./iosevka.nix {};
 
 in {
   home.packages = with pkgs; [
@@ -93,6 +92,7 @@ in {
     protonmail-bridge
 
     # fonts
+    iosevkaLig
     source-sans-pro
     fira-mono
     fira-code
@@ -188,7 +188,7 @@ in {
         frame_color = "#bdae93";
         separator_color = "frame";
         idle_threshold = 120;
-        font = "Iosevka ${font_size}";
+        font = "Iosevka Lig Medium ${font_size}";
         line_height = 0;
         markup = "full";
         format = ''
@@ -233,7 +233,7 @@ in {
   programs.urxvt = {
     enable = true;
     fonts = [
-      "xft:Iosevka:Medium:size=${font_size}"
+      "xft:Iosevka Lig:Medium:size=${font_size}"
       "xft:Source Code Pro:Regular:size=${font_size}"
       "xft:DejaVu Sans Mono:Regular:size=${font_size}"
     ];

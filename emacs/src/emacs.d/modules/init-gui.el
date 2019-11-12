@@ -4,7 +4,7 @@
 
 ;Set font
 ;to set in existing window:
-(set-frame-font (format "Iosevka Medium-%s"
+(set-frame-font (format "Iosevka Lig Medium-%s"
 			(or (getenv "FONT_SIZE") "16")) nil t)
 
 (setq-default line-spacing 0)
