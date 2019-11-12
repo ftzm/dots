@@ -28,6 +28,10 @@ in which case does avy-goto-char with the first char."
   (setq avy-keys '(?h ?u ?t ?e ?d ?i ?s ?a ?g ?p ?c ?. ?f ?y ?r ?, ?l ?' ?m
 		      ?k ?w ?j ?b ?x ?v ?q ?z ?\; ?n ?o))
 
+  (set-face-attribute 'avy-lead-face nil
+  :background "#ff0000"
+  :foreground "#000000"
+  )
   )
 
 (provide 'init-avy)

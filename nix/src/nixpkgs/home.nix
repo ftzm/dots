@@ -237,7 +237,7 @@ in {
   programs.urxvt = {
     enable = true;
     fonts = [
-      "xft:Fira Mono Medium:Regular:size=10"
+      "xft:Iosevka:Medium:size=10"
       "xft:Source Code Pro:Regular:size=10"
       "xft:DejaVu Sans Mono:Regular:size=10"
     ];

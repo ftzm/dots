@@ -28,8 +28,16 @@
 ;(use-package darktooth-theme
 ;  :straight t
 ;  :config
-;  (load-theme 'darktooth t)
-;  (darktooth-modeline)
+;  ;(load-theme 'darktooth t)
+;  ;(darktooth-modeline)
+;  )
+;
+;(use-package doom-themes
+;  :straight t
+;  :config
+;  ;(load-theme 'doom-spacegrey t)
+;  ;(load-theme 'darktooth t)
+;  ;(darktooth-modeline)
 ;  )
 
 (provide 'init-themes)
