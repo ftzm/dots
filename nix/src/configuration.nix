@@ -160,13 +160,10 @@ in {
     enableFontDir = true;
     enableGhostscriptFonts = true;
     fonts = with pkgs; [
-      fira-mono
-      fira-code
       terminus_font
       inconsolata
       ttf_bitstream_vera
       font-awesome-ttf
-      iosevka
       proggyfonts
       liberation_ttf
     ];

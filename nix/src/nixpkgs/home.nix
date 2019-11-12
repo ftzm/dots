@@ -4,8 +4,9 @@ let
   font_size = 10;
   isNixos = builtins.pathExists /etc/nixos;
   dots = "${config.home.homeDirectory}/.dots/";
-  ps = import
-  (builtins.toPath "${config.home.homeDirectory}/dev/pipestatus/release.nix");
+  ps = import (builtins.toPath "${config.home.homeDirectory}/dev/pipestatus/release.nix");
+
+
 
 in {
   home.packages = with pkgs; [
@@ -100,6 +101,9 @@ in {
     cabal-install
     cabal2nix
     nix-prefetch-git
+
+    # system management
+    niv
   ];
 
   programs.zsh = {
@@ -337,7 +341,7 @@ in {
     Unit = { Description = "pipestatus battery checker"; };
     Timer = {
       OnBootSec = "1m";
-      OnUnitInactiveSec = "3m";
+      OnUnitActiveSec = "3m";
       Unit = "pipestatus_battery.service";
     };
     Install = { WantedBy = [ "timers.target" ]; };
