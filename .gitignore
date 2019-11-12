@@ -23,6 +23,7 @@ emacs/src/emacs.d/url
 emacs/src/emacs.d/request
 emacs/src/emacs.d/eshell
 emacs/src/emacs.d/bookmarks
+emacs/src/emacs.d/transient
 
 ranger/src/ranger/bookmarks
 ranger/src/ranger/history
