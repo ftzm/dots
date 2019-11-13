@@ -221,8 +221,7 @@
 	       ))
          (todo "NEXT"
                ((org-agenda-overriding-header "Projects")
-                (org-agenda-files '("~/org/main.org"
-                                    "~/org/projects.org"))
+                (org-agenda-files '("~/org/projects.org"))
 	       ))
          (tags "CLOSED>=\"<today>\""
                ((org-agenda-overriding-header "Completed Tasks")
