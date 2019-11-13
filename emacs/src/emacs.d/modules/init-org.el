@@ -129,7 +129,7 @@
 		   "* %(ftzm/var-defaulted 'title '(read-string \"Title\"))\
                       :diary:%(ftzm/var-defaulted 'tag '\"\") \n%?")
 		  ("w" "work todo" entry (file+headline "~/org/work.org" "Tasks")
-		   "* TODO %?\n  SCHEDULED: %t")
+		   "* NEXT %?")
 		  )))
 
 
