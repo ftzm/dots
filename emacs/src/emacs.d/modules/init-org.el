@@ -40,11 +40,12 @@
   (add-hook 'org-mode-hook #'visual-line-mode)
   (progn
     (setq org-directory "~/org")
-    (setq org-agenda-files (quote ("~/org/work.org"
+    (setq canonical-org-agenda-files (quote ("~/org/work.org"
 				   "~/org/inbox.org"
 				   "~/org/todo.org"
-				   "~/org/projects.org"
+				   "~/org/projects"
 				   "~/org/main.org")))
+    (setq org-agenda-files canonical-org-agenda-files)
 
     ;;There are other options for this that may deserve investigation
     (setq org-agenda-window-setup 'current-window)
@@ -130,6 +131,8 @@
                       :diary:%(ftzm/var-defaulted 'tag '\"\") \n%?")
 		  ("w" "work todo" entry (file+headline "~/org/work.org" "Tasks")
 		   "* NEXT %?")
+		  ("P" "process-soon" entry (file+headline "todo.org" "Todo")
+		   "* TODO %a %?\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))")
 		  )))
 
 
@@ -221,10 +224,11 @@
 	       ))
          (todo "NEXT"
                ((org-agenda-overriding-header "Projects")
-                (org-agenda-files '("~/org/projects.org"))
+                (org-agenda-files '("~/org/projects"))
 	       ))
          (tags "CLOSED>=\"<today>\""
                ((org-agenda-overriding-header "Completed Tasks")
+                (org-agenda-files canonical-org-agenda-files)
                 ))
 	 ;;(agenda ""
 	 ;;	 ((org-agenda-overriding-header "Completed Tasks")
