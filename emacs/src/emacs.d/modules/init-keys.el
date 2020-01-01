@@ -172,7 +172,7 @@
 
   ;(define-key evil-normal-state-map "s" 'avy-goto-char-timer)
   ;(define-key evil-normal-state-map "s" 'avy-goto-char-flex)
-  (define-key evil-normal-state-map "s" 'avy-goto-word-1)
+  (define-key evil-normal-state-map "s" 'avy-goto-word-or-subword-1)
 
   (define-prefix-command 'ivy-keys)
   (define-key leader-menu "i" 'ivy-keys)

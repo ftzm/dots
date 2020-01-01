@@ -1,7 +1,8 @@
 (use-package mu4e
   :load-path "/run/current-system/sw/share/emacs/site-lisp/mu4e/"
   :config
-  ;;location of my maildir
+
+  (setq mu4e-change-filenames-when-moving t)
 
   (require 'org-mu4e)
   (define-key mu4e-headers-mode-map (kbd "C-c c") 'org-mu4e-store-and-capture)

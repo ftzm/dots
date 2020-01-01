@@ -59,7 +59,7 @@ status_pipe = "/tmp/statuspipe.fifo"
 myLogHook = dynamicLogWithPP $ def { ppOutput = writeFileLn status_pipe}
 
 myTabsTheme = def
-  { fontName            = "xft:Fira Code:medium:size=14"
+  { fontName            = "xft:Iosevka Lig:medium:size=10.5"
   , activeColor         = "#282828"
   , activeTextColor     = "#ebdbb2"
   , inactiveColor       = "#1d2021"

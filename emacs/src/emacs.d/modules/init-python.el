@@ -3,6 +3,7 @@
   :diminish (anaconda-mode . "A")
   :config
   (add-hook 'python-mode-hook 'anaconda-mode)
+  (add-hook 'python-mode-hook 'anaconda-eldoc-mode)
   (add-hook 'python-mode-hook 'auto-fill-mode)
   (add-hook 'python-mode-hook (lambda ()
   			      (flycheck-mode 1)

@@ -39,6 +39,11 @@
   (setq prettify-symbols-unprettify-at-point 'right-edge)
 
   (defun setup-iosevka-ligatures ()
+    ;; Remove 'and' and 'or' before activating, because it makes Python and
+    ;; friends look odd.
+    (setq prettify-symbols-alist (assoc-delete-all "and" prettify-symbols-alist))
+    (setq prettify-symbols-alist (assoc-delete-all "or" prettify-symbols-alist))
+    ;; Add ligatures
     (setq prettify-symbols-alist
           (append prettify-symbols-alist '(
 
