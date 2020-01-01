@@ -54,7 +54,9 @@ myConfig = ewmh defaultConfig
 -- TODO: organize this better
 writeFileLn f s = writeFile f $ "x;" ++ s ++ "\n"
 
-myLogHook = dynamicLogWithPP $ def { ppOutput = writeFileLn "/tmp/statuspipe.fifo" }
+status_pipe = "/tmp/statuspipe.fifo"
+
+myLogHook = dynamicLogWithPP $ def { ppOutput = writeFileLn status_pipe}
 
 myTabsTheme = def
   { fontName            = "xft:Fira Code:medium:size=14"
@@ -150,6 +152,7 @@ emacsStyleKeys l = M.union
   where
     sysKeys = mkKeymap l $
       [ ("s", spawn "scrot -s")
+      , ("d", spawn $ "echo '?' > " ++ status_pipe)
       , ("l", spawn "gnome-screensaver-command -l || slock")
       , ("h", spawn "boseqc.sh")
       , ("S-s", spawn "systemctl suspend")
@@ -181,15 +184,6 @@ workspaceKeys conf@XConfig {XMonad.modMask = modMask} =
     [((m .|. mm, k), windows $ f i)
         | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]
         , (f, m) <- [(W.view, 0), (W.shift, sm)]]
-    ++
-    -- mod-{w,e,r} %! Switch to physical/Xinerama screens 1, 2, or 3
-    -- mod-shift-{w,e,r} %! Move client to screen 1, 2, or 3
-    -- [((mm .|. sm, key), screenWorkspace sc >>= flip whenJust (windows . f))
-    --     | (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
-    --     , (f, m) <- [(W.view, 0), (W.shift, sm)]]
-    [((sm .|. m1m, k), windows $ copyWorkspace i)
-        | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]]
-
 brightness x =
   let
     percentage = show $ 10 * if x == 0 then 10 else x
