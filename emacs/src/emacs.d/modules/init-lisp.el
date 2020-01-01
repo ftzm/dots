@@ -1,7 +1,6 @@
 (use-package slime
   :straight t
   :config
-  (setq inferior-lisp-program "common-lisp.sh")
   (setq slime-contribs '(slime-fancy)))
 
 (use-package paredit

@@ -34,6 +34,7 @@
 (require 'init-python)
 (require 'init-go)
 (require 'init-lua)
+(require 'init-racket)
 
 (require 'init-yaml)
 (require 'init-json)
@@ -46,7 +47,7 @@
 (require 'init-terraform)
 
 ;(require 'init-jira)
-;(require 'init-mail)
+(require 'init-mail)
 
 ;;centralized key mappings
 (require 'init-keys)
