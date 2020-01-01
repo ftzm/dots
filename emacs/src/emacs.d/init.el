@@ -14,8 +14,49 @@
  '(global-git-gutter-mode nil)
  '(org-agenda-files
    (quote
-    ("~/org/work.org" "~/org/inbox.org" "~/org/todo.org" "~/org/projects.org" "~/org/main.org")))
- '(safe-local-variable-values (quote ((eval progn (pp-buffer) (indent-buffer)))))
+    ("~/org/work.org" "~/org/inbox.org" "~/org/todo.org" "~/org/main.org")))
+ '(safe-local-variable-values
+   (quote
+    ((dante-methods impure-nix)
+     (dante-repl-command-line "nix-shell"
+			      (concat
+			       (expand-file-name
+				(vc-root-dir))
+			       "shell.nix")
+			      "--run" "cabal new-repl --builddir=dist/dante")
+     (dante-repl-command-line "nix-shell" "--attr" "pipestatus.env"
+			      (concat
+			       (expand-file-name
+				(vc-root-dir))
+			       "shell.nix")
+			      "--run" "cabal new-repl --builddir=dist/dante")
+     (dante-methods nix-ghci)
+     (slime-lisp-implementations
+      (sbcl
+       ("sbcl" "--userinit" ".sbclrc")))
+     (slime-lisp-implementations
+      (sbcl
+       ("sbcl")
+       "--userinit" ".sbclrc"))
+     (slime-lisp-implementations
+      (sbcl
+       ("sbcl")))
+     (slime-lisp-implementations
+      (sbcl
+       ((executable-find "sbcl"))))
+     (slime-lisp-implementations
+      (sbcl
+       (executable-find "sbcl")))
+     (slime-lisp-implementations quote
+				 (sbcl
+				  (executable-find "sbcl")))
+     (slime-lisp-implementations sbcl
+				 (executable-find "sbcl"))
+     (inferior-lisp-program\.
+      ("sbcl --userinit '.sbclrc'"))
+     (eval progn
+	   (pp-buffer)
+	   (indent-buffer)))))
  '(send-mail-function (quote smtpmail-send-it)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
