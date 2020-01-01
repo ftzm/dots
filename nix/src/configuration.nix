@@ -23,6 +23,7 @@ in {
     <nixos-hardware/lenovo/thinkpad/t480s>
     /etc/nixos/hardware-configuration.nix
     /etc/nixos/state-version.nix
+    /etc/nixos/cachix.nix
   ];
 
   nixpkgs.config.allowUnfree = true;
@@ -33,7 +34,10 @@ in {
     binaryCaches = [ "https://cache.nixos.org" "https://cache.dhall-lang.org" ];
 
     binaryCachePublicKeys =
-    [ "cache.dhall-lang.org:I9/H18WHd60olG5GsIjolp7CtepSgJmM2CsO813VTmM=" ];
+    [
+      "cache.dhall-lang.org:I9/H18WHd60olG5GsIjolp7CtepSgJmM2CsO813VTmM="
+      "nix-tools.cachix.org-1:ebBEBZLogLxcCvipq2MTvuHlP7ZRdkazFSQsbs0Px1A="
+    ];
   };
 
   # ---------------------------------------------------------------------------
