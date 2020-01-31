@@ -24,7 +24,7 @@
   (define-key python-mode-keys "v" 'pyvenv-and-fly)
   (define-key python-mode-keys "d" 'dumb-jump-go)
 
-  (set-variable 'flycheck-python-mypy-args '("--ignore-missing-imports" "--check-untyped-defs" "--follow-imports=skip"))
+  ;(set-variable 'flycheck-python-mypy-args '("--ignore-missing-imports" "--check-untyped-defs" "--follow-imports=skip"))
 
   ;(require 'auto-virtualenv)
   ;(add-hook 'python-mode-hook 'auto-virtualenv-set-virtualenv)
