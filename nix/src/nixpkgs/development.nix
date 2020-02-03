@@ -11,7 +11,7 @@
       "*.hi"
       "*.o"
       # Nix
-      "result/*"
+      "result"
     ];
     userEmail = "matthew@fitzsimmons.io";
     userName = "ftzm";
