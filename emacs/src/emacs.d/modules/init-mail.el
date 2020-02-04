@@ -3,6 +3,10 @@
   :config
 
   (setq mu4e-change-filenames-when-moving t)
+  (setq mu4e-compose-format-flowed t) ;no automatic newlines
+
+  (setq message-citation-line-format "> On %d %b %Y at %R, %f wrote:\n>")
+  (setq message-citation-line-function 'message-insert-formatted-citation-line)
 
   (require 'org-mu4e)
   (define-key mu4e-headers-mode-map (kbd "C-c c") 'org-mu4e-store-and-capture)
@@ -14,9 +18,6 @@
 
   (add-to-list 'mu4e-view-actions
   '("ViewInBrowser" . mu4e-action-view-in-browser) t)
-
-  ; for protonmail
-  (add-to-list 'gnutls-trustfiles (expand-file-name "~/.config/protonmail/bridge/cert.pem"))
 
   ;; start with the first (default) context;
   ;; default is to ask-if-none (ask when there's no context yet, and none match)
@@ -37,6 +38,7 @@
 									   "m@ftzm.org")))
 	 :vars '((mu4e-trash-folder . "/ftzm/Trash")
 		 (mu4e-sent-folder . "/ftzm/Sent")
+		 (mu4e-refile-folder . "/ftzm/Archive")
 
 		 (mu4e-change-filenames-when-moving . t)
 
@@ -46,34 +48,11 @@
 		 (message-sendmail-f-is-evil . t)
 		 (message-sendmail-extra-arguments . ("--read-envelope-from"))
 		 (message-send-mail-function . message-send-mail-with-sendmail)
-		 (mu4e-sent-messages-behavior . delete)
+		 (mu4e-sent-messages-behavior . sent)
 
 		 (mu4e-bookmarks
 		  . (("maildir:/ftzm/Inbox" "Inbox" ?i)
 		     ("maildir:/ftzm/Archive" "Archive" ?a)))
-		 )
-	 )
-     ,(make-mu4e-context
-        :name "io"
-	:match-func (lambda (msg) (when msg (mu4e-message-contact-field-matches msg
-									   :to
-									   "matthew@fitzsimmons.io")))
-	 :vars '((mu4e-trash-folder . "/fitzsimmonsio/Trash")
-		 (mu4e-sent-folder . "/fitzsimmonsio/Sent")
-
-		 (mu4e-change-filenames-when-moving . t)
-
-
-		 (user-mail-address . "matthew@fitzsimmons.io")
-		 (sendmail-program . "msmtp")
-		 (message-sendmail-f-is-evil . t)
-		 (message-sendmail-extra-arguments . ("--read-envelope-from"))
-		 (message-send-mail-function . message-send-mail-with-sendmail)
-		 (mu4e-sent-messages-behavior . delete)
-
-		 (mu4e-bookmarks
-		  . (("maildir:/fitzsimmonsio/Folders/fitzsimmons.io-inbox" "Inbox" ?i)
-		     ("maildir:/fitzsimmonsio/Folders/fitzsimmons.io-archive" "Archive" ?a)))
 		 )
 	 )
       ,(make-mu4e-context
