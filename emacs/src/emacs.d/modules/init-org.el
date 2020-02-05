@@ -125,7 +125,7 @@
 
     (setq org-capture-templates
 	  (quote (("t" "todo" entry (file "~/org/inbox.org")
-		   "* TODO %?")
+		   "* NEXT %?")
 		  ("d" "diary entry" entry (file+datetree "~/org/diary.org")
 		   "* %(ftzm/var-defaulted 'title '(read-string \"Title\"))\
                       :diary:%(ftzm/var-defaulted 'tag '\"\") \n%?")

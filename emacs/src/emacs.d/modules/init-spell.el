@@ -1,8 +1,8 @@
 (use-package flyspell
   :diminish "Sp"
   :config
-  (setq ispell-program-name (executable-find "hunspell")
-        ispell-dictionary "en_US")
+  (setq ispell-program-name (executable-find "aspell"))
+  (add-hook 'text-mode-hook #'flyspell-mode)
   )
 
 (use-package flyspell-correct-ivy

@@ -2,6 +2,9 @@
   :load-path "/run/current-system/sw/share/emacs/site-lisp/mu4e/"
   :config
 
+  (add-hook 'mu4e-mode-hook #'flyspell-mode)
+  (add-hook 'mu4e-mode-hook #'olivetti-mode)
+
   (setq mu4e-change-filenames-when-moving t)
   (setq mu4e-compose-format-flowed t) ;no automatic newlines
 

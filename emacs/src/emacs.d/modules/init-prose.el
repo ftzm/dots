@@ -8,6 +8,9 @@
   :diminish "O"
   :config
   (setq-default olivetti-body-width 80)
+  (add-hook 'text-mode-hook #'olivetti-mode)
+
+
   ;; make olivetti not fuck up restoring window configurations with
   ;; persp mode
   ;; (with-eval-after-load "olivetti"

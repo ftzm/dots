@@ -79,6 +79,8 @@ in
     # for spelling in emacs
     hunspell
     hunspellDicts.en_US-large
+    aspell
+    aspellDicts.en
 
     # cloud
     kops
