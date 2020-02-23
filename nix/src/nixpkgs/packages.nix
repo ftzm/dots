@@ -107,5 +107,7 @@ in
     # system management
     niv
 
+    pkgs.get-auth
+
   ];
 }
