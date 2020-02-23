@@ -1,6 +1,7 @@
 { pkgs, isNixos, ... }:
 let
-  font_size = if isNixos then "10.5" else "16";
+  #font_size = if isNixos then "10.5" else "16";
+  font_size = "10.5";
   isNixos = builtins.pathExists /etc/nixos;
 in {
   services.dunst = {

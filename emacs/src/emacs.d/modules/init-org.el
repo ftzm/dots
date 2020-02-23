@@ -43,7 +43,7 @@
     (setq canonical-org-agenda-files (quote ("~/org/work.org"
 				   "~/org/inbox.org"
 				   "~/org/todo.org"
-				   "~/org/projects"
+				   "~/org/projects/"
 				   "~/org/main.org")))
     (setq org-agenda-files canonical-org-agenda-files)
 
