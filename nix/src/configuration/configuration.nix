@@ -9,7 +9,7 @@
 
 # Define secrets in a separate file
 let
-  sources = import ./nixpkgs/nix/sources.nix;
+  sources = import ../nix/sources.nix;
   nixos-hardware = sources.nixos-hardware.outPath;
   nixpkgs = import sources.nixpkgs {
     config = {
@@ -18,7 +18,7 @@ let
     };
   };
   pkgs = nixpkgs.pkgs;
-  secrets = import /etc/nixos/secrets.nix;
+  secrets = import ../secrets.nix;
 
 in {
   imports = [ # Include the results of the hardware scan.
@@ -32,7 +32,7 @@ in {
   ];
 
   nix.nixPath = lib.mkForce [
-    "nixpkgs=${(import ./nixpkgs/nix/sources.nix).nixpkgs.outPath}"
+    "nixpkgs=${sources.nixpkgs.outPath}"
     "nixos-config=/etc/nixos/configuration.nix"
     #"config-checkout=${config.configCheckout}"
   ];
@@ -63,6 +63,7 @@ in {
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     wget
+    curl
     vim
     git
     gnupg
