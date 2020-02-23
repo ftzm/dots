@@ -1,1 +1,2 @@
 secrets.nix filter=git-crypt diff=git-crypt
+init-private-vars.el filter=git-crypt diff=git-crypt
