@@ -2,6 +2,8 @@
 
 let
   iosevkaLig = pkgs.callPackage ./iosevka.nix {};
+  myEmacs = pkgs.emacs.override { inherit (pkgs) imagemagick; };
+  emacsWithPackages = (pkgs.emacsPackagesNgGen myEmacs).emacsWithPackages;
 in
 
 {
@@ -65,7 +67,7 @@ in
     vanilla-dmz
 
     # programming
-    emacs
+    (emacsWithPackages (epkgs: [epkgs.telega]))
     neovim
     git
     git-crypt

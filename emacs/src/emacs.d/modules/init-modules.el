@@ -48,6 +48,7 @@
 
 ;(require 'init-jira)
 (require 'init-mail)
+(require 'init-telega)
 
 ;;centralized key mappings
 (require 'init-keys)
