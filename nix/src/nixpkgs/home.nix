@@ -1,7 +1,8 @@
 { config, lib, ... }:
 
 let
-  pkgs = import (import ./nix/sources.nix).nixpkgs {};
+  overlays = import ../overlays;
+  pkgs = import (import ./nix/sources.nix).nixpkgs { overlays = [ overlays ];};
 in {
   _module.args.pkgs = lib.mkForce pkgs;
   imports = [
