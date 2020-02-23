@@ -5,40 +5,37 @@
 # ---------------------------------------------------------------------------
 # Setup
 
-{ config, pkgs, ... }:
+{ config, lib, ... }:
 
 # Define secrets in a separate file
 let
+  sources = import ./nixpkgs/nix/sources.nix;
+  nixos-hardware = sources.nixos-hardware.outPath;
+  nixpkgs = import sources.nixpkgs {
+    config = {
+      allowUnfree = true;
+      checkMeta = true;
+    };
+  };
+  pkgs = nixpkgs.pkgs;
   secrets = import /etc/nixos/secrets.nix;
-  sleepCheck = pkgs.writeScript "sleepCheck.sh" ''
-    STATUS=$(cat /sys/class/power_supply/BAT0/status)
-    CAPACITY=$(cat /sys/class/power_supply/BAT0/capacity)
-    if [ "''${STATUS}" = "Discharging" ] && [ $CAPACITY -lt 5 ]; then
-      systemctl hibernate
-    fi
-  '';
 
 in {
   imports = [ # Include the results of the hardware scan.
-    <nixos-hardware/lenovo/thinkpad/t480s>
+    "${nixos-hardware}/lenovo/thinkpad/t480s"
     /etc/nixos/hardware-configuration.nix
     /etc/nixos/state-version.nix
     /etc/nixos/cachix.nix
+    ./caches.nix
+    ./sleep.nix
+    ./users.nix
   ];
 
-  nixpkgs.config.allowUnfree = true;
-
-  # ---------------------------------------------------------------------------
-  # Cache
-  nix = {
-    binaryCaches = [ "https://cache.nixos.org" "https://cache.dhall-lang.org" ];
-
-    binaryCachePublicKeys =
-    [
-      "cache.dhall-lang.org:I9/H18WHd60olG5GsIjolp7CtepSgJmM2CsO813VTmM="
-      "nix-tools.cachix.org-1:ebBEBZLogLxcCvipq2MTvuHlP7ZRdkazFSQsbs0Px1A="
-    ];
-  };
+  nix.nixPath = lib.mkForce [
+    "nixpkgs=${(import ./nixpkgs/nix/sources.nix).nixpkgs.outPath}"
+    "nixos-config=/etc/nixos/configuration.nix"
+    #"config-checkout=${config.configCheckout}"
+  ];
 
   # ---------------------------------------------------------------------------
   # Boot
@@ -81,10 +78,7 @@ in {
 
   hardware.bluetooth.enable = true;
 
-  services.cron = {
-    enable = true;
-    systemCronJobs = [ "*/5 * * * * root ${sleepCheck}" ];
-  };
+  services.cron.enable = true;
 
   services.upower.enable = true;
 
@@ -94,8 +88,10 @@ in {
   # Security
 
   # Enable gnupg agent
-  programs.gnupg.agent.enable = true;
-  programs.gnupg.agent.enableSSHSupport = true;
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
+  };
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
@@ -171,23 +167,5 @@ in {
       proggyfonts
       liberation_ttf
     ];
-  };
-
-  # ---------------------------------------------------------------------------
-  # Users
-
-  # Define a user account. Don't forget to set a password with ‘passwd’.
-  # users.users.guest = {
-  #   isNormalUser = true;
-  #   uid = 1000;
-  # };
-  users.extraUsers.matt = {
-    createHome = true;
-    extraGroups = [ "wheel" "video" "audio" "disk" "networkmanager" "docker" ];
-    group = "users";
-    home = "/home/matt";
-    isNormalUser = true;
-    shell = pkgs.zsh;
-    uid = 1000;
   };
 }

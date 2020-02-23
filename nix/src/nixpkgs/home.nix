@@ -2,7 +2,13 @@
 
 let
   overlays = import ../overlays;
-  pkgs = import (import ./nix/sources.nix).nixpkgs { overlays = [ overlays ];};
+  pkgs = import (import ./nix/sources.nix).nixpkgs-unstable {
+    overlays = [ overlays ];
+    config = {
+      allowUnfree = true;
+      checkMeta = true;
+    };
+  };
 in {
   _module.args.pkgs = lib.mkForce pkgs;
   imports = [
