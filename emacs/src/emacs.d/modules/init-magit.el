@@ -16,6 +16,9 @@
 
   )
 
+(use-package forge
+  :after magit)
+
 (use-package autorevert
   :diminish auto-revert-mode
   )

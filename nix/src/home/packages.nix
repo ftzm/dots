@@ -67,7 +67,7 @@ in
     vanilla-dmz
 
     # programming
-    (emacsWithPackages (epkgs: [epkgs.telega]))
+    (emacsWithPackages (epkgs: [epkgs.telega epkgs.forge]))
     neovim
     git
     git-crypt

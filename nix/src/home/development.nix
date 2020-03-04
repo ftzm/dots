@@ -19,6 +19,9 @@
       status = {
         showUntrackedFiles = "all"; # allows magit to show dir contents
       };
+      github = {
+        user = "ftzm";
+      };
     };
   };
 }
