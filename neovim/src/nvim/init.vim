@@ -398,9 +398,9 @@ function! SearchVisualSelectionWithAg() range
   execute 'Ag' selection
 endfunction
 
-function! s:fzf_statusline()
-  " Override statusline as you like
-  setlocal statusline=fzf
-endfunction
 
-autocmd! User FzfStatusLine call <SID>fzf_statusline()
+if has('nvim') && !exists('g:fzf_layout')
+  autocmd! FileType fzf
+  autocmd  FileType fzf set laststatus=0 noshowmode noruler
+    \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
+endif
