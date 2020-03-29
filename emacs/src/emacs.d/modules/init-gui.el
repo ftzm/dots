@@ -281,12 +281,12 @@
     (prettify-symbols-mode -1)
     (prettify-symbols-mode +1))
 
-  ;; Hooks for modes in which to install the Iosevka ligatures
-  (mapc (lambda (hook)
-          (add-hook hook (lambda () (setup-iosevka-ligatures) (refresh-pretty))))
-        '(text-mode-hook
-          prog-mode-hook))
-  (global-prettify-symbols-mode +1)
+ ;; ;; Hooks for modes in which to install the Iosevka ligatures
+ ;; (mapc (lambda (hook)
+ ;;         (add-hook hook (lambda () (setup-iosevka-ligatures) (refresh-pretty))))
+ ;;       '(text-mode-hook
+ ;;         prog-mode-hook))
+ ;; (global-prettify-symbols-mode +1)
 
 
 (provide 'init-gui)
