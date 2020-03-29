@@ -99,6 +99,7 @@ in
     # fonts
     iosevkaLig
     source-sans-pro
+    source-code-pro
     fira-mono
     fira-code
 
