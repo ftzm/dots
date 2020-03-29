@@ -3,10 +3,9 @@
 (use-package slack
   :commands (slack-start)
   :straight t
-  :init
+  :config
   ;(setq slack-buffer-emojify t) ;; if you want to enable emoji, default nil
   (setq slack-prefer-current-team t)
-  :config
 
   (setq slack-buffer-function #'switch-to-buffer)
 

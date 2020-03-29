@@ -1,5 +1,6 @@
 (use-package shackle
   :straight t
+  :after (magit)
   :if (not (bound-and-true-p disable-pkg-shackle))
   :config
   (setq shackle-lighter "")

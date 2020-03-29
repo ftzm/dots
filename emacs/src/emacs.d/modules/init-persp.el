@@ -8,6 +8,9 @@
   (setq persp-autokill-buffer-on-remove 'kill-weak)
   (add-hook 'after-init-hook #'(lambda () (persp-mode 1)))
 
+  (setq persp-auto-resume-time 0) ; don't autoresume workspaces
+  (setq persp-nil-name "*")
+
   (with-eval-after-load "ivy"
    (add-hook 'ivy-ignore-buffers
              #'(lambda (b)

@@ -1,5 +1,6 @@
 (use-package anaconda-mode
   :straight t
+  :mode ("\\.py\\'" . python-mode)
   :diminish (anaconda-mode . "A")
   :config
   (add-hook 'python-mode-hook 'anaconda-mode)
@@ -48,18 +49,22 @@
 
 (use-package pyvenv
   :straight t
+  :after (anaconda-mode)
   )
 
 (use-package company-anaconda
   :straight t
+  :after (anaconda-mode)
   )
 
 (use-package blacken
   :straight t
+  :after (anaconda-mode)
   )
 
 (use-package python-pytest
   :straight t
+  :after (anaconda-mode)
   )
 
 (provide 'init-python)

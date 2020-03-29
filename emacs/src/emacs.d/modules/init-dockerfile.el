@@ -1,7 +1,6 @@
 (use-package dockerfile-mode
   :straight t
-  :config
-  (add-to-list 'auto-mode-alist '("Dockerfile\\'" . dockerfile-mode))
-  )
+  :defer t
+  :mode ("Dockerfile\\'" . dockerfile-mode))
 
 (provide 'init-dockerfile)

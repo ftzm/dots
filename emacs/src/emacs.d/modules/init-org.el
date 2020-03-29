@@ -34,7 +34,7 @@
 ; (provide 'org-version)
 
 (use-package org
-  ;:mode (("\\.org$" . org-mode))
+  :mode (("\\.org$" . org-mode))
   :straight (org org-plus-contrib)
   :config
   (add-hook 'org-mode-hook #'visual-line-mode)
@@ -52,8 +52,6 @@
 
     ;;handles hiding leading stars and indenting text
     (add-hook 'org-mode-hook 'org-indent-mode)
-
-    (add-hook 'org-mode-hook 'flyspell-mode)
 
     (add-hook 'org-mode-hook 'olivetti-mode)
 
@@ -361,7 +359,9 @@ are equal return t."
     ))
   )
 
-(use-package org-habit)
+(use-package org-habit
+  :after org
+  )
 
 ;; (use-package org-depend
   ;; :config
@@ -418,6 +418,7 @@ are equal return t."
 
 (use-package org-indent
   :diminish org-indent-mode
+  :after org
   )
 
 ; (use-package calfw
@@ -430,6 +431,7 @@ are equal return t."
 
 (use-package org-board
   :straight t
+  :after org
   )
 
 (provide 'init-org)

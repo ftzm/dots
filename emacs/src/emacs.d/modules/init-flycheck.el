@@ -1,5 +1,6 @@
 (use-package flycheck
   :straight t
+  :hook ((json-mode) . flycheck-mode)
   :diminish "S"
   :config
   (setq flycheck-check-syntax-automatically '(mode-enabled save))

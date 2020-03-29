@@ -61,6 +61,7 @@
   :config
   ;; add more as need by this pattern
   (evil-collection-init 'dired)
+  (evil-collection-init 'vterm)
   )
 
 (use-package evil-surround

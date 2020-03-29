@@ -26,7 +26,7 @@
   :straight t
   :after haskell-mode
   :commands 'dante-mode
-  :init
+  :config
   (add-hook 'dante-mode-hook
   (add-hook 'haskell-mode-hook 'dante-mode)
   (add-hook 'haskell-mode-hook 'flycheck-mode)
@@ -40,7 +40,6 @@
   (setq flymake-start-syntax-check-on-newline nil)
   (setq flycheck-check-syntax-automatically '(save mode-enabled))
   )
-  :config
   (define-prefix-command 'haskell-mode-keys)
   (evil-define-key 'normal haskell-mode-map (kbd ",") 'haskell-mode-keys)
   (define-key haskell-mode-keys "c" 'flycheck-buffer)

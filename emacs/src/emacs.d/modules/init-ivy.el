@@ -25,6 +25,7 @@
   ;alternate cycle keys, more vimy
   (define-key ivy-minibuffer-map (kbd "C-j") 'ivy-next-line)
   (define-key ivy-minibuffer-map (kbd "C-k") 'ivy-previous-line)
+  (define-key ivy-switch-buffer-map (kbd "C-k") 'ivy-previous-line)
 
   ;; below works but slow
   (defconst modi/ag-arguments

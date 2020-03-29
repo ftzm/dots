@@ -8,8 +8,8 @@
 (require 'init-shackle)
 (require 'init-ivy)
 (require 'init-utils)
-(require 'init-persp)
 (require 'init-magit)
+(require 'init-persp)
 (require 'init-settings)
 (require 'init-projectile)
 (require 'init-neotree) ;disabled

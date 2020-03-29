@@ -1,35 +1,36 @@
 (when (fboundp 'tool-bar-mode) (tool-bar-mode -1))
 (when (fboundp 'menu-bar-mode) (menu-bar-mode -1))
 (when (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
-
-;Set font
-;to set in existing window:
-(set-frame-font (format "Iosevka Lig Medium-%s"
-			(or (getenv "FONT_SIZE") "16")) nil t)
-
-(setq-default line-spacing 0)
-
-; this only works on startup
-; (add-to-list 'default-frame-alist '(font . "Fira Mono Medium-16" ))
-; (set-fontset-font t 'japanese-jisx0208
-;                   (font-spec :family "IPAGothic" :size 24))
-
+;
+(setq inhibit-startup-screen t)
+;
+;;Set font
+;(setq my-font (format "Iosevka Lig Medium-%s" (or (getenv "FONT_SIZE") "16")))
+;;to set in existing window:
+;(set-frame-font my-font nil t)
+;
+;
+;; this only works on startup
+(add-to-list 'default-frame-alist '(font . "Iosevka Lig Medium-10.5"))
+;
+;; (set-fontset-font t 'japanese-jisx0208
+;;                   (font-spec :family "IPAGothic" :size 24))
+;
+(setq line-spacing 0)
+;
 ;; no blink
 (blink-cursor-mode 0)
-;; no blink in term
+;;; no blink in term
 (setq visible-cursor nil)
-;; highlint current line
+;;; highlint current line
 (global-hl-line-mode)
-
-(setq-default ;display-line-numbers-current-absolute t
-              display-line-numbers-width 4
-              display-line-numbers-widen t)
-;(global-display-line-numbers-mode)
-
-
-
-(setq inhibit-startup-screen t)
-
+;
+;;(setq-default display-line-numbers-current-absolute t
+;;              display-line-numbers-width 4
+;;              display-line-numbers-widen t)
+;;(global-display-line-numbers-mode)
+;
+;
 (setq initial-scratch-message "Welcome to Emacs.")
 
 <<<<<<< HEAD

@@ -1,5 +1,6 @@
 (use-package magit
   :straight t
+  :defer t
   :config
   ;; just quit using q, goes to commit message which is useful
   ;;(defun magit-blame-toggle()
@@ -22,7 +23,7 @@
 
 (use-package evil-magit
   :straight t
-  :config
+  :after magit
   )
 
 (provide 'init-magit)

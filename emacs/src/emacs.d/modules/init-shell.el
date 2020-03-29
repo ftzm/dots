@@ -1,5 +1,7 @@
 (use-package shell
-  :init
+  :defer t
+  :commands shell
+  :config
   (setq explicit-shell-file-name (getenv "SHELL"))
   (add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)
   (add-hook 'shell-mode-hook
@@ -41,6 +43,8 @@
   (define-key shell-mode-map (kbd "C-r") 'counsel-shell-history)
   )
 
-(use-package ansi-color)
+(use-package ansi-color
+  :after shell
+  )
 
 (provide 'init-shell)

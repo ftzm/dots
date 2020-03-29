@@ -19,11 +19,11 @@
     )
   )
 
-(use-package solarized-theme
-  :straight t
-  :config
-  ;(load-theme 'solarized-light t)
-  )
+;(use-package solarized-theme
+;  :straight t
+;  :config
+;  ;(load-theme 'solarized-light t)
+;  )
 
 ;(use-package darktooth-theme
 ;  :straight t

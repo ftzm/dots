@@ -19,20 +19,29 @@
   )
 
 (use-package git-gutter
+  :defer t
   :straight t
   :diminish git-gutter-mode
-  :config
-  (global-git-gutter-mode +1)
   )
 
 (use-package git-gutter-fringe
   :straight t
+  :after git-gutter
+  :demand fring-helper
   :config
-  (require 'git-gutter) ;; needs to be loaded to set the below I think
   ;;(load-theme 'gruvbox t)
-  (set-face-attribute 'git-gutter:modified nil :foreground 'unspecified :inherit 'font-lock-type-face)
-  (set-face-attribute 'git-gutter:added nil :foreground 'unspecified :inherit 'font-lock-string-face)
-  (set-face-attribute 'git-gutter:deleted nil :foreground 'unspecified :inherit 'font-lock-keyword-face)
+  (set-face-attribute 'git-gutter:modified nil
+		      :foreground 'unspecified
+		      :background 'unspecified
+		      :inherit 'font-lock-type-face)
+  (set-face-attribute 'git-gutter:added nil
+		      :foreground 'unspecified
+		      :background 'unspecified
+		      :inherit 'font-lock-string-face)
+  (set-face-attribute 'git-gutter:deleted nil
+		      :foreground 'unspecified
+		      :background 'unspecified
+		      :inherit 'font-lock-keyword-face)
 
   ;; subtle diff indicators in the fringe
   ;; places the git gutter outside the margins.
@@ -47,6 +56,7 @@
     "XX......"
     "XXX....."
     "XXXX....")
+
   )
 
 (use-package default-text-scale
@@ -55,8 +65,27 @@
   (setq default-text-scale-amount 35)
   )
 
-(use-package rotate
+(use-package ace-window
   :straight t
   )
+
+;(use-package rotate
+;  :straight t
+;  )
+
+(use-package refresh-layout
+  :straight (refresh-layout
+	     :type git
+	     :host github
+	     :repo "ftzm/refresh-layout-mode"
+	     :branch "dev")
+  :diminish refresh-layout-mode
+  :config
+  (refresh-layout-mode)
+  )
+
+
+
+
 
 (provide 'init-gui-pkg)

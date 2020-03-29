@@ -3,6 +3,7 @@
 
 (use-package lua-mode
   :straight t
+  :mode ("\\.lua\\'" . lua-mode)
   :config
   (autoload 'lua-mode "lua-mode" "Lua editing mode." t)
   (add-to-list 'auto-mode-alist '("\\.lua$" . lua-mode))
@@ -11,6 +12,7 @@
 
 (use-package company-lua
   :straight t
+  :after lua-mode
   :config
   (add-to-list 'company-backends 'company-lua)
   )
