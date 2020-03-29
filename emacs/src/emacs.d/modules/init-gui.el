@@ -32,6 +32,7 @@
 
 (setq initial-scratch-message "Welcome to Emacs.")
 
+<<<<<<< HEAD
 ;; I use Spacemacs, so I put this in user-config
 ;; Note that the script above only generates the long list of pairs.
 ;; The surrounding code is stolen from the PragmataPro scripts floating around on Gist.
@@ -289,4 +290,6 @@
  ;; (global-prettify-symbols-mode +1)
 
 
+=======
+>>>>>>> Extract ligatures code
 (provide 'init-gui)
