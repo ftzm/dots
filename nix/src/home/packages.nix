@@ -75,6 +75,7 @@ in
     stack
     gnumake
     jq
+    ripgrep
 
     # for spelling in emacs
     hunspell
@@ -111,5 +112,8 @@ in
 
     get-auth
 
+    dbeaver
+
+    kitty
   ];
 }

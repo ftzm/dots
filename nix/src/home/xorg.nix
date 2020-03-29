@@ -63,11 +63,11 @@ in {
     ];
     extraConfig = {
       scrollBar = false;
-      letterSpace = .5;
+      letterSpace = ".5";
       smoothResize = true;
-      interalBorder = 5;
+      interalBorder = "5";
       urgentOnBell = true;
-      boldFont = null;
+      boldFont = false;
     };
   };
   xresources.properties = {
