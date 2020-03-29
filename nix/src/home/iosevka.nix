@@ -24,6 +24,7 @@ pkgs.iosevka.override {
     };
     design =
       [
+        "ligset-haskell"
         "v-asterisk-low"
         "v-percent-dots"
         "v-dollar-open"
