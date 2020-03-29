@@ -38,36 +38,6 @@ in {
     };
   };
 
-  #accounts.email.accounts.fitzsimmonsio = {
-  #  userName = "matthew@fitzsimmons.io";
-  #  address = "matthew@fitzsimmons.io";
-  #  mbsync = {
-  #    enable = true;
-  #    create = "both";
-  #    expunge = "both";
-  #    remove = "both";
-  #  };
-  #  msmtp = {
-  #    enable = true;
-  #  };
-  #  passwordCommand = "echo ${secrets.email.fitzsimmonsio}";
-  #  imap = {
-  #    host = "127.0.0.1";
-  #    port = 1143;
-  #    tls.useStartTls = true;
-  #    tls.certificatesFile = ~/.config/protonmail/bridge/cert.pem;
-  #  };
-  #  smtp = {
-  #    host = "127.0.0.1";
-  #    port = 1025;
-  #    tls = {
-  #      enable = true;
-  #      useStartTls = true;
-  #      certificatesFile = ~/.config/protonmail/bridge/cert.pem;
-  #    };
-  #  };
-  #};
-
   accounts.email.accounts.ftzm = {
     userName = "m@ftzm.org";
     address = "m@ftzm.org";
