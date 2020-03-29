@@ -75,7 +75,60 @@
  ("r" rotate-window)
  ("<escape>" nil "cancel")
 )
-  )
+
+;; Go to last (i.e. most recent) perspective
+(setq ftzm/last-persp persp-nil-name)
+
+(add-hook 'persp-before-switch-functions
+	  #'(lambda (next-pn &rest rest)
+	      (setq ftzm/last-persp (safe-persp-name (get-current-persp)))))
+
+(defun ftzm/switch-last-persp ()
+  (interactive)
+  (persp-switch ftzm/last-persp))
+
+(defun hydra-persp-names ()
+  (let ((names (persp-names-current-frame-fast-ordered))
+        (current-name (safe-persp-name (get-current-persp)))
+        (parts '())
+        (count 1))
+    (dolist (name names (s-join "  " (nreverse parts)))
+      (cond ((eq name current-name)
+             (push (propertize (format "%d:%s" count name) 'face 'font-lock-warning-face) parts))
+            (t
+             (push (format "%d:%s" count name) parts)))
+      (cl-incf count)))))
+
+(use-package pretty-hydra
+  :straight t)
+
+(defun persp-switch-label (n)
+  (nth (- n 1) (persp-names-current-frame-fast-ordered)))
+
+(defun persp-switch-command (n)
+  (persp-switch (nth (- n 1) (persp-names-current-frame-fast-ordered))))
+
+
+(pretty-hydra-define persp-hydra
+  (:color blue :quit-key "q" :title "%s(hydra-persp-names)")
+  ("Buffer"
+   (( "k" (persp-remove-buffer (current-buffer)) "remove buffer")
+    ( "a" (persp-add-buffer (current-buffer)) "remove buffer"))
+   "Persp"
+   (("r" persp-rename "rename")
+    ("C" (persp-kill (safe-persp-name (get-current-persp))) "kill"))
+   "General"
+   (("s" persp-frame-switch "switch")
+    ("p" ftzm/switch-last-persp (format "prev [%s]" ftzm/last-persp))
+    ("1" (persp-switch-command 1) nil)
+    ("2" (persp-switch-command 2) nil)
+    ("3" (persp-switch-command 3) nil)
+    ("4" (persp-switch-command 4) nil)
+    ("5" (persp-switch-command 5) nil)
+    ("6" (persp-switch-command 6) nil)
+    ("7" (persp-switch-command 7) nil)
+    ("8" (persp-switch-command 8) nil)
+    ("7" (persp-switch-command 7) nil))))
 
 
 (use-package general
@@ -96,7 +149,7 @@
    :keymaps '(override
               dired-mode-map
     	      magit-mode-map
-	          magit-blame-mode-map
+	      magit-blame-mode-map
     	      evil-normal-state-map)
    "SPC"
    'leader-menu)
@@ -112,7 +165,7 @@
   (define-prefix-command 'leader-menu)
   (define-key leader-menu (kbd "SPC") 'counsel-M-x)
   (define-key leader-menu (kbd "'") 'switch-to-previous-buffer)
-  (define-key leader-menu (kbd ",") 'evil-window-next)
+  (define-key leader-menu (kbd ",") 'ace-window)
   (define-prefix-command 'apps-keys)
   (define-prefix-command 'toggle-keys)
   (define-key toggle-keys "b" 'default-text-scale-increase)
@@ -168,7 +221,7 @@
          ")" 'dired-next-subdir
          "(" 'dired-prev-subdir)))
 
-  (define-key leader-menu "s" 'persp-key-map)
+  (define-key leader-menu "s" 'persp-hydra/body)
 
   ;(define-key evil-normal-state-map "s" 'avy-goto-char-timer)
   ;(define-key evil-normal-state-map "s" 'avy-goto-char-flex)
@@ -347,6 +400,7 @@
   :straight t
   :diminish which-key-mode
   :config
+  (which-key-setup-side-window-bottom)
   (which-key-mode)
   (setq which-key-idle-delay 0.3)
   (which-key-add-key-based-replacements
