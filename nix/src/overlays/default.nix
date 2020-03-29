@@ -22,11 +22,11 @@ let
   # Create an attrset singleton with the name and package of a file.
   overlayAttr = file: {
     name = removeSuffix ".nix" file;
-    value = super.callPackage (./. + "/${file}") { };
+    value = super.callPackage (./packages/. + "/${file}") { };
   };
 
   mkOverlays = dir: listToAttrs (map overlayAttr (validFiles dir));
 
-  overlays = mkOverlays ./.;
+  overlays = mkOverlays ./packages/.;
 
 in overlays
