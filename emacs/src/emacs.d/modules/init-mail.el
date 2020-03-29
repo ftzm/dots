@@ -1,5 +1,5 @@
 (use-package mu4e
-  :load-path "/run/current-system/sw/share/emacs/site-lisp/mu4e/"
+  ;:load-path "/run/current-system/sw/share/emacs/site-lisp/mu4e/"
   :config
 
   (add-hook 'mu4e-mode-hook #'flyspell-mode)
@@ -82,6 +82,12 @@
 	 )
       )
     )
+    ;; enable inline images
+    (setq mu4e-view-show-images t)
+    ;; use imagemagick, if available
+    (when (fboundp 'imagemagick-register-types)
+      (imagemagick-register-types))
+
   )
 
 (provide 'init-mail)
