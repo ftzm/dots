@@ -1,5 +1,9 @@
 { pkgs, ... }:
 
+let
+  vterm_printf = builtins.readFile ./vterm_printf.sh;
+  vterm_prompt_end = builtins.readFile ./vterm_prompt_end.sh;
+in
 {
   programs.zsh = {
     enable = true;
@@ -52,6 +56,8 @@
       # Go
       export GOPATH=$HOME/.go
       export PATH=$GOPATH/bin:$PATH
+      ${vterm_printf}
+      ${vterm_prompt_end}
     '';
   };
   programs.fzf = {

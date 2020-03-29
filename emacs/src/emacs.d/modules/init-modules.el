@@ -28,6 +28,7 @@
 (require 'init-elisp)
 (require 'init-lisp)
 (require 'init-shell)
+(require 'init-vterm)
 (require 'init-nix)
 (require 'init-haskell)
 (require 'init-elm)
