@@ -61,8 +61,9 @@ or nil."
                                      (powerline-raw " " face1)
                                      (funcall separator-left face1 face2)
                                      (powerline-vc face2 'r)
-                                     (powerline-raw
-				      (ftzm/flycheck-mode-line-status-text) face2)))
+				     (when (and (boundp 'flycheck-mode) flycheck-mode)
+				       (powerline-raw
+					(ftzm/flycheck-mode-line-status-text) face2))))
                           (rhs (list (powerline-raw global-mode-string face2 'r)
                                      (funcall separator-right face2 face1)
                                      (unless window-system
