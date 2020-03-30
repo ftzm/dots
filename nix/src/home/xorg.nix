@@ -3,7 +3,8 @@ let
   #font_size = if isNixos then "10.5" else "16";
   font_size = "10.5";
   isNixos = builtins.pathExists /etc/nixos;
-in {
+in
+{
   services.dunst = {
     enable = true;
     settings = {
@@ -54,47 +55,7 @@ in {
       };
     };
   };
-<<<<<<< HEAD:nix/src/home/xorg.nix
-  programs.urxvt = {
-    enable = true;
-    fonts = [
-      "xft:Iosevka Lig:Medium:size=${font_size}"
-      "xft:Source Code Pro:Regular:size=${font_size}"
-      "xft:DejaVu Sans Mono:Regular:size=${font_size}"
-    ];
-    extraConfig = {
-      scrollBar = false;
-      letterSpace = ".5";
-      smoothResize = true;
-      interalBorder = "5";
-      urgentOnBell = true;
-      boldFont = false;
-    };
-  };
-  xresources.properties = {
-    "*background" = "#282828";
-    "*foreground" = "#ebdbb2";
-    "*color0" = "#282828";
-    "*color8" = "#928374";
-    "*color1" = "#cc241d";
-    "*color9" = "#fb4934";
-    "*color2" = "#98971a";
-    "*color10" = "#b8bb26";
-    "*color3" = "#d79921";
-    "*color11" = "#fabd2f";
-    "*color4" = "#458588";
-    "*color12" = "#83a598";
-    "*color5" = "#b16286";
-    "*color13" = "#d3869b";
-    "*color6" = "#689d6a";
-    "*color14" = "#8ec07c";
-    "*color7" = "#a89984";
-    "*color15" = "#ebdbb2";
-  } // (if isNixos then { } else { "Xft.dpi" = "180"; });
-  xsession = {
-=======
   programs.alacritty = {
->>>>>>> nixpkxgs update and add alacritty:nix/src/nixpkgs/xorg.nix
     enable = true;
     settings = {
       font = {
@@ -137,65 +98,65 @@ in {
     };
   };
   programs.urxvt = {
-      enable = true;
-      fonts = [
-          #"xft:Iosevka Lig:Medium:size=${font_size}"
-          "xft:Source Code Pro:Regular:size=${font_size}"
-          #"xft:DejaVu Sans Mono:Regular:size=${font_size}"
-        ];
-        extraConfig = {
-            scrollBar = false;
-            letterSpace = ".5";
-            smoothResize = true;
-            interalBorder = 5;
-            urgentOnBell = true;
-            #boldFont = "xft:Iosevka Lig:Medium:size=${font_size}";
-            boldFont = "xft:Source Code Pro:Regular:size=${font_size}";
-          };
-        };
-        xresources.properties = {
-          "*background" = "#282828";
-          "*foreground" = "#ebdbb2";
-          "*color0" = "#282828";
-          "*color8" = "#928374";
-          "*color1" = "#cc241d";
-          "*color9" = "#fb4934";
-          "*color2" = "#98971a";
-          "*color10" = "#b8bb26";
-          "*color3" = "#d79921";
-          "*color11" = "#fabd2f";
-          "*color4" = "#458588";
-          "*color12" = "#83a598";
-          "*color5" = "#b16286";
-          "*color13" = "#d3869b";
-          "*color6" = "#689d6a";
-          "*color14" = "#8ec07c";
-          "*color7" = "#a89984";
-          "*color15" = "#ebdbb2";
-        } // (if isNixos then { } else { "Xft.dpi" = "180"; });
-        xsession = {
-          enable = true;
-          windowManager = {
-            xmonad = {
-              enable = true;
-              enableContribAndExtras = true;
-            };
-          };
-          initExtra = ''
-            export LOCALE_ARCHIVE_2_27="$(nix-build --no-out-link "<nixpkgs>" -A glibcLocales)/lib/locale/locale-archive"
-            ${pkgs.hsetroot}/bin/hsetroot -solid "#282828" &
-            export FONT_SIZE=${font_size}
-            # For non-broken locale on non-nixos
-            xsetroot -cursor_name left_ptr
-            # Mainly for ubuntu
-            export XCURSOR_PATH=$HOME/.nix-profile/share/icons:$XCURSOR_PATH
-          '';
-          pointerCursor = {
-            package = pkgs.vanilla-dmz;
-            name = "Vanilla-DMZ";
-          } // (if isNixos then { } else { size = 64; });
-        };
-        qt.enable = true;
-        gtk.enable = true;
-        fonts.fontconfig.enable = true;
+    enable = true;
+    fonts = [
+      #"xft:Iosevka Lig:Medium:size=${font_size}"
+      "xft:Source Code Pro:Regular:size=${font_size}"
+      #"xft:DejaVu Sans Mono:Regular:size=${font_size}"
+    ];
+    extraConfig = {
+      scrollBar = false;
+      letterSpace = ".5";
+      smoothResize = true;
+      interalBorder = 5;
+      urgentOnBell = true;
+      #boldFont = "xft:Iosevka Lig:Medium:size=${font_size}";
+      boldFont = "xft:Source Code Pro:Regular:size=${font_size}";
+    };
+  };
+  xresources.properties = {
+    "*background" = "#282828";
+    "*foreground" = "#ebdbb2";
+    "*color0" = "#282828";
+    "*color8" = "#928374";
+    "*color1" = "#cc241d";
+    "*color9" = "#fb4934";
+    "*color2" = "#98971a";
+    "*color10" = "#b8bb26";
+    "*color3" = "#d79921";
+    "*color11" = "#fabd2f";
+    "*color4" = "#458588";
+    "*color12" = "#83a598";
+    "*color5" = "#b16286";
+    "*color13" = "#d3869b";
+    "*color6" = "#689d6a";
+    "*color14" = "#8ec07c";
+    "*color7" = "#a89984";
+    "*color15" = "#ebdbb2";
+  } // (if isNixos then { } else { "Xft.dpi" = "180"; });
+  xsession = {
+    enable = true;
+    windowManager = {
+      xmonad = {
+        enable = true;
+        enableContribAndExtras = true;
+      };
+    };
+    initExtra = ''
+      export LOCALE_ARCHIVE_2_27="$(nix-build --no-out-link "<nixpkgs>" -A glibcLocales)/lib/locale/locale-archive"
+      ${pkgs.hsetroot}/bin/hsetroot -solid "#282828" &
+      export FONT_SIZE=${font_size}
+      # For non-broken locale on non-nixos
+      xsetroot -cursor_name left_ptr
+      # Mainly for ubuntu
+      export XCURSOR_PATH=$HOME/.nix-profile/share/icons:$XCURSOR_PATH
+    '';
+    pointerCursor = {
+      package = pkgs.vanilla-dmz;
+      name = "Vanilla-DMZ";
+    } // (if isNixos then { } else { size = 64; });
+  };
+  qt.enable = true;
+  gtk.enable = true;
+  fonts.fontconfig.enable = true;
 }
