@@ -2,14 +2,13 @@
   :straight t
   :mode ("\\.py\\'" . python-mode)
   :diminish (anaconda-mode . "A")
+  :hook ((python-mode . anaconda-mode)
+	 (python-mode . flycheck-mode)
+	 (python-mode . auto-fill-mode)
+	 (python-mode . (lambda ()
+			  (setq flycheck-checker 'python-flake8
+				flycheck-checker-error-threshold 900))))
   :config
-  (add-hook 'python-mode-hook 'anaconda-mode)
-  (add-hook 'python-mode-hook 'anaconda-eldoc-mode)
-  (add-hook 'python-mode-hook 'auto-fill-mode)
-  (add-hook 'python-mode-hook (lambda ()
-  			      (flycheck-mode 1)
-  			      (setq flycheck-checker 'python-mypy
-  				    flycheck-checker-error-threshold 900)))
 
   (defun pyvenv-and-fly (directory)
     "open interactive menu to choose the virtualenv (choose venv root), then
