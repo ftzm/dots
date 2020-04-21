@@ -1,6 +1,7 @@
 (use-package avy
   :straight t
   :config
+
   (defun avy-goto-char-flex (char1 char2 &optional arg beg end)
   "Behaves like avy-goto-char-2 unless the second character is RET,
 in which case does avy-goto-char with the first char."
@@ -12,16 +13,13 @@ in which case does avy-goto-char with the first char."
     (setq char1 ?\n))
   (if (not (eq char2 ?))
       (avy-with avy-goto-char-2
-      (avy--generic-jump
+      (avy-jump
        (regexp-quote (string char1 char2))
-       arg
-       avy-style
-       beg end))
+       :beg beg
+       :end end))
       (avy-with avy-goto-char
-      (avy--generic-jump
-       (regexp-quote (string char1))
-       arg
-       avy-style))))
+      (avy-jump
+       (regexp-quote (string char1))))))
 
   (setq avy-timeout-seconds 0)
   (setq avy-all-windows nil)
@@ -29,9 +27,18 @@ in which case does avy-goto-char with the first char."
 		      ?k ?w ?j ?b ?x ?v ?q ?z ?\; ?n ?o))
 
   (set-face-attribute 'avy-lead-face nil
-  :background "#ff0000"
-  :foreground "#000000"
+  :background nil
+  :foreground "#ff0000"
   )
+
+  (set-face-attribute 'avy-lead-face-0 nil
+  :background nil
+  :foreground "#ff0000"
+  )
+
+  (setq avy-background t)
+  (setq avy-all-windows t)
+
   )
 
 (provide 'init-avy)
