@@ -1,59 +1,5 @@
 (global-set-key (kbd "<escape>")      'keyboard-escape-quit)
 
-(use-package hydra
-  :straight t
-  :config
-  ;; currently unused
-;  (defhydra hydra-window-size (:color blue
-;			       :hint nil
-;			       evil-normal-state-map "SPC w")
-;    "
-;  ^Mark^             ^Unmark^           ^Actions^          ^Search
-;  ^^^^^^^^-----------------------------------------------------------------
-;  _m_: mark          _u_: unmark        _x_: execute       _R_: re-isearch
-;  _s_: save          _U_: unmark up     _b_: bury          _I_: isearch
-;  _d_: delete        ^ ^                _g_: refresh       _O_: multi-occur
-;  _D_: delete up     ^ ^                _T_: files only: % -28`Buffer-menu-files-only
-;  _~_: modified                         _e_: inc
-;  "
-;
-;  ("e" evil-window-increase-width)
-;  ("c" evil-window-decrease-width))
-;
-;
-;  (defhydra hydra-buffer-menu (:color pink
-;                               :hint nil)
-;    "
-;  ^Mark^             ^Unmark^           ^Actions^          ^Search
-;  ^^^^^^^^-----------------------------------------------------------------
-;  _m_: mark          _u_: unmark        _x_: execute       _R_: re-isearch
-;  _s_: save          _U_: unmark up     _b_: bury          _I_: isearch
-;  _d_: delete        ^ ^                _g_: refresh       _O_: multi-occur
-;  _D_: delete up     ^ ^                _T_: files only: % -28`Buffer-menu-files-only
-;  _~_: modified
-;  "
-;  ("m" Buffer-menu-mark)
-;  ("u" Buffer-menu-unmark)
-;  ("U" Buffer-menu-backup-unmark)
-;  ("d" Buffer-menu-delete)
-;  ("D" Buffer-menu-delete-backwards)
-;  ("s" Buffer-menu-save)
-;  ("~" Buffer-menu-not-modified)
-;  ("x" Buffer-menu-execute)
-;  ("b" Buffer-menu-bury)
-;  ("g" revert-buffer)
-;  ("T" Buffer-menu-toggle-files-only)
-;  ("O" Buffer-menu-multi-occur :color blue)
-;  ("I" Buffer-menu-isearch-buffers :color blue)
-;  ("R" Buffer-menu-isearch-buffers-regexp :color blue)
-;  ("c" nil "cancel")
-;  ("v" Buffer-menu-select "select" :color blue)
-;  ("o" Buffer-menu-other-window "other-window" :color blue)
-;  ("q" quit-window "quit" :color blue))
-
-  ;(define-key Buffer-menu-mode-map "." 'hydra-buffer-menu/body)
-
-
  (defhydra hydra-rotate-menu (:color pink
                               :hint nil)
    "
@@ -76,60 +22,59 @@
  ("<escape>" nil "cancel")
 )
 
-;; Go to last (i.e. most recent) perspective
-(setq ftzm/last-persp persp-nil-name)
+;; ;; Go to last (i.e. most recent) perspective
+;; (setq ftzm/last-persp persp-nil-name)
 
-(add-hook 'persp-before-switch-functions
-	  #'(lambda (next-pn &rest rest)
-	      (setq ftzm/last-persp (safe-persp-name (get-current-persp)))))
+;; (add-hook 'persp-before-switch-functions
+;; 	  #'(lambda (next-pn &rest rest)
+;; 	      (setq ftzm/last-persp (safe-persp-name (get-current-persp)))))
 
-(defun ftzm/switch-last-persp ()
-  (interactive)
-  (persp-switch ftzm/last-persp))
+;; (defun ftzm/switch-last-persp ()
+;;   (interactive)
+;;   (persp-switch ftzm/last-persp))
 
-(defun hydra-persp-names ()
-  (let ((names (persp-names-current-frame-fast-ordered))
-        (current-name (safe-persp-name (get-current-persp)))
-        (parts '())
-        (count 1))
-    (dolist (name names (s-join "  " (nreverse parts)))
-      (cond ((eq name current-name)
-             (push (propertize (format "%d:%s" count name) 'face 'font-lock-warning-face) parts))
-            (t
-             (push (format "%d:%s" count name) parts)))
-      (cl-incf count)))))
+;; (defun hydra-persp-names ()
+;;   (let ((names (persp-names-current-frame-fast-ordered))
+;;         (current-name (safe-persp-name (get-current-persp)))
+;;         (parts '())
+;;         (count 1))
+;;     (dolist (name names (s-join "  " (nreverse parts)))
+;;       (cond ((eq name current-name)
+;;              (push (propertize (format "%d:%s" count name) 'face 'font-lock-warning-face) parts))
+;;             (t
+;;              (push (format "%d:%s" count name) parts)))
+;;       (cl-incf count)))))
 
-(use-package pretty-hydra
-  :straight t)
+;; (use-package pretty-hydra
+;;   :straight t)
 
-(defun persp-switch-label (n)
-  (nth (- n 1) (persp-names-current-frame-fast-ordered)))
+;; (defun persp-switch-label (n)
+;;   (nth (- n 1) (persp-names-current-frame-fast-ordered)))
 
-(defun persp-switch-command (n)
-  (persp-switch (nth (- n 1) (persp-names-current-frame-fast-ordered))))
+;; (defun persp-switch-command (n)
+;;   (persp-switch (nth (- n 1) (persp-names-current-frame-fast-ordered))))
 
 
-(pretty-hydra-define persp-hydra
-  (:color blue :quit-key "q" :title "%s(hydra-persp-names)")
-  ("Buffer"
-   (( "k" (persp-remove-buffer (current-buffer)) "remove buffer")
-    ( "a" (persp-add-buffer (current-buffer)) "remove buffer"))
-   "Persp"
-   (("r" persp-rename "rename")
-    ("C" (persp-kill (safe-persp-name (get-current-persp))) "kill"))
-   "General"
-   (("s" persp-frame-switch "switch")
-    ("p" ftzm/switch-last-persp (format "prev [%s]" ftzm/last-persp))
-    ("1" (persp-switch-command 1) nil)
-    ("2" (persp-switch-command 2) nil)
-    ("3" (persp-switch-command 3) nil)
-    ("4" (persp-switch-command 4) nil)
-    ("5" (persp-switch-command 5) nil)
-    ("6" (persp-switch-command 6) nil)
-    ("7" (persp-switch-command 7) nil)
-    ("8" (persp-switch-command 8) nil)
-    ("7" (persp-switch-command 7) nil))))
-
+;; (pretty-hydra-define persp-hydra
+;;   (:color blue :quit-key "q" :title "%s(hydra-persp-names)")
+;;   ("Buffer"
+;;    (( "k" (persp-remove-buffer (current-buffer)) "remove buffer")
+;;     ( "a" (persp-add-buffer (current-buffer)) "remove buffer"))
+;;    "Persp"
+;;    (("r" persp-rename "rename")
+;;     ("C" (persp-kill (safe-persp-name (get-current-persp))) "kill"))
+;;    "General"
+;;    (("s" persp-frame-switch "switch")
+;;     ("p" ftzm/switch-last-persp (format "prev [%s]" ftzm/last-persp))
+;;     ("1" (persp-switch-command 1) nil)
+;;     ("2" (persp-switch-command 2) nil)
+;;     ("3" (persp-switch-command 3) nil)
+;;     ("4" (persp-switch-command 4) nil)
+;;     ("5" (persp-switch-command 5) nil)
+;;     ("6" (persp-switch-command 6) nil)
+;;     ("7" (persp-switch-command 7) nil)
+;;     ("8" (persp-switch-command 8) nil)
+;;     ("7" (persp-switch-command 7) nil)))
 
 (use-package general
   :straight t
@@ -198,7 +143,7 @@
                       "e" 'eval-buffer
                       "k" 'evil-prev-buffer
                       "j" 'evil-next-buffer
-                      "b" 'ivy-switch-buffer
+                      "b" 'persp-ivy-switch-buffer
                       "s" 'save-buffer
                       "f" 'counsel-find-file
                       "w" 'write-file

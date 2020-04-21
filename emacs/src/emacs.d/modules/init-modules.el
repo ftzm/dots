@@ -2,6 +2,7 @@
 (require 'init-gui)
 (require 'init-straight)
 (require 'init-gui-pkg)
+(require 'init-hydra)
 (require 'init-avy)
 (require 'init-themes)
 (require 'init-evil)
