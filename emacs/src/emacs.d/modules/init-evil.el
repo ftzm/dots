@@ -1,7 +1,11 @@
+(setq scroll-step 1
+      scroll-conservatively 10000) ;; scroll by 1 like in vim
+
 (use-package evil
   :straight t
   :init
   ;; for evil-collections
+  (setq evil-respect-visual-line-mode t)
   (setq evil-want-integration t) ;; This is optional since it's already set to t by default.
   (setq evil-want-keybinding nil)
   :config
@@ -10,14 +14,17 @@
   (evil-select-search-module 'evil-search-module 'evil-search)
 
   (define-key evil-normal-state-map (kbd "C-i") 'evil-jump-forward)
-  (define-key evil-normal-state-map "L" 'evil-end-of-line)
-  (define-key evil-visual-state-map "L" 'evil-last-non-blank)
-  (define-key evil-normal-state-map "H" 'beginning-of-line-text)
-  (define-key evil-visual-state-map "H" 'beginning-of-line-text)
+  ;(define-key evil-normal-state-map "L" 'evil-end-of-line)
+  ;(define-key evil-visual-state-map "L" 'evil-last-non-blank)
+  ;(define-key evil-normal-state-map "H" 'beginning-of-line-text)
+  ;(define-key evil-visual-state-map "H" 'beginning-of-line-text)
   (define-key evil-normal-state-map (kbd "[ SPC") 'insert-line-above)
   (define-key evil-normal-state-map (kbd "] SPC") 'insert-line-below)
   (define-key evil-normal-state-map (kbd "[ d") 'delete-line-above)
   (define-key evil-normal-state-map (kbd "] d") 'delete-line-below)
+
+  (evil-define-minor-mode-key 'normal 'visual-line-mode
+    "^" 'evil-beginning-of-visual-line)
 
   (defun insert-line-below ()
   "Insert an empty line below the current line."
