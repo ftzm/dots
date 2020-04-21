@@ -76,13 +76,11 @@
 (use-package refresh-layout
   :straight (refresh-layout
 	     :type git
-	     :host github
-	     :repo "ftzm/refresh-layout-mode"
+	     :repo "refresh-layout-mode"
 	     :branch "dev")
   :diminish refresh-layout-mode
   :config
-  (refresh-layout-mode)
-  )
+  (refresh-layout-mode))
 
 
 
