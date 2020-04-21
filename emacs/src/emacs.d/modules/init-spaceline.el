@@ -60,7 +60,6 @@ or nil."
                                      (powerline-narrow face1 'l)
                                      (powerline-raw " " face1)
                                      (funcall separator-left face1 face2)
-                                     (powerline-vc face2 'r)
 				     (when (and (boundp 'flycheck-mode) flycheck-mode)
 				       (powerline-raw
 					(ftzm/flycheck-mode-line-status-text) face2))))
@@ -79,6 +78,8 @@ or nil."
                      (concat (powerline-render lhs)
                              (powerline-fill face2 (powerline-width rhs))
                              (powerline-render rhs)))))))
+
+  (setq powerline-default-separator 'chamfer)
 
   (powerline-ftzm-theme)
   )
@@ -141,6 +142,19 @@ or nil."
 ;
 ;  )
 
+;(use-package    feebleline
+;  :straight       t
+;  :config       (setq feebleline-msg-functions
+;                      '((feebleline-line-number         :post "" :fmt "%5s")
+;                        (feebleline-column-number       :pre ":" :fmt "%-2s")
+;                        (feebleline-file-directory      :face feebleline-dir-face :post "")
+;                        (feebleline-file-or-buffer-name :face font-lock-keyword-face :post "")
+;                        (feebleline-file-modified-star  :face font-lock-warning-face :post "")
+;                        (feebleline-git-branch          :face feebleline-git-face :pre " : ")
+;                        ((lambda () "test")          :face feebleline-git-face :pre " : ")
+;                        (ftzm/flycheck-mode-line-status-text     :face feebleline-git-face :pre " : ")
+;                        (feebleline-project-name        :align right)))
+;                (feebleline-mode 0))
 
 (provide 'init-spaceline)
 ;;; init-spaceline.el ends here
