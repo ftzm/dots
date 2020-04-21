@@ -33,10 +33,28 @@
 ;
 ; (provide 'org-version)
 
+; (use-package load-theme-buffer-local
+; :straight t)
+
+;(use-package org-bullets
+  ;:straight t
+  ;:config
+  ;(setq org-bullets-bullet-list '(" ")))
+
 (use-package org
   :mode (("\\.org$" . org-mode))
   :straight (org org-plus-contrib)
+  ;:hook (
+  ;	 ;(org-mode . org-bullets-mode)
+  ;	 ;(org-mode . variable-pitch-mode)
+  ;	 ;(org-mode . org-num-mode)
+  ;	 )
   :config
+
+  ;(add-hook 'org-mode-hook (lambda ()(load-theme-buffer-local 'gruvbox-light-soft (current-buffer)) ))
+  (setq org-ellipsis " ↓")
+
+  ;(require 'org-num)
   (add-hook 'org-mode-hook #'visual-line-mode)
   (progn
     (setq org-directory "~/org")
@@ -51,9 +69,52 @@
     (setq org-agenda-window-setup 'current-window)
 
     ;;handles hiding leading stars and indenting text
-    (add-hook 'org-mode-hook 'org-indent-mode)
+    ;(add-hook 'org-mode-hook 'org-indent-mode)
+    (setq org-hide-leading-stars t)
 
     (add-hook 'org-mode-hook 'olivetti-mode)
+
+    (setq org-hide-emphasis-markers nil)
+
+    (defun my/org-mode-hook ()
+      "Stop the org-level headers from increasing in height relative to the other text."
+      (dolist (face '(org-level-2
+                      org-level-3
+                      org-level-4
+                      org-level-5
+                      org-level-6
+                      org-level-7
+                      org-level-8))
+        (set-face-attribute face nil :inherit outline-1)))
+
+    ;(my/org-mode-hook)
+
+    (setq org-num-face font-lock-comment-face)
+
+    (custom-theme-set-faces
+     'user
+     ;'(variable-pitch ((t (:family "Source Serif Pro" :weight normal :height 1.1))))
+     ;'(fixed-pitch ((t ( :family "Iosevka Lig" :slant normal :weight normal))))
+     ;'(org-level-1 ((t ( ))))
+     '(org-level-2 ((t ( :foreground nil :inherit org-level-1))))
+     '(org-level-3 ((t ( :foreground nil :inherit org-level-1))))
+     '(org-block-begin-line ((t ( :inherit font-lock-comment-face :background
+					   nil))))
+     '(org-block-end-line ((t ( :inherit font-lock-comment-face :background
+					   nil))))
+     )
+
+    (custom-theme-set-faces
+     'user
+     ;'(org-block ((t (:background nil))))
+     )
+
+    ;(custom-theme-set-faces
+    ; 'user
+    ; '(org-block ((t (:inherit fixed-pitch :height 0.85 :background nil))))
+    ; '(org-code ((t (:inherit (shadow fixed-pitch) :height 0.85)))))
+
+    ;(my/org-mode-hook)
 
     ;; Autosave
     ;; passive saving
