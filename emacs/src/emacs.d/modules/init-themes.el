@@ -2,6 +2,13 @@
   :straight t
   :config
   (load-theme 'gruvbox t)
+
+  (set-face-attribute 'mode-line nil
+		      :background "#3c3836")
+  (set-face-attribute 'mode-line-inactive nil
+		      :background "#32302f"
+		      :foreground "#928374")
+
   (with-eval-after-load 'ivy
     (set-face-attribute 'ivy-current-match nil
     :inherit nil
@@ -17,7 +24,14 @@
     :weight 'normal
     )
     )
+
   )
+
+;(use-package sublime-themes
+;  :straight t
+;  :config
+;  (load-theme 'brin t)
+;  )
 
 ;(use-package solarized-theme
 ;  :straight t

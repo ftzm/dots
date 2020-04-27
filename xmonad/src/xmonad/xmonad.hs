@@ -203,5 +203,6 @@ copyWorkspace i ss = maybe ss moveall targetWindows
 
 myManageHook = composeAll
                  [ className =? "URxvt" --> doF W.swapDown
+                 , className =? "Alacritty" --> doF W.swapDown
                  , className =? "konsole" --> doF W.swapDown
                  ]

@@ -56,6 +56,7 @@
 
   ;(require 'org-num)
   (add-hook 'org-mode-hook #'visual-line-mode)
+  (add-hook 'org-mode-hook #'(lambda () (setq evil-auto-indent nil)))
   (progn
     (setq org-directory "~/org")
     (setq canonical-org-agenda-files (quote ("~/org/work.org"
