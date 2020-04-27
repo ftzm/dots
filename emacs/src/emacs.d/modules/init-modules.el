@@ -14,7 +14,8 @@
 (require 'init-settings)
 (require 'init-projectile)
 (require 'init-neotree) ;disabled
-(require 'init-spaceline)
+(require 'init-powerline)
+;(require 'init-modeline)
 (require 'init-flycheck)
 (require 'init-snippets)
 (require 'init-company)

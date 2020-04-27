@@ -6,6 +6,7 @@
 
 (use-package paredit
   :straight t
+  :diminish "pr"
   :hook ((emacs-lisp-mode
 	  lisp-interaction-mode ; enable in the *scratch* buffer
 	  list-mode

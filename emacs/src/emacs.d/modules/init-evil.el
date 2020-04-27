@@ -5,11 +5,29 @@
   :straight t
   :init
   ;; for evil-collections
-  (setq evil-respect-visual-line-mode t)
   (setq evil-want-integration t) ;; This is optional since it's already set to t by default.
   (setq evil-want-keybinding nil)
+  ;; for visual line mode
+  (setq evil-respect-visual-line-mode t)
+
+(setq theme-bg (face-attribute 'default :background))
+(setq theme-highlight (face-attribute 'highlight :background))
+(setq theme-color-1 (face-attribute 'font-lock-function-name-face :foreground))
+(setq theme-color-2 (face-attribute 'font-lock-string-face :foreground))
+(setq evil-normal-state-tag   (propertize " N " 'face (list :background theme-color-1 :foreground theme-bg :weight 'bold))
+      evil-emacs-state-tag    (propertize " E " 'face '((:background "orange" :foreground "black")))
+      evil-insert-state-tag   (propertize " I " 'face (list :background theme-color-2 :foreground theme-bg :weight 'bold))
+      evil-motion-state-tag   (propertize " M " 'face '((:background "blue") :foreground "white"))
+      evil-visual-state-tag   (propertize " V " 'face '((:background theme-color-two :foreground "black")))
+      evil-operator-state-tag (propertize " O " 'face '((:background "purple"))))
   :config
   (evil-mode t)
+
+
+
+
+
+  (setq evil-insert-state-message nil)
 
   (evil-select-search-module 'evil-search-module 'evil-search)
 
@@ -69,6 +87,7 @@
   ;; add more as need by this pattern
   (evil-collection-init 'dired)
   (evil-collection-init 'vterm)
+  (evil-collection-init 'emms)
   )
 
 (use-package evil-surround

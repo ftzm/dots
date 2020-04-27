@@ -27,7 +27,66 @@ or nil."
                 (`suspicious "?"))))
     (concat " " flycheck-mode-line-prefix text)))
 
+(setq quiet-evil (propertize evil-mode-line-tag 'face (list :background theme-highlight :foreground theme-bg :weight 'bold)))
+(put 'quiet-evil 'risky-local-variable t)
+
   (defun powerline-ftzm-theme ()
+  "Setup the default mode-line."
+  (interactive)
+  (setq-default mode-line-format
+                '("%e"
+                  (:eval
+                   (let* ((active (powerline-selected-window-active))
+                          (mode-line-buffer-id (if active 'mode-line-buffer-id 'mode-line-buffer-id-inactive))
+                          (mode-line (if active 'mode-line 'mode-line-inactive))
+                          (face0 (if active 'powerline-inactive0 'powerline-inactive0))
+                          (face1 (if active 'powerline-inactive1 'powerline-inactive1))
+                          (face2 (if active 'powerline-inactive1 'powerline-inactive1))
+                          (separator-left (intern (format "powerline-%s-%s"
+                                                          (powerline-current-separator)
+                                                          (car powerline-default-separator-dir))))
+                          (separator-right (intern (format "powerline-%s-%s"
+                                                           (powerline-current-separator)
+                                                           (cdr powerline-default-separator-dir))))
+                          (lhs (list
+				(if active
+				    (powerline-raw evil-mode-line-tag)
+				  (powerline-raw quiet-evil))
+				(powerline-raw "%*" face0 'l)
+                                     ;(powerline-buffer-id `(mode-line-buffer-id ,face0) 'l)
+				     (powerline-raw (buffer-name) face0 'l)
+                                     (when (and (boundp 'which-func-mode) which-func-mode)
+                                       (powerline-raw which-func-format face0 'l))
+                                     (powerline-raw " " face0)
+                                     (funcall separator-left face0 face1)
+                                     (when (and (boundp 'erc-track-minor-mode) erc-track-minor-mode)
+                                       (powerline-raw erc-modified-channels-object face1 'l))
+                                     (powerline-major-mode face1 'l)
+                                     (powerline-process face1)
+                                     (powerline-minor-modes face1 'l)
+                                     (powerline-narrow face1 'l)
+                                     (powerline-raw " " face1)
+                                     (funcall separator-left face1 face2)
+				     (when (and (boundp 'flycheck-mode) flycheck-mode)
+				       (powerline-raw
+					(ftzm/flycheck-mode-line-status-text) face2))))
+                          (rhs (list ;(powerline-raw global-mode-string face2 'r)
+                                     (funcall separator-right face2 face1)
+                                     (unless window-system
+                                       (powerline-raw (char-to-string #xe0a1) face1 'l))
+                                     (powerline-raw "%l" face1 'l)
+                                     (powerline-raw ":" face1 'l)
+                                     (powerline-raw "%c" face1 'r)
+                                     (funcall separator-right face1 face0)
+                                     (powerline-raw " " face0)
+                                     (powerline-raw "%p" face0 'r)
+                                     (powerline-fill face0 0)
+                                     )))
+                     (concat (powerline-render lhs)
+                             (powerline-fill face2 (powerline-width rhs))
+                             (powerline-render rhs)))))))
+
+  (defun powerline-ftzm-theme-bu ()
   "Setup the default mode-line."
   (interactive)
   (setq-default mode-line-format
@@ -63,7 +122,7 @@ or nil."
 				     (when (and (boundp 'flycheck-mode) flycheck-mode)
 				       (powerline-raw
 					(ftzm/flycheck-mode-line-status-text) face2))))
-                          (rhs (list (powerline-raw global-mode-string face2 'r)
+                          (rhs (list ;(powerline-raw global-mode-string face2 'r)
                                      (funcall separator-right face2 face1)
                                      (unless window-system
                                        (powerline-raw (char-to-string #xe0a1) face1 'l))
@@ -156,5 +215,5 @@ or nil."
 ;                        (feebleline-project-name        :align right)))
 ;                (feebleline-mode 0))
 
-(provide 'init-spaceline)
+(provide 'init-powerline)
 ;;; init-spaceline.el ends here

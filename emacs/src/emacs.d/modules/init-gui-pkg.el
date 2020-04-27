@@ -67,6 +67,7 @@
 
 (use-package ace-window
   :straight t
+  :diminish
   )
 
 ;(use-package rotate

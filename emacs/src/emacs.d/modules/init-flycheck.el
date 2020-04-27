@@ -1,7 +1,7 @@
 (use-package flycheck
   :straight t
   :hook ((json-mode) . flycheck-mode)
-  :diminish "S"
+  :diminish " S"
   :config
   (setq flycheck-check-syntax-automatically '(mode-enabled save))
   (setq flycheck-display-errors-delay 0.1)

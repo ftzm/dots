@@ -33,4 +33,6 @@
 ;
 (setq initial-scratch-message "Welcome to Emacs.")
 
+(setq-default cursor-in-non-selected-windows nil)
+
 (provide 'init-gui)
