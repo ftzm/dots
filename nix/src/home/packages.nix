@@ -116,5 +116,15 @@ in
     dbeaver
 
     kitty
+    xdg_utils
   ];
+  xdg = {
+    enable = true;
+    mimeApps = {
+      enable = true;
+      defaultApplications = {
+        "application/pdf" = [ "zathura.desktop" ];
+      };
+    };
+  };
 }
