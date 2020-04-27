@@ -53,6 +53,7 @@
 (require 'init-mail)
 (require 'init-slack)
 (require 'init-telega)
+(require 'init-music)
 
 ;;centralized key mappings
 (require 'init-keys)
