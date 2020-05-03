@@ -6,6 +6,12 @@ let
   emacsWithPackages = (pkgs.emacsPackagesNgGen myEmacs).emacsWithPackages;
 
   ps = (import (builtins.toPath "${config.home.homeDirectory}/dev/pipestatus/release.nix")).pipestatus;
+  pkgs-old = import (import ../nix/sources.nix).nixpkgs-old {
+    config = {
+      allowUnfree = true;
+      checkMeta = true;
+    };
+  };
 in {
   home.packages = with pkgs; [
     ps
@@ -35,7 +41,7 @@ in {
     gotop
 
     # office/document/media
-    libreoffice
+    #libreoffice
     gimp
     slack
     vlc
@@ -58,6 +64,7 @@ in {
     # fun
     # steam define in system
     discord
+    pkgs-old.steam
 
     # appearance
     hsetroot

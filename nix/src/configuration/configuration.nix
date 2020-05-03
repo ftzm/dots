@@ -46,11 +46,10 @@ in {
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  boot.initrd.luks.devices = [{
-    name = "root";
+  boot.initrd.luks.devices.root = {
     device = "/dev/nvme0n1p2";
     preLVM = true;
-  }];
+  };
 
   # ---------------------------------------------------------------------------
   # System
@@ -70,7 +69,11 @@ in {
     git
     gnupg
     hsetroot # for desktopManager
-    steam
+    brightnessctl
+    # Prefer older, cached versions infrequently updates:
+    libreoffice
+    #steam
+
   ];
 
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
@@ -85,7 +88,6 @@ in {
 
   services.upower.enable = true;
 
-  hardware.brightnessctl.enable = true;
 
   # ---------------------------------------------------------------------------
   # Security
