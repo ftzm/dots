@@ -1,8 +1,7 @@
+nix
 xmonad
-dunst
-qutebrowser
 emacs
+qutebrowser
 ncmpcpp
 ranger
 zathura
-nix

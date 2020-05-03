@@ -1,7 +1,8 @@
 { config, pkgs, ... }:
 
 let
-  ps = import (builtins.toPath "${config.home.homeDirectory}/dev/pipestatus/release.nix");
+  ps_repo = (import ../nix/sources.nix).pipestatus.outPath;
+  ps = import (builtins.toPath "${ps_repo}/release.nix");
 in {
   systemd.user.services.pipestatus = {
     Unit = { Description = "pipestatus"; };

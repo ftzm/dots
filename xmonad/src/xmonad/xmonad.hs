@@ -80,7 +80,7 @@ myWorkspaces = [ "main"
                , "9"
                ]
 
-myTerminal    = "urxvt"
+myTerminal    = "alacritty"
 myModMask     = mod4Mask -- Win key or Super_L
 myBorderWidth = 1
 

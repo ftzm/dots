@@ -1,4 +1,16 @@
 {
+    "home-manager": {
+        "branch": "master",
+        "description": "Manage a user environment using Nix",
+        "homepage": "https://rycee.gitlab.io/home-manager/",
+        "owner": "rycee",
+        "repo": "home-manager",
+        "rev": "8b82f52e75e7127bf240293b3eef483aabffb405",
+        "sha256": "0xzwz1lbfiyysyrszw35nd5nwxks2mdyzi4lg4apjliqhdznjgrg",
+        "type": "tarball",
+        "url": "https://github.com/rycee/home-manager/archive/8b82f52e75e7127bf240293b3eef483aabffb405.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",
@@ -45,6 +57,18 @@
         "sha256": "15ax5rxqly1syzpj9yfvkihzl3p0p75n4pnias15ygxyc5f5mj1h",
         "type": "tarball",
         "url": "https://github.com/NixOS/nixpkgs-channels/archive/b489708077262bdd2cd2bb786ac53169a2f64e32.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "pipestatus": {
+        "branch": "master",
+        "description": null,
+        "homepage": null,
+        "owner": "ftzm",
+        "repo": "pipestatus",
+        "rev": "52375da663aa7f715b5187c77f58f4b5d8161e36",
+        "sha256": "140j2c1d0cx349ff7fqgjd1gcfz7mml60j251qr53c14ks7m72rb",
+        "type": "tarball",
+        "url": "https://github.com/ftzm/pipestatus/archive/52375da663aa7f715b5187c77f58f4b5d8161e36.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

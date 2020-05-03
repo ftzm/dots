@@ -1,13 +1,14 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
 let
-  iosevkaLig = pkgs.callPackage ./iosevka.nix {};
+  iosevkaLig = pkgs.callPackage ./iosevka.nix { };
   myEmacs = pkgs.emacs.override { inherit (pkgs) imagemagick; };
   emacsWithPackages = (pkgs.emacsPackagesNgGen myEmacs).emacsWithPackages;
-in
 
-{
+  ps = (import (builtins.toPath "${config.home.homeDirectory}/dev/pipestatus/release.nix")).pipestatus;
+in {
   home.packages = with pkgs; [
+    ps
     nix
     cacert # nothing else works without these
     zlib.dev # also needed for a lot
@@ -38,6 +39,7 @@ in
     gimp
     slack
     vlc
+    mpv
     zathura
     keybase-gui
 
@@ -67,7 +69,8 @@ in
     vanilla-dmz
 
     # programming
-    (emacsWithPackages (epkgs: [epkgs.telega epkgs.emacs-libvterm epkgs.emms]))
+    (emacsWithPackages
+      (epkgs: [ epkgs.telega epkgs.emacs-libvterm epkgs.emms ]))
     neovim
     git
     git-crypt
@@ -94,7 +97,6 @@ in
     # email
     mu
     isync
-    protonmail-bridge
 
     # fonts
     iosevkaLig
@@ -117,13 +119,21 @@ in
 
     kitty
     xdg_utils
+
+    # hw
+    neofetch
+    hwinfo
+    inxi
+    glxinfo
+    xorg.xdpyinfo
+    dmidecode
   ];
   xdg = {
     enable = true;
     mimeApps = {
       enable = true;
       defaultApplications = {
-        "application/pdf" = [ "zathura.desktop" ];
+        "application/pdf" = [ "org.pwmt.zathura.desktop" ];
       };
     };
   };

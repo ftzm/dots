@@ -10,7 +10,6 @@
 # Define secrets in a separate file
 let
   sources = import ../nix/sources.nix;
-  nixos-hardware = sources.nixos-hardware.outPath;
   nixpkgs = import sources.nixpkgs {
     config = {
       allowUnfree = true;
@@ -18,18 +17,21 @@ let
     };
   };
   pkgs = nixpkgs.pkgs;
+  nixos-hardware = sources.nixos-hardware.outPath;
+  hardware_tweaks = lib.attrByPath [(builtins.readFile /etc/nixos/model)] [] {
+    "ThinkPad T480s" = ["${nixos-hardware}/lenovo/thinkpad/t480s"];
+  };
   secrets = import ../secrets.nix;
 
 in {
   imports = [ # Include the results of the hardware scan.
-    "${nixos-hardware}/lenovo/thinkpad/t480s"
     /etc/nixos/hardware-configuration.nix
     /etc/nixos/state-version.nix
-    /etc/nixos/cachix.nix
+    #/etc/nixos/cachix.nix
     ./caches.nix
     ./sleep.nix
     ./users.nix
-  ];
+  ] ++ hardware_tweaks;
 
   nix.nixPath = lib.mkForce [
     "nixpkgs=${sources.nixpkgs.outPath}"

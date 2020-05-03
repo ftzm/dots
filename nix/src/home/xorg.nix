@@ -1,7 +1,8 @@
 { pkgs, isNixos, ... }:
 let
   #font_size = if isNixos then "10.5" else "16";
-  font_size = "10.5";
+  font_size_float = 10.5;
+  font_size = toString font_size_float;
   isNixos = builtins.pathExists /etc/nixos;
 in
 {
@@ -60,14 +61,14 @@ in
     settings = {
       font = {
         normal = {
-          family = "Iosevka";
+          family = "Iosevka Lig";
           style = "Medium";
         };
         bold = {
-          family = "Iosevka";
+          family = "Iosevka Lig";
           style = "Bold";
         };
-        size = 10.0;
+        size = font_size_float - 4;
       };
       colors = {
         primary = {
@@ -133,6 +134,11 @@ in
     "*color14" = "#8ec07c";
     "*color7" = "#a89984";
     "*color15" = "#ebdbb2";
+    "rofi.hide-scrollbar" = "true";
+    "rofi.font" = "Iosevka Lig Medium 10.5";
+    "rofi.bw" = "2";
+    "rofi.separator-style" = "none";
+    "rofi.color-normal" = "#282828, #ebdbb2, #282828, #b8bb26, #282828";
   } // (if isNixos then { } else { "Xft.dpi" = "180"; });
   xsession = {
     enable = true;
