@@ -19,7 +19,14 @@ let
   pkgs = nixpkgs.pkgs;
   nixos-hardware = sources.nixos-hardware.outPath;
   hardware_tweaks = lib.attrByPath [(builtins.readFile /etc/nixos/model)] [] {
-    "ThinkPad T480s" = ["${nixos-hardware}/lenovo/thinkpad/t480s"];
+    "ThinkPad T480s" = [
+      ./t480s.nix
+      "${nixos-hardware}/lenovo/thinkpad/t480s"
+    ];
+    "ThinkPad X1 Extreme 2nd" = [
+      ./x1.nix
+      "${nixos-hardware}/lenovo/thinkpad/x1-extreme/gen2"
+    ];
   };
   secrets = import ../secrets.nix;
 
@@ -28,11 +35,12 @@ in {
     /etc/nixos/hardware-configuration.nix
     /etc/nixos/state-version.nix
     #/etc/nixos/cachix.nix
-    ./caches.nix
+    #./caches.nix
     ./sleep.nix
     ./users.nix
   ] ++ hardware_tweaks;
 
+  nixpkgs.config.allowUnfree = true;
   nix.nixPath = lib.mkForce [
     "nixpkgs=${sources.nixpkgs.outPath}"
     "nixos-config=/etc/nixos/configuration.nix"
@@ -54,7 +62,7 @@ in {
   # ---------------------------------------------------------------------------
   # System
 
-  networking.hostName = "oibri-nixos"; # Define your hostname.
+  networking.hostName = "nixos-unity"; # Define your hostname.
   networking.networkmanager.enable = true;
 
   # Set your time zone.
@@ -121,6 +129,8 @@ in {
   # Don't conflict with mopdiy
   services.mpd = { enable = false; };
 
+  programs.light.enable = true;
+
   services.mopidy = {
     enable = true;
     extensionPackages = [ pkgs.mopidy-spotify ];
@@ -146,11 +156,22 @@ in {
     enable = true;
     layout = "us";
 
+    displayManager.session = [
+      { manage = "desktop";
+        name = "home-manager";
+        start = ''
+          ${pkgs.runtimeShell} $HOME/.hm-session &
+          waitPID=$!
+        '';
+      }
+];
+
     displayManager.lightdm = {
       enable = true;
       autoLogin.enable = true;
       autoLogin.user = "matt";
     };
+    displayManager.defaultSession = "home-manager";
   };
 
   # Enable slock for screen locking
