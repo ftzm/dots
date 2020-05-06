@@ -4,7 +4,6 @@ let
   iosevkaLig = pkgs.callPackage ./iosevka.nix { };
   myEmacs = pkgs.emacs.override { inherit (pkgs) imagemagick; };
   emacsWithPackages = (pkgs.emacsPackagesNgGen myEmacs).emacsWithPackages;
-
   ps = (import (builtins.toPath "${config.home.homeDirectory}/dev/pipestatus/release.nix")).pipestatus;
 in {
   home.packages = with pkgs; [

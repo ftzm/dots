@@ -66,7 +66,7 @@ in
           family = "Iosevka Lig";
           style = "Bold";
         };
-        size = font_size_float;
+        size = config.personal.alacritty_font_size;
       };
       colors = {
         primary = {
@@ -159,7 +159,7 @@ in
     pointerCursor = {
       package = pkgs.vanilla-dmz;
       name = "Vanilla-DMZ";
-      size = 128;
+      size = config.personal.cursor_size;
     };
   };
   qt.enable = true;
