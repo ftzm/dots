@@ -1,5 +1,4 @@
 { fetchFromGitHub
-, stdenv
 , glib
 , glib-networking
 , gobjectIntrospection

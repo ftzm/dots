@@ -5,13 +5,13 @@
 (setq inhibit-startup-screen t)
 ;
 ;;Set font
-;(setq my-font (format "Iosevka Lig Medium-%s" (or (getenv "FONT_SIZE") "16")))
+(setq my-font (format "Iosevka Lig Medium-%s" (or (getenv "FONT_SIZE") "16")))
 ;;to set in existing window:
-;(set-frame-font my-font nil t)
+(set-frame-font my-font nil t)
 ;
 ;
 ;; this only works on startup
-(add-to-list 'default-frame-alist '(font . "Iosevka Lig Medium-10.5"))
+;(add-to-list 'default-frame-alist '(font . (format "Iosevka Lig Medium-%s" (or (getenv "FONT_SIZE") "16"))))
 ;
 ;; (set-fontset-font t 'japanese-jisx0208
 ;;                   (font-spec :family "IPAGothic" :size 24))

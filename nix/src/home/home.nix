@@ -1,19 +1,19 @@
-{ config, lib, ... }:
+{ lib, ... }:
 
 let
-  packages = import ../overlays ;
-  iosevka = import ../overlays/iosevka/iosevka.nix;
+  pkgs = import ./pkgs.nix;
   home_manager_repo = (import ../nix/sources.nix).home-manager.outPath;
-  pkgs = import (import ../nix/sources.nix).nixpkgs-unstable {
-    overlays = [ packages iosevka ];
-    config = {
-      allowUnfree = true;
-      checkMeta = true;
-    };
+  conditional_imports = lib.attrByPath [(builtins.readFile /etc/nixos/model)] [] {
+    "ThinkPad T480s" = [
+      ./personal.nix
+    ];
+    "ThinkPad X1 Extreme 2nd" = [
+      ./unity.nix
+    ];
   };
 in {
-  _module.args.pkgs = lib.mkForce pkgs;
   imports = [
+    ./personal-options.nix
     ./packages.nix
     ./services.nix
     ./shell.nix
@@ -21,7 +21,7 @@ in {
     ./mail.nix
     ./xorg.nix
     ./pipestatus.nix
-  ];
+  ] ++ conditional_imports;
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
   programs.home-manager.path = "${home_manager_repo}";

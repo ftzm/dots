@@ -18,7 +18,7 @@ let
   };
   pkgs = nixpkgs.pkgs;
   nixos-hardware = sources.nixos-hardware.outPath;
-  hardware_tweaks = lib.attrByPath [(builtins.readFile /etc/nixos/model)] [] {
+  conditional_imports = lib.attrByPath [(builtins.readFile /etc/nixos/model)] [] {
     "ThinkPad T480s" = [
       ./t480s.nix
       "${nixos-hardware}/lenovo/thinkpad/t480s"
@@ -38,7 +38,7 @@ in {
     #./caches.nix
     ./sleep.nix
     ./users.nix
-  ] ++ hardware_tweaks;
+  ] ++ conditional_imports;
 
   nixpkgs.config.allowUnfree = true;
   nix.nixPath = lib.mkForce [
@@ -62,7 +62,6 @@ in {
   # ---------------------------------------------------------------------------
   # System
 
-  networking.hostName = "nixos-unity"; # Define your hostname.
   networking.networkmanager.enable = true;
 
   # Set your time zone.

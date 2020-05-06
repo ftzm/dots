@@ -21,7 +21,7 @@ pkgs.runCommand "bootstrap-system" {
 
     echo "* Setting state version"
     # Get state version from inital generation
-    .${toString ./.}/state_version.sh
+    bash ${toString ./.}/state_version.sh
     echo
 
     echo "* Running initial nixos generation"
@@ -34,7 +34,7 @@ pkgs.runCommand "bootstrap-system" {
     echo "* Setting user password"
     # Set user password
     PASSWORD_STATUS=$(passwd --status $NIX_USER | cut -d" " -f2)
-    if [ "$PASSWORD_STATUS" = "NP" ]; then
+    if ! [ "$PASSWORD_STATUS" == "P" ]; then
       passwd $NIX_USER
     else
       echo "Password already set, skipping creation."
@@ -61,7 +61,7 @@ pkgs.runCommand "bootstrap-system" {
     echo
 
     echo "* Bootstrapping home manager"
-    (cd nix; ./bootstrap-home-manager.sh)
+    (cd nix; bash bootstrap-home-manager.sh)
     EOF
     echo
 

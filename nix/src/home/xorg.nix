@@ -1,9 +1,7 @@
-{ pkgs, isNixos, ... }:
+{ config, pkgs, ... }:
 let
-  #font_size = if isNixos then "10.5" else "16";
-  font_size_float = 10.5;
+  font_size_float = config.personal.font_size;
   font_size = toString font_size_float;
-  isNixos = builtins.pathExists /etc/nixos;
 in
 {
   services.dunst = {
@@ -68,7 +66,7 @@ in
           family = "Iosevka Lig";
           style = "Bold";
         };
-        size = font_size_float - 4;
+        size = font_size_float;
       };
       colors = {
         primary = {
@@ -139,9 +137,10 @@ in
     "rofi.bw" = "2";
     "rofi.separator-style" = "none";
     "rofi.color-normal" = "#282828, #ebdbb2, #282828, #b8bb26, #282828";
-  } // (if isNixos then { } else { "Xft.dpi" = "180"; });
+  };
   xsession = {
     enable = true;
+    scriptPath = ".hm-session";
     windowManager = {
       xmonad = {
         enable = true;
@@ -152,17 +151,21 @@ in
       export LOCALE_ARCHIVE_2_27="$(nix-build --no-out-link "<nixpkgs>" -A glibcLocales)/lib/locale/locale-archive"
       ${pkgs.hsetroot}/bin/hsetroot -solid "#282828" &
       export FONT_SIZE=${font_size}
-      # For non-broken locale on non-nixos
       xsetroot -cursor_name left_ptr
       # Mainly for ubuntu
       export XCURSOR_PATH=$HOME/.nix-profile/share/icons:$XCURSOR_PATH
+      PATH=$HOME/bin:$PATH
     '';
     pointerCursor = {
       package = pkgs.vanilla-dmz;
       name = "Vanilla-DMZ";
-    } // (if isNixos then { } else { size = 64; });
+      size = 128;
+    };
   };
   qt.enable = true;
-  gtk.enable = true;
+  gtk = {
+    enable = true;
+    font.name = "Iosevka Lig Medium ${font_size}";
+  };
   fonts.fontconfig.enable = true;
 }
