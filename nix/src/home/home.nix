@@ -12,6 +12,7 @@ let
     ];
   };
 in {
+  _module.args.pkgs = lib.mkForce pkgs;
   imports = [
     ./personal-options.nix
     ./packages.nix
