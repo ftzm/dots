@@ -19,3 +19,10 @@ example_two<tab>/etc/example_two
 #+END_SRC
 * Installation
 ~install.sh~ performs the task of creating symlinks to files in ~src~ throughout the system. When the installation path already contains a symlink this is removed, and when it contains a file or directory this is backed up to a directory within the respective module.
+* Bootstrap notes
+- clone repo
+- populate .gnupg folder
+- there is a problem with pinentry on cli for 20.03, had to run a random command and specify "loopback" manually to cache the password and then run git crypt unlock with the cached password to unlock dots.
+- pipestatus still isn't automatically present
+- bin not automatically present, also wasn't on path properly
+- refresh layout mode missing
