@@ -12,7 +12,7 @@ let
 {
   home.packages = with pkgs; [
     # fun
-    pkgs-old.steam
+    steam
     discord
   ];
   personal.font_size = 10.5;
