@@ -4,6 +4,8 @@
 
 (setq vc-follow-symlinks t)
 
+(setq create-lockfiles nil)
+
 (use-package undo-tree
   :diminish undo-tree-mode
   )
@@ -30,6 +32,9 @@
   :diminish subword-mode
   :config
   (add-hook 'prog-mode-hook 'subword-mode)
+  (defun ora-javascript-hook ()
+    (setq-local avy-subword-extra-word-chars nil))
+  (add-hook 'js-mode-hook 'ora-javascript-hook)
   )
 
 (setq-default fill-column 79)

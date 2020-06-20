@@ -124,6 +124,17 @@ in {
     dconf
     zoom-us
     keybase
+    w3m
+
+    steam
+
+    # dev
+    nodejs-12_x
+    nodePackages.typescript
+    #gcloud
+    google-clasp
+    kubernetes-helm
+
   ];
   xdg = {
     enable = true;

@@ -38,6 +38,7 @@
 (require 'init-go)
 (require 'init-lua)
 (require 'init-racket)
+(require 'init-js)
 
 (require 'init-yaml)
 (require 'init-json)
