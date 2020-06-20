@@ -12,8 +12,9 @@ in {
     text = ''
       #!${pkgs.stdenv.shell}
       ${pkgs.procps}/bin/pkill mu
-      sleep 0.1
-      ${pkgs.mu}/bin/mu index --maildir=.maildir
+      ${pkgs.bash}/bin/sleep 0.1
+      [ ! -d ~/.cache/mu ] && ${pkgs.mu}/bin/mu init --maildir=.maildir
+      ${pkgs.mu}/bin/mu index
     '';
     executable = true;
   };
@@ -22,9 +23,23 @@ in {
     postExec = "${config.xdg.configHome}/mbsync/postExec";
   };
 
+  accounts.email.accounts.unity = {
+    userName = "matthew.fitzsimmons@unity3d.com";
+    address = "matthew.fitzsimmons@unity3d.com";
+    mbsync = {
+      enable = true;
+      create = "both";
+      expunge = "both";
+      remove = "both";
+    };
+    passwordCommand = "echo ${secrets.email.unity}";
+    imap = {
+      host = "imap.gmail.com";
+    };
+  };
+
   accounts.email.accounts.fitzmattd = {
     userName = "fitz.matt.d@gmail.com";
-    primary = true;
     address = "fitz.matt.d@gmail.com";
     mbsync = {
       enable = true;
@@ -41,6 +56,7 @@ in {
   accounts.email.accounts.ftzm = {
     userName = "m@ftzm.org";
     address = "m@ftzm.org";
+    primary = true;
     mbsync = {
       enable = true;
       create = "both";

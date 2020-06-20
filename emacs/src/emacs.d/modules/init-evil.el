@@ -88,6 +88,7 @@
   (evil-collection-init 'dired)
   (evil-collection-init 'vterm)
   (evil-collection-init 'emms)
+  (evil-collection-init 'mu4e)
   )
 
 (use-package evil-surround
