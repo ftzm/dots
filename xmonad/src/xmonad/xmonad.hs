@@ -146,7 +146,8 @@ emacsStyleKeys l = M.union
     , ("M-S-t", testMap)
     --applications
     , ("M-S-z", spawn "clip_key")
-    , ("M-<Space>", spawn "my_dmenu.sh")
+    , ("M-<Space>", spawn "rofi-dmenu")
+    , ("M-f", spawn "rofi-filer")
     ])
   (workspaceKeys l)
   where

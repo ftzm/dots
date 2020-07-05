@@ -109,6 +109,8 @@ in {
     niv
 
     get-auth
+    rofi-filer
+    rofi-dmenu
     dbeaver
     kitty
     xdg_utils
