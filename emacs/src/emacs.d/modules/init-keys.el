@@ -308,20 +308,7 @@
 
     )
 
-    (define-prefix-command 'org-keys)
-    (define-key leader-menu "o" 'org-keys)
-    (define-key org-keys "c" 'org-capture)
-    (define-key org-keys "g" (lambda () (interactive) (org-agenda nil " ")))
-    (define-key org-keys "a" 'org-agenda)
-    (define-key org-keys "l" 'org-agenda-list)
-    (define-key org-keys "t" (lambda () (interactive) (org-capture nil "t")))
-    (define-key org-keys "wt" (lambda () (interactive) (org-capture nil "w")))
-    (define-key org-keys "wn" 'ftzm/capture-work-diary)
-    (define-key org-keys "W" 'ftzm/org-agenda-list-work)
-    (define-key org-keys "T" 'org-todo-list)
-    (define-key org-keys "m" 'create-meeting-file)
-    (define-key org-keys "sn" 'ftzm/search-notes)
-    (define-key org-keys "d" 'ftzm/capture-diary)
+    (define-key leader-menu "o" 'org-global-hydra/body)
 
     ;;;; org-capture setting
     ;; Start capture mode in evil insert state

@@ -164,16 +164,6 @@
               (widen)
               (setq-local org-tag-alist (org-get-buffer-tags)))))
 
-    (defun ftzm/capture-diary ()
-      (interactive)
-      (let ((title (read-string "Title: ")))
-	(org-capture nil "d")))
-
-    (defun ftzm/capture-work-diary ()
-      (interactive)
-      (let ((title (read-string "Title: "))
-	    (tag "work:"))
-	(org-capture nil "d")))
 
     (defun ftzm/var-defaulted (variable def-val)
       "Args: quoted var, quoted expression that returns string
@@ -187,9 +177,10 @@
 	  (quote (("t" "todo" entry (file "~/org/inbox.org")
 		   "* NEXT %?")
 		  ("d" "diary entry" entry (file+datetree "~/org/diary.org")
-		   "* %(ftzm/var-defaulted 'title '(read-string \"Title\"))\
-                      :diary:%(ftzm/var-defaulted 'tag '\"\") \n%?")
-		  ("w" "work todo" entry (file+headline "~/org/work.org" "Tasks")
+		   "* %?")
+		  ("u" "work diary entry" entry (file+datetree "~/org/work/diary.org")
+		   "* %?")
+		  ("w" "work todo" entry (file "~/org/work/inbox.org")
 		   "* NEXT %?")
 		  ("P" "process-soon" entry (file+headline "todo.org" "Todo")
 		   "* TODO %a %?\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))")
@@ -261,12 +252,25 @@
     (setq org-todo-keywords
       '((sequence "TODO" "NEXT" "DONE")))
 
+    (defun org-sep-header (text)
+      (let ((buffer-read-only nil))
+	(insert
+	 (propertize
+	  text
+	  'face (list :foreground (face-attribute
+				   'font-lock-function-name-face :foreground) :weight 'bold)))))
+
     ;; for GTD
+
+    (setq personal-agenda-items
+	  (list
+	   ))
 
     (setq org-agenda-block-separator nil)
     (setq ftzm/org-agenda-todo-view
       `(" " "Agenda"
-        ((agenda ""
+        ((org-sep-header "Ní dhéanfaidh smaoineamh an treabhadh dhuit\n")
+	 (agenda ""
                  ((org-agenda-span 'day)
 		  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
                  ))
@@ -278,10 +282,6 @@
          (tags "TODO=\"TODO\"+SCHEDULED<=\"<today>\"|TODO=\"NEXT\""
                ((org-agenda-overriding-header "Single tasks")
                 (org-agenda-files '("~/org/todo.org"))))
-         (tags "TODO=\"TODO\"+SCHEDULED<=\"<today>\"|TODO=\"NEXT\""
-               ((org-agenda-overriding-header "Work")
-                (org-agenda-files '("~/org/work.org"))
-	       ))
          (todo "NEXT"
                ((org-agenda-overriding-header "Projects")
                 (org-agenda-files '("~/org/projects"))
@@ -306,12 +306,57 @@
          ;;      ((org-agenda-overriding-header "One-off Tasks")
          ;;       (org-agenda-files '("~/.org/gtd/next.org"))
          ;;       (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))))
-         nil)))
+	 )))
+
+    (setq ftzm/org-agenda-work-view
+      `("W" "Agenda"
+        ((insert
+		    (propertize
+		     "Ní dhéanfaidh smaoineamh an treabhadh dhuit"
+		     'face (list :foreground (face-attribute 'font-lock-function-name-face :foreground) :weight 'bold) ))
+	 (agenda ""
+                 ((org-agenda-span 'day)
+		  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
+		  (org-agenda-files '("~/org/work.org"))
+		  (org-agenda-overriding-header "\n"
+		   )
+                 ))
+         (todo "TODO|NEXT"
+               ((org-agenda-overriding-header "To Refile")
+                (org-agenda-files '("~/org/work/inbox.org"))))
+	 ;; Exclude todo entries scheduled in the future. This way entries can
+	 ;; be postponed by scheduling them, as a sort of integrated "tickler" function.
+         (tags "TODO=\"TODO\"+SCHEDULED<=\"<today>\"|TODO=\"NEXT\""
+               ((org-agenda-overriding-header "Single tasks")
+                (org-agenda-files '("~/org/work/todo.org"))))
+         (tags "CLOSED>=\"<today>\""
+               ((org-agenda-overriding-header "Completed Tasks")
+                (org-agenda-files '("~/org/work/"))
+                ))
+	 ;;(agenda ""
+	 ;;	 ((org-agenda-overriding-header "Completed Tasks")
+	 ;;	  (org-agenda-span 'day)
+         ;;         (org-agenda-start-with-log-mode t)
+	 ;;	  (org-agenda-use-time-grid nil)
+         ;;         (org-agenda-skip-function
+         ;;          '(org-agenda-skip-entry-if 'nottodo 'done))
+         ;;        ))
+         ;;(todo "TODO"
+         ;;      ((org-agenda-overriding-header "Projects")
+         ;;       (org-agenda-files '("~/.org/gtd/projects.org"))
+         ;;       ))
+         ;;(todo "TODO"
+         ;;      ((org-agenda-overriding-header "One-off Tasks")
+         ;;       (org-agenda-files '("~/.org/gtd/next.org"))
+         ;;       (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))))
+         nil
+	 ("~/test-gtd.html"))))
 
     (setq org-agenda-custom-commands
       `(;;,jethro/org-agenda-inbox-view
         ;;,jethro/org-agenda-someday-view
         ,ftzm/org-agenda-todo-view
+        ,ftzm/org-agenda-work-view
         ;; ,jethro/org-agenda-papers-view ;; archived
         ))
 
@@ -419,6 +464,21 @@ are equal return t."
              #'(lambda () my-current-time)))
     (org-agenda-todo arg)
     ))
+
+
+  (pretty-hydra-define org-global-hydra
+    (:color blue :quit-key "q" :title "Org Dispatch")
+    ("Agenda"
+     (( "g" (org-agenda nil " ") "Personal Agenda")
+      ( "wg" (org-agenda nil "W") "Work Agenda"))
+     "Capture"
+     (("t" (org-capture nil "t") "Task")
+      ("d" (org-capture nil "d") "Diary")
+      ("wt" (org-capture nil "w") "Work Task")
+      ("wd" (org-capture nil "u") "Work Diary"))
+      ))
+
+
   )
 
 (use-package org-habit
