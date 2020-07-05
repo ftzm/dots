@@ -34,7 +34,7 @@ in {
   imports = [ # Include the results of the hardware scan.
     /etc/nixos/hardware-configuration.nix
     /etc/nixos/state-version.nix
-    #/etc/nixos/cachix.nix
+    /etc/nixos/cachix.nix
     #./caches.nix
     ./sleep.nix
     ./users.nix
