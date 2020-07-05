@@ -47,8 +47,8 @@ in {
     # pandoc
 
     # webz
+    #firefox
     chromium
-    firefox
     qutebrowser
     wget
     openvpn
@@ -134,6 +134,9 @@ in {
     #gcloud
     google-clasp
     kubernetes-helm
+
+    tridactyl-native
+    next
 
   ];
   xdg = {
