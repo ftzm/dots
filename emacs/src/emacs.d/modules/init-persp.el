@@ -62,7 +62,9 @@
     (:color blue :quit-key "q" :title "%s(hydra-persp-names)")
     ("Buffer"
      (( "k" (persp-remove-buffer (current-buffer)) "remove buffer")
-      ( "a" (persp-add-buffer (current-buffer)) "remove buffer"))
+      ( "a" (persp-add-buffer (current-buffer)) "remove buffer")
+      ( "i" (persp-ibuffer (current-buffer)) "ibuffer")
+      )
      "Persp"
      (("r" persp-rename "rename")
       ("C" (persp-kill (persp-current-name)) "kill"))
