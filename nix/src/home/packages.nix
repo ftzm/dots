@@ -46,6 +46,8 @@ in {
     xdotool
     (dunst.override { dunstify = true; })
     libnotify # for notify-send in scripts
+    entr # file watcher + command firer
+    sshfsFuse # sshfs
 
     restic # backups
 
