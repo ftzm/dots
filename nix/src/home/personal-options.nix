@@ -9,6 +9,10 @@
       type = lib.types.float;
       description = "Base font size.";
   };
+  options.personal.rofi_font_size = lib.mkOption {
+      type = lib.types.str;
+      description = "Base font size.";
+  };
   options.personal.cursor_size = lib.mkOption {
       type = lib.types.int;
       description = "GTK cursor size";

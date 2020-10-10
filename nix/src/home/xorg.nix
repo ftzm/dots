@@ -133,7 +133,7 @@ in
     "*color7" = "#a89984";
     "*color15" = "#ebdbb2";
     "rofi.hide-scrollbar" = "true";
-    "rofi.font" = "Iosevka Lig Medium 10.5";
+    "rofi.font" = "Iosevka Lig Medium ${config.personal.rofi_font_size}";
     "rofi.bw" = "2";
     "rofi.separator-style" = "none";
     "rofi.color-window" = "#282828, #ebdbb2, #282828";
