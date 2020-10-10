@@ -1,7 +1,7 @@
 { pkgs, config, lib, ... }:
 
 let
-  pkgs-old = import (import ../nix/sources.nix).nixpkgs-old {
+  nixpkgs-steam = import (import ../nix/sources.nix).nixpkgs-steam {
     config = {
       allowUnfree = true;
       checkMeta = true;
@@ -12,7 +12,7 @@ let
 {
   home.packages = with pkgs; [
     # fun
-    steam
+    nixpkgs-steam.steam
     discord
   ];
   personal.font_size = 10.5;
