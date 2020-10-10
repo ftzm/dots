@@ -63,7 +63,7 @@ in {
     gimp
     slack
     vlc
-    mpv
+    (wrapMpv mpv-unwrapped { scripts = [ mpvScripts.mpris ]; })
     zathura
     keybase-gui
 

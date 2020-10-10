@@ -148,6 +148,7 @@ emacsStyleKeys l = M.union
     , ("M-S-z", spawn "clip_key")
     , ("M-<Space>", spawn "rofi-dmenu")
     , ("M-f", spawn "rofi-filer")
+    , ("<XF86AudioPlay>", spawn "timeout 1 playerctl play-pause")
     ])
   (workspaceKeys l)
   where
