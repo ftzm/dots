@@ -13,6 +13,10 @@
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
+;; emacs 26 bug, remove with 27
+(straight--package-built-in-p 'nadvice)
+(puthash 'nadvice t straight--cached-built-in-packages)
+
 ;;set up use-package
 (straight-use-package 'use-package)
 ;;used by use-package's :diminish
