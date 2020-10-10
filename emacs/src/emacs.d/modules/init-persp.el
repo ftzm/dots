@@ -40,16 +40,21 @@
   :config
   (persp-mode)
 
+  (setq fixed-persp-names '("mail"))
+
   (defun hydra-persp-names ()
-    (let ((names (persp-names))
+    (let ((persps (sort (hash-table-values (perspectives-hash)) (lambda (a b)
+								  (string< (persp-name a) (persp-name b)))))
           (current-name (persp-current-name))
           (parts '())
           (count 1))
-      (dolist (name names (s-join "  " (nreverse parts)))
-        (cond ((eq name current-name)
-               (push (propertize (format "%d:%s" count name) 'face 'font-lock-warning-face) parts))
-              (t
-               (push (format "%d:%s" count name) parts)))
+      (dolist (persp persps (s-join "\n " (nreverse parts)))
+	(let ((name (persp-name persp))
+	      (bufcount (length (seq-filter (lambda (b) (and (buffer-live-p b) (not (minibufferp b)))) (persp-buffers persp)))))
+	  (cond ((eq name current-name)
+		 (push (propertize (format "%d %s (%d)" count name bufcount) 'face 'font-lock-warning-face) parts))
+		(t
+		 (push (format "%d %s (%d)" count name bufcount) parts))))
         (cl-incf count))))
 
   (defun persp-switch-label (n)
