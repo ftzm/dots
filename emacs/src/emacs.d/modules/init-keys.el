@@ -167,6 +167,7 @@
          "(" 'dired-prev-subdir)))
 
   (define-key leader-menu "s" 'persp-hydra/body)
+  (define-key leader-menu "m" 'music-hydra/body)
 
   ;(define-key evil-normal-state-map "s" 'avy-goto-char-timer)
   ;(define-key evil-normal-state-map "s" 'avy-goto-char-flex)
