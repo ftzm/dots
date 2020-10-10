@@ -10,7 +10,7 @@
 # Define secrets in a separate file
 let
   sources = import ../nix/sources.nix;
-  nixpkgs = import sources.nixpkgs {
+  nixpkgs = import sources.nixpkgs-unstable {
     config = {
       allowUnfree = true;
       checkMeta = true;
