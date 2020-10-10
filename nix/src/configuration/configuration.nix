@@ -74,7 +74,6 @@ in {
     curl
     vim
     git
-    gnupg
     hsetroot # for desktopManager
     brightnessctl
     # Prefer older, cached versions infrequently updates:
@@ -98,12 +97,6 @@ in {
 
   # ---------------------------------------------------------------------------
   # Security
-
-  # Enable gnupg agent
-  programs.gnupg.agent = {
-    enable = true;
-    enableSSHSupport = true;
-  };
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
