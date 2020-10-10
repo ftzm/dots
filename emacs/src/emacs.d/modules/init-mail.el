@@ -110,6 +110,19 @@
     (when (fboundp 'imagemagick-register-types)
       (imagemagick-register-types))
 
+    (defun ftzm-open-mu4e ()
+      (interactive)
+      (persp-switch "mail")
+      (mu4e)
+      )
+
+  (pretty-hydra-define mail-hydra
+    (:color blue :quit-key "q" :title "Mail")
+    ("Mail"
+     (("s" (persp-switch "mail") "switch")
+      ("m" (ftzm-open-mu4e) "open mail"))))
   )
+
+
 
 (provide 'init-mail)

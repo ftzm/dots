@@ -309,6 +309,7 @@
     )
 
     (define-key leader-menu "o" 'org-global-hydra/body)
+    (define-key leader-menu "M" 'mail-hydra/body)
 
     ;;;; org-capture setting
     ;; Start capture mode in evil insert state
