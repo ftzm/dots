@@ -162,7 +162,7 @@
          "gg" 'evil-goto-first-line
          "K" 'dired-kill-subdir
          "S" 'dired-sort-toggle-or-edit
-         "s" 'avy-goto-char-2
+         "s" 'avy-goto-word-or-subword-1
          ")" 'dired-next-subdir
          "(" 'dired-prev-subdir)))
 

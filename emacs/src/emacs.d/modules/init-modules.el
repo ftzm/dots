@@ -55,6 +55,7 @@
 (require 'init-slack)
 (require 'init-telega)
 (require 'init-music)
+(require 'init-dired)
 
 ;;centralized key mappings
 (require 'init-keys)
