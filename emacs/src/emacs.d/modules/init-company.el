@@ -9,38 +9,38 @@
   (setq company-require-match 'never) ;; allow breaking out by typing
 
   ;; Don't convert everything to lower case
-  (setq company-dabbrev-downcase nil)
-
-  ;; make <tab> cycle & <backtab> cycle back
-  (define-key company-active-map (kbd "TAB") 'company-select-next)
-  (define-key company-active-map (kbd "<backtab>") 'company-select-previous)
-  (define-key company-active-map (kbd "RET") nil)
-
-  (company-tng-configure-default)
-
-  ;; set default `company-backends'
-  (setq company-backends
-	'((company-files          ; files & directory
-	   company-keywords       ; keywords
-	   company-capf
-	   ;;company-yasnippet ;;not using atm
-	   )
-	  (company-abbrev company-dabbrev)
-	  ))
-
-  (add-hook 'python-mode-hook
-            (lambda ()
-              (add-to-list (make-local-variable 'company-backends)
-                           'company-anaconda)))
-  (add-hook 'elisp-mode-hook
-            (lambda ()
-              (add-to-list (make-local-variable 'company-backends)
-                           'company-elisp)))
-
-  (add-hook 'elm-mode-hook
-            (lambda ()
-              (add-to-list (make-local-variable 'company-backends)
-                           'company-elm)))
+;  (setq company-dabbrev-downcase nil)
+;
+;  ;; make <tab> cycle & <backtab> cycle back
+;  (define-key company-active-map (kbd "TAB") 'company-select-next)
+;  (define-key company-active-map (kbd "<backtab>") 'company-select-previous)
+;  (define-key company-active-map (kbd "RET") nil)
+;
+;  (company-tng-configure-default)
+;
+;  ;; set default `company-backends'
+;  (setq company-backends
+;	'((company-files          ; files & directory
+;	   company-keywords       ; keywords
+;	   company-capf
+;	   ;;company-yasnippet ;;not using atm
+;	   )
+;	  (company-abbrev company-dabbrev)
+;	  ))
+;
+;  (add-hook 'python-mode-hook
+;            (lambda ()
+;              (add-to-list (make-local-variable 'company-backends)
+;                           'company-anaconda)))
+;  (add-hook 'elisp-mode-hook
+;            (lambda ()
+;              (add-to-list (make-local-variable 'company-backends)
+;                           'company-elisp)))
+;
+;  (add-hook 'elm-mode-hook
+;            (lambda ()
+;              (add-to-list (make-local-variable 'company-backends)
+;                           'company-elm)))
 
   ;; Below: more involved specification of backends that I may employ later
 

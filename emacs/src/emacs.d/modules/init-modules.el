@@ -33,6 +33,7 @@
 (require 'init-vterm)
 (require 'init-nix)
 (require 'init-haskell)
+(require 'init-scala)
 (require 'init-elm)
 (require 'init-python)
 (require 'init-go)
