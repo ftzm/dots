@@ -5,10 +5,13 @@
 (setq inhibit-startup-screen t)
 ;
 ;;Set font
-(setq my-font (format "Iosevka Lig Medium-%s" (or (getenv "FONT_SIZE") "16")))
+;; >>= :: <*> == /= >> {-#
+(setq my-font (format "Fira Code 10.5"))
 ;;to set in existing window:
-(set-frame-font my-font nil t)
-;
+;(set-frame-font my-font nil t)
+
+(custom-set-faces
+ '(default ((t (:family "Iosevka Lig" :foundry "unknown" :slant normal :weight normal :height 105 :width normal :inverse-video nil :box nil :strike-through nil :overline nil :underline nil)))))
 ;
 ;; this only works on startup
 ;(add-to-list 'default-frame-alist '(font . (format "Iosevka Lig Medium-%s" (or (getenv "FONT_SIZE") "16"))))
@@ -31,6 +34,7 @@
 ;;(global-display-line-numbers-mode)
 ;
 ;
+
 (setq initial-scratch-message "Welcome to Emacs.")
 
 (setq-default cursor-in-non-selected-windows nil)

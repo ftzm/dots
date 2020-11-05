@@ -48,6 +48,7 @@ in {
     libnotify # for notify-send in scripts
     entr # file watcher + command firer
     sshfsFuse # sshfs
+    playerctl
 
     restic # backups
 
@@ -64,7 +65,6 @@ in {
     slack
     vlc
     (wrapMpv mpv-unwrapped { scripts = [ mpvScripts.mpris ]; })
-    zathura
     keybase-gui
 
     # latex
@@ -90,7 +90,7 @@ in {
 
     # programming
     (emacsWithPackages
-      (epkgs: [ epkgs.telega epkgs.emacs-libvterm epkgs.emms emms-taglib]))
+      (epkgs: [ epkgs.telega epkgs.vterm epkgs.emms emms-taglib ]))
     neovim
     git
     git-crypt
@@ -122,8 +122,14 @@ in {
     iosevkaLig
     source-sans-pro
     source-code-pro
-    fira-mono
-    fira-code
+    #fira-mono
+    #(fira-code.overrideAttrs (oldAttrs: rec {
+    #  postFetch = ''
+    #    mkdir -p $out/share/fonts
+    #    unzip -j $downloadedFile \*.ttf
+    #    mv FiraCode-Light.ttf $out/share/fonts/truetype/
+    #  '';
+    #}))
 
     # For Haskell dev
     cabal-install
@@ -151,9 +157,11 @@ in {
     dconf
     zoom-us
     keybase
-    w3m
+    #w3m
 
-    steam
+    lgogdownloader
+    playonlinux
+    wine
 
     # dev
     nodejs-12_x
