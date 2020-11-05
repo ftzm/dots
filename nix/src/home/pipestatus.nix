@@ -1,14 +1,11 @@
 { config, pkgs, ... }:
 
-let
-  ps_repo = (import ../nix/sources.nix).pipestatus.outPath;
-  ps = import (builtins.toPath "${ps_repo}/release.nix");
-in {
+{
   systemd.user.services.pipestatus = {
     Unit = { Description = "pipestatus"; };
     Service = {
       Restart = "always";
-      ExecStart = "${ps.pipestatus-wrapped}/bin/pipestatus-wrapped";
+      ExecStart = "${pkgs.pipestatus.pipestatus-wrapped}/bin/pipestatus-wrapped";
       PrivateTmp = "false";
     };
     Install = { WantedBy = [ "graphical-session.target" ]; };
@@ -18,7 +15,7 @@ in {
     Unit = { Description = "pipestatus battery checker"; };
     Service = {
       Type = "oneshot";
-      ExecStart = "${ps.scripts}/bin/battery.sh";
+      ExecStart = "${pkgs.pipestatus.scripts}/bin/battery.sh";
     };
   };
 

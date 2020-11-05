@@ -5,47 +5,39 @@
 # ---------------------------------------------------------------------------
 # Setup
 
-{ config, lib, ... }:
+{ self, system, nixpkgs, pkgs, config, lib, ... }:
 
 # Define secrets in a separate file
 let
   sources = import ../nix/sources.nix;
-  nixpkgs = import sources.nixpkgs-unstable {
-    config = {
-      allowUnfree = true;
-      checkMeta = true;
-    };
-  };
-  pkgs = nixpkgs.pkgs;
-  nixos-hardware = sources.nixos-hardware.outPath;
-  conditional_imports = lib.attrByPath [(builtins.readFile /etc/nixos/model)] [] {
-    "ThinkPad T480s" = [
-      ./t480s.nix
-      "${nixos-hardware}/lenovo/thinkpad/t480s"
-    ];
-    "ThinkPad X1 Extreme 2nd" = [
-      ./x1.nix
-      "${nixos-hardware}/lenovo/thinkpad/x1-extreme/gen2"
-    ];
-  };
+  # nixpkgs = import nixpkgs {
+  #   inherit system;
+  #   config = {
+  #     allowUnfree = true;
+  #     checkMeta = true;
+  #   };
+  # };
+  # pkgs = nixpkgs.pkgs;
   secrets = import ../secrets.nix;
 
 in {
-  imports = [ # Include the results of the hardware scan.
-    /etc/nixos/hardware-configuration.nix
-    /etc/nixos/state-version.nix
-    /etc/nixos/cachix.nix
-    #./caches.nix
+  imports = [
     ./sleep.nix
     ./users.nix
-  ] ++ conditional_imports;
+  ];
 
   nixpkgs.config.allowUnfree = true;
-  nix.nixPath = lib.mkForce [
-    "nixpkgs=${sources.nixpkgs.outPath}"
-    "nixos-config=/etc/nixos/configuration.nix"
-    #"config-checkout=${config.configCheckout}"
-  ];
+  nix = {
+    package = pkgs.nixFlakes;
+    extraOptions = ''
+      experimental-features = nix-command flakes
+    '';
+    nixPath = lib.mkForce [
+      "nixpkgs=${sources.nixpkgs.outPath}"
+      "nixos-config=/etc/nixos/configuration.nix"
+      #"config-checkout=${config.configCheckout}"
+    ];
+   };
 
   # ---------------------------------------------------------------------------
   # Boot
@@ -148,22 +140,23 @@ in {
     enable = true;
     layout = "us";
 
-    displayManager.session = [
-      { manage = "desktop";
-        name = "home-manager";
-        start = ''
-          ${pkgs.runtimeShell} $HOME/.hm-session &
-          waitPID=$!
-        '';
-      }
-];
-
-    displayManager.lightdm = {
-      enable = true;
+    displayManager = {
+      session = [
+        { manage = "desktop";
+          name = "home-manager";
+          start = ''
+            ${pkgs.runtimeShell} $HOME/.hm-session &
+            waitPID=$!
+          '';
+        }
+      ];
+      lightdm = {
+        enable = true;
+      };
       autoLogin.enable = true;
       autoLogin.user = "matt";
+      defaultSession = "home-manager";
     };
-    displayManager.defaultSession = "home-manager";
   };
 
   # Enable slock for screen locking

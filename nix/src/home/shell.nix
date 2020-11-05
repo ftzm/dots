@@ -51,8 +51,6 @@ in
       # unalias conflicting aliases for bashmarks
       unalias l
       [[ -f ~/.falcon ]] && source ~/.falcon
-      # for home manager on ubuntu
-      export NIX_PATH=$HOME/.nix-defexpr/channels''${NIX_PATH:+:}$NIX_PATH
       # Go
       export GOPATH=$HOME/.go
       export PATH=$GOPATH/bin:$PATH
