@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ config, lib, ... }:
 
 let
   pkgs = import ./pkgs.nix;
@@ -25,6 +25,15 @@ in {
   programs.home-manager.enable = true;
   programs.home-manager.path = "${home_manager_repo}";
 
+  programs.zathura = {
+    enable = true;
+    options = {
+      font = "Iosevka Lig normal ${toString (config.personal.font_size + 1)}";
+      default-bg = "#282828";
+      statusbar-bg = "#282828";
+      statusbar-fg = "#ebdbb2";
+    };
+  };
   programs.firefox = {
     enable = true;
     profiles.main = {
