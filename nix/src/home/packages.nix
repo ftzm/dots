@@ -64,6 +64,7 @@ in {
     vanilla-dmz
 
     # programming
+    custom-emacs
     neovim
     git
     git-crypt
