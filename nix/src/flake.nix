@@ -12,18 +12,17 @@
         {
           nixpkgs.overlays = [
             pipestatus.overlay
-            (import ../overlays)
+            (import ./overlays)
           ];
         };
       base-modules = [
         overlays
-        ./configuration.nix
+        ./configuration/configuration.nix
         home-manager.nixosModules.home-manager
-
       ];
       configured-home = extra-imports:
         {
-        home-manager.users.matt = (import ../home/home.nix) {
+        home-manager.users.matt = (import ./home/home.nix) {
           extra-imports = extra-imports;
         };
       };
@@ -32,19 +31,19 @@
     nixosConfigurations.oibri-nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = base-modules ++ [
-        ./oibri-nixos-hardware.nix
-        ./t480s.nix
         nixos-hardware.nixosModules.lenovo-thinkpad-t480s
-        (configured-home [ ../home/personal.nix ])
+        ./machines/oibri-nixos/hardware.nix
+        ./machines/oibri-nixos/t480s.nix
+        (configured-home [ ./machines/oibri-nixos/home.nix ])
       ];
     };
     nixosConfigurations.unity-nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = base-modules ++ [
-        ./unity-nixos-hardware.nix
-        ./x1.nix
         nixos-hardware.nixosModules.lenovo-thinkpad-x1-extreme
-        (configured-home [ ../home/unity.nix ])
+        ./machines/unity-nixos/hardware.nix
+        ./machines/unity-nixos/x1.nix
+        (configured-home [ ./machines/unity-nixos/home.nix ])
       ];
     };
   };
