@@ -40,6 +40,7 @@ in {
     vlc
     (wrapMpv mpv-unwrapped { scripts = [ mpvScripts.mpris ]; })
     keybase-gui
+    nomacs
 
     # latex
     # texlive.combined.scheme-full
