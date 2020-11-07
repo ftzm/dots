@@ -1,10 +1,5 @@
-{model}: { pkgs, lib, ... }:
+{ extra-imports ? [] }: { pkgs, lib, ... }:
 let
-  conditional_imports =
-    lib.attrByPath [ model ] [ ] {
-      "ThinkPad T480s" = [ ./personal.nix ];
-      "ThinkPad X1 Extreme 2nd" = [ ./unity.nix ];
-    };
 in {
   # nixpkgs.config = { firefox = { enableTridactylNative = true; }; };
   imports = [
@@ -16,7 +11,7 @@ in {
     ./mail.nix
     ./xorg.nix
     ./pipestatus.nix
-  ] ++ conditional_imports;
+  ] ++ extra-imports;
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;

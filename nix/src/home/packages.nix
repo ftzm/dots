@@ -23,9 +23,7 @@ in {
     entr # file watcher + command firer
     sshfsFuse # sshfs
     playerctl
-
     restic # backups
-
     acpi
     killall
     unzip
@@ -34,7 +32,7 @@ in {
     gotop
 
     # office/document/media
-    #libreoffice
+    libreoffice
     gimp
     slack
     vlc
@@ -42,12 +40,7 @@ in {
     keybase-gui
     nomacs
 
-    # latex
-    # texlive.combined.scheme-full
-    # pandoc
-
     # webz
-    #firefox
     chromium
     qutebrowser
     wget

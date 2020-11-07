@@ -15,40 +15,36 @@
             (import ../overlays)
           ];
         };
+      base-modules = [
+        overlays
+        ./configuration.nix
+        home-manager.nixosModules.home-manager
+
+      ];
+      configured-home = extra-imports:
+        {
+        home-manager.users.matt = (import ../home/home.nix) {
+          extra-imports = extra-imports;
+        };
+      };
     in
     {
     nixosConfigurations.oibri-nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      modules = [
-        overlays
+      modules = base-modules ++ [
         ./oibri-nixos-hardware.nix
-        ./oibri-nixos-state-version.nix
         ./t480s.nix
-        ./configuration.nix
         nixos-hardware.nixosModules.lenovo-thinkpad-t480s
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.users.matt = (import ../home/home.nix) { model = "ThinkPad T480s"; };
-        }
+        (configured-home [ ../home/personal.nix ])
       ];
     };
     nixosConfigurations.unity-nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      modules = [
-        overlays
+      modules = base-modules ++ [
         ./unity-nixos-hardware.nix
-        ./unity-nixos-state-version.nix
         ./x1.nix
-        ./configuration.nix
         nixos-hardware.nixosModules.lenovo-thinkpad-x1-extreme
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.users.matt = (import ../home/home.nix) { model = "ThinkPad X1 Extreme 2nd"; };
-        }
+        (configured-home [ ../home/unity.nix ])
       ];
     };
   };

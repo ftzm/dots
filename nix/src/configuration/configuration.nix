@@ -9,17 +9,7 @@
 
 # Define secrets in a separate file
 let
-  sources = import ../nix/sources.nix;
-  # nixpkgs = import nixpkgs {
-  #   inherit system;
-  #   config = {
-  #     allowUnfree = true;
-  #     checkMeta = true;
-  #   };
-  # };
-  # pkgs = nixpkgs.pkgs;
   secrets = import ../secrets.nix;
-
 in {
   imports = [
     ./sleep.nix
@@ -27,17 +17,21 @@ in {
   ];
 
   nixpkgs.config.allowUnfree = true;
+  nixpkgs.config.permittedInsecurePackages = [
+    "p7zip-16.02"
+  ];
   nix = {
     package = pkgs.nixFlakes;
     extraOptions = ''
       experimental-features = nix-command flakes
     '';
-    nixPath = lib.mkForce [
-      "nixpkgs=${sources.nixpkgs.outPath}"
-      "nixos-config=/etc/nixos/configuration.nix"
-      #"config-checkout=${config.configCheckout}"
-    ];
    };
+
+  # ---------------------------------------------------------------------------
+  # Home Manager
+
+  home-manager.useGlobalPkgs = true;
+  home-manager.useUserPackages = true;
 
   # ---------------------------------------------------------------------------
   # Boot
@@ -68,10 +62,6 @@ in {
     git
     hsetroot # for desktopManager
     brightnessctl
-    # Prefer older, cached versions infrequently updates:
-    libreoffice
-    #steam
-
   ];
 
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
