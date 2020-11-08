@@ -7,6 +7,7 @@
 (setq create-lockfiles nil)
 
 (use-package undo-tree
+  :straight t
   :diminish undo-tree-mode
   )
 

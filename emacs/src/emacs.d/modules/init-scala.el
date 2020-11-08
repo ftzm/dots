@@ -1,3 +1,6 @@
+(use-package lsp-ui
+  :straight t)
+
 (use-package scala-mode
   :straight t
   :mode ".scala\\'"
@@ -32,9 +35,6 @@
 	     :repo "emacs-lsp/lsp-metals"
 	     :host github)
   :config (setq lsp-metals-treeview-show-when-views-received t))
-
-(use-package lsp-ui
-  :straight t)
 
 ;; Add company-lsp backend for metals
 (use-package company-lsp

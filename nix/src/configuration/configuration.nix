@@ -144,7 +144,7 @@ in {
         enable = true;
       };
       autoLogin.enable = true;
-      autoLogin.user = "matt";
+      autoLogin.user = "ftzm";
       defaultSession = "home-manager";
     };
   };

@@ -27,4 +27,4 @@ let
   };
 in
 
-emacsWithPackages (epkgs: [ epkgs.telega epkgs.vterm epkgs.emms emms-taglib ])
+emacsWithPackages (epkgs: [ epkgs.telega epkgs.vterm epkgs.emms emms-taglib epkgs.org])

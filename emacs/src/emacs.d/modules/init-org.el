@@ -43,7 +43,8 @@
 
 (use-package org
   :mode (("\\.org$" . org-mode))
-  :straight (org org-plus-contrib)
+  ;:straight (org)
+  ;:straight (org org-plus-contrib)
   ;:hook (
   ;	 ;(org-mode . org-bullets-mode)
   ;	 ;(org-mode . variable-pitch-mode)

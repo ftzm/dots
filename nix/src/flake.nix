@@ -22,7 +22,7 @@
       ];
       configured-home = extra-imports:
         {
-        home-manager.users.matt = (import ./home/home.nix) {
+        home-manager.users.ftzm = (import ./home/home.nix) {
           extra-imports = extra-imports;
         };
       };
