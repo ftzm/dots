@@ -138,7 +138,7 @@ or nil."
                              (powerline-fill face2 (powerline-width rhs))
                              (powerline-render rhs)))))))
 
-  (setq powerline-default-separator 'chamfer)
+  (setq powerline-default-separator nil)
 
   (powerline-ftzm-theme)
   )
