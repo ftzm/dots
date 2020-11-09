@@ -37,6 +37,15 @@
         (configured-home [ ./machines/oibri-nixos/home.nix ])
       ];
     };
+    nixosConfigurations.leigheas = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = base-modules ++ [
+        nixos-hardware.nixosModules.lenovo-thinkpad-x1-7th-gen
+        ./machines/leigheas/hardware.nix
+        ./machines/leigheas/configuration.nix
+        (configured-home [ ./machines/leigheas/home.nix ])
+      ];
+    };
     nixosConfigurations.unity-nixos = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = base-modules ++ [
