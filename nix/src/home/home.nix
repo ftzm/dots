@@ -1,7 +1,6 @@
-{ extra-imports ? [] }: { pkgs, lib, ... }:
+{ pkgs, lib, ... }:
 let
 in {
-  # nixpkgs.config = { firefox = { enableTridactylNative = true; }; };
   imports = [
     ./personal-options.nix
     ./packages.nix
@@ -11,7 +10,7 @@ in {
     ./mail.nix
     ./xorg.nix
     ./pipestatus.nix
-  ] ++ extra-imports;
+  ];
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
