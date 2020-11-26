@@ -10,7 +10,9 @@ let
       sha256 = "1nd7sb6pva7qb1ki6w0zhd6zvqzd7742kaqi0f3v4as5jh09l6nr";
     };
 
-    buildInputs = [ pkgs.taglib ];
+    buildInputs = [
+      pkgs.taglib
+    ];
     buildPhase = "make emms-print-metadata";
     installPhase = ''
       mkdir -p $out/bin
@@ -27,4 +29,12 @@ let
   };
 in
 
-emacsWithPackages (epkgs: [ epkgs.telega epkgs.vterm epkgs.emms emms-taglib epkgs.org])
+emacsWithPackages (epkgs: [
+  epkgs.telega
+  epkgs.vterm
+  epkgs.emms
+  emms-taglib
+  epkgs.org
+  epkgs.pdf-tools
+  pkgs.python3
+])
