@@ -8,6 +8,8 @@
 
 (use-package undo-tree
   :straight t
+  :init
+  (global-undo-tree-mode)
   :diminish undo-tree-mode
   )
 
