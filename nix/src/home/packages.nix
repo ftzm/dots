@@ -30,6 +30,7 @@ in {
     pciutils
     brightnessctl
     gotop
+    gnupg
 
     # office/document/media
     libreoffice
