@@ -40,6 +40,9 @@
   :config
   (persp-mode)
 
+  ;; Override persp-mode-line to hide in global-mode-string
+  (defun persp-mode-line () "")
+
   (setq fixed-persp-names '("mail"))
 
   (defun hydra-persp-names ()

@@ -34,7 +34,7 @@
 	     :type git
 	     :repo "emacs-lsp/lsp-metals"
 	     :host github)
-  :config (setq lsp-metals-treeview-show-when-views-received t))
+  :config (setq lsp-metals-treeview-show-when-views-received nil))
 
 ;; Add company-lsp backend for metals
 (use-package company-lsp

@@ -70,7 +70,7 @@ or nil."
 				     (when (and (boundp 'flycheck-mode) flycheck-mode)
 				       (powerline-raw
 					(ftzm/flycheck-mode-line-status-text) face2))))
-                          (rhs (list ;(powerline-raw global-mode-string face2 'r)
+                          (rhs (list (powerline-raw global-mode-string face2 'r)
                                      (funcall separator-right face2 face1)
                                      (unless window-system
                                        (powerline-raw (char-to-string #xe0a1) face1 'l))
@@ -141,6 +141,7 @@ or nil."
   (setq powerline-default-separator nil)
 
   (powerline-ftzm-theme)
+  ;(powerline-default-theme)
   )
 
 ;(use-package spaceline
