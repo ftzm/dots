@@ -8,7 +8,7 @@
 
   outputs = { self, nixpkgs, nixos-hardware, home-manager, pipestatus }:
     let
-      overlays = { pkgs, ... }:
+      nixpkgs-settings = { pkgs, ... }:
         {
           nixpkgs.overlays = [
             pipestatus.overlay
@@ -28,7 +28,7 @@
             nixpkgs.lib.nixosSystem {
               system = "x86_64-linux";
               modules = builtins.filter (x: x != null) [
-                overlays
+                nixpkgs-settings
                 ./configuration/configuration.nix
                 hardware
                 nixos-hardware-module
@@ -46,6 +46,5 @@
     {
     nixosConfigurations.oibri-nixos = mkConfig ./machines/oibri-nixos;
     nixosConfigurations.leigheas = mkConfig ./machines/leigheas;
-    nixosConfigurations.unity-nixos = mkConfig ./machines/unity-nixos;
   };
 }
