@@ -46,6 +46,7 @@
 (require 'init-dhall)
 (require 'init-jsonnet)
 (require 'init-markdown)
+(require 'init-pdf)
 (require 'init-prose)
 
 (require 'init-dockerfile)
