@@ -7,6 +7,7 @@
   :interpreter
     ("scala" . scala-mode)
   :hook ((scala-mode . flycheck-mode)
+	 (scala-mode . yas-minor-mode)
 	 ))
 
 ;; Enable sbt mode for executing sbt commands

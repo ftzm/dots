@@ -3,6 +3,9 @@
   :diminish company-mode
   :init
   (add-hook 'after-init-hook 'global-company-mode)
+  :bind (:map company-active-map
+     ("C-j" . company-select-next-or-abort)
+     ("C-k" . company-select-previous-or-abort))
   :config
   (setq company-idle-delay .1)
   (setq company-minimum-prefix-length 1)
@@ -11,12 +14,8 @@
   ;; Don't convert everything to lower case
 ;  (setq company-dabbrev-downcase nil)
 ;
-;  ;; make <tab> cycle & <backtab> cycle back
-;  (define-key company-active-map (kbd "TAB") 'company-select-next)
-;  (define-key company-active-map (kbd "<backtab>") 'company-select-previous)
-;  (define-key company-active-map (kbd "RET") nil)
 ;
-;  (company-tng-configure-default)
+  ;(company-tng-mode)
 ;
 ;  ;; set default `company-backends'
 ;  (setq company-backends
