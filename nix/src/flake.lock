@@ -83,11 +83,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1604703873,
-        "narHash": "sha256-1Nr7SaVnwBK0YGjE45tDrQPgs/34onJ4kM8PN2XWFeE=",
+        "lastModified": 1607085990,
+        "narHash": "sha256-2EiBPnzydqv/VcmVbwGEsdL17aHiycPPnEj69CONUeA=",
         "owner": "ftzm",
         "repo": "pipestatus",
-        "rev": "1d36d70ce8487251c56b5f0ad228389bdadc3210",
+        "rev": "d45ca0ae8d38d889f16ff17e4652e40251c5b21b",
         "type": "github"
       },
       "original": {
