@@ -21,6 +21,8 @@ import System.IO
 import Data.Maybe
 import Data.List
 
+import XMonad.Hooks.SetWMName
+
 bg      = "#002B36"
 fg      = "#93A1A1"
 yellow  = "#B58900"
@@ -49,6 +51,7 @@ myConfig = ewmh defaultConfig
     , manageHook         = myManageHook <+> manageDocks
     , workspaces         = myWorkspaces
     , handleEventHook    = handleEventHook defaultConfig <+> fullscreenEventHook
+    , startupHook        = setWMName "LG3D"
     }
 
 -- TODO: organize this better
@@ -69,11 +72,11 @@ myTabsTheme = def
   , decoHeight          = 30
   }
 
-myWorkspaces = [ "main"
-               , "web"
-               , "dev"
-               , "term"
-               , "mus"
+myWorkspaces = [ "1"
+               , "2"
+               , "3"
+               , "4"
+               , "5"
                , "6"
                , "7"
                , "8"
@@ -101,15 +104,6 @@ myLayouts = avoidStruts
      ratio   = 1/2
      -- Percent of screen to increment by when resizing panes
      delta   = 3/100
-
-layoutRenamer :: String -> String
-layoutRenamer x = case x of
-  "ResizableTall"          -> "side"
-  "Mirror ResizableTall"   -> "stack"
-  "Full"                   -> "max"
-  "BSP"                    -> "bsp"
-  "Tabbed Bottom Simplest" -> "tabbed"
-  x                        -> x
 
 showMap :: XConfig Layout -> [(String, String, X ())] -> X ()
 showMap l xs = do
@@ -186,6 +180,12 @@ workspaceKeys conf@XConfig {XMonad.modMask = modMask} =
     [((m .|. mm, k), windows $ f i)
         | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]
         , (f, m) <- [(W.view, 0), (W.shift, sm)]]
+    ++
+    -- mod-{w,e,r} %! Switch to physical/Xinerama screens 1, 2, or 3
+    -- mod-shift-{w,e,r} %! Move client to screen 1, 2, or 3
+    [((m .|. modMask, key), screenWorkspace sc >>= flip whenJust (windows . f))
+        | (key, sc) <- zip [xK_e, xK_r, xK_o] [0..]
+        , (f, m) <- [(W.view, 0), (W.shift, shiftMask)]]
 brightness x =
   let
     percentage = show $ 10 * if x == 0 then 10 else x
