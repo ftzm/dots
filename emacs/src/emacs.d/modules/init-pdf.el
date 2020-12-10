@@ -6,5 +6,14 @@
   (evil-collection-pdf-setup)
   (evil-set-initial-state 'pdf-view-mode 'normal))
 
+(use-package saveplace
+  :hook ((pdf-view-mode . save-place-local-mode))
+  :config
+  (setq save-place-file (locate-user-emacs-file "places"))
+  (require 'saveplace-pdf-view))
+
+(use-package saveplace-pdf-view
+  :straight t
+  )
 
 (provide 'init-pdf)
