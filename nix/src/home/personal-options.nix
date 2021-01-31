@@ -17,4 +17,11 @@
       type = lib.types.int;
       description = "GTK cursor size";
   };
+  options.personal.zsh_extra = lib.mkOption {
+    type = lib.types.str;
+    default = "";
+    description = ''
+      Extra lines added to zshrc.
+    '';
+  };
 }

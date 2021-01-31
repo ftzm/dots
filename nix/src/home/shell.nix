@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 let
   vterm_printf = builtins.readFile ./vterm_printf.sh;
@@ -56,7 +56,10 @@ in
       export PATH=$GOPATH/bin:$PATH
       ${vterm_printf}
       ${vterm_prompt_end}
-    '';
+
+      alias groot='cd $(git rev-parse --show-toplevel)'
+
+    '' + config.personal.zsh_extra;
   };
   programs.fzf = {
     enable = true;
@@ -70,5 +73,6 @@ in
   programs.direnv = {
     enable = true;
     enableZshIntegration = true;
+    enableNixDirenvIntegration = true;
   };
 }

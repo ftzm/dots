@@ -24,6 +24,8 @@ in {
     package = pkgs.nixFlakes;
     extraOptions = ''
       experimental-features = nix-command flakes
+      keep-outputs = true
+      keep-derivations = true
     '';
    };
 
@@ -47,6 +49,16 @@ in {
 
   # ---------------------------------------------------------------------------
   # System
+
+  system.activationScripts = {
+    # This is required to run third-party dynamically linked binaries
+    # which expect their interpreter to be in the standard Linux FSH.
+    ldso = lib.stringAfter [ "usrbinenv" ] ''
+       mkdir -m 0755 -p /lib64
+       ln -sfn ${pkgs.glibc.out}/lib64/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2.tmp
+       mv -f /lib64/ld-linux-x86-64.so.2.tmp /lib64/ld-linux-x86-64.so.2 # atomically replace
+     '';
+  };
 
   networking.networkmanager.enable = true;
 
@@ -75,6 +87,7 @@ in {
   services.cron.enable = true;
 
   services.upower.enable = true;
+
 
 
   # ---------------------------------------------------------------------------
