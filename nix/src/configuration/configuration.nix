@@ -74,6 +74,8 @@ in {
     git
     hsetroot # for desktopManager
     brightnessctl
+    nfs-utils
+    libnfs
   ];
 
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
@@ -88,6 +90,8 @@ in {
 
   services.upower.enable = true;
 
+  # for rpc-statd for nfs client: https://github.com/NixOS/nixpkgs/issues/76671
+  services.nfs.server.enable = true;
 
 
   # ---------------------------------------------------------------------------
@@ -114,12 +118,12 @@ in {
   };
 
   # Don't conflict with mopdiy
-  services.mpd = { enable = false; };
+  # services.mpd = { enable = false; };
 
   programs.light.enable = true;
 
   services.mopidy = {
-    enable = true;
+    enable = false;
     extensionPackages = [ pkgs.mopidy-spotify ];
     configuration = ''
       [spotify]

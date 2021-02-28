@@ -47,7 +47,7 @@
 
   (defun setup-music-workspace ()
     (interactive)
-    (dired "/home/matt/music")
+    (dired "/home/ftzm/music")
     (split-window-right)
     (other-window 1)
     (switch-to-buffer (emms-playlist-new))
@@ -60,13 +60,6 @@
 
   (defun music ()
     ()
-    )
-
-  (pretty-hydra-define music-hydra
-    (:color blue :quit-key "q" :title "%s(emms-show-status)")
-    ("Commands"
-     (( "p" emms-pause "play/pause")
-      ( "m" raise-music "music workspace"))))
-  )
+    ))
 
 (provide 'init-music)

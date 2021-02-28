@@ -31,6 +31,8 @@ in {
     brightnessctl
     gotop
     gnupg
+    wireguard
+    mpd-mpris
 
     # office/document/media
     libreoffice

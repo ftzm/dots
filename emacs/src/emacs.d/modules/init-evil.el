@@ -90,6 +90,7 @@
   (evil-collection-init 'vterm)
   (evil-collection-init 'emms)
   (evil-collection-init 'mu4e)
+  (evil-collection-init 'mpdel)
   )
 
 (use-package evil-surround
