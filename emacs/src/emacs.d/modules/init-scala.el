@@ -28,7 +28,19 @@
 (use-package lsp-mode
   :straight t
   :hook ((lsp-mode . lsp-lens-mode)(scala-mode . lsp))
-  :config (setq lsp-prefer-flymake nil))
+  :config
+  (setq lsp-prefer-flymake nil)
+  (setq lsp-file-watch-threshold 100000)
+
+  (defun db/lsp-treemacs-symbols-toggle ()
+    "Toggle the lsp-treemacs-symbols buffer."
+    (interactive)
+    (if (get-buffer "*LSP Symbols List*") (kill-buffer "*LSP Symbols List*")
+      (progn (lsp-treemacs-symbols)
+             (other-window -1))))
+
+  (setq lsp-eldoc-enable-hover nil)
+  )
 
 (use-package lsp-metals
   :straight (lsp-metals
@@ -52,6 +64,9 @@
   (lsp-mode . dap-mode)
   (lsp-mode . dap-ui-mode)
   )
+
+(use-package lsp-ivy
+  :straight t)
 
 
 (provide 'init-scala)

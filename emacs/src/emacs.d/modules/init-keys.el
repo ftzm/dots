@@ -193,6 +193,8 @@
   (define-key projectile-keys "p" 'counsel-projectile-switch-project)
   (define-key projectile-keys "a" 'counsel-projectile-ag)
 
+  (define-key leader-menu "l" lsp-command-map)
+
   (define-prefix-command 'org-mode-keys)
   (evil-define-key 'normal org-mode-map (kbd ",") 'org-mode-keys)
   (define-key org-mode-keys "s" 'org-schedule)

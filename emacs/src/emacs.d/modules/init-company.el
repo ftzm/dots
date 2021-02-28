@@ -3,19 +3,17 @@
   :diminish company-mode
   :init
   (add-hook 'after-init-hook 'global-company-mode)
-  :bind (:map company-active-map
-     ("C-j" . company-select-next-or-abort)
-     ("C-k" . company-select-previous-or-abort))
+  ;   ("C-j" . company-select-next-or-abort)
+  ;   ("C-k" . company-select-previous-or-abort))
   :config
   (setq company-idle-delay .1)
   (setq company-minimum-prefix-length 1)
   (setq company-require-match 'never) ;; allow breaking out by typing
-
   ;; Don't convert everything to lower case
 ;  (setq company-dabbrev-downcase nil)
 ;
 ;
-  ;(company-tng-mode)
+  (company-tng-mode)
 ;
 ;  ;; set default `company-backends'
 ;  (setq company-backends
