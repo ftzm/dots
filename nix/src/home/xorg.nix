@@ -2,8 +2,7 @@
 let
   font_size_float = config.personal.font_size;
   font_size = toString font_size_float;
-in
-{
+in {
   services.dunst = {
     enable = true;
     settings = {
@@ -21,20 +20,23 @@ in
         font = "Iosevka Lig Medium ${font_size}";
         line_height = 0;
         markup = "full";
-        format = ''
-          <b>%s</b>
-          %b'';
-          alignment = "left";
-          show_age_threshold = 60;
-          word_wrap = "yes";
-          ellipsize = "middle";
-          ignore_newline = "no";
-          stack_duplicates = "true";
-          hide_duplicate_count = false;
-          show_indicators = "yes";
-          icon_position = "off";
-          sticky_history = "yes";
-          history_length = 20;
+        #format = ''<b>%s</b>\n%b'';
+        alignment = "right";
+        show_age_threshold = 60;
+        word_wrap = "yes";
+        ellipsize = "middle";
+        ignore_newline = "no";
+        stack_duplicates = "true";
+        hide_duplicate_count = false;
+        show_indicators = "yes";
+        icon_position = "off";
+        sticky_history = "yes";
+        history_length = 20;
+        follow = "keyboard";
+      };
+      pipestatus = {
+        appname = "pipestatus";
+        format = "%b";
       };
       urgency_low = {
         background = "#222222";
@@ -57,6 +59,7 @@ in
   programs.alacritty = {
     enable = true;
     settings = {
+      env = { WINIT_X11_SCALE_FACTOR = "2.2"; };
       font = {
         normal = {
           family = "Iosevka Lig";
@@ -74,24 +77,24 @@ in
           foreground = "0xebdbb2";
         };
         normal = {
-          black =   "0x282828";
-          red =     "0xcc241d";
-          green =   "0x98971a";
-          yellow =  "0xd79921";
-          blue =    "0x458588";
+          black = "0x282828";
+          red = "0xcc241d";
+          green = "0x98971a";
+          yellow = "0xd79921";
+          blue = "0x458588";
           magenta = "0xb16286";
-          cyan =    "0x689d6a";
-          white =   "0xa89984";
+          cyan = "0x689d6a";
+          white = "0xa89984";
         };
         bright = {
-          black =   "0x928374";
-          red =     "0xfb4934";
-          green =   "0xb8bb26";
-          yellow =  "0xfabd2f";
-          blue =    "0x83a598";
+          black = "0x928374";
+          red = "0xfb4934";
+          green = "0xb8bb26";
+          yellow = "0xfabd2f";
+          blue = "0x83a598";
           magenta = "0xd3869b";
-          cyan =    "0x8ec07c";
-          white =   "0xebdbb2";
+          cyan = "0x8ec07c";
+          white = "0xebdbb2";
         };
       };
     };
@@ -138,6 +141,7 @@ in
     "rofi.separator-style" = "none";
     "rofi.color-window" = "#282828, #ebdbb2, #282828";
     "rofi.color-normal" = "#282828, #ebdbb2, #282828, #b8bb26, #282828";
+    "Xft.dpi" = "144";
   };
   xsession = {
     enable = true;
@@ -156,6 +160,7 @@ in
       # Mainly for ubuntu
       export XCURSOR_PATH=$HOME/.nix-profile/share/icons:$XCURSOR_PATH
       PATH=$HOME/bin:$PATH
+      mpd-mpris
     '';
     pointerCursor = {
       package = pkgs.vanilla-dmz;

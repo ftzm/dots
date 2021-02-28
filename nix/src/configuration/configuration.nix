@@ -86,6 +86,8 @@ in {
 
   hardware.bluetooth.enable = true;
 
+  services.blueman.enable = true;
+
   services.cron.enable = true;
 
   services.upower.enable = true;

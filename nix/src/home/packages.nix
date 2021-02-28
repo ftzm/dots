@@ -11,7 +11,12 @@ in {
     zlib.out # also needed for a lot
     glibcLocales # for non-broken locales in non-nixos
 
+    scrot
+    go
+
     # system
+    binutils
+    file
     dmenu
     ranger
     htop
@@ -32,6 +37,8 @@ in {
     gotop
     gnupg
     wireguard
+    nixfmt
+    pavucontrol
     mpd-mpris
 
     # office/document/media
@@ -69,6 +76,7 @@ in {
     gnumake
     jq
     ripgrep
+    nodePackages.serve
 
     # for spelling (particularly in emacs)
     hunspell
@@ -92,6 +100,7 @@ in {
     iosevkaLig
     source-sans-pro
     source-code-pro
+    jetbrains-mono
 
     # For Haskell dev
     cabal-install
@@ -121,6 +130,7 @@ in {
     keybase
     #w3m
 
+    #games
     lgogdownloader
     playonlinux
     wine
@@ -132,8 +142,6 @@ in {
     google-clasp
     kubernetes-helm
 
-    tridactyl-native
-    next
 
   ];
   xdg = {

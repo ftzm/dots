@@ -39,4 +39,7 @@
 
 (setq-default cursor-in-non-selected-windows nil)
 
+;; automatically balances windows when  splitting.
+(setq window-combination-resize t)
+
 (provide 'init-gui)

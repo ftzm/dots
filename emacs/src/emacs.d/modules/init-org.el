@@ -106,6 +106,15 @@
 					   nil))))
      )
 
+    ; the languages that can be executed in org code blocks
+    (setq org-plantuml-jar-path "/nix/store/zbr9v2vmp7456a0vkd8kq8s4s97fbci5-plantuml-1.2020.16/lib/plantuml.jar")
+    (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t) (dot . t)))
+    (setq org-confirm-babel-evaluate nil)
+
+    (setq org-display-inline-images t)
+    (setq org-redisplay-inline-images t)
+    (setq org-startup-with-inline-images t)
+
     (custom-theme-set-faces
      'user
      ;'(org-block ((t (:background nil))))
@@ -138,6 +147,7 @@
     ;; enable log mode, which will show closed items in agenda view
     (setq org-agenda-start-with-log-mode t)
 
+    (setq org-adapt-indentation nil)
     ;; start capture in insert mode
     (add-hook 'org-capture-mode-hook 'evil-insert-state)
 
