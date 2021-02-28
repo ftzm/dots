@@ -6,11 +6,12 @@
 ;
 ;;Set font
 ;; >>= :: <*> == /= >> {-#
-(setq my-font (format "Iosevka Lig Medium-%s" (or (getenv "FONT_SIZE") "16")))
+(setq my-font (format "Iosevka Lig Medium-10" (or (getenv "FONT_SIZE") "16")))
 ;;to set in existing window:
 (set-frame-font my-font nil t)
 
 ;(custom-set-faces '(default ((t (:family "Iosevka Lig" :foundry "unknown" :slant normal :weight normal :height 200 :width normal :inverse-video nil :box nil :strike-through nil :overline nil :underline nil)))))
+;(custom-set-faces '(default ((t (:family "JetBrains Mono" :foundry "JB  " :slant normal :weight normal :height 95 :width normal)))))
 ;
 ;; this only works on startup
 ;(add-to-list 'default-frame-alist '(font . (format "Iosevka Lig Medium-%s" (or (getenv "FONT_SIZE") "16"))))
@@ -18,7 +19,7 @@
 ;; (set-fontset-font t 'japanese-jisx0208
 ;;                   (font-spec :family "IPAGothic" :size 24))
 ;
-(setq line-spacing 0)
+(setq-default line-spacing 0.1)
 ;
 ;; no blink
 (blink-cursor-mode 0)

@@ -28,6 +28,7 @@ pkgs.iosevka.override {
         "v-asterisk-low"
         "v-percent-dots"
         "v-dollar-open"
+        "v-brace-straight"
       ];
     family = "Iosevka Lig";
   };

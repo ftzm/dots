@@ -175,7 +175,8 @@ in {
   # Fonts
   fonts = {
     fontconfig.enable = true;
-    enableFontDir = true;
+    #enableFontDir = true;
+    #fontDir.enable = true;
     enableGhostscriptFonts = true;
     fonts = with pkgs; [
       terminus_font
