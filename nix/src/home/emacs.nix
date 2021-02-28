@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  myEmacs = pkgs.emacs.override { inherit (pkgs) imagemagick; };
+  myEmacs = pkgs.emacsGcc.override { inherit (pkgs) imagemagick; };
   emacsWithPackages = (pkgs.emacsPackagesNgGen myEmacs).emacsWithPackages;
   emms-taglib = pkgs.stdenv.mkDerivation {
     name = "emms-taglib";

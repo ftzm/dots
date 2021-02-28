@@ -1,17 +1,20 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-20.09";
+    nixpkgs.url = "github:NixOS/nixpkgs/fb38ac0e97de4dafed59ba3d8c98c4e3ff4ff549";
+    #nixpkgs.url = "github:NixOS/nixpkgs/nixos-20.09";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager.url = "github:nix-community/home-manager";
     pipestatus.url = "github:ftzm/pipestatus";
+    emacs-overlay.url = "github:nix-community/emacs-overlay/5a21a96f87837f2127d509b66f9c07943422a13e";
   };
 
-  outputs = { self, nixpkgs, nixos-hardware, home-manager, pipestatus }:
+  outputs = { self, nixpkgs, nixos-hardware, home-manager, pipestatus, emacs-overlay }:
     let
       nixpkgs-settings = { pkgs, ... }:
         {
           nixpkgs.overlays = [
             pipestatus.overlay
+            emacs-overlay.overlay
             (import ./overlays)
           ];
           nixpkgs.config.firefox.enableTridactylNative = true;

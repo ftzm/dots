@@ -7,4 +7,7 @@
 (use-package eldoc
   :diminish "dc")
 
+(use-package elisp-format
+  :straight t)
+
 (provide 'init-elisp)
