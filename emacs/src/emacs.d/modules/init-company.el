@@ -3,17 +3,22 @@
   :diminish company-mode
   :init
   (add-hook 'after-init-hook 'global-company-mode)
-  ;   ("C-j" . company-select-next-or-abort)
-  ;   ("C-k" . company-select-previous-or-abort))
   :config
-  (setq company-idle-delay .1)
+  (setq company-idle-delay nil)
+  (define-key evil-insert-state-map "\C-n" 'company-complete)
+  (define-key company-active-map (kbd "C-n") #'company-select-next)
+  (define-key company-active-map (kbd "C-p") #'company-select-previous)
   (setq company-minimum-prefix-length 1)
   (setq company-require-match 'never) ;; allow breaking out by typing
   ;; Don't convert everything to lower case
-;  (setq company-dabbrev-downcase nil)
+  (setq company-dabbrev-downcase nil)
+
+  (setq lsp-completion-provider :capf)
+
+
 ;
 ;
-  (company-tng-mode)
+;  (company-tng-mode)
 ;
 ;  ;; set default `company-backends'
 ;  (setq company-backends
@@ -77,5 +82,9 @@
 
 
   )
+
+(use-package company-box
+  :straight t
+  :hook (company-mode . company-box-mode))
 
 (provide 'init-company)
