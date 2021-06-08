@@ -39,6 +39,7 @@
   (setq flymake-no-changes-timeout nil)
   (setq flymake-start-syntax-check-on-newline nil)
   (setq flycheck-check-syntax-automatically '(save mode-enabled))
+
   (define-prefix-command 'haskell-mode-keys)
   (evil-define-key 'normal haskell-mode-map (kbd ",") 'haskell-mode-keys)
   (define-key haskell-mode-keys "c" 'flycheck-buffer)

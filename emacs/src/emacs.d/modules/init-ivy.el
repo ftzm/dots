@@ -90,10 +90,6 @@
   :straight t
   )
 
-(use-package counsel
-  :straight t
-  )
-
 (use-package ivy-rich
   :straight t
   :config

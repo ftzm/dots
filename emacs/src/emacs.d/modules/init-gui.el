@@ -6,7 +6,7 @@
 ;
 ;;Set font
 ;; >>= :: <*> == /= >> {-#
-(setq my-font (format "Iosevka Lig Medium-10" (or (getenv "FONT_SIZE") "16")))
+(setq my-font (format "Iosevka Lig Medium-14" (or (getenv "FONT_SIZE") "16")))
 ;;to set in existing window:
 (set-frame-font my-font nil t)
 
