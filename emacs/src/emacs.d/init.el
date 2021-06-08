@@ -1,9 +1,9 @@
-(setq default-gc-threshold gc-cons-threshold)
-(setq gc-cons-threshold 200000000) ;High GC for fast startup
+;(setq default-gc-threshold gc-cons-threshold)
+;(setq gc-cons-threshold 200000000) ;High GC for fast startup
 (setq read-process-output-max (* 1024 1024))
 (add-to-list 'load-path "~/.emacs.d/modules")
 (require 'init-modules)
-(setq gc-cons-threshold default-gc-threshold) ;Set back to normal
+;(setq gc-cons-threshold default-gc-threshold) ;Set back to normal
 
 ; workaround for native compilation bug--issue here: https://github.com/raxod502/straight.el/issues/680
 (setq comp-deferred-compilation-deny-list '("\\(?:[^z-a]*-autoloads\\.el$\\)"))
