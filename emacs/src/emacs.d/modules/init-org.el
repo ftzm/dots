@@ -129,7 +129,7 @@
 
     ;; Autosave
     ;; passive saving
-    (add-hook 'auto-save-hook (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
+    ;;(add-hook 'auto-save-hook (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
     ;; save on specific actions
     (advice-add 'org-agenda-quit :before (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
 
