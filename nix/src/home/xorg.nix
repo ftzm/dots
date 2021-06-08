@@ -160,7 +160,7 @@ in {
       # Mainly for ubuntu
       export XCURSOR_PATH=$HOME/.nix-profile/share/icons:$XCURSOR_PATH
       PATH=$HOME/bin:$PATH
-      mpd-mpris
+      mpd-mpris &
     '';
     pointerCursor = {
       package = pkgs.vanilla-dmz;
