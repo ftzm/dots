@@ -16,11 +16,11 @@
 (setq theme-color-1 (face-attribute 'font-lock-function-name-face :foreground))
 (setq theme-color-2 (face-attribute 'font-lock-string-face :foreground))
 (setq evil-normal-state-tag   (propertize " N " 'face (list :background theme-color-1 :foreground theme-bg :weight 'bold))
-      evil-emacs-state-tag    (propertize " E " 'face '((:background "orange" :foreground "black")))
+      evil-emacs-state-tag    (propertize " E " 'face (list :background "orange" :foreground "black"))
       evil-insert-state-tag   (propertize " I " 'face (list :background theme-color-2 :foreground theme-bg :weight 'bold))
-      evil-motion-state-tag   (propertize " M " 'face '((:background "blue") :foreground "white"))
-      evil-visual-state-tag   (propertize " V " 'face '((:background theme-color-two :foreground "black")))
-      evil-operator-state-tag (propertize " O " 'face '((:background "purple"))))
+      evil-motion-state-tag   (propertize " M " 'face (list :background "blue" :foreground "white"))
+      evil-visual-state-tag   (propertize " V " 'face (list :background theme-color-2 :foreground "black"))
+      evil-operator-state-tag (propertize " O " 'face (list :background "purple")))
   :config
   (evil-mode t)
 
@@ -100,3 +100,6 @@
   )
 
 (provide 'init-evil)
+
+ (use-package evil-string-inflection
+   :straight t)
