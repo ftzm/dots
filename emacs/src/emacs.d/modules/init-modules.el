@@ -13,7 +13,7 @@
 (require 'init-persp)
 (require 'init-settings)
 (require 'init-projectile)
-(require 'init-neotree) ;disabled
+;(require 'init-neotree) ;disabled
 (require 'init-powerline)
 ;(require 'init-modeline)
 (require 'init-flycheck)
@@ -23,10 +23,10 @@
 (require 'init-security)
 (require 'init-spell)
 
-;;context specific
+;context specific
 (require 'init-org) ; Loading org later/below this point breaks it. There must
-		    ; be a loading order incompatibility with one of the
-		    ; modules below.
+       	    ; be a loading order incompatibility with one of the
+       	    ; modules below.
 (require 'init-elisp)
 (require 'init-lisp)
 (require 'init-shell)
@@ -53,9 +53,10 @@
 (require 'init-terraform)
 
 ;(require 'init-jira)
+(require 'init-mpd)
 (require 'init-mail)
-(require 'init-slack)
-(require 'init-telega)
+;(require 'init-slack)
+;(require 'init-telega)
 (require 'init-music)
 (require 'init-dired)
 
