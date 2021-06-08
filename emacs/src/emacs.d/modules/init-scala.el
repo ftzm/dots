@@ -40,6 +40,8 @@
              (other-window -1))))
 
   (setq lsp-eldoc-enable-hover nil)
+
+  (setq lsp-headerline-breadcrumb-enable nil)
   )
 
 (use-package lsp-metals
@@ -49,9 +51,7 @@
 	     :host github)
   :config (setq lsp-metals-treeview-show-when-views-received nil))
 
-;; Add company-lsp backend for metals
-(use-package company-lsp
-  :straight t)
+
 
 ;; Use the Debug Adapter Protocol for running tests and debugging
 (use-package posframe
@@ -68,5 +68,14 @@
 (use-package lsp-ivy
   :straight t)
 
+(pretty-hydra-define scala-hydra
+  (:color blue
+   :quit-key "q"
+   :title "Scala")
+  ("Commands" (( "f" lsp-format-buffer "format buffer"))
+   "LSP" (( "s" lsp "start lsp")
+	  ( "i" lsp-metals-build-import "metals build+import"))))
+
+(evil-define-key 'normal scala-mode-map (kbd ",") 'scala-hydra/body)
 
 (provide 'init-scala)
