@@ -8,7 +8,6 @@ in {
   personal.alacritty_font_size = 6.5;
   personal.cursor_size = 128;
   personal.zsh_extra = ''
-    ${secrets.work.devdb}
   '';
 
   services.mpd = {
