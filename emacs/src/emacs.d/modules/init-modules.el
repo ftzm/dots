@@ -7,7 +7,7 @@
 (require 'init-themes)
 (require 'init-evil)
 (require 'init-shackle)
-(require 'init-ivy)
+(require 'init-completion)
 (require 'init-utils)
 (require 'init-magit)
 (require 'init-persp)

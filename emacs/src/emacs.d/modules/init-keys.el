@@ -108,7 +108,7 @@
   (general-vmap "c" 'evil-change)
 
   (define-prefix-command 'leader-menu)
-  (define-key leader-menu (kbd "SPC") 'counsel-M-x)
+  (define-key leader-menu (kbd "SPC") 'execute-extended-command)
   (define-key leader-menu (kbd "'") 'switch-to-previous-buffer)
   (define-key leader-menu (kbd ",") 'ace-window)
   (define-prefix-command 'apps-keys)
@@ -143,11 +143,11 @@
                       "e" 'eval-buffer
                       "k" 'evil-prev-buffer
                       "j" 'evil-next-buffer
-                      "b" 'persp-ivy-switch-buffer
+                      "b" 'switch-to-buffer
                       "s" 'save-buffer
-                      "f" 'counsel-find-file
+                      "f" 'find-file
                       "w" 'write-file
-                      "r" 'counsel-recentf
+                      "r" 'consult-recent-file
                       "u" 'sudo-find-file
                       "U" 'sudo-this-file)
 
@@ -175,8 +175,8 @@
 
   (define-prefix-command 'ivy-keys)
   (define-key leader-menu "i" 'ivy-keys)
-  (define-key ivy-keys "i" 'counsel-imenu)
-  (define-key ivy-keys "g" 'counsel-grep)
+  (define-key ivy-keys "i" 'consult-imenu)
+  (define-key ivy-keys "g" 'consult-line)
 
   (define-prefix-command 'magit-keys)
   (define-key leader-menu "g" 'magit-keys)
@@ -188,16 +188,16 @@
 
   (define-prefix-command 'projectile-keys)
   (define-key leader-menu "p" 'projectile-keys)
-  (define-key projectile-keys "f" 'counsel-projectile-find-file)
-  (define-key projectile-keys "b" 'counsel-projectile-switch-to-buffer)
-  (define-key projectile-keys "p" 'counsel-projectile-switch-project)
-  (define-key projectile-keys "a" 'counsel-projectile-ag)
+  (define-key projectile-keys "f" 'projectile-find-file)
+  (define-key projectile-keys "b" 'projectile-switch-to-buffer)
+  (define-key projectile-keys "p" 'projectile-switch-project)
+  (define-key projectile-keys "a" 'consult-grep)
 
   (define-prefix-command 'org-mode-keys)
   (evil-define-key 'normal org-mode-map (kbd ",") 'org-mode-keys)
   (define-key org-mode-keys "s" 'org-schedule)
   (define-key org-mode-keys "r" 'org-refile)
-  (define-key org-mode-keys "t" 'counsel-org-tag)
+  (define-key org-mode-keys "t" 'org-set-tags-command)
 
   ;; Map for my custom ',' prefix.
   (define-prefix-command 'agenda-mode-map-keys)
@@ -321,7 +321,7 @@
     (define-key capture-mode-map-keys "k" 'org-capture-kill)
     (define-key capture-mode-map-keys "r" 'org-capture-refile)
     (define-key capture-mode-map-keys "c" 'org-capture-finalize)
-    (define-key capture-mode-map-keys "t" 'counsel-org-tag)
+    (define-key capture-mode-map-keys "t" 'org-set-tags-command)
 
   (define-prefix-command 'flycheck-keys)
   (define-key leader-menu "e" 'flycheck-keys)

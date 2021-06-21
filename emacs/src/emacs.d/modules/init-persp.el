@@ -93,6 +93,6 @@
       ("7" (persp-switch-command 7) nil)))))
 
   ;; Make the buffer menu pretty
-  (ivy-set-display-transformer #'persp-ivy-switch-buffer #'+ivy-buffer-transformer)
+  ;(ivy-set-display-transformer #'persp-ivy-switch-buffer #'+ivy-buffer-transformer)
 
 (provide 'init-persp)
