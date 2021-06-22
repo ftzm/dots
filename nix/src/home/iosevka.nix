@@ -22,14 +22,14 @@ pkgs.iosevka.override {
       menu = 700;
       css = 700;
     };
-    design =
-      [
-        "ligset-haskell"
-        "v-asterisk-low"
-        "v-percent-dots"
-        "v-dollar-open"
-        "v-brace-straight"
-      ];
+    ligations = {
+      inherits = "haskell";
+    };
+    variants.design = {
+      asterisk = "hex-low";
+      dollar = "open-cap";
+      percent = "dots";
+    };
     family = "Iosevka Lig";
   };
   set = "ftzm";

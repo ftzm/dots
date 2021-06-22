@@ -11,6 +11,7 @@ let
     };
 
     buildInputs = [
+      pkgs.zlib
       pkgs.taglib
     ];
     buildPhase = "make emms-print-metadata";

@@ -28,7 +28,7 @@
 
 
 
-  (setq evil-insert-state-message nil)
+  (setq evil-insert-state-message nil) ;; no echo area message on insert mode
 
   (evil-select-search-module 'evil-search-module 'evil-search)
 
@@ -90,7 +90,7 @@
   (evil-collection-init 'vterm)
   (evil-collection-init 'emms)
   (evil-collection-init 'mu4e)
-  (evil-collection-init 'mpdel)
+  (evil-collection-init 'magit)
   )
 
 (use-package evil-surround

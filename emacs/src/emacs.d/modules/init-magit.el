@@ -21,9 +21,4 @@
   :diminish auto-revert-mode
   )
 
-(use-package evil-magit
-  :straight t
-  :after magit
-  )
-
 (provide 'init-magit)
