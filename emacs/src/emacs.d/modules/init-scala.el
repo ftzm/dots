@@ -28,6 +28,8 @@
 (use-package lsp-mode
   :straight t
   :hook ((lsp-mode . lsp-lens-mode)(scala-mode . lsp))
+  :diminish lsp-lens-mode
+  :diminish lsp-mode
   :config
   (setq lsp-prefer-flymake nil)
   (setq lsp-file-watch-threshold 100000)

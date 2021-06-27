@@ -1,6 +1,7 @@
 (use-package yasnippet
   :straight t
   :commands yas-minor-mode
+  :diminish yas-minor-mode
   )
 
 (use-package yasnippet-snippets
