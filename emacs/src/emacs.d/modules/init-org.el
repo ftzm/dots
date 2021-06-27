@@ -60,11 +60,11 @@
   (add-hook 'org-mode-hook #'(lambda () (setq evil-auto-indent nil)))
   (progn
     (setq org-directory "~/org")
-    (setq canonical-org-agenda-files (quote ("~/org/work.org"
-				   "~/org/inbox.org"
+    (setq canonical-org-agenda-files (quote ("~/org/inbox.org"
 				   "~/org/todo.org"
 				   "~/org/projects/"
-				   "~/org/main.org")))
+				   "~/org/special-dates.org"
+				   "~/org/habits.org")))
     (setq org-agenda-files canonical-org-agenda-files)
 
     ;;There are other options for this that may deserve investigation
@@ -328,7 +328,7 @@
 	 (agenda ""
                  ((org-agenda-span 'day)
 		  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
-		  (org-agenda-files '("~/org/work.org"))
+		  (org-agenda-files '("~/org/work/main.org"))
 		  (org-agenda-overriding-header "\n"
 		   )
                  ))
