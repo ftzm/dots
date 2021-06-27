@@ -14,6 +14,7 @@ in {
   imports = [
     ./sleep.nix
     ./users.nix
+    ./cachix.nix
   ];
 
   nixpkgs.config.allowUnfree = true;

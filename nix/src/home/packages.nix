@@ -13,6 +13,7 @@ in {
 
     scrot
     go
+    cachix
 
     # system
     binutils
@@ -67,7 +68,8 @@ in {
     vanilla-dmz
 
     # programming
-    custom-emacs
+    #custom-emacs
+    emacsPgtkGcc
     neovim
     git
     git-crypt
