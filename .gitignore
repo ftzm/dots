@@ -15,7 +15,8 @@
 /emacs/src/emacs.d/persp-confs/
 /emacs/src/emacs.d/org-gcal
 /emacs/src/emacs.d/projectile.cache
-/emacs/src/emacs.d/straight
+/emacs/src/emacs.d/straight/build
+/emacs/src/emacs.d/straight/repos
 /emacs/src/emacs.d/elpa
 /emacs/src/emacs.d/quelpa
 /emacs/src/emacs.d/url
