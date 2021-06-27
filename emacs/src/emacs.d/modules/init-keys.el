@@ -191,7 +191,7 @@
   (define-key projectile-keys "f" 'projectile-find-file)
   (define-key projectile-keys "b" 'projectile-switch-to-buffer)
   (define-key projectile-keys "p" 'projectile-switch-project)
-  (define-key projectile-keys "a" 'consult-grep)
+  (define-key projectile-keys "a" 'ftzm/consult-ripgrep)
 
   (define-prefix-command 'org-mode-keys)
   (evil-define-key 'normal org-mode-map (kbd ",") 'org-mode-keys)

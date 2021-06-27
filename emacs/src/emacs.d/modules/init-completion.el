@@ -1,6 +1,5 @@
 (use-package ag
-  :straight t
-  )
+  :straight t)
 
 ;(use-package ivy
 ;  :straight t
@@ -99,15 +98,63 @@
 
 (use-package consult
   :straight (consult
-	     :branch "main"))
+	     :branch "main")
+  :config
+  (setq completion-in-region-function #'consult-completion-in-region)
+  (autoload 'projectile-project-root "projectile")
+  (setq consult-project-root-function 'projectile-project-root)
+  (setq consult-async-split-style 'space)
+  (setq consult-ripgrep-command "rg --null --line-buffered --color=ansi --max-columns=1000 -S --no-heading --line-number . -e ARG OPTS")
+  (consult-customize
+   consult-ripgrep consult-git-grep consult-grep
+   consult-bookmark consult-recent-file consult-xref
+   consult--source-file consult--source-project-file consult--source-bookmark
+   :preview-key (kbd "M-."))
+
+  (defun grep-no-filename-pred (candidate)
+    (let* ((car (car-safe candidate))
+	   (haystack (if (and car (stringp car))
+			 (replace-regexp-in-string "\\(^.*?:.*?:\\)" "" car)
+		       nil)))
+      (if haystack
+	  (seq-every-p (lambda (reg) (string-match reg haystack))
+		       completion-regexp-list)
+	t)))
+
+  (defun ftzm/consult-ripgrep (&optional dir initial)
+    "Do a rg search which ignores the file name when filtering candidates."
+    (interactive "P")
+    (let ((minibuffer-completion-predicate 'grep-no-filename-pred)
+	  (orderless-all-completions-orig (symbol-function 'orderless-all-completions)))
+      (cl-letf (((symbol-function 'orderless--highlight)
+     		 (lambda (regexps string)
+		   ;; the definition is the same as the original but for
+		   ;; the addition and use of the `start` variable.
+		   (cl-loop with n = (length orderless-match-faces)
+			    with start = (if (string-match "\\(^.*?:.*?:\\)" string)
+     					     (match-end 0) 0)
+			    for regexp in regexps and i from 0
+			    when (string-match regexp string start) do
+			    (cl-loop
+			     for (x y) on (or (cddr (match-data)) (match-data)) by #'cddr
+			     when x do
+			     (add-face-text-property
+			      x y
+			      (aref orderless-match-faces (mod i n))
+			      nil string)))
+		   string))
+		((symbol-function 'orderless-all-completions)
+		 (lambda (string table _pred _point)
+		   (funcall orderless-all-completions-orig string table 'grep-no-filename-pred _point))))
+	(consult-ripgrep dir initial))))
+  )
 ;  :straight (multi-libvterm
 ;	     :type git
 ;	     :host github
 ;	     :repo "suonlight/multi-libvterm"))
 
 (use-package embark
-  :straight t
-  )
+  :straight t)
 
 ;; Enable richer annotations using the Marginalia package
 (use-package marginalia
@@ -127,6 +174,78 @@
   :straight t
   :custom (completion-styles '(orderless)))
 
+(defun grep-no-filename-pred2 (x)
+  ;(with-current-buffer "*scratch*" (insert (format "input: %s" x)))
+  ;; (if (not (listp x))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert (format "%s" (car-safe x))))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert (format "%s" (car-safe x))))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert (format "%s" (hash-table-p x))))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;;   (with-current-buffer "*scratch*" (insert (format "weird input: %s" x)))
+  ;;     )
+  ;; (if (consp x)
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert "cons"))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; ;(with-current-buffer "*scratch*" (insert (format "%s" (car x))))
+  ;;     )
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert "-------------"))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  (let* ((carO (car-safe x))
+	 (search-space (if (and carO (stringp carO))
+			   (replace-regexp-in-string "\\(^.*?:\\)" "" (format "%s" carO))
+			 nil)))
+    ;(with-current-buffer "*scratch*" (insert "\n"))
+    ;(with-current-buffer "*scratch*" (insert (format "search space: %s" search-space)))
+
+  (if search-space
+
+      (let ((success
+	     (-all? (lambda (reg)
+		      (string-match reg search-space))
+		    completion-regexp-list)))
+
+	success)
+    t)))
+  ;; (if (car-safe x)
+  ;;     (
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert "hit meat"))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; ;(with-current-buffer "*scratch*" (insert (format "input: %s" x)))
+  ;; (let ((search-space (replace-regexp-in-string "\\(^.*?:\\)" "" (format "%s" (car-safe
+  ;; 									       x)))))
+  ;; ;(with-current-buffer "*scratch*" (insert search-space))
+  ;;     (-all? (lambda (reg)
+  ;; 	       (string-match reg ))
+  ;; 	     completion-regexp-list))
+  ;;   )
+  ;;      t)))
+
+(defun orderless-all-completions-ignore2 (string table _pred _point)
+  ;(with-current-buffer "*scratch*" (erase-buffer))
+  ;(with-current-buffer "*scratch*" (insert string))
+  ;(with-current-buffer "*scratch*" (insert "\n"))
+  ;(with-current-buffer "*scratch*" (insert (format "table: %s" table)))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert (format "prefix+pattern: %s"
+  ;; 						   (orderless--prefix+pattern string table pred))))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert (format "%s" (orderless-pattern-compiler string))))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert "\n"))
+  ;; (with-current-buffer "*scratch*" (insert (format "%s" (orderless-filter string table pred))))
+  ;(orderless-all-completions string table 'grep-no-filename-pred _point)
+  (orderless-all-completions string table 'grep-no-filename-pred _point)
+  ;(with-current-buffer "*scratch*" (insert pred))
+  ;(with-current-buffer "*scratch*" (insert point))
+  )
+
+
 ;; (use-package selectrum
 ;;   :straight t
 ;;   :init
@@ -139,19 +258,21 @@
   :config
   (add-to-list 'completion-ignored-extensions "#"))
 
-(defun consult-company ()
-  "Complete using `company-candidates'."
-  (interactive)
-  (company-mode 1)
-  (unless company-candidates
-    (company-complete))
-  (let ((len (cond (company-common
-                    (length company-common))
-                   (company-prefix
-                    (length company-prefix)))))
-    (when len
-      ;; (setq ivy-completion-beg (- (point) len))
-      ;; (setq ivy-completion-end (point))
-      (completing-read "Candidate: " company-candidates ))))
+;; (defun consult-company ()
+;;   "Complete using `company-candidates'."
+;;   (interactive)
+;;   (company-mode 1)
+;;   (unless company-candidates
+;;     (company-complete))
+;;   (let ((len (cond (company-common
+;;                     (length company-common))
+;;                    (company-prefix
+;;                     (length company-prefix)))))
+;;     (when len
+;;       ;; (setq ivy-completion-beg (- (point) len))
+;;       ;; (setq ivy-completion-end (point))
+;;       (completing-read "Candidate: " company-candidates ))))
+
+(defvar selectrum-search-rg-history nil)
 
 (provide 'init-completion)
