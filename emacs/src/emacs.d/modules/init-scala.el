@@ -1,5 +1,8 @@
 (use-package lsp-ui
-  :straight t)
+  :straight t
+  :config
+  (setq lsp-ui-doc-enable nil)
+  )
 
 (use-package scala-mode
   :straight t
@@ -41,9 +44,23 @@
       (progn (lsp-treemacs-symbols)
              (other-window -1))))
 
+  ;disable eldoc from showing type info automatically since it's slow
   (setq lsp-eldoc-enable-hover nil)
 
   (setq lsp-headerline-breadcrumb-enable nil)
+
+  (defun lsp-describe-thing-at-point-minibuffer ()
+  "Display the type signature and documentation of the thing at
+point in the minibuffer."
+  (interactive)
+  (let ((contents (-some->> (lsp--text-document-position-params)
+                    (lsp--make-request "textDocument/hover")
+                    (lsp--send-request)
+                    (lsp:hover-contents))))
+    (if (and contents (not (equal contents "")))
+        (message (string-trim-right (lsp--render-on-hover-content contents t)))
+      (lsp--info "No content at point."))))
+
   )
 
 (use-package lsp-metals
@@ -70,13 +87,20 @@
 (use-package lsp-ivy
   :straight t)
 
+(defun scala-hydra-header ()
+    (let ((workspace (car (lsp-workspaces))))
+      (if workspace
+	  (format "root:   %s\n server: %s" (lsp--workspace-root workspace) (lsp--workspace-print workspace))
+	"No active workspace")))
+
 (pretty-hydra-define scala-hydra
   (:color blue
    :quit-key "q"
-   :title "Scala")
+   :title (scala-hydra-header))
   ("Commands" (( "f" lsp-format-buffer "format buffer"))
    "LSP" (( "s" lsp "start lsp")
-	  ( "i" lsp-metals-build-import "metals build+import"))))
+	  ( "i" lsp-metals-build-import "metals build+import")
+	  ( "d" lsp-describe-thing-at-point-minibuffer "describe thing at point"))))
 
 (evil-define-key 'normal scala-mode-map (kbd ",") 'scala-hydra/body)
 
