@@ -16,6 +16,7 @@
 /emacs/src/emacs.d/org-gcal
 /emacs/src/emacs.d/projectile.cache
 /emacs/src/emacs.d/straight/build
+/emacs/src/emacs.d/straight/build-cache.el
 /emacs/src/emacs.d/straight/repos
 /emacs/src/emacs.d/elpa
 /emacs/src/emacs.d/quelpa
@@ -25,6 +26,7 @@
 /emacs/src/emacs.d/bookmarks
 /emacs/src/emacs.d/transient
 /emacs/src/emacs.d/eln-cache
+/emacs/src/emacs.d/.*
 
 
 ranger/src/ranger/bookmarks

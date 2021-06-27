@@ -25,7 +25,7 @@
 (straight-use-package 'bind-key)
 
 (setq load-prefer-newer t)
-(add-to-list 'load-path "/home/matt/.dots/emacs/src/emacs.d/")
+(add-to-list 'load-path "/home/ftzm/.dots/emacs/src/emacs.d/")
 
 ;for profiling startup
 (use-package esup
