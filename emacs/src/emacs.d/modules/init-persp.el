@@ -90,7 +90,20 @@
       ("6" (persp-switch-command 6) nil)
       ("7" (persp-switch-command 7) nil)
       ("8" (persp-switch-command 8) nil)
-      ("7" (persp-switch-command 7) nil)))))
+      ("7" (persp-switch-command 7) nil))))
+
+  (defun switch-persp-project ()
+    (interactive "")
+    (let ((projects (projectile-relevant-known-projects)))
+      (if projects (let* ((project (completing-read "Project: " projects))
+			  (persp-name (file-name-nondirectory (substring project 0 -1))))
+		     (persp-switch persp-name)
+		     (projectile-switch-project-by-name project nil))
+	(user-error
+	 "There are no known projects"))))
+)
+
+
 
   ;; Make the buffer menu pretty
   ;(ivy-set-display-transformer #'persp-ivy-switch-buffer #'+ivy-buffer-transformer)

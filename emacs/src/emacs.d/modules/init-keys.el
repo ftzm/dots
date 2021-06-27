@@ -190,7 +190,8 @@
   (define-key leader-menu "p" 'projectile-keys)
   (define-key projectile-keys "f" 'projectile-find-file)
   (define-key projectile-keys "b" 'projectile-switch-to-buffer)
-  (define-key projectile-keys "p" 'projectile-switch-project)
+  (define-key projectile-keys "p" 'switch-persp-project)
+  (define-key projectile-keys "P" 'projectile-switch-project)
   (define-key projectile-keys "a" 'ftzm/consult-ripgrep)
 
   (define-prefix-command 'org-mode-keys)
