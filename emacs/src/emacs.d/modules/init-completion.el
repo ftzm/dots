@@ -105,11 +105,6 @@
   (setq consult-project-root-function 'projectile-project-root)
   (setq consult-async-split-style 'space)
   (setq consult-ripgrep-command "rg --null --line-buffered --color=ansi --max-columns=1000 -S --no-heading --line-number . -e ARG OPTS")
-  (consult-customize
-   consult-ripgrep consult-git-grep consult-grep
-   consult-bookmark consult-recent-file consult-xref
-   consult--source-file consult--source-project-file consult--source-bookmark
-   :preview-key (kbd "M-."))
 
   (defun grep-no-filename-pred (candidate)
     (let* ((car (car-safe candidate))
@@ -147,6 +142,11 @@
 		 (lambda (string table _pred _point)
 		   (funcall orderless-all-completions-orig string table 'grep-no-filename-pred _point))))
 	(consult-ripgrep dir initial))))
+  (consult-customize
+   ftzm/consult-ripgrep consult-ripgrep consult-git-grep consult-grep
+   consult-bookmark consult-recent-file consult-xref
+   consult--source-file consult--source-project-file consult--source-bookmark
+   :preview-key (kbd "M-."))
   )
 ;  :straight (multi-libvterm
 ;	     :type git

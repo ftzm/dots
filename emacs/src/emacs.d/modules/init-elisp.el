@@ -5,7 +5,7 @@
   :diminish "elisp")
 
 (use-package eldoc
-  :diminish)
+  :diminish eldoc-mode)
 
 (use-package elisp-format
   :straight t)

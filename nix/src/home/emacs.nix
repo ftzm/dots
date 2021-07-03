@@ -1,8 +1,8 @@
 { config, pkgs, ... }:
 
 let
-  myEmacs = pkgs.emacsGcc.override { inherit (pkgs) imagemagick; };
-  emacsWithPackages = (pkgs.emacsPackagesNgGen myEmacs).emacsWithPackages;
+  package = pkgs.emacsPgtkGcc;
+  emacsWithPackages = (pkgs.emacsPackagesNgGen package).emacsWithPackages;
   emms-taglib = pkgs.stdenv.mkDerivation {
     name = "emms-taglib";
     src = pkgs.fetchurl {
@@ -31,11 +31,11 @@ let
 in
 
 emacsWithPackages (epkgs: [
-  epkgs.telega
-  epkgs.vterm
-  epkgs.emms
-  emms-taglib
-  epkgs.org
-  epkgs.pdf-tools
+  #epkgs.telega
+  #epkgs.vterm
+  #epkgs.emms
+  #emms-taglib
+  #epkgs.org
+  #epkgs.pdf-tools
   pkgs.python3
 ])

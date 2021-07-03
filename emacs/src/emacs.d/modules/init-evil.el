@@ -84,6 +84,7 @@
 
 (use-package evil-collection
   :straight t
+  :diminish evil-collection-unimpaired-mode
   :config
   ;; add more as need by this pattern
   (evil-collection-init 'dired)

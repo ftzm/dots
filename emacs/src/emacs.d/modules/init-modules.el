@@ -30,7 +30,6 @@
 (require 'init-elisp)
 (require 'init-lisp)
 (require 'init-shell)
-(require 'init-vterm)
 (require 'init-nix)
 (require 'init-haskell)
 (require 'init-scala)
@@ -57,7 +56,8 @@
 (require 'init-mail)
 ;(require 'init-slack)
 ;(require 'init-telega)
-(require 'init-music)
+;(require 'init-music)
+;(require 'init-vterm)
 (require 'init-dired)
 
 ;;centralized key mappings
