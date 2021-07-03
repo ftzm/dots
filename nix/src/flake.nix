@@ -16,7 +16,7 @@
             emacs-overlay.overlay
             (import ./overlays)
           ];
-          #nixpkgs.config.firefox.enableTridactylNative = true;
+          services.emacs.package = pkgs.emacsPgtkGcc;
         };
       mkConfig = module-path:
         let
