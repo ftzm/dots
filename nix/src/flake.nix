@@ -16,7 +16,10 @@
             emacs-overlay.overlay
             (import ./overlays)
           ];
-          services.emacs.package = pkgs.emacsPgtkGcc;
+          nixpkgs.config.permittedInsecurePackages = [
+            "openssl-1.0.2u"
+          ];
+          #nixpkgs.config.firefox.enableTridactylNative = true;
         };
       mkConfig = module-path:
         let

@@ -50,6 +50,19 @@
   ;	 ;(org-mode . variable-pitch-mode)
   ;	 ;(org-mode . org-num-mode)
   ;	 )
+  :init
+  (pretty-hydra-define org-global-hydra
+    (:color blue :quit-key "q" :title "Org Dispatch")
+    ("Agenda"
+     (( "g" (org-agenda nil " ") "Personal Agenda")
+      ( "wg" (org-agenda nil "W") "Work Agenda"))
+     "Capture"
+     (("t" (org-capture nil "t") "Task")
+      ("d" (org-capture nil "d") "Diary")
+      ("wt" (org-capture nil "w") "Work Task")
+      ("wd" (org-capture nil "u") "Work Diary"))
+      ))
+
   :config
 
   ;(add-hook 'org-mode-hook (lambda ()(load-theme-buffer-local 'gruvbox-light-soft (current-buffer)) ))
@@ -476,18 +489,6 @@ are equal return t."
     (org-agenda-todo arg)
     ))
 
-
-  (pretty-hydra-define org-global-hydra
-    (:color blue :quit-key "q" :title "Org Dispatch")
-    ("Agenda"
-     (( "g" (org-agenda nil " ") "Personal Agenda")
-      ( "wg" (org-agenda nil "W") "Work Agenda"))
-     "Capture"
-     (("t" (org-capture nil "t") "Task")
-      ("d" (org-capture nil "d") "Diary")
-      ("wt" (org-capture nil "w") "Work Task")
-      ("wd" (org-capture nil "u") "Work Diary"))
-      ))
 
 
   )
