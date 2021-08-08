@@ -32,6 +32,7 @@
 (require 'init-shell)
 (require 'init-nix)
 (require 'init-haskell)
+(require 'init-purescript)
 (require 'init-scala)
 (require 'init-elm)
 (require 'init-python)
@@ -45,7 +46,7 @@
 (require 'init-dhall)
 (require 'init-jsonnet)
 (require 'init-markdown)
-(require 'init-pdf)
+;(require 'init-pdf)
 (require 'init-prose)
 
 (require 'init-dockerfile)
@@ -53,7 +54,7 @@
 
 ;(require 'init-jira)
 (require 'init-mpd)
-(require 'init-mail)
+;(require 'init-mail)
 ;(require 'init-slack)
 ;(require 'init-telega)
 ;(require 'init-music)

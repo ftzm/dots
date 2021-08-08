@@ -42,4 +42,7 @@
 ;; automatically balances windows when  splitting.
 (setq window-combination-resize t)
 
+; don't highlight bookmarks orange
+(setq bookmark-fontify nil)
+
 (provide 'init-gui)
