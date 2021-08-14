@@ -48,6 +48,7 @@ in
       # Ask for passwords in cli
       unset SSH_ASKPASS
       unset GIT_ASKPASS
+      export GUIPASS=${pkgs.lxqt.lxqt-openssh-askpass}/bin/lxqt-openssh-askpass
       # unalias conflicting aliases for bashmarks
       unalias l
       [[ -f ~/.falcon ]] && source ~/.falcon

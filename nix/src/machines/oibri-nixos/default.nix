@@ -1,8 +1,11 @@
-{ nixos-hardware, ...}:
+{ inputs, ... }:
 
 {
-  nixos-hardware-module = nixos-hardware.nixosModules.lenovo-thinkpad-t480s;
-  hardware = ./hardware.nix;
-  configuration = ./t480s.nix;
-  home = ./home.nix;
+  imports = [
+    inputs.nixos-hardware.nixosModules.lenovo-thinkpad-t480s
+    ./hardware.nix
+  ];
+  networking.hostName = "oibri-nixos"; # Define your hostname.
+  system.stateVersion = "19.03";
+  home-manager.users.ftzm.imports = [ ./home.nix  ];
 }

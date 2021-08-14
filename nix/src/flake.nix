@@ -1,55 +1,63 @@
 {
   inputs = {
+    deploy-rs.url = "github:serokell/deploy-rs";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager.url = "github:nix-community/home-manager";
     pipestatus.url = "github:ftzm/pipestatus";
     emacs-overlay.url = "github:nix-community/emacs-overlay";
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-20.09";
+    agenix.url = "github:ryantm/agenix";
   };
 
-  outputs = { self, nixpkgs, nixos-hardware, home-manager, pipestatus, emacs-overlay }:
+  outputs = inputs@{ self, nixpkgs, deploy-rs, ... }:
     let
-      nixpkgs-settings = { pkgs, ... }:
-        {
-          nixpkgs.overlays = [
-            pipestatus.overlay
-            emacs-overlay.overlay
-            (import ./overlays)
-          ];
-          nixpkgs.config.permittedInsecurePackages = [
-            "openssl-1.0.2u"
-          ];
-          #nixpkgs.config.firefox.enableTridactylNative = true;
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
+      mkUserSystem = host-config:
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit inputs; };
+          modules = [ ./configuration host-config ];
         };
-      mkConfig = module-path:
-        let
-          args = import module-path { inherit nixos-hardware; };
-          mkConfig' =
-            { hardware # result of hardware scan
-            , configuration # machine-specific nixos config
-            , home # machine-specific home config
-            , nixos-hardware-module ? null
-            }:
-            nixpkgs.lib.nixosSystem {
-              system = "x86_64-linux";
-              modules = builtins.filter (x: x != null) [
-                nixpkgs-settings
-                ./configuration/configuration.nix
-                hardware
-                nixos-hardware-module
-                configuration
-                home-manager.nixosModules.home-manager
-                {
-                  home-manager.users.ftzm = {
-                    imports = [(import ./home/home.nix) home ];
-                  };
-                }
-              ];
-            };
-        in mkConfig' args;
-    in
-    {
-    nixosConfigurations.oibri-nixos = mkConfig ./machines/oibri-nixos;
-    nixosConfigurations.leigheas = mkConfig ./machines/leigheas;
-  };
+      nuc = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit inputs; };
+        modules = [ ./machines/nuc/configuration.nix ];
+      };
+      nas = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit inputs; };
+        modules = [ ./machines/nas ];
+      };
+    in {
+      nixosConfigurations = {
+        oibri-nixos = mkUserSystem ./machines/oibri-nixos;
+        leigheas = mkUserSystem ./machines/leigheas;
+        inherit nuc;
+        inherit nas;
+      };
+      deploy.nodes = {
+        nuc = {
+          hostname = "nuc";
+          profiles.system = {
+            sshOpts = [ "-X" ];
+            sshUser = "admin";
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos
+              self.nixosConfigurations.nuc;
+          };
+        };
+        nas = {
+          hostname = "nas";
+          profiles.system = {
+            sshOpts = [ "-X" ];
+            sshUser = "admin";
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos
+              self.nixosConfigurations.nas;
+          };
+        };
+      };
+    };
 }

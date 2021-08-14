@@ -9,7 +9,7 @@
 #   };
 #   in
 
-rec {
+{
   home.packages = with pkgs; [
     # fun
     # nixpkgs-steam.steam

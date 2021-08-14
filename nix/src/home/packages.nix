@@ -42,6 +42,7 @@ in {
     nixfmt
     pavucontrol
     mpd-mpris
+    dig
 
     # office/document/media
     libreoffice
@@ -51,9 +52,7 @@ in {
     (wrapMpv mpv-unwrapped { scripts = [ mpvScripts.mpris ]; })
     keybase-gui
     nomacs
-
-    # webz
-    chromium
+    gnome.cheese
     qutebrowser
     wget
     openvpn

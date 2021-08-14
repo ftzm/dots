@@ -5,22 +5,32 @@
 # ---------------------------------------------------------------------------
 # Setup
 
-{ self, system, nixpkgs, pkgs, config, lib, ... }:
+{ self, system, nixpkgs, pkgs, config, lib, inputs, ... }:
 
 # Define secrets in a separate file
-let
-  secrets = import ../secrets.nix;
+let secrets = import ../secrets.nix;
 in {
   imports = [
+    inputs.home-manager.nixosModules.home-manager
+    inputs.agenix.nixosModules.age
     ./sleep.nix
     ./users.nix
     ./cachix.nix
   ];
 
-  nixpkgs.config.allowUnfree = true;
-  nixpkgs.config.permittedInsecurePackages = [
-    "p7zip-16.02"
-  ];
+  nixpkgs = {
+    config = {
+      allowUnfree = true;
+      permittedInsecurePackages = [ "p7zip-16.02" "openssl-1.0.2u" ];
+    };
+    overlays = [
+      (import ../overlays)
+      inputs.pipestatus.overlay
+      inputs.emacs-overlay.overlay
+      inputs.deploy-rs.overlay
+    ];
+  };
+
   nix = {
     package = pkgs.nixFlakes;
     extraOptions = ''
@@ -28,24 +38,30 @@ in {
       keep-outputs = true
       keep-derivations = true
     '';
-   };
+  };
 
   # ---------------------------------------------------------------------------
   # Home Manager
 
-  home-manager.useGlobalPkgs = true;
-  home-manager.useUserPackages = true;
+  home-manager = {
+    useGlobalPkgs = true;
+    useUserPackages = true;
+    users.ftzm.imports = [ ../home ];
+  };
 
   # ---------------------------------------------------------------------------
   # Boot
 
-  # Use the systemd-boot EFI boot loader.
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
-
-  boot.initrd.luks.devices.root = {
-    device = "/dev/nvme0n1p2";
-    preLVM = true;
+  boot = {
+    # Use the systemd-boot EFI boot loader.
+    loader = {
+      systemd-boot.enable = true;
+      efi.canTouchEfiVariables = true;
+    };
+    initrd.luks.devices.root = {
+      device = "/dev/nvme0n1p2";
+      preLVM = true;
+    };
   };
 
   # ---------------------------------------------------------------------------
@@ -55,10 +71,10 @@ in {
     # This is required to run third-party dynamically linked binaries
     # which expect their interpreter to be in the standard Linux FSH.
     ldso = lib.stringAfter [ "usrbinenv" ] ''
-       mkdir -m 0755 -p /lib64
-       ln -sfn ${pkgs.glibc.out}/lib64/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2.tmp
-       mv -f /lib64/ld-linux-x86-64.so.2.tmp /lib64/ld-linux-x86-64.so.2 # atomically replace
-     '';
+      mkdir -m 0755 -p /lib64
+      ln -sfn ${pkgs.glibc.out}/lib64/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2.tmp
+      mv -f /lib64/ld-linux-x86-64.so.2.tmp /lib64/ld-linux-x86-64.so.2 # atomically replace
+    '';
   };
 
   networking.networkmanager.enable = true;
@@ -77,6 +93,9 @@ in {
     brightnessctl
     nfs-utils
     libnfs
+    deploy-rs.deploy-rs
+    inputs.agenix.defaultPackage.x86_64-linux
+    alsaUtils
   ];
 
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
@@ -89,13 +108,14 @@ in {
 
   services.blueman.enable = true;
 
+  services.sshd.enable = true;
+
   services.cron.enable = true;
 
   services.upower.enable = true;
 
   # for rpc-statd for nfs client: https://github.com/NixOS/nixpkgs/issues/76671
   services.nfs.server.enable = true;
-
 
   # ---------------------------------------------------------------------------
   # Security
@@ -109,15 +129,46 @@ in {
   # ---------------------------------------------------------------------------
   # Media
 
-  hardware.pulseaudio = {
+  # rtkit is optional but recommended
+  security.rtkit.enable = true;
+  services.pipewire = {
     enable = true;
-    package = pkgs.pulseaudioFull; # For bluetooth
-    support32Bit = true;
-    tcp = {
-      # for mopidy
-      enable = true;
-      anonymousClients.allowedIpRanges = [ "127.0.0.1" ];
-    };
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+    # If you want to use JACK applications, uncomment this
+    #jack.enable = true;
+
+    # use the example session manager (no others are packaged yet so this is enabled by default,
+    # no need to redefine it in your config for now)
+    #media-session.enable = true;
+
+    media-session.config.bluez-monitor.rules = [
+      {
+        # Matches all cards
+        matches = [{ "device.name" = "~bluez_card.*"; }];
+        actions = {
+          "update-props" = {
+            "bluez5.reconnect-profiles" = [ "hfp_hf" "hsp_hs" "a2dp_sink" ];
+            # mSBC is not expected to work on all headset + adapter combinations.
+            "bluez5.msbc-support" = true;
+            # SBC-XQ is not expected to work on all headset + adapter combinations.
+            "bluez5.sbc-xq-support" = true;
+          };
+        };
+      }
+      {
+        matches = [
+          # Matches all sources
+          {
+            "node.name" = "~bluez_input.*";
+          }
+          # Matches all outputs
+          { "node.name" = "~bluez_output.*"; }
+        ];
+        actions = { "node.pause-on-idle" = false; };
+      }
+    ];
   };
 
   # Don't conflict with mopdiy
@@ -151,18 +202,15 @@ in {
     layout = "us";
 
     displayManager = {
-      session = [
-        { manage = "desktop";
-          name = "home-manager";
-          start = ''
-            ${pkgs.runtimeShell} $HOME/.hm-session &
-            waitPID=$!
-          '';
-        }
-      ];
-      lightdm = {
-        enable = true;
-      };
+      session = [{
+        manage = "desktop";
+        name = "home-manager";
+        start = ''
+          ${pkgs.runtimeShell} $HOME/.hm-session &
+          waitPID=$!
+        '';
+      }];
+      lightdm = { enable = true; };
       autoLogin.enable = true;
       autoLogin.user = "ftzm";
       defaultSession = "home-manager";

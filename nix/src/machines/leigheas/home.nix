@@ -13,11 +13,11 @@ in {
   services.mpd = {
     enable = true;
     dbFile = null;
-    musicDirectory = "/mnt/music/music-library/music";
+    musicDirectory = "/mnt/music";
     extraConfig = ''
       database {
           plugin  "proxy"
-          host    "10.0.100.1"
+          host    "10.0.100.4"
           port    "6600"
       }
     '';
