@@ -7,6 +7,7 @@ in {
   imports = [ # Include the results of the hardware scan.
     inputs.agenix.nixosModules.age
     ./hardware.nix
+    ../../network.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
@@ -39,21 +40,6 @@ in {
 
   networking.hostName = "nas"; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-
-  networking = {
-    wireguard.interfaces = {
-      wg0 = {
-        ips = [ "10.0.100.3/24" ];
-        listenPort = 51830;
-        privateKeyFile = config.age.secrets.wireguard-private-key-nas.path;
-        peers = [{
-          publicKey = "eLpLj1/WiCEW8w00A+HLPMkUGTGRCrRb1znESP43q0I=";
-          allowedIPs = [ "10.0.100.2" ];
-        }];
-      };
-    };
-
-  };
 
   # Set your time zone.
   time.timeZone = "Europe/Copenhagen";
@@ -117,8 +103,6 @@ in {
 
   age.secrets.smtppw.file =
     ../../secrets/smtppw.age;
-  age.secrets.wireguard-private-key-nas.file =
-    ../../secrets/wireguard-private-key-nas.age;
 
   # Enable the OpenSSH daemon.
   services = {

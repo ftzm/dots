@@ -4,6 +4,7 @@
   imports = [ # Include the results of the hardware scan.
     inputs.agenix.nixosModules.age
     ./hardware.nix
+    ../../network.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
@@ -27,23 +28,6 @@
   networking.useDHCP = false;
   networking.interfaces.eno1.useDHCP = true;
   networking.interfaces.wlp0s20f3.useDHCP = true;
-
-  age.secrets.wireguard-private-key-nuc.file =
-    ../../secrets/wireguard-private-key-nuc.age;
-
-  networking = {
-    wireguard.interfaces = {
-      wg0 = {
-        ips = [ "10.0.100.4/24" ];
-        listenPort = 51840;
-        privateKeyFile = "/home/admin/.wg/nuc.key";
-        peers = [{
-          publicKey = "eLpLj1/WiCEW8w00A+HLPMkUGTGRCrRb1znESP43q0I=";
-          allowedIPs = [ "10.0.100.2" ];
-        }];
-      };
-    };
-  };
 
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
