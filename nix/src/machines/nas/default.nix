@@ -89,6 +89,8 @@ in {
     lshw
     smartmontools
     hdparm
+    ranger
+    htop
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
@@ -169,19 +171,32 @@ in {
     };
   };
 
-  # Hack to fix deploy-rs password entry
-  # https://github.com/serokell/deploy-rs/issues/78
-  environment.etc."sudo.conf" = {
-    mode = "0400";
-    # uncomment one of the following lines
-    #text = "Path askpass ${askpass}";
-    #text = "Path askpass ${pkgs.x11_ssh_askpass}/libexec/x11-ssh-askpass";
-    #text = "Path askpass ${pkgs.ssh-askpass-fullscreen}/bin/ssh-askpass-fullscreen";
-    text =
-      "Path askpass ${pkgs.lxqt.lxqt-openssh-askpass}/bin/lxqt-openssh-askpass";
-    #text = "Path askpass ${pkgs.ksshaskpass}/bin/ksshaskpass";
-  };
-  services.openssh.forwardX11 = true; # The server must allow X11 forwarding
+  # # Hack to fix deploy-rs password entry
+  # # https://github.com/serokell/deploy-rs/issues/78
+  # environment.etc."sudo.conf" = {
+  #   mode = "0400";
+  #   # uncomment one of the following lines
+  #   #text = "Path askpass ${askpass}";
+  #   #text = "Path askpass ${pkgs.x11_ssh_askpass}/libexec/x11-ssh-askpass";
+  #   #text = "Path askpass ${pkgs.ssh-askpass-fullscreen}/bin/ssh-askpass-fullscreen";
+  #   text =
+  #     "Path askpass ${pkgs.lxqt.lxqt-openssh-askpass}/bin/lxqt-openssh-askpass";
+  #   #text = "Path askpass ${pkgs.ksshaskpass}/bin/ksshaskpass";
+  # };
+  # services.openssh.forwardX11 = true; # The server must allow X11 forwarding
+
+  # Not ideal, but makes deployment smoother
+  security.sudo.extraRules = [{
+    groups = [ "wheel" ];
+    commands = [{
+      command = "ALL";
+      options = [ "NOPASSWD" ];
+    }];
+  }];
+
+  users.users.admin.openssh.authorizedKeys.keys = [
+    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
+  ];
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions

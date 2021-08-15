@@ -41,7 +41,6 @@
         nuc = {
           hostname = "nuc";
           profiles.system = {
-            sshOpts = [ "-X" ];
             sshUser = "admin";
             user = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos
@@ -51,7 +50,6 @@
         nas = {
           hostname = "nas";
           profiles.system = {
-            sshOpts = [ "-X" ];
             sshUser = "admin";
             user = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos
