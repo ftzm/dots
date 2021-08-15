@@ -23,7 +23,7 @@
       nuc = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs; };
-        modules = [ ./machines/nuc/configuration.nix ];
+        modules = [ ./machines/nuc ];
       };
       nas = nixpkgs.lib.nixosSystem {
         inherit system;
