@@ -122,19 +122,47 @@
     move_completed = true;
   };
 
+  security.acme = {
+    acceptTerms = true;
+    email = "fitz.matt.d@gmail.com";
+  };
+
   # nginx reverse proxy
   services.nginx = {
+
+    # Use recommended settings
+    recommendedGzipSettings = true;
+    recommendedOptimisation = true;
+    recommendedProxySettings = true;
+    recommendedTlsSettings = true;
+
+    # Only allow PFS-enabled ciphers with AES256
+    sslCiphers = "AES256+EECDH:AES256+EDH:!aNULL";
+
     enable = true;
     virtualHosts.${config.services.grafana.domain} = {
+      enableACME = true;
+      forceSSL = true;
       locations."/" = {
         proxyPass = "http://127.0.0.1:${toString config.services.grafana.port}";
         proxyWebsockets = true;
       };
     };
     virtualHosts."deluge.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
       locations."/" = {
         proxyPass =
           "http://127.0.0.1:${toString config.services.deluge.web.port}";
+        proxyWebsockets = true;
+      };
+    };
+    virtualHosts."jellyfin.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
+      locations."/" = {
+        proxyPass =
+          "http://127.0.0.1:8096";
         proxyWebsockets = true;
       };
     };
