@@ -51,6 +51,11 @@
     sshd.enable = true;
   };
 
+  services.jellyfin = {
+    enable = true;
+    group = "users";
+  };
+
   services.nfs.server.enable = true;
   fileSystems."/mnt/nas" = {
     device = "nas:/pool-1";
