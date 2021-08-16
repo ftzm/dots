@@ -16,7 +16,6 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-
   time.timeZone = "Europe/Copenhagen";
   i18n.defaultLocale = "en_US.UTF-8";
   services.xserver.layout = "us"; # probably unnecessary on server
@@ -106,12 +105,36 @@
     };
   };
 
+  age.secrets.deluge = {
+    file = ../../secrets/deluge.age;
+    group = "users";
+    mode = "0440";
+  };
+  services.deluge.enable = true;
+  services.deluge.declarative = true;
+  services.deluge.web.enable = true;
+  services.deluge.group = "users";
+  services.deluge.authFile = config.age.secrets.deluge.path;
+  services.deluge.config = {
+    download_location = "/var/lib/deluge/downloads";
+    move_completed_path = "/var/lib/deluge/complete";
+    torrentfiles_location = "/var/lib/deluge/torrents";
+    move_completed = true;
+  };
+
   # nginx reverse proxy
   services.nginx = {
     enable = true;
     virtualHosts.${config.services.grafana.domain} = {
       locations."/" = {
         proxyPass = "http://127.0.0.1:${toString config.services.grafana.port}";
+        proxyWebsockets = true;
+      };
+    };
+    virtualHosts."deluge.ftzmlab.xyz" = {
+      locations."/" = {
+        proxyPass =
+          "http://127.0.0.1:${toString config.services.deluge.web.port}";
         proxyWebsockets = true;
       };
     };
