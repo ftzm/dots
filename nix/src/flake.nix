@@ -45,7 +45,7 @@
       };
       deploy.nodes = {
         nuc = {
-          hostname = "nuc";
+          hostname = "wg-nuc";
           profiles.system = {
             sshUser = "admin";
             user = "root";
@@ -54,7 +54,7 @@
           };
         };
         nas = {
-          hostname = "nas";
+          hostname = "wg-nas";
           profiles.system = {
             sshUser = "admin";
             user = "root";
