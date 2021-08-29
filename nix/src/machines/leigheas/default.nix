@@ -4,7 +4,7 @@
   imports = [
     inputs.nixos-hardware.nixosModules.lenovo-thinkpad-x1-7th-gen
     ./hardware.nix
-    ../../network.nix
+    ../../configuration/network.nix
   ];
 
   # to build for pi

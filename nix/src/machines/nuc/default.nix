@@ -4,7 +4,7 @@
   imports = [ # Include the results of the hardware scan.
     inputs.agenix.nixosModules.age
     ./hardware.nix
-    ../../network.nix
+    ../../configuration/network.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
