@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-
-paths="
-.direnvrc	~/.direnvrc
-"
