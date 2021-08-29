@@ -6,6 +6,7 @@ let
         ip = "10.0.100.2";
         listenPort = 51820;
         publicKey = "eLpLj1/WiCEW8w00A+HLPMkUGTGRCrRb1znESP43q0I=";
+        client = true;
       };
     };
     #oibri-nixos = { };
@@ -14,6 +15,7 @@ let
         ip = "10.0.100.3";
         listenPort = 51830;
         publicKey = "9742uVx1meQuUeJvlwq63I4Bc1eI5XpOjQUVUC7eP2c=";
+        client = false;
       };
     };
     nuc = {
@@ -21,6 +23,7 @@ let
         ip = "10.0.100.4";
         listenPort = 51840;
         publicKey = "hkBdJ/i5Aei5RXNcoYluvJcScIoDz+Na8iVhiHQv6TA=";
+        client = false;
       };
     };
   };
@@ -40,7 +43,10 @@ in {
         peers = lib.attrsets.mapAttrsToList (k: v: {
           inherit (v.wg) publicKey;
           allowedIPs = [ v.wg.ip ];
-          endpoint = "${k}.ftzmlab.xyz:${toString v.wg.listenPort}";
+          endpoint = if v.wg.client then
+            null
+          else
+            "${k}.ftzmlab.xyz:${toString v.wg.listenPort}";
         }) others;
       };
     };
