@@ -35,6 +35,37 @@
   hardware.video.hidpi.enable = true;
   services.autorandr.enable = true;
 
+
+  services.syncthing = {
+    enable = true;
+    #guiAddress = "localhost:8384";
+    openDefaultPorts = true;
+    user = "ftzm";
+    configDir = "/home/ftzm/.config/syncthing";
+    dataDir = "/home/ftzm";
+    declarative = {
+      overrideFolders = true;
+      overrideDevices = true;
+      devices = {
+        nas = {
+          id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+          introducer = true;
+          addresses = [
+            "tcp://10.0.100.3"
+          ];
+        };
+      };
+      # folders = {
+        # org = {
+          # devices = [ "leigheas" "nas" ];
+          # path = "/home/ftzm/org";
+          # enable = true;
+        # };
+      # };
+    };
+  };
+
   system.stateVersion = "20.09";
   home-manager.users.ftzm.imports = [ ./home.nix ];
+
 }
