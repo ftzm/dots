@@ -7,8 +7,7 @@ in {
   personal.rofi_font_size = "20";
   personal.alacritty_font_size = 6.5;
   personal.cursor_size = 128;
-  personal.zsh_extra = ''
-  '';
+  personal.zsh_extra = "";
 
   services.mpd = {
     enable = true;
