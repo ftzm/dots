@@ -58,8 +58,7 @@ in {
     htop
   ];
 
-  age.secrets.smtppw.file =
-    ../../secrets/smtppw.age;
+  age.secrets.smtppw.file = ../../secrets/smtppw.age;
 
   # Enable the OpenSSH daemon.
   services = {

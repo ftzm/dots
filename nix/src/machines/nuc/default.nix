@@ -126,6 +126,74 @@
 
   users.users.deluge.extraGroups = [ "users" "storage" ];
 
+  # ----------------------------------------------------------------------
+  # nextcloud
+
+  services.nextcloud = {
+    enable = true;
+    package = pkgs.nextcloud21;
+    hostName = "nextcloud.ftzmlab.xyz";
+
+    # Use HTTPS for links
+    https = true;
+
+    home = "/mnt/nas/nextcloud";
+
+    # Auto-update Nextcloud Apps
+    autoUpdateApps.enable = true;
+    # Set what time makes sense for you
+    autoUpdateApps.startAt = "05:00:00";
+
+    config = {
+      # Further forces Nextcloud to use HTTPS
+      overwriteProtocol = "https";
+
+      # Nextcloud PostegreSQL database configuration, recommended over using SQLite
+      dbtype = "pgsql";
+      dbuser = "nextcloud";
+      dbhost = "/run/postgresql"; # nextcloud will add /.s.PGSQL.5432 by itself
+      dbname = "nextcloud";
+      dbpassFile = config.age.secrets.nextcloud-db-pass.path;
+
+      adminpassFile = config.age.secrets.nextcloud-admin-pass.path;
+      adminuser = "admin";
+    };
+  };
+
+  services.postgresql = {
+    enable = true;
+
+    # Ensure the database, user, and permissions always exist
+    ensureDatabases = [ "nextcloud" ];
+    ensureUsers = [{
+      name = "nextcloud";
+      ensurePermissions."DATABASE nextcloud" = "ALL PRIVILEGES";
+    }];
+  };
+
+  systemd.services."nextcloud-setup" = {
+    requires = [ "postgresql.service" ];
+    after = [ "postgresql.service" ];
+  };
+
+  age.secrets.nextcloud-db-pass = {
+    file = ../../secrets/nextcloud-db-pass.age;
+    owner = "nextcloud";
+  };
+
+  age.secrets.nextcloud-admin-pass = {
+    file = ../../secrets/nextcloud-admin-pass.age;
+    owner = "nextcloud";
+  };
+
+  users.groups.storage = {
+    gid = 1001;
+  };
+  users.users.nextcloud.extraGroups = [ "users" "storage" ];
+  users.users.nextcloud.isSystemUser = true;
+
+  # ----------------------------------------------------------------------
+
   security.acme = {
     acceptTerms = true;
     email = "fitz.matt.d@gmail.com";
@@ -165,10 +233,13 @@
       enableACME = true;
       forceSSL = true;
       locations."/" = {
-        proxyPass =
-          "http://127.0.0.1:8096";
+        proxyPass = "http://127.0.0.1:8096";
         proxyWebsockets = true;
       };
+    };
+    virtualHosts."nextcloud.ftzmlab.xyz" = {
+      forceSSL = true;
+      enableACME = true;
     };
   };
 

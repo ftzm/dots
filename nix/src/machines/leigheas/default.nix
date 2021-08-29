@@ -6,6 +6,10 @@
     ./hardware.nix
     ../../network.nix
   ];
+
+  # to build for pi
+  boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
+
   networking =  {
     hostName = "leigheas"; # Define your hostname.
     useDHCP = false;
