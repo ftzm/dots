@@ -20,6 +20,10 @@ in {
           host    "10.0.100.4"
           port    "6600"
       }
+      audio_output {
+        type "pulse"
+        name "Pulseaudio"
+      }
     '';
   };
 }
