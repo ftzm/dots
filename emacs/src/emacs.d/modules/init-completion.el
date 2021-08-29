@@ -103,7 +103,6 @@
   (setq completion-in-region-function #'consult-completion-in-region)
   (autoload 'projectile-project-root "projectile")
   (setq consult-project-root-function 'projectile-project-root)
-  (setq consult-async-split-style 'space)
   (setq consult-ripgrep-command "rg --null --line-buffered --color=ansi --max-columns=1000 -S --no-heading --line-number . -e ARG OPTS")
 
   (defun grep-no-filename-pred (candidate)
@@ -154,7 +153,44 @@
 ;	     :repo "suonlight/multi-libvterm"))
 
 (use-package embark
-  :straight t)
+  :straight t
+
+  :bind
+  (("C-." . embark-act)         ;; pick some comfortable binding
+   ("M-." . embark-dwim)        ;; good alternative: M-.
+   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+
+  :init
+
+  ;; Optionally replace the key help with a completing-read interface
+  (setq prefix-help-command #'embark-prefix-help-command)
+
+  :config
+
+(embark-define-keymap embark-composer-actions
+  "Keymap for actions on composers."
+  ("s" (lambda (x) (interactive "s") (ftzm-mpd-composer-search x)))
+  ("r" ftzm-mpd-composer-findadd))
+
+(assq-delete-all 'composer embark-keymap-alist)
+(add-to-list 'embark-keymap-alist '(composer . embark-composer-actions))
+
+
+  ;; Hide the mode line of the Embark live/completions buffers
+  (add-to-list 'display-buffer-alist
+               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                 nil
+                 (window-parameters (mode-line-format . none)))))
+
+;; Consult users will also want the embark-consult package.
+(use-package embark-consult
+  :straight t
+  :after (embark consult)
+  :demand t ; only necessary if you have the hook below
+  ;; if you want to have consult previews as you move around an
+  ;; auto-updating embark collect buffer
+  :hook
+  (embark-collect-mode . consult-preview-at-point-mode))
 
 ;; Enable richer annotations using the Marginalia package
 (use-package marginalia

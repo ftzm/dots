@@ -38,6 +38,21 @@
 			 (ftzm-mpd-composer-search x))
 	       :caller 'composer-names))))
 
+
+(with-eval-after-load "consult"
+(defun ftzm-embark-composer-search ()
+  (interactive)
+  (libmpdel-send-command
+   "list composer"
+   (lambda (data)
+     (with-local-quit
+       (ftzm-mpd-composer-search
+	(consult--read (seq-filter (lambda (x) (> (length x) 0)) (mapcar (lambda (x) (cdr x)) data))
+		       :prompt "Composer: "
+		       :category 'composer
+		       ))))))
+)
+
 (ivy-add-actions
  'composer-names
  `(("a" (lambda (x)  (ftzm-mpd-composer-findadd x)) "Add to playlist")
@@ -116,7 +131,7 @@
 	       ( "}" libmpdel-playback-next "next" :exit nil))
    "Selection" (( "s" mpdel-playlist-open "open current playlist")
 		( "C" ftzm-mpd-clear-playlist "clear playlist")
-		( "c" ftzm-ivy-composer-search "search composers")
+		( "c" ftzm-embark-composer-search "search composers")
 		( "a" ivy-mpdel-artists "search artists"))
    "Toggles" (( "r" ftzm-mpd-repeat "repeat" :toggle (symbol-value 'libmpdel--repeat))
 	       ( "S" ftzm-mpd-single "single" :toggle (eq 'forever libmpdel--single))
