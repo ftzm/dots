@@ -101,8 +101,9 @@ in {
     nfs.server = {
       enable = true;
       exports = ''
-        /pool-1/ *(rw,fsid=root,no_subtree_check)
-        ${concatMapStringsSep "\n" (n: "/pool-1/${n} *(rw,no_subtree_check,nohide)") shares}
+        /pool-1/ *(rw,fsid=root,no_subtree_check,no_root_squash)
+        ${concatMapStringsSep "\n"
+        (n: "/pool-1/${n} *(rw,no_subtree_check,nohide,no_root_squash)") shares}
       '';
     };
   };
