@@ -1,8 +1,6 @@
 { config, pkgs, ... }:
 
-let
-  secrets = import ../secrets.nix;
-in {
+{
   accounts.email.maildirBasePath = ".maildir";
 
   programs.mbsync.enable = true;
@@ -22,22 +20,6 @@ in {
     enable = true;
     postExec = "${config.xdg.configHome}/mbsync/postExec";
   };
-
-  accounts.email.accounts.unity = {
-    userName = "matthew.fitzsimmons@unity3d.com";
-    address = "matthew.fitzsimmons@unity3d.com";
-    mbsync = {
-      enable = true;
-      create = "both";
-      expunge = "both";
-      remove = "both";
-    };
-    passwordCommand = "echo ${secrets.email.unity}";
-    imap = {
-      host = "imap.gmail.com";
-    };
-  };
-
   accounts.email.accounts.fitzmattd = {
     userName = "fitz.matt.d@gmail.com";
     address = "fitz.matt.d@gmail.com";
@@ -47,7 +29,6 @@ in {
       expunge = "both";
       remove = "both";
     };
-    passwordCommand = "echo ${secrets.email.fitzmattd}";
     imap = {
       host = "imap.gmail.com";
     };
@@ -66,7 +47,6 @@ in {
     msmtp = {
       enable = true;
     };
-    passwordCommand = "echo ${secrets.email.ftzm}";
     imap = {
       host = "imap.fastmail.com";
       port = 993;

@@ -1,4 +1,4 @@
-{ config, inputs, lib, ... }:
+{ pkgs, config, inputs, lib, ... }:
 
 {
   imports = [
@@ -10,7 +10,7 @@
   # to build for pi
   boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
 
-  networking =  {
+  networking = {
     hostName = "leigheas"; # Define your hostname.
     useDHCP = false;
     interfaces = {
@@ -39,7 +39,6 @@
   hardware.video.hidpi.enable = true;
   services.autorandr.enable = true;
 
-
   services.syncthing = {
     enable = true;
     #guiAddress = "localhost:8384";
@@ -52,24 +51,43 @@
       overrideDevices = true;
       devices = {
         nas = {
-          id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+          id =
+            "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
           introducer = true;
-          addresses = [
-            "tcp://10.0.100.3"
-          ];
+          addresses = [ "tcp://10.0.100.3" ];
         };
       };
       # folders = {
-        # org = {
-          # devices = [ "leigheas" "nas" ];
-          # path = "/home/ftzm/org";
-          # enable = true;
-        # };
+      # org = {
+      # devices = [ "leigheas" "nas" ];
+      # path = "/home/ftzm/org";
+      # enable = true;
+      # };
       # };
     };
   };
 
   system.stateVersion = "20.09";
+
   home-manager.users.ftzm.imports = [ ./home.nix ];
 
+  # Home Manager secrets.
+  # these need to be defined here to have access to agenix.
+
+  age.secrets = {
+    fitzmattd-email = {
+      file = ../../secrets/fitzmattd-email.age;
+      owner = "ftzm";
+    };
+    ftzm-org-email = {
+      file = ../../secrets/ftzm-org-email.age;
+      owner = "ftzm";
+    };
+  };
+  home-manager.users.ftzm = {
+    accounts.email.accounts.fitzmattd.passwordCommand =
+      "${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}";
+    accounts.email.accounts.ftzm.passwordCommand =
+      "${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}";
+  };
 }
