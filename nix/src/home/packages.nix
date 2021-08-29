@@ -43,6 +43,7 @@ in {
     pavucontrol
     mpd-mpris
     dig
+    chromium
 
     # office/document/media
     libreoffice
@@ -57,6 +58,7 @@ in {
     wget
     openvpn
     deluge
+    bpytop
 
     # appearance
     hsetroot
@@ -168,24 +170,24 @@ in {
         "toolkit.legacyUserProfileCustomizations.stylesheets" = true;
         "browser.startup.homepage" = "www.google.com";
       };
-      userChrome = ''
+      # userChrome = ''
 
 
-          /* Hide tabs */
+      #     /* Hide tabs */
 
-          #TabsToolbar {
-            visibility: collapse !important;
-            margin-bottom: 21px !important;
-          }
+      #     #TabsToolbar {
+      #       visibility: collapse !important;
+      #       margin-bottom: 21px !important;
+      #     }
 
-          /* Hide sidebar header */
+      #     /* Hide sidebar header */
 
-          #sidebar-box[sidebarcommand="treestyletab_piro_sakura_ne_jp-sidebar-action"] #sidebar-header {
-            visibility: collapse !important;
-          }
-          .sidebar-splitter { display: none;}
+      #     #sidebar-box[sidebarcommand="treestyletab_piro_sakura_ne_jp-sidebar-action"] #sidebar-header {
+      #       visibility: collapse !important;
+      #     }
+      #     .sidebar-splitter { display: none;}
 
-        '';
+      #   '';
     };
   };
 }
