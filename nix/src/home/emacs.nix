@@ -1,7 +1,8 @@
 { config, pkgs, ... }:
 
 let
-  package = pkgs.emacsPgtkGcc;
+  #package = pkgs.emacsPgtkGcc;
+  package = pkgs.emacs;
   emacsWithPackages = (pkgs.emacsPackagesNgGen package).emacsWithPackages;
   emms-taglib = pkgs.stdenv.mkDerivation {
     name = "emms-taglib";
