@@ -41,6 +41,7 @@
         leigheas = mkUserSystem ./machines/leigheas;
         inherit nuc;
         inherit nas;
+        inherit pi;
       };
       deploy.nodes = {
         nuc = {
