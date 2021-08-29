@@ -1,4 +1,4 @@
-{ pkgs, config, ... }:
+{ pkgs, config, lib, ... }:
 
 let secrets = import ../../secrets.nix;
 in {
@@ -23,6 +23,12 @@ in {
         type "pulse"
         name "Pulseaudio"
       }
+    '';
+  };
+  home.activation = {
+    myActivationAction = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      $DRY_RUN_CMD ${builtins.toPath ./../../dotfiles/install.sh} -y \
+        -f ${builtins.toPath ./../../dotfiles/MODULES}
     '';
   };
 }
