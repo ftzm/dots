@@ -15,6 +15,9 @@ in {
   # This was enable to allow deploying via deploy-rs as non-root.
   nix.trustedUsers = [ "@wheel" ];
 
+  users.groups.storage = { gid = 1001; };
+  users.users.root.extraGroups = [ "users" "storage" ];
+
   boot.loader.systemd-boot.enable = true;
 
   # For ZFS
@@ -30,6 +33,12 @@ in {
     ZED_NOTIFY_VERBOSE = false;
   };
 
+  # Mount the dang thing
+  fileSystems."/pool-1" = {
+    device = "pool-1";
+    fsType = "zfs";
+  };
+
   time.timeZone = "Europe/Copenhagen";
 
   # The global useDHCP flag is deprecated, therefore explicitly set to false here.
@@ -38,11 +47,6 @@ in {
   networking.useDHCP = false;
   networking.hostName = "nas";
   networking.interfaces.eno1.useDHCP = true;
-
-  users.users.admin = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" ]; # Enable ‘sudo’ for the user.
-  };
 
   environment.systemPackages = with pkgs; [
     wget
@@ -160,9 +164,13 @@ in {
     }];
   }];
 
-  users.users.admin.openssh.authorizedKeys.keys = [
-    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
-  ];
+  users.users.admin = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "users" "storage" ];
+    openssh.authorizedKeys.keys = [
+      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
+    ];
+  };
 
   system.stateVersion = "20.09";
 

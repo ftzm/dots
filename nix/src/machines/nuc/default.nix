@@ -52,8 +52,10 @@
 
   services.jellyfin = {
     enable = true;
-    group = "users";
+    group = "storage";
   };
+
+  users.users.jellyfin.extraGroups = [ "users" "storage" ];
 
   services.nfs.server.enable = true;
   fileSystems."/mnt/nas" = {
@@ -121,6 +123,8 @@
     torrentfiles_location = "/var/lib/deluge/torrents";
     move_completed = true;
   };
+
+  users.users.deluge.extraGroups = [ "users" "storage" ];
 
   security.acme = {
     acceptTerms = true;
