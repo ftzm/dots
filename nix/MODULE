@@ -1,5 +1,0 @@
-paths="
-nixpkgs	~/.config/nixpkgs
-configuration/configuration.nix	/etc/nixos/configuration.nix
-secrets.nix		/etc/nixos/secrets.nix
-"

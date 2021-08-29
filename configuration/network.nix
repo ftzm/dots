@@ -32,7 +32,7 @@ let
   others = lib.attrsets.filterAttrs (k: v: k != host) hosts;
 in {
   age.secrets."wireguard-private-key-${host}".file =
-    ./secrets/wireguard-private-key + "-${host}.age";
+    ../secrets/wireguard-private-key + "-${host}.age";
   networking = {
     wireguard.interfaces = {
       wg0 = {
