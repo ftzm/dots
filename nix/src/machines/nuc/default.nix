@@ -43,6 +43,7 @@
     sqlite
     ranger
     htop
+    ffmpeg
   ];
 
   services = {
@@ -109,13 +110,11 @@
 
   age.secrets.deluge = {
     file = ../../secrets/deluge.age;
-    group = "users";
-    mode = "0440";
+    owner = "deluge";
   };
   services.deluge.enable = true;
   services.deluge.declarative = true;
   services.deluge.web.enable = true;
-  services.deluge.group = "users";
   services.deluge.authFile = config.age.secrets.deluge.path;
   services.deluge.config = {
     download_location = "/var/lib/deluge/downloads";
