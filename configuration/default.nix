@@ -7,9 +7,7 @@
 
 { self, system, nixpkgs, pkgs, config, lib, inputs, ... }:
 
-# Define secrets in a separate file
-let secrets = import ../secrets.nix;
-in {
+{
   imports = [
     inputs.home-manager.nixosModules.home-manager
     inputs.agenix.nixosModules.age
@@ -77,8 +75,6 @@ in {
     '';
   };
 
-  networking.networkmanager.enable = true;
-
   # Set your time zone.
   time.timeZone = "Europe/Copenhagen";
 
@@ -88,6 +84,7 @@ in {
     wget
     curl
     vim
+    htop
     git
     hsetroot # for desktopManager
     brightnessctl
@@ -97,34 +94,30 @@ in {
     inputs.agenix.defaultPackage.x86_64-linux
     alsaUtils
   ];
-
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
-
-  virtualisation.docker.enable = true;
-
   programs.zsh.enable = true;
 
+  virtualisation.docker.enable = true;
   hardware.bluetooth.enable = true;
-
-  services.blueman.enable = true;
-
-  services.sshd.enable = true;
-
-  services.cron.enable = true;
-
-  services.upower.enable = true;
-
-  # for rpc-statd for nfs client: https://github.com/NixOS/nixpkgs/issues/76671
-  services.nfs.server.enable = true;
+  services = {
+    blueman.enable = true;
+    sshd.enable = true;
+    cron.enable = true;
+    upower.enable = true;
+    # for rpc-statd for nfs client: https://github.com/NixOS/nixpkgs/issues/76671
+    nfs.server.enable = true;
+  };
 
   # ---------------------------------------------------------------------------
-  # Security
+  # Networking
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
   networking.firewall.enable = false;
+  networking.networkmanager.enable = true;
+
 
   # ---------------------------------------------------------------------------
   # Media
@@ -171,25 +164,7 @@ in {
     ];
   };
 
-  # Don't conflict with mopdiy
-  # services.mpd = { enable = false; };
-
   programs.light.enable = true;
-
-  services.mopidy = {
-    enable = false;
-    extensionPackages = [ pkgs.mopidy-spotify ];
-    configuration = ''
-      [spotify]
-      username = ${secrets.spotify.username}
-      password = ${secrets.spotify.password}
-      client_id = ${secrets.spotify.client_id}
-      client_secret = ${secrets.spotify.client_secret}
-
-      [audio]
-      output = pulsesink server=127.0.0.1
-    '';
-  };
 
   # ---------------------------------------------------------------------------
   # X
@@ -200,6 +175,9 @@ in {
   services.xserver = {
     enable = true;
     layout = "us";
+
+    # Enable touchpad support.
+    libinput.enable = true;
 
     displayManager = {
       session = [{
@@ -219,9 +197,6 @@ in {
 
   # Enable slock for screen locking
   programs.slock.enable = true;
-
-  # Enable touchpad support.
-  services.xserver.libinput.enable = true;
 
   # Fonts
   fonts = {
