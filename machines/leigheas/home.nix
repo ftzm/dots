@@ -23,11 +23,12 @@ in {
         type "pulse"
         name "Pulseaudio"
       }
+
     '';
   };
   home.activation = {
     myActivationAction = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      $DRY_RUN_CMD ${builtins.toPath ./../../dotfiles/install.sh} -y \
+      $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
         -f ${builtins.toPath ./../../dotfiles/MODULES}
     '';
   };

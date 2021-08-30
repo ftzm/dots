@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+shopt -s nullglob
+shopt -s dotglob
+
 # ----------------------------------------------------------------------
 # Globals
 
@@ -34,7 +37,7 @@ declare -a BACKUPS_MADE
 
 join_by () { local IFS="$1"; shift; echo "$*"; }
 
-title () { echo -e "$1\n${1//?/${2:--}}\n";}
+title () { echo -e "$1\n${1//?/${2:--}}";}
 
 prompt () {
   local message=$1
@@ -78,24 +81,20 @@ pack_module () {
   local module_name=$1
   local module_dir=$2
   local paths=$3
-  local pre=$4
-  local post=$5
 
   # link paths
   declare -a linklinearray
   local OLDIFS=$IFS; local IFS=$'\n'
-  for line in $paths; do
-    IFS=$'\t' read filename dest <<< "${line}"
-    local source="${module_dir}/src/${filename}"
-    local target="${dest/#\~/$HOME}" # expand ~
+  for path in $paths; do
+    local source="${SCRIPT_DIR}/$path"
+    local target="${HOME}/${path#*/}" # remove module dir from path
     local linkline="${source};${target}"
     linklinearray+=( "${linkline}" )
   done
   local IFS=$OLDIFS
   linklines=$(join_by , "${linklinearray[@]}")
 
-  output_module="${module_name}:${module_dir}:${linklines}:${pre}:${post}"
-  >&2 echo "${output_module}"
+  output_module="${module_name}:${module_dir}:${linklines}"
   echo "${output_module}"
 }
 
@@ -104,46 +103,40 @@ unpack_module () {
   local -n nameref=$2
   local -n dirref=$3
   local -n pathsref=$4
-  local -n preref=$5
-  local -n postref=$6
 
-  IFS=':' read name dir paths pre post <<< "${packed_module}"
+  IFS=':' read name dir paths <<< "${packed_module}"
   IFS="," read -a paths <<< ${paths//;/ }
 
   nameref="${name}"
   dirref="${dir}"
   pathsref=$paths
-  preref="${pre}"
-  postref="${post}"
 }
 
 # ----------------------------------------------------------------------
 # Parse module specifications
 
+recurse() {
+    if [ -f "$1/.linkdir" ]; then
+	echo "$1"
+    else
+    	for i in "$1"/*;do
+    	    if [ -d "$i" ]; then
+    	    recurse "$i"
+    	    elif [ -f "$i" ]; then
+	    echo "$i"
+    	fi
+    	done
+    fi
+}
+
 parse_module () {
   local module=$1
   local module_dir="${SCRIPT_DIR}/${module}"
-  local module_file="${module_dir}/MODULE"
-  local pre_script="${module_dir}/pre.sh"
-  local post_script="${module_dir}/post.sh"
 
-  if ! [ -f "${module_file}" ]; then
-    >&2 echo "No 'MODULE file exists at ${module_file}"
-    return
-  fi
+  paths=$(cd $SCRIPT_DIR; recurse $module)
 
-  if ! [ -f "${pre_script}" ]; then
-    pre_script=""
-  fi
-
-  if ! [ -f "${post_script}" ]; then
-    post_script=""
-  fi
-
-  source "${module_file}"
   if [ "$paths" ]; then
-    output_module=$(pack_module $module $module_dir "${paths}" \
-                                $pre_script $post_script)
+    output_module=$(pack_module $module $module_dir "${paths}")
     unset paths
   else
     >&2 echo "No paths defined for module '${module}'. Skipping."
@@ -193,7 +186,7 @@ source_exists () {
 preview_changes () {
   printf "Symlinks to create:\n\n"
   for module_obj in "${MODULE_OBJS[@]}"; do
-    unpack_module "${module_obj}" name dir paths pre post
+    unpack_module "${module_obj}" name dir paths
     title "Module: ${name}"
     for pathset in "${paths[@]}"; do
       read source dest <<< "${pathset}"
@@ -202,13 +195,6 @@ preview_changes () {
       source_exists "${source}"
       printf "${color}$source\t->\t$dest\n${UNSET}"
     done
-    echo
-    if [ "$pre" ]; then
-      echo "pre-setup script: ${pre}"
-    fi
-    if [ "$post" ]; then
-      echo "post-setup script: ${post}"
-    fi
     echo
   done
 }
@@ -221,8 +207,8 @@ create_backup () {
   # the module directory.
   local target_path=$1
   local module_path=$2
-  local timestamp=$(date +'%FT%H-%M-%S')
-  local backup_dir="${module_path}/backups/${timestamp}/"
+  local timestamp=$(date +'%FT%H-%M-%S.%N')
+  local backup_dir="${module_path}/.module_backups/${timestamp}/"
   mkdir -p $backup_dir
   sudo_retry mv $target_path $backup_dir
   BACKUPS_MADE+=( "${backup_dir}$(basename ${target_path})" )
@@ -273,19 +259,8 @@ run_script () {
 process_module () {
   local module_obj=$1
   unpack_module "${module_obj}" name dir paths pre post
-
-  if [ "$pre" ]; then
-    echo "Running pre-setup script..."
-    run_script "$pre"
-  fi
-
   echo "Linking files..."
   process_paths paths "${dir}" # quote so not split in multiple args
-
-  if [ "$pre" ]; then
-    echo "Running post-setup script..."
-    run_script "$post"
-  fi
 }
 
 process_modules () {
