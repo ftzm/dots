@@ -1,3 +1,16 @@
+* Nixos System Configuration
 This repository contains nix configurations and dotfiles for my home lab and personal workstations.
 
-* Home Servers
+The configuration for all machines is defined in a [[https://nixos.wiki/wiki/Flakes][nix flake]]. Workstations load configurations directly via the ~nixos-rebuild switch --flake~ command, while the servers are deployed remotely using [[https://github.com/serokell/deploy-rs][deploy-rs]].
+
+* Workstations
++ /leigheas/: Lenovo Thinkpad X1 (work)
++ /oibri-nixos/: Lenovo Thinkpad T480S (personal)
+
+* Home Server
+** Nas
+This machine is mainly responsible for file hosting. Runs ZFS and and serves files via NFS.
+** Nuc
+This machine is dedicated to running user-oriented services like Nextcloud, Jellyfin, etc.
+** Pi
+This RaspberryPi runs networking services like pihole and ddclient.
