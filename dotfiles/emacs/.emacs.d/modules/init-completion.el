@@ -208,7 +208,13 @@
 
 (use-package orderless
   :straight t
-  :custom (completion-styles '(orderless)))
+  :custom (completion-styles '(orderless))
+  :config
+  (setq orderless-smart-case t)
+  (setq completion-ignore-case t)
+  (setq read-buffer-completion-ignore-case t)
+  (setq read-file-name-completion-ignore-case t)
+  )
 
 (defun grep-no-filename-pred2 (x)
   ;(with-current-buffer "*scratch*" (insert (format "input: %s" x)))
