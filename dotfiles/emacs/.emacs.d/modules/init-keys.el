@@ -326,8 +326,8 @@
 
   (define-prefix-command 'flycheck-keys)
   (define-key leader-menu "e" 'flycheck-keys)
-  (define-key flycheck-keys "p" 'flycheck-previous-error)
-  (define-key flycheck-keys "n" 'flycheck-next-error)
+  (define-key flycheck-keys "p" 'evil-flycheck-previous)
+  (define-key flycheck-keys "n" 'evil-flycheck-next)
 
   )
 

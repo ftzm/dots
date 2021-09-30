@@ -345,7 +345,7 @@
 		  (org-agenda-overriding-header "\n"
 		   )
                  ))
-         (todo "TODO|NEXT"
+         (todo "NEXT"
                ((org-agenda-overriding-header "To Refile")
                 (org-agenda-files '("~/org/work/inbox.org"))))
 	 ;; Exclude todo entries scheduled in the future. This way entries can

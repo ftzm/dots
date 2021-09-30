@@ -42,6 +42,12 @@
   (define-key evil-normal-state-map (kbd "[ d") 'delete-line-above)
   (define-key evil-normal-state-map (kbd "] d") 'delete-line-below)
 
+  ; When I need training
+  (define-key evil-normal-state-map (kbd "h") (lambda () (interactive) (message "no!")))
+  (define-key evil-normal-state-map (kbd "j") (lambda () (interactive) (message "no!")))
+  (define-key evil-normal-state-map (kbd "k") (lambda () (interactive) (message "no!")))
+  (define-key evil-normal-state-map (kbd "l") (lambda () (interactive) (message "no!")))
+
   (evil-define-minor-mode-key 'normal 'visual-line-mode
     "^" 'evil-beginning-of-visual-line)
 

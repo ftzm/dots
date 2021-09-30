@@ -18,6 +18,13 @@
   ;; fails to start for the buffer
   (add-hook 'flycheck-before-syntax-check-hook 'direnv-update-environment)
 
+  (with-eval-after-load 'evil
+      (evil-define-motion evil-flycheck-next (count)
+	:type inclusive
+	(flycheck-next-error count))
+      (evil-define-motion evil-flycheck-previous (count)
+	:type inclusive
+	(flycheck-previous-error count)))
   )
 
 (provide 'init-flycheck)
