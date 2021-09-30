@@ -70,24 +70,4 @@
   system.stateVersion = "20.09";
 
   home-manager.users.ftzm.imports = [ ./home.nix ];
-
-  # Home Manager secrets.
-  # these need to be defined here to have access to agenix.
-
-  age.secrets = {
-    fitzmattd-email = {
-      file = ../../secrets/fitzmattd-email.age;
-      owner = "ftzm";
-    };
-    ftzm-org-email = {
-      file = ../../secrets/ftzm-org-email.age;
-      owner = "ftzm";
-    };
-  };
-  home-manager.users.ftzm = {
-    accounts.email.accounts.fitzmattd.passwordCommand =
-      "${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}";
-    accounts.email.accounts.ftzm.passwordCommand =
-      "${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}";
-  };
 }
