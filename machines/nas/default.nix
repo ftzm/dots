@@ -56,6 +56,9 @@ in {
     hdparm
     ranger
     htop
+    shntool
+    cuetools
+    flac
   ];
 
   age.secrets.smtppw.file = ../../secrets/smtppw.age;
@@ -149,6 +152,11 @@ in {
         org = {
           devices = [ "leigheas" "nas" ];
           path = "/pool-1/org";
+          enable = true;
+        };
+        password-store = {
+          devices = [ "leigheas" "nas" ];
+          path = "/pool-1/.password-store";
           enable = true;
         };
       };
