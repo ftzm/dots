@@ -2,6 +2,7 @@
   inputs = {
     deploy-rs.url = "github:serokell/deploy-rs";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager.url = "github:nix-community/home-manager";
     pipestatus.url = "github:ftzm/pipestatus";

@@ -1,7 +1,6 @@
 { config, pkgs, ... }:
 
 let
-  iosevkaLig = pkgs.callPackage ./iosevka.nix {};
   custom-emacs = pkgs.callPackage ./emacs.nix {};
 in {
   home.packages = with pkgs; [
@@ -100,7 +99,6 @@ in {
     isync
 
     # fonts
-    iosevkaLig
     source-sans-pro
     source-code-pro
     jetbrains-mono

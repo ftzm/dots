@@ -6,8 +6,11 @@
 # Setup
 
 { self, system, nixpkgs, pkgs, config, lib, inputs, ... }:
-
-{
+let
+  iosevkaPkgs = inputs.nixpkgs-iosevka.legacyPackages.x86_64-linux;
+  iosevkaLig =
+    pkgs.callPackage ../iosevka { pkgs = iosevkaPkgs; };
+in {
   imports = [
     inputs.home-manager.nixosModules.home-manager
     inputs.agenix.nixosModules.age
@@ -228,6 +231,7 @@
       font-awesome-ttf
       proggyfonts
       liberation_ttf
+      iosevkaLig
     ];
   };
 }
