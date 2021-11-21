@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  custom-emacs = pkgs.callPackage ./emacs.nix {};
+  custom-emacs = pkgs.callPackage ./emacs.nix { };
 in {
   home.packages = with pkgs; [
     ps
@@ -98,6 +98,8 @@ in {
     mu
     isync
 
+    tdesktop
+
     # fonts
     source-sans-pro
     source-code-pro
@@ -169,7 +171,6 @@ in {
         "browser.startup.homepage" = "www.google.com";
       };
       # userChrome = ''
-
 
       #     /* Hide tabs */
 

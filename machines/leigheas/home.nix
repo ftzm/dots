@@ -2,7 +2,7 @@
 
 let secrets = import ../../secrets.nix;
 in {
-  home.packages = with pkgs; [ awscli lsb-release discord ];
+  home.packages = with pkgs; [ awscli lsb-release discord freecad ];
   personal.font_size = 10.0;
   personal.rofi_font_size = "20";
   personal.alacritty_font_size = 6.5;

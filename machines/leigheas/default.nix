@@ -39,6 +39,23 @@
   hardware.video.hidpi.enable = true;
   services.autorandr.enable = true;
 
+  # Basically just to avoid tearing
+  services.picom = {
+    enable = true;
+    vSync = true;
+    backend = "glx";
+    # settings = {
+    #   glx-no-stencil = true;
+    #   glx-no-rebind-pixmap = true;
+    #   unredir-if-possible = true;
+    #   xrender-sync-fence = true;
+    # };
+  };
+
+  # Prevent screen tearing
+  services.xserver.videoDrivers = [ "modesetting" ];
+  services.xserver.useGlamor = true;
+
   services.syncthing = {
     enable = true;
     #guiAddress = "localhost:8384";

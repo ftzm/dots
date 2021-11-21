@@ -128,9 +128,14 @@ in {
     deploy-rs.deploy-rs
     inputs.agenix.defaultPackage.x86_64-linux
     alsaUtils
+    linuxPackages.turbostat
+    s-tui
+    stress
   ];
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
   programs.zsh.enable = true;
+
+  # services.earlyoom.enable = true;
 
   virtualisation.docker.enable = true;
   hardware.bluetooth.enable = true;
@@ -143,6 +148,8 @@ in {
     nfs.server.enable = true;
   };
 
+  programs.mosh.enable = true;
+
   # ---------------------------------------------------------------------------
   # Networking
 
@@ -152,7 +159,6 @@ in {
   # Or disable the firewall altogether.
   networking.firewall.enable = false;
   networking.networkmanager.enable = true;
-
 
   # ---------------------------------------------------------------------------
   # Media

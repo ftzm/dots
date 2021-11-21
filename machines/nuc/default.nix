@@ -44,12 +44,18 @@
     ranger
     htop
     ffmpeg
+    git
+    direnv
+    nix-direnv
   ];
 
   services = {
     openssh.enable = true;
     sshd.enable = true;
   };
+
+  programs.mosh.enable = true;
+
 
   services.jellyfin = {
     enable = true;
