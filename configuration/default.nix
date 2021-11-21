@@ -38,7 +38,22 @@ in {
       experimental-features = nix-command flakes
       keep-outputs = true
       keep-derivations = true
+      builders-use-substitutes = true
     '';
+    buildMachines = [{
+      hostName = "nuc";
+      sshUser = "admin";
+      sshKey = "/home/ftzm/.ssh/id_rsa";
+      system = "x86_64-linux";
+      # if the builder supports building for multiple architectures,
+      # replace the previous line by, e.g.,
+      # systems = ["x86_64-linux" "aarch64-linux"];
+      maxJobs = 1;
+      speedFactor = 1;
+      supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
+      mandatoryFeatures = [ ];
+    }];
+    distributedBuilds = true;
   };
 
   # ---------------------------------------------------------------------------
