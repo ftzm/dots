@@ -5,14 +5,15 @@
 
   programs.mbsync.enable = true;
   programs.msmtp.enable = true;
+  programs.mu.enable = true;
 
   xdg.configFile."mbsync/postExec" = {
-    text = ''
-      #!${pkgs.stdenv.shell}
-      ${pkgs.procps}/bin/pkill mu
-      ${pkgs.bash}/bin/sleep 0.1
-      [ ! -d ~/.cache/mu ] && ${pkgs.mu}/bin/mu init --maildir=.maildir
-      ${pkgs.mu}/bin/mu index
+    text = with pkgs;''
+      #!${stdenv.shell}
+      ${procps}/bin/pkill mu
+      ${bash}/bin/sleep 0.1
+      # [ ! -d ~/.cache/mu ] && ${mu}/bin/mu init --maildir=.maildir
+      ${mu}/bin/mu index
     '';
     executable = true;
   };
@@ -28,7 +29,11 @@
       create = "both";
       expunge = "both";
       remove = "both";
+      extraConfig.channel = {
+        "CopyArrivalDate" = "yes";
+      };
     };
+    mu.enable = true;
     imap = {
       host = "imap.gmail.com";
     };
@@ -43,7 +48,11 @@
       create = "both";
       expunge = "both";
       remove = "both";
+      extraConfig.channel = {
+        "CopyArrivalDate" = "yes";
+      };
     };
+    mu.enable = true;
     msmtp = {
       enable = true;
     };
