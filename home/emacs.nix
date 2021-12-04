@@ -1,8 +1,11 @@
 { config, pkgs, ... }:
 
 let
-  #package = pkgs.emacsPgtkGcc;
-  package = pkgs.emacs;
+  package = pkgs.emacsGcc.override {
+    withXwidgets = true;
+    withGTK3 = true;
+  };
+  #package = pkgs.emacs;
   emacsWithPackages = (pkgs.emacsPackagesNgGen package).emacsWithPackages;
   emms-taglib = pkgs.stdenv.mkDerivation {
     name = "emms-taglib";
@@ -33,7 +36,7 @@ in
 
 emacsWithPackages (epkgs: [
   #epkgs.telega
-  #epkgs.vterm
+  epkgs.vterm
   #epkgs.emms
   #emms-taglib
   #epkgs.org
