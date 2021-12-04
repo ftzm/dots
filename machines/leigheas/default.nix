@@ -65,6 +65,8 @@
     dataDir = "/home/ftzm";
   };
 
+  services.fprintd.enable = true;
+
   system.stateVersion = "20.09";
 
   home-manager.users.ftzm.imports = [ ./home.nix ];

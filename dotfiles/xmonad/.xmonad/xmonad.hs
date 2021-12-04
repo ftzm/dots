@@ -130,6 +130,8 @@ emacsStyleKeys l = M.union
     , ("M-S-w", sendMessage Shrink)
     , ("M-l", sendMessage NextLayout)
     , ("M-t", withFocused $ windows . W.sink)
+    , ("M-,", sendMessage (IncMasterN 1))
+    , ("M-.", sendMessage (IncMasterN (-1)))
     --system
     , ("M-p", spawn "mpc toggle")
     , ("M-v", spawn "Volume up" >> spawn "panel_volume +")

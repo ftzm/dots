@@ -2,6 +2,7 @@
   inputs = {
     deploy-rs.url = "github:serokell/deploy-rs";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager.url = "github:nix-community/home-manager";
@@ -11,22 +12,22 @@
     agenix.url = "github:ryantm/agenix";
   };
 
-  outputs = inputs@{ self, nixpkgs, deploy-rs, ... }:
+  outputs = inputs@{ self, nixpkgs, deploy-rs, nixpkgs-ftzmlab, ... }:
     let
       system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      # pkgs = nixpkgs.legacyPackages.${system};
       mkUserSystem = host-config:
         nixpkgs.lib.nixosSystem {
           inherit system;
           specialArgs = { inherit inputs; };
           modules = [ ./configuration host-config ];
         };
-      nuc = nixpkgs.lib.nixosSystem {
+      nuc = nixpkgs-ftzmlab.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs; };
         modules = [ ./machines/nuc ];
       };
-      nas = nixpkgs.lib.nixosSystem {
+      nas = nixpkgs-ftzmlab.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs; };
         modules = [ ./machines/nas ];
@@ -52,6 +53,8 @@
             user = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos
               self.nixosConfigurations.nuc;
+            autoRollback = false;
+            magicRollback = false;
           };
         };
         nas = {

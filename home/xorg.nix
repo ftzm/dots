@@ -135,12 +135,12 @@ in {
     "*color14" = "#8ec07c";
     "*color7" = "#a89984";
     "*color15" = "#ebdbb2";
-    "rofi.hide-scrollbar" = "true";
-    "rofi.font" = "Iosevka Lig Medium ${config.personal.rofi_font_size}";
-    "rofi.bw" = "2";
-    "rofi.separator-style" = "none";
-    "rofi.color-window" = "#282828, #ebdbb2, #282828";
-    "rofi.color-normal" = "#282828, #ebdbb2, #282828, #b8bb26, #282828";
+    # "rofi.hide-scrollbar" = "true";
+    # "rofi.font" = "Iosevka Lig Medium ${config.personal.rofi_font_size}";
+    # "rofi.bw" = "2";
+    # "rofi.separator-style" = "none";
+    # "rofi.color-window" = "#282828, #ebdbb2, #282828";
+    # "rofi.color-normal" = "#282828, #ebdbb2, #282828, #b8bb26, #282828";
     "Xft.dpi" = "144";
   };
   xsession = {
