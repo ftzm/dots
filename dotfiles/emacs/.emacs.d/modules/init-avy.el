@@ -21,18 +21,18 @@ in which case does avy-goto-char with the first char."
       (avy-jump
        (regexp-quote (string char1))))))
 
-  (setq avy-timeout-seconds 0)
+  (setq avy-timeout-seconds 0.15)
   (setq avy-all-windows nil)
   (setq avy-keys '(?h ?u ?t ?e ?d ?i ?s ?a ?g ?p ?c ?. ?f ?y ?r ?, ?l ?' ?m
 		      ?k ?w ?j ?b ?x ?v ?q ?z ?\; ?n ?o))
 
   (set-face-attribute 'avy-lead-face nil
-  :background nil
+  :background 'unspecified
   :foreground "#ff0000"
   )
 
   (set-face-attribute 'avy-lead-face-0 nil
-  :background nil
+  :background 'unspecified
   :foreground "#ff0000"
   )
 

@@ -72,8 +72,8 @@ or nil."
 					(ftzm/flycheck-mode-line-status-text) face2))))
                           (rhs (list (powerline-raw global-mode-string face2 'r)
                                      (funcall separator-right face2 face1)
-                                     (unless window-system
-                                       (powerline-raw (char-to-string #xe0a1) face1 'l))
+                                     ;(unless window-system
+                                     ;  (powerline-raw (char-to-string #xe0a1) face1 'l))
                                      (funcall separator-right face1 face0)
                                      (powerline-raw "%l" face0 'l)
                                      (powerline-raw ":" face0 'l)
@@ -122,8 +122,8 @@ or nil."
 					(ftzm/flycheck-mode-line-status-text) face2))))
                           (rhs (list ;(powerline-raw global-mode-string face2 'r)
                                      (funcall separator-right face2 face1)
-                                     (unless window-system
-                                       (powerline-raw (char-to-string #xe0a1) face1 'l))
+                                     ;(unless window-system
+                                     ;  (powerline-raw (char-to-string #xe0a1) face1 'l))
                                      (powerline-raw "%l" face1 'l)
                                      (powerline-raw ":" face1 'l)
                                      (powerline-raw "%c" face1 'r)

@@ -295,19 +295,34 @@
       `(" " "Agenda"
         ((org-sep-header "Ní dhéanfaidh smaoineamh an treabhadh dhuit\n")
 	 (agenda ""
-                 ((org-agenda-span 'day)
+                 ((org-agenda-overriding-header "Deadlines")
+		  (org-agenda-span 'day)
+		  (org-agenda-entry-types '(:deadline))
 		  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
+                 ))
+	 (tags "TODO=\"NEXT\"+SCHEDULED<=\"<today>\"|TODO=\"TODO\"+SCHEDULED<=\"<today>\"-CATEGORY=\"habits\""
+	       ((org-agenda-overriding-header "Today")))
+	 (agenda ""
+                 ((org-agenda-overriding-header "Habits")
+		  (org-agenda-span 'day)
+		  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
+		  (org-agenda-files '("~/org/habits.org"))
                  ))
          (todo "TODO|NEXT"
                ((org-agenda-overriding-header "To Refile")
-                (org-agenda-files '("~/org/inbox.org"))))
-	 ;; Exclude todo entries scheduled in the future. This way entries can
-	 ;; be postponed by scheduling them, as a sort of integrated "tickler" function.
-         (tags "TODO=\"TODO\"+SCHEDULED<=\"<today>\"|TODO=\"NEXT\""
-               ((org-agenda-overriding-header "Single tasks")
-                (org-agenda-files '("~/org/todo.org"))))
+                (org-agenda-files '("~/org/inbox.org"))
+		(org-agenda-todo-ignore-scheduled 'all)
+		(org-agenda-todo-ignore-deadlines 'all)
+		(org-agenda-prefix-format "  %?-12t% s")))
          (todo "NEXT"
-               ((org-agenda-overriding-header "Projects")
+               ((org-agenda-overriding-header "Ad Hoc Shortlist")
+                (org-agenda-files '("~/org/todo.org"))
+		(org-agenda-todo-ignore-scheduled 'all)
+		(org-agenda-prefix-format "  %?-12t% s")
+		))
+         (todo "NEXT"
+               ((org-agenda-overriding-header "Project Shortlist")
+		(org-agenda-todo-ignore-scheduled 'all)
                 (org-agenda-files '("~/org/projects"))
 	       ))
          (tags "CLOSED>=\"<today>\""
@@ -489,6 +504,14 @@ are equal return t."
     (org-agenda-todo arg)
     ))
 
+(defun org-todo-with-date (&optional arg)
+  (interactive "P")
+  (cl-letf* ((org-read-date-prefer-future nil)
+             (my-current-time (org-read-date t t nil "when:" nil nil nil))
+            ((symbol-function #'org-current-effective-time)
+             #'(lambda () my-current-time)))
+    (org-todo arg)
+    ))
 
 
   )

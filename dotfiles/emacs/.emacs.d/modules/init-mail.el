@@ -59,28 +59,6 @@
 		 )
 	 )
       ,(make-mu4e-context
-         :name "unity"
-         :match-func (lambda (msg) (when msg (mu4e-message-contact-field-matches msg :to "fitz.matt.d@gmail.com")))
-         :vars '((mu4e-trash-folder      . "/unit/[Gmail]/Trash")
-		 (mu4e-sent-folder      . "/unity/[Gmail]/Sent Mail")
-		 (mu4e-drafts-folder      . "/unity/[Gmail]/Drafts")
-		 (mu4e-refile-folder      . "/unity/Annals")
-
-		 (mu4e-change-filenames-when-moving . t)
-
-		 ; sending mail
-		 (message-send-mail-function . smtpmail-send-it)
-		 (smtpmail-stream-type . starttls)
-		 (smtpmail-default-smtp-server . "smtp.gmail.com")
-		 (smtpmail-smtp-server . "smtp.gmail.com")
-		 (smtpmail-smtp-service . 587)
-		 (smtpmail-smtp-user . "matthew.fitzsimmons@unity3d.com")
-		 (mu4e-sent-messages-behavior . delete)
-
-		 (mu4e-bookmarks . (("maildir:/unity/Inbox" "Inbox" ?i)))
-		 )
-	 )
-      ,(make-mu4e-context
          :name "fitzmattd"
          :match-func (lambda (msg) (when msg (mu4e-message-contact-field-matches msg :to "fitz.matt.d@gmail.com")))
          :vars '((mu4e-trash-folder      . "/fitzmattd/[Gmail]/Trash")

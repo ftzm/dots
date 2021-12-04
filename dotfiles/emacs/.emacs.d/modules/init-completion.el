@@ -103,7 +103,10 @@
   (setq completion-in-region-function #'consult-completion-in-region)
   (autoload 'projectile-project-root "projectile")
   (setq consult-project-root-function 'projectile-project-root)
-  (setq consult-ripgrep-command "rg --null --line-buffered --color=ansi --max-columns=1000 -S --no-heading --line-number . -e ARG OPTS")
+  ;; Will need to make sure this doesn't get out of date
+  (setq consult-ripgrep-args
+	"rg --hidden --line-buffered --color=never --max-columns=1000 --path-separator /\
+         --smart-case --no-heading --line-number .")
 
   (defun grep-no-filename-pred (candidate)
     (let* ((car (car-safe candidate))
@@ -315,6 +318,16 @@
 ;;       ;; (setq ivy-completion-end (point))
 ;;       (completing-read "Candidate: " company-candidates ))))
 
-(defvar selectrum-search-rg-history nil)
+(use-package consult-dir
+  :straight t
+  :bind (("C-x C-d" . consult-dir)
+         :map vertico-map
+         ("C-x C-d" . consult-dir)
+         ("C-x C-j" . consult-dir-jump-file))
+  :config
+  (setq consult-dir-shadow-filenames nil) ;don't leave "shadowed" original
+					;search text
+  (setq consult-dir-project-list-function #'consult-dir-projectile-dirs)
+  )
 
 (provide 'init-completion)

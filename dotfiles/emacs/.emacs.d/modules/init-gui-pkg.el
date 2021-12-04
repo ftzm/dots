@@ -130,5 +130,21 @@
 ;    (set-char-table-parent composition-ligature-table composition-function-table))
 ;  )
 
+(use-package popper
+  :straight t ; or :straight t
+  :bind (("C-`"   . popper-toggle-latest)
+         ("M-`"   . popper-cycle)
+         ("C-M-`" . popper-toggle-type))
+  :init
+  (setq popper-reference-buffers
+        '("\\*Messages\\*"
+          "Output\\*$"
+          "\\*Async Shell Command\\*"
+	  "*Embark Actions*"
+          help-mode
+          compilation-mode))
+  (popper-mode +1)
+  (popper-echo-mode +1); For echo area hints
+  )
 
 (provide 'init-gui-pkg)

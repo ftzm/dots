@@ -45,4 +45,11 @@
 ; don't highlight bookmarks orange
 (setq bookmark-fontify nil)
 
+(defun my-change-window-divider ()
+  (let ((display-table (or buffer-display-table standard-display-table)))
+    (set-display-table-slot display-table 5 ?│)
+    (set-window-display-table (selected-window) display-table)))
+
+(add-hook 'window-configuration-change-hook 'my-change-window-divider)
+
 (provide 'init-gui)

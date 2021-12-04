@@ -1,6 +1,7 @@
 (use-package magit
   :straight t
   :defer t
+  :custom (magit-bury-buffer-function #'magit-restore-window-configuration)
   :config
   ;; just quit using q, goes to commit message which is useful
   ;;(defun magit-blame-toggle()
@@ -20,5 +21,8 @@
 (use-package autorevert
   :diminish auto-revert-mode
   )
+
+(use-package git-link
+  :straight t)
 
 (provide 'init-magit)

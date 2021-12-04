@@ -54,11 +54,11 @@
 
 ;(require 'init-jira)
 (require 'init-mpd)
-;(require 'init-mail)
+(require 'init-mail)
 ;(require 'init-slack)
 ;(require 'init-telega)
 ;(require 'init-music)
-;(require 'init-vterm)
+(require 'init-vterm)
 (require 'init-dired)
 
 ;;centralized key mappings

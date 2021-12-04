@@ -162,7 +162,7 @@
          "gg" 'evil-goto-first-line
          "K" 'dired-kill-subdir
          "S" 'dired-sort-toggle-or-edit
-         "s" 'avy-goto-word-or-subword-1
+         "s" 'avy-goto-char-flex
          ")" 'dired-next-subdir
          "(" 'dired-prev-subdir)))
 
@@ -171,7 +171,8 @@
 
   ;(define-key evil-normal-state-map "s" 'avy-goto-char-timer)
   ;(define-key evil-normal-state-map "s" 'avy-goto-char-flex)
-  (define-key evil-normal-state-map "s" 'avy-goto-word-or-subword-1)
+  ;(define-key evil-normal-state-map "s" 'avy-goto-word-or-subword-1)
+  (define-key evil-normal-state-map "s" 'avy-goto-char-flex)
 
   (define-prefix-command 'ivy-keys)
   (define-key leader-menu "i" 'ivy-keys)
@@ -210,6 +211,7 @@
   (define-key agenda-mode-map-keys "p" 'org-agenda-priority)
   (define-key agenda-mode-map-keys "f" 'org-agenda-filter-by-tag)
   (define-key agenda-mode-map-keys "cs" 'agenda-remove-schedule)
+  (define-key agenda-mode-map-keys "k" 'org-agenda-kill)
 
   (evil-define-key 'normal org-agenda-mode-map
     (kbd "<DEL>") 'org-agenda-show-scroll-down
