@@ -1,11 +1,8 @@
 { config, pkgs, ... }:
 
 let
-  package = pkgs.emacsGcc.override {
-    withXwidgets = true;
-    withGTK3 = true;
+  package = pkgs.emacsPgtkGcc.override {
   };
-  #package = pkgs.emacs;
   emacsWithPackages = (pkgs.emacsPackagesNgGen package).emacsWithPackages;
   emms-taglib = pkgs.stdenv.mkDerivation {
     name = "emms-taglib";

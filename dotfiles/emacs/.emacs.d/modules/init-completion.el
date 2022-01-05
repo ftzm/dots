@@ -104,9 +104,7 @@
   (autoload 'projectile-project-root "projectile")
   (setq consult-project-root-function 'projectile-project-root)
   ;; Will need to make sure this doesn't get out of date
-  (setq consult-ripgrep-args
-	"rg --hidden --line-buffered --color=never --max-columns=1000 --path-separator /\
-         --smart-case --no-heading --line-number .")
+  ;(setq consult-ripgrep-args "rg")
 
   (defun grep-no-filename-pred (candidate)
     (let* ((car (car-safe candidate))
