@@ -44,6 +44,14 @@
       (progn (lsp-treemacs-symbols)
              (other-window -1))))
 
+  (defun ftzm/lsp-treemacs-errors-list-toggle ()
+    "Toggle the lsp-treemacs-errors-list buffer"
+    (interactive)
+    (let ((error-window (get-buffer-window "*LSP Error List*")))
+      (if error-window
+	  (quit-window nil error-window)
+	(lsp-treemacs-errors-list))))
+
   ;disable eldoc from showing type info automatically since it's slow
   (setq lsp-eldoc-enable-hover nil)
 
@@ -97,7 +105,8 @@ point in the minibuffer."
   (:color blue
    :quit-key "q"
    :title (scala-hydra-header))
-  ("Commands" (( "f" lsp-format-buffer "format buffer"))
+  ("Commands" (( "f" lsp-format-buffer "format buffer")
+	       ( "e" ftzm/lsp-treemacs-errors-list-toggle "toggle error list"))
    "LSP" (( "s" lsp "start lsp")
 	  ( "i" lsp-metals-build-import "metals build+import")
 	  ( "d" lsp-describe-thing-at-point-minibuffer "describe thing at point"))))
