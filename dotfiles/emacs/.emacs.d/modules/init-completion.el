@@ -1,106 +1,16 @@
 (use-package ag
   :straight t)
 
-;(use-package ivy
-;  :straight t
-;  :diminish ivy-mode
-;  :config
-;  (ivy-mode 1)
-;  (setq ivy-count-format "%d/%d - ")
-;  (setq ivy-height 15)
-;  (setq ivy-use-virtual-buffers nil) ;; show recentf in switch-buffers --
-;
-;  ;;breaks prettify
-;  (setq enable-recursive-minibuffers t)
-;
-;  (setq counsel-find-file-ignore-regexp
-;        (concat
-;         ;; File names beginning with # or .
-;         "\\(?:\\`[#.]\\)"
-;         ;; File names ending with # or ~
-;         "\\|\\(?:\\`.+?[#~]\\'\\)"))
-;
-;
-;  ;alternate cycle keys, more vimy
-;  (define-key ivy-minibuffer-map (kbd "C-j") 'ivy-next-line)
-;  (define-key ivy-minibuffer-map (kbd "C-k") 'ivy-previous-line)
-;  (define-key ivy-switch-buffer-map (kbd "C-k") 'ivy-previous-line)
-;
-;  ;; below works but slow
-;  (defconst modi/ag-arguments
-;  '("--nogroup" ; mandatory argument for ag.el as per https://github.com/Wilfred/ag.el/issues/41
-;      ;"--skip-vcs-ignores" ; Ignore files/dirs ONLY from `.agignore'
-;      "--numbers" ; line numbers
-;      "--smart-case"
-;      "--follow") ; follow symlinks
-;  "Default ag arguments used in the functions in `ag', `counsel' and `projectile'
-;      packages.")
-;
-;  ;; Use `ag' all the time if available
-;  (defun modi/advice-projectile-use-ag (&optional idontknowwhythisispassedsometimes)
-;    "Always use `ag' for getting a list of all files in the project."
-;    (mapconcat 'identity
-;           (append '("\\ag") ; used unaliased version of `ag': \ag
-;               modi/ag-arguments
-;               '("-0" ; output null separated results
-;             "-g ''")) ; get file names matching the regex '' (all files)
-;           " "))
-;  (when (executable-find "ag")
-;    (advice-add 'projectile-get-ext-command :override
-;        #'modi/advice-projectile-use-ag))
-;
-;  (with-eval-after-load 'org-agenda
-;    (define-key org-agenda-mode-map (kbd "C-c C-q") #'counsel-org-tag-agenda))
-;
-;  ;; Prettify switch-buffer, from Doom
-;  ;; anything other than buffers fed into this breaks it
-;  (defun +ivy-buffer-transformer (str)
-;  (let* ((buf (get-buffer str))
-;         (path (buffer-file-name buf))
-;         (mode (buffer-local-value 'major-mode buf))
-;         (faces
-;          (with-current-buffer buf
-;            (cond ((string-match-p "^ ?\\*" (buffer-name buf))
-;                   'font-lock-comment-face)
-;                  ((buffer-modified-p buf)
-;                   'font-lock-keyword-face)
-;                  (buffer-read-only
-;                   'error)))))
-;    (propertize
-;     (format "%-40s %-20s %s"
-;             str
-;             mode
-;             (or (and path (abbreviate-file-name (file-name-directory (file-truename path))))
-;                 ""))
-;      'face faces)))
-;
-;  (ivy-set-display-transformer #'ivy-switch-buffer #'+ivy-buffer-transformer)
-;  (ivy-set-display-transformer #'ivy-switch-buffer-other-window #'+ivy-buffer-transformer)
-;  (ivy-set-display-transformer #'counsel-recentf #'abbreviate-file-name)
-;
-;  )
-
-;;; enhances ivy-M-x, reorders function candidates
-;(use-package smex
-  ;:straight t
-  ;)
-;
-;(use-package counsel
-  ;:straight t
-  ;)
-
-;(use-package ivy-rich
-;  :straight t
-;  :config
-;  (ivy-rich-mode 1)
-;  )
-
+;; Persist history over Emacs restarts. Vertico sorts by history position.
+(use-package savehist
+  :init
+  (savehist-mode))
 
 (use-package consult
   :straight (consult
 	     :branch "main")
   :config
-  (setq completion-in-region-function #'consult-completion-in-region)
+  ;(setq completion-in-region-function #'consult-completion-in-region)
   (autoload 'projectile-project-root "projectile")
   (setq consult-project-root-function 'projectile-project-root)
   ;; Will need to make sure this doesn't get out of date
@@ -148,10 +58,6 @@
    consult--source-file consult--source-project-file consult--source-bookmark
    :preview-key (kbd "M-."))
   )
-;  :straight (multi-libvterm
-;	     :type git
-;	     :host github
-;	     :repo "suonlight/multi-libvterm"))
 
 (use-package embark
   :straight t
@@ -162,11 +68,48 @@
    ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
 
   :init
-
   ;; Optionally replace the key help with a completing-read interface
   (setq prefix-help-command #'embark-prefix-help-command)
 
   :config
+  ;(setq embark-prompter 'embark-completing-read-prompter)
+(defun embark-which-key-indicator ()
+  "An embark indicator that displays keymaps using which-key.
+The which-key help message will show the type and value of the
+current target followed by an ellipsis if there are further
+targets."
+  (lambda (&optional keymap targets prefix)
+    (if (null keymap)
+        (which-key--hide-popup-ignore-command)
+      (which-key--show-keymap
+       (if (eq (plist-get (car targets) :type) 'embark-become)
+           "Become"
+         (format "Act on %s '%s'%s"
+                 (plist-get (car targets) :type)
+                 (embark--truncate-target (plist-get (car targets) :target))
+                 (if (cdr targets) "…" "")))
+       (if prefix
+           (pcase (lookup-key keymap prefix 'accept-default)
+             ((and (pred keymapp) km) km)
+             (_ (key-binding prefix 'accept-default)))
+         keymap)
+       nil nil t (lambda (binding)
+                   (not (string-suffix-p "-argument" (cdr binding))))))))
+
+(setq embark-indicators
+  '(embark-which-key-indicator
+    embark-highlight-indicator
+    embark-isearch-highlight-indicator))
+
+(defun embark-hide-which-key-indicator (fn &rest args)
+  "Hide the which-key indicator immediately when using the completing-read prompter."
+  (which-key--hide-popup-ignore-command)
+  (let ((embark-indicators
+         (remq #'embark-which-key-indicator embark-indicators)))
+      (apply fn args)))
+
+(advice-add #'embark-completing-read-prompter
+            :around #'embark-hide-which-key-indicator)
 
 (embark-define-keymap embark-composer-actions
   "Keymap for actions on composers."
@@ -217,104 +160,26 @@
   (setq read-file-name-completion-ignore-case t)
   )
 
-(defun grep-no-filename-pred2 (x)
-  ;(with-current-buffer "*scratch*" (insert (format "input: %s" x)))
-  ;; (if (not (listp x))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert (format "%s" (car-safe x))))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert (format "%s" (car-safe x))))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert (format "%s" (hash-table-p x))))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;;   (with-current-buffer "*scratch*" (insert (format "weird input: %s" x)))
-  ;;     )
-  ;; (if (consp x)
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert "cons"))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; ;(with-current-buffer "*scratch*" (insert (format "%s" (car x))))
-  ;;     )
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert "-------------"))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  (let* ((carO (car-safe x))
-	 (search-space (if (and carO (stringp carO))
-			   (replace-regexp-in-string "\\(^.*?:\\)" "" (format "%s" carO))
-			 nil)))
-    ;(with-current-buffer "*scratch*" (insert "\n"))
-    ;(with-current-buffer "*scratch*" (insert (format "search space: %s" search-space)))
-
-  (if search-space
-
-      (let ((success
-	     (-all? (lambda (reg)
-		      (string-match reg search-space))
-		    completion-regexp-list)))
-
-	success)
-    t)))
-  ;; (if (car-safe x)
-  ;;     (
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert "hit meat"))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; ;(with-current-buffer "*scratch*" (insert (format "input: %s" x)))
-  ;; (let ((search-space (replace-regexp-in-string "\\(^.*?:\\)" "" (format "%s" (car-safe
-  ;; 									       x)))))
-  ;; ;(with-current-buffer "*scratch*" (insert search-space))
-  ;;     (-all? (lambda (reg)
-  ;; 	       (string-match reg ))
-  ;; 	     completion-regexp-list))
-  ;;   )
-  ;;      t)))
-
-(defun orderless-all-completions-ignore2 (string table _pred _point)
-  ;(with-current-buffer "*scratch*" (erase-buffer))
-  ;(with-current-buffer "*scratch*" (insert string))
-  ;(with-current-buffer "*scratch*" (insert "\n"))
-  ;(with-current-buffer "*scratch*" (insert (format "table: %s" table)))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert (format "prefix+pattern: %s"
-  ;; 						   (orderless--prefix+pattern string table pred))))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert (format "%s" (orderless-pattern-compiler string))))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert "\n"))
-  ;; (with-current-buffer "*scratch*" (insert (format "%s" (orderless-filter string table pred))))
-  ;(orderless-all-completions string table 'grep-no-filename-pred _point)
-  (orderless-all-completions string table 'grep-no-filename-pred _point)
-  ;(with-current-buffer "*scratch*" (insert pred))
-  ;(with-current-buffer "*scratch*" (insert point))
-  )
-
-
-;; (use-package selectrum
-;;   :straight t
-;;   :init
-;;   (selectrum-mode +1))
-
 (use-package vertico
-  :straight t
+  :ensure t ; use straight to install extensions is not registerd in elpa
+  :straight (:files (:defaults "extensions/*")
+                        :includes (vertico-buffer
+                                   vertico-directory
+                                   vertico-flat
+                                   vertico-indexed
+                                   vertico-mouse
+                                   vertico-quick
+                                   vertico-repeat
+                                   vertico-reverse))
   :init
   (vertico-mode +1)
   :config
+  ;(require 'vertico-quick)
+  (define-key vertico-map "\C-q" #'vertico-quick-exit)
+  (define-key vertico-map "\d" #'vertico-directory-delete-char)
+  (define-key vertico-map "\M-\d" #'vertico-directory-delete-word)
   (add-to-list 'completion-ignored-extensions "#"))
 
-;; (defun consult-company ()
-;;   "Complete using `company-candidates'."
-;;   (interactive)
-;;   (company-mode 1)
-;;   (unless company-candidates
-;;     (company-complete))
-;;   (let ((len (cond (company-common
-;;                     (length company-common))
-;;                    (company-prefix
-;;                     (length company-prefix)))))
-;;     (when len
-;;       ;; (setq ivy-completion-beg (- (point) len))
-;;       ;; (setq ivy-completion-end (point))
-;;       (completing-read "Candidate: " company-candidates ))))
 
 (use-package consult-dir
   :straight t

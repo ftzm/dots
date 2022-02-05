@@ -193,7 +193,8 @@
   (define-key projectile-keys "b" 'projectile-switch-to-buffer)
   (define-key projectile-keys "p" 'switch-persp-project)
   (define-key projectile-keys "P" 'projectile-switch-project)
-  (define-key projectile-keys "a" 'ftzm/consult-ripgrep)
+  ;(define-key projectile-keys "a" 'ftzm/consult-ripgrep)
+  (define-key projectile-keys "a" 'consult-git-grep)
 
   (define-prefix-command 'org-mode-keys)
   (evil-define-key 'normal org-mode-map (kbd ",") 'org-mode-keys)

@@ -13,6 +13,7 @@
   (setq projectile-enable-caching t)
 
   (setq projectile-globally-ignored-file-suffixes '("~" "#"))
+  (setq projectile-use-git-grep t)
 
   )
 

@@ -13,6 +13,14 @@
   :diminish undo-tree-mode
   )
 
+;; Emacs 28: Hide commands in M-x which do not work in the current mode.
+;; Vertico commands are hidden in normal buffers.
+(setq read-extended-command-predicate
+      #'command-completion-default-include-p)
+
+;; Enable recursive minibuffers
+(setq enable-recursive-minibuffers t)
+
 (add-hook 'before-save-hook 'delete-trailing-whitespace)
 
 ;(savehist-mode 1)

@@ -41,7 +41,7 @@ in {
       builders-use-substitutes = true
     '';
     buildMachines = [{
-      hostName = "nuc";
+      hostName = "wg-nuc";
       sshUser = "admin";
       sshKey = "/home/ftzm/.ssh/id_rsa";
       system = "x86_64-linux";
@@ -77,9 +77,9 @@ in {
   };
   home-manager.users.ftzm = {
     accounts.email.accounts.fitzmattd.passwordCommand =
-      "${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}";
+      ''${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}'';
     accounts.email.accounts.ftzm.passwordCommand =
-      "${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}";
+      ''${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}'';
   };
 
   # ---------------------------------------------------------------------------
