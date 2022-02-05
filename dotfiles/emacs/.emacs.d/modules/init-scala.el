@@ -11,6 +11,10 @@
     ("scala" . scala-mode)
   :hook ((scala-mode . flycheck-mode)
 	 (scala-mode . yas-minor-mode)
+	 ; This is an ugly hack to stop an error about an invalid hanler in
+	 ; file-name-handler alist that prevents visiting library source files
+	 ; in scala.
+	 (scala-mode . (lambda () (setq file-name-handler-alist nil)))
 	 ))
 
 ;; Enable sbt mode for executing sbt commands

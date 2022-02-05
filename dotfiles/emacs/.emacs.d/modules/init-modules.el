@@ -19,7 +19,6 @@
 (require 'init-flycheck)
 (require 'init-snippets)
 (require 'init-company)
-(require 'init-direnv)
 (require 'init-security)
 (require 'init-spell)
 
@@ -65,3 +64,6 @@
 (require 'init-keys)
 
 (provide 'init-modules)
+
+; TODO
+(require 'init-direnv)
