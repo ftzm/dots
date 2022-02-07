@@ -8,8 +8,7 @@
 { self, system, nixpkgs, pkgs, config, lib, inputs, ... }:
 let
   iosevkaPkgs = inputs.nixpkgs-iosevka.legacyPackages.x86_64-linux;
-  iosevkaLig =
-    pkgs.callPackage ../iosevka { pkgs = iosevkaPkgs; };
+  iosevkaLig = pkgs.callPackage ../iosevka { pkgs = iosevkaPkgs; };
 in {
   imports = [
     inputs.home-manager.nixosModules.home-manager
@@ -208,33 +207,12 @@ in {
   programs.light.enable = true;
 
   # ---------------------------------------------------------------------------
-  # X
+  # GUI
 
   # Needed for steam
   hardware.opengl.driSupport32Bit = true;
 
-  services.xserver = {
-    enable = true;
-    layout = "us";
-
-    # Enable touchpad support.
-    libinput.enable = true;
-
-    displayManager = {
-      session = [{
-        manage = "desktop";
-        name = "home-manager";
-        start = ''
-          ${pkgs.runtimeShell} $HOME/.hm-session &
-          waitPID=$!
-        '';
-      }];
-      lightdm = { enable = true; };
-      autoLogin.enable = true;
-      autoLogin.user = "ftzm";
-      defaultSession = "home-manager";
-    };
-  };
+  programs.qt5ct.enable = true;
 
   # Enable slock for screen locking
   programs.slock.enable = true;

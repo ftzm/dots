@@ -8,7 +8,7 @@ in {
     ./shell.nix
     ./development.nix
     ./mail.nix
-    ./xorg.nix
+    ./window-system.nix
     ./pipestatus.nix
   ];
 

@@ -24,6 +24,7 @@ in {
     arandr
     pass
     xdotool
+    wtype
     dunst
     libnotify # for notify-send in scripts
     entr # file watcher + command firer
@@ -65,7 +66,6 @@ in {
     arc-theme
     xorg.xcursorthemes
     gnome3.adwaita-icon-theme
-    gnome3.gnome-tweak-tool
     vanilla-dmz
 
     # programming
@@ -78,7 +78,7 @@ in {
     gnumake
     jq
     ripgrep
-    nodePackages.serve
+    pgadmin
 
     # for spelling (particularly in emacs)
     hunspell
@@ -131,19 +131,13 @@ in {
     dconf
     zoom-us
     keybase
-    #w3m
+    w3m
 
-    #games
+    # #games
     lgogdownloader
     playonlinux
     wine
 
-    # dev
-    nodejs-12_x
-    nodePackages.typescript
-    #gcloud
-    google-clasp
-    kubernetes-helm
   ];
   xdg = {
     enable = true;
@@ -163,8 +157,14 @@ in {
       statusbar-fg = "#ebdbb2";
     };
   };
+  home.stateVersion = "21.05";
   programs.firefox = {
     enable = true;
+    package = pkgs.firefox.override {
+      extraPolicies = {
+        LocalFileLinks = ["http://localhost:8080"];
+      };
+    };
     profiles.main = {
       settings = {
         "toolkit.legacyUserProfileCustomizations.stylesheets" = true;

@@ -2,13 +2,20 @@
 
 {
   systemd.user.services.pipestatus = {
-    Unit = { Description = "pipestatus"; };
+    Unit = {
+      Description = "pipestatus";
+      PartOf = [ "graphical-session.target" ];
+    };
     Service = {
-      Restart = "always";
       ExecStart = "${pkgs.pipestatus.pipestatus-wrapped}/bin/pipestatus-wrapped";
+      ExecReload = "kill -SIGUSR2 $MAINPID";
+      Restart = "on-failure";
+      KillMode = "mixed";
       PrivateTmp = "false";
     };
-    Install = { WantedBy = [ "graphical-session.target" ]; };
+    Install = {
+      WantedBy = [ "graphical-session.target" ];
+    };
   };
 
   systemd.user.services.pipestatus_battery = {

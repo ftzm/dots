@@ -6,7 +6,7 @@
 ;
 ;;Set font
 ;; >>= :: <*> == /= >> {-#
-(setq my-font (format "Iosevka Lig Medium-%s" (or (getenv "FONT_SIZE") "16")))
+(setq my-font (format "Iosevka Lig Medium-12" (or (getenv "FONT_SIZE") "16")))
 ;;to set in existing window:
 (set-frame-font my-font nil t)
 
@@ -35,6 +35,9 @@
 ;
 ;
 
+(set-face-attribute 'mode-line-active nil
+		      :inherit 'mode-line)
+
 (setq initial-scratch-message "Welcome to Emacs.")
 
 (setq-default cursor-in-non-selected-windows nil)
@@ -45,11 +48,13 @@
 ; don't highlight bookmarks orange
 (setq bookmark-fontify nil)
 
-(defun my-change-window-divider ()
-  (let ((display-table (or buffer-display-table standard-display-table)))
-    (set-display-table-slot display-table 5 ?│)
-    (set-window-display-table (selected-window) display-table)))
-
-(add-hook 'window-configuration-change-hook 'my-change-window-divider)
+;; The below adds prettier buffer dividers in the terminal
+;; it seems to cause problems when compiling sometimes.
+; (defun my-change-window-divider ()
+;   (let ((display-table (or buffer-display-table standard-display-table)))
+;     (set-display-table-slot display-table 5 ?│)
+;     (set-window-display-table (selected-window) display-table)))
+;
+; (add-hook 'window-configuration-change-hook 'my-change-window-divider)
 
 (provide 'init-gui)
