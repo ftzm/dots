@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, pkgs, lib, ... }:
 let
   hosts = {
     leigheas = {
@@ -53,4 +53,29 @@ in {
     extraHosts = lib.strings.concatMapStrings (x: x + "\n")
       (lib.attrsets.mapAttrsToList (k: v: "${v.wg.ip} wg-${k}") others);
   };
+  # Cheeky hack to restart the wireguard service on wifi connection.
+  # Easiest way to re-resolve hostnames on new network.
+  networking.networkmanager.dispatcherScripts = [{
+    source = pkgs.writeText "upHook" ''
+      if [ $1 != "wg0" ]; then
+          case "$2" in
+              #up|vpn-up)
+              up)
+                logger -s " interface $1 up, restarting wireguard"
+                ${pkgs.systemd}/bin/systemctl restart wireguard-wg0.service
+              ;;
+              down|vpn-down)
+              ;;
+              hostname|dhcp4-change|dhcp6-change)
+              # Do nothing
+              ;;
+              *)
+              echo "$0: called with unknown action \`$2'" 1>&2
+              exit 1
+              ;;
+          esac
+      fi
+    '';
+    type = "basic";
+  }];
 }
