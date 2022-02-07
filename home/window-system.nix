@@ -60,10 +60,10 @@ in {
             --effect-pixelate 10 \
             --effect-greyscale \
             --indicator \
-            -clock \
-            --ring-color "#000000" \
-            --key-hl-color "#FFFFFF" \
-            --text-color "#FFFFFF" \
+            --clock \
+            --ring-color \#000000 \
+            --key-hl-color \#FFFFFF \
+            --text-color \#FFFFFF \
         '';
         brightness = let
           range = [ 0 1 2 3 4 5 6 7 8 9 ];

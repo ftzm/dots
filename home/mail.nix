@@ -11,7 +11,7 @@
     text = with pkgs;''
       #!${stdenv.shell}
       ${procps}/bin/pkill mu
-      ${bash}/bin/sleep 0.1
+      ${coreutils}/bin/sleep 0.1
       # [ ! -d ~/.cache/mu ] && ${mu}/bin/mu init --maildir=.maildir
       ${mu}/bin/mu index
     '';

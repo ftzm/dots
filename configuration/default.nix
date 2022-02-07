@@ -76,9 +76,9 @@ in {
   };
   home-manager.users.ftzm = {
     accounts.email.accounts.fitzmattd.passwordCommand =
-      ''${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}'';
+      "${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}";
     accounts.email.accounts.ftzm.passwordCommand =
-      ''${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}'';
+      "${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}";
   };
 
   # ---------------------------------------------------------------------------
@@ -120,16 +120,11 @@ in {
     vim
     htop
     git
-    hsetroot # for desktopManager
-    brightnessctl
     nfs-utils
     libnfs
     deploy-rs.deploy-rs
     inputs.agenix.defaultPackage.x86_64-linux
     alsaUtils
-    linuxPackages.turbostat
-    s-tui
-    stress
   ];
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
   programs.zsh.enable = true;
@@ -203,34 +198,27 @@ in {
       }
     ];
   };
-
-  programs.light.enable = true;
-
   # ---------------------------------------------------------------------------
   # GUI
+
+  programs.light.enable = true;
 
   # Needed for steam
   hardware.opengl.driSupport32Bit = true;
 
   programs.qt5ct.enable = true;
 
-  # Enable slock for screen locking
-  programs.slock.enable = true;
-
   # Fonts
   fonts = {
     fontconfig.enable = true;
-    #enableFontDir = true;
-    #fontDir.enable = true;
     enableGhostscriptFonts = true;
-    fonts = with pkgs; [
-      terminus_font
-      inconsolata
-      ttf_bitstream_vera
-      font-awesome-ttf
-      proggyfonts
-      liberation_ttf
-      iosevkaLig
-    ];
+    fonts = with pkgs; [ font-awesome-ttf iosevkaLig ];
   };
+
+  #needed for swaylock to work
+  security.pam.services.swaylock = { };
+  #needed for sway to work
+  hardware.opengl.enable = lib.mkDefault true;
+  fonts.enableDefaultFonts = lib.mkDefault true;
+  programs.dconf.enable = lib.mkDefault true;
 }

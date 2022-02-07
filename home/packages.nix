@@ -78,7 +78,10 @@ in {
     gnumake
     jq
     ripgrep
-    pgadmin
+    s-tui
+    stress
+    linuxPackages.turbostat
+    #pgadmin
 
     # for spelling (particularly in emacs)
     hunspell

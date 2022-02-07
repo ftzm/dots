@@ -126,6 +126,7 @@
      (340 . "#00bcff")
      (360 . "#b6a0ff")))
  '(vc-annotate-very-old-color nil)
+ '(warning-suppress-types '((comp)))
  '(xterm-color-names
    ["black" "#ff8059" "#44bc44" "#d0bc00" "#2fafff" "#feacd0" "#00d3d0" "gray65"])
  '(xterm-color-names-bright

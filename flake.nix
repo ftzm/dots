@@ -1,7 +1,7 @@
 {
   inputs = {
     deploy-rs.url = "github:serokell/deploy-rs";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-21.11";
     nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
