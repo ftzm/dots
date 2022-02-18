@@ -195,7 +195,11 @@ in {
   programs.foot = {
     enable = true;
     settings = {
-      main = { font = "Iosevka Lig Medium:size=11"; };
+      main = {
+        font = "Iosevka Lig:medium:size=12";
+        line-height = "17"; # This is arbitrary but matches the height I had tweaked in emacs
+        dpi-aware = "no";
+      };
       colors = {
         background = "282828";
         foreground = "ebdbb2";
