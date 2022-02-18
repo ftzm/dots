@@ -136,7 +136,7 @@
 
   services.nextcloud = {
     enable = true;
-    package = pkgs.nextcloud21;
+    package = pkgs.nextcloud22;
     hostName = "nextcloud.ftzmlab.xyz";
 
     # Use HTTPS for links
