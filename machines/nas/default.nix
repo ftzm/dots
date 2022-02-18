@@ -32,6 +32,10 @@ in {
     # verbose to send messages on scrubs with no errors
     ZED_NOTIFY_VERBOSE = false;
   };
+  services.zfs.autoScrub = {
+    enable = true;
+    interval = "Mon, 02:00";
+  };
 
   # Mount the dang thing
   fileSystems."/pool-1" = {
