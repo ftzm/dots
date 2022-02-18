@@ -24,10 +24,6 @@
   :config
   (evil-mode t)
 
-
-
-
-
   (setq evil-insert-state-message nil) ;; no echo area message on insert mode
 
   (evil-select-search-module 'evil-search-module 'evil-search)
@@ -98,6 +94,22 @@
   (evil-collection-init 'emms)
   (evil-collection-init 'mu4e)
   (evil-collection-init 'magit)
+  (evil-collection-init 'mpdel)
+  (evil-collection-init 'org)
+  (evil-collection-init 'xref)
+  )
+
+(use-package evil-org
+  :straight t
+  :after org
+  :hook (org-mode . (lambda ()
+		      (evil-org-mode)
+		      ; This gets unbound in the terminal for some reason
+		      (define-key evil-normal-state-map (kbd "TAB") 'org-cycle)
+		      ))
+  :config
+  (require 'evil-org-agenda)
+  ;(evil-org-agenda-set-keys)
   )
 
 (use-package evil-surround
@@ -109,5 +121,17 @@
 
 (use-package evil-string-inflection
    :straight t)
+
+;; (use-package evil-terminal-cursor-changer
+;;   :straight t
+;;   :hook (tty-setup . evil-terminal-cursor-changer-activate))
+
+(use-package term-cursor
+  :straight (term-cursor
+	     :type git
+	     :repo "denrat/term-cursor.el"
+	     :host github)
+  :config
+  (global-term-cursor-mode))
 
 (provide 'init-evil)

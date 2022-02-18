@@ -1,5 +1,6 @@
 (use-package pdf-tools
   :ensure t
+  :defer t
   :config
   (pdf-tools-install)
   (evil-collection-init 'pdf)
@@ -13,6 +14,7 @@
   (require 'saveplace-pdf-view))
 
 (use-package saveplace-pdf-view
+  :after pdf-tools
   :straight t
   )
 

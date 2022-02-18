@@ -1,5 +1,6 @@
 (use-package mu4e
   ;:load-path "/run/current-system/sw/share/emacs/site-lisp/mu4e/"
+  :commands (mu4e mail-hydra/body)
   :config
 
   (add-hook 'mu4e-mode-hook #'flyspell-mode)

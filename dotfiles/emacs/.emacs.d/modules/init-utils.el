@@ -2,7 +2,6 @@
   (interactive)
   (switch-to-buffer (other-buffer)))
 
-
 ;; from doom
 (defun sudo-find-file (file)
   "Open a file as root."

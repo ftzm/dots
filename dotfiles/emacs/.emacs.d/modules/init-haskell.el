@@ -25,7 +25,7 @@
 (use-package dante
   :straight t
   :after haskell-mode
-  :commands 'dante-mode
+  :commands dante-mode
   :hook ((haskell-mode . dante-mode)
 	 (haskell-mode . flycheck-mode))
   :config

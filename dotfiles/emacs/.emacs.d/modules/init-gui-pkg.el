@@ -1,8 +1,27 @@
 ;;; init-gui-el.el --- gui setup requiring external packages
 
+(use-package winum
+  :straight t
+  :init
+  :config
+  (setq window-numbering-scope            'frame
+        winum-reverse-frame-list          nil
+        winum-auto-assign-0-to-minibuffer t
+        ;winum-assign-func                 'my-winum-assign-func
+        ;winum-auto-setup-mode-line        t
+        winum-format                      nil
+        winum-mode-line-position          nil
+        ;winum-ignored-buffers             '(" *which-key*")
+        ;winum-ignored-buffers-regexp      '(" \\*Treemacs-.*")
+        winum-ignored-buffers-regexp      '()
+	)
+  (winum-mode)
+  )
+
 (use-package highlight-parentheses
   :straight t
   :diminish highlight-parentheses-mode
+  :commands highlight-perentheses-mode
   :config
   (add-hook 'prog-mode-hook 'highlight-parentheses-mode)
   (set-face-attribute 'hl-paren-face nil :bold t)
@@ -10,6 +29,7 @@
 
 (use-package rainbow-delimiters
   :straight t
+  :commands rainbow-delimiters-mode
   :config
   (add-hook 'prog-mode-hook 'rainbow-delimiters-mode)
   )
@@ -61,12 +81,14 @@
 
 (use-package default-text-scale
   :straight t
+  :commands (default-text-scale-increase default-text-scale-decrease)
   :config
   (setq default-text-scale-amount 35)
   )
 
 (use-package ace-window
   :straight t
+  :commands ace-window
   :diminish
   )
 
@@ -131,7 +153,7 @@
 ;  )
 
 (use-package popper
-  :straight t ; or :straight t
+  :straight t
   :bind (("C-`"   . popper-toggle-latest)
          ("M-`"   . popper-cycle)
          ("C-M-`" . popper-toggle-type))
@@ -141,6 +163,7 @@
           "Output\\*$"
           "\\*Async Shell Command\\*"
 	  "*Embark Actions*"
+	  "Errors List"
           help-mode
           compilation-mode))
   (popper-mode +1)

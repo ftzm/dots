@@ -6,6 +6,7 @@
 (use-package olivetti
   :straight t
   :diminish "O"
+  :commands olivetti-mode
   :config
   (setq-default olivetti-body-width 80)
   (add-hook 'text-mode-hook #'olivetti-mode)

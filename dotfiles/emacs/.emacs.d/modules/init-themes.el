@@ -8,23 +8,7 @@
   (set-face-attribute 'mode-line-inactive nil
 		      :background "#32302f"
 		      :foreground "#928374")
-
-  (with-eval-after-load 'ivy
-    (set-face-attribute 'ivy-current-match nil
-    :inherit nil
-    :stipple nil
-    :background nil
-    :foreground "#8ec07c"
-    :inverse-video nil
-    :box nil
-    :strike-through nil
-    :overline nil
-    :underline nil
-    :slant 'normal
-    :weight 'normal
-    )
-    )
-
+  (set-face-foreground 'vertical-border "#3c3836")
   )
 
 ;(use-package sublime-themes

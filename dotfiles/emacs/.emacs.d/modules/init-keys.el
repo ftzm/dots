@@ -1,26 +1,24 @@
+(defun keymap-symbol (keymap)
+  "Return the symbol to which KEYMAP is bound, or nil if no such symbol exists."
+  (catch 'gotit
+    (mapatoms (lambda (sym)
+                (and (boundp sym)
+                     (eq (symbol-value sym) keymap)
+                     (not (eq sym 'keymap))
+                     (throw 'gotit sym))))))
+
+;; in *scratch*:
+;(keymap-symbol (current-local-map))
+
 (global-set-key (kbd "<escape>")      'keyboard-escape-quit)
 
- (defhydra hydra-rotate-menu (:color pink
-                              :hint nil)
-   "
- ^Layouts^                ^Maniplation^
- ^^^^^^^^-----------------------------------
- _h_: even horizontal     _l_: unmark
- _v_: even vertical       _r_: unmark up
- _H_: main horizontal
- _V_: main vertical
- _t_: tiled
-
- "
- ("h" rotate:even-horizontal)
- ("v" rotate:even-vertical)
- ("H" rotate:main-horizontal)
- ("V" rotate:main-vertical)
- ("t" rotate:tiled)
- ("l" rotate-layout)
- ("r" rotate-window)
- ("<escape>" nil "cancel")
-)
+(use-package which-key
+  :straight t
+  :diminish which-key-mode
+  :config
+  (which-key-setup-side-window-bottom)
+  (which-key-mode)
+  (setq which-key-idle-delay 0.3))
 
 ;; ;; Go to last (i.e. most recent) perspective
 ;; (setq ftzm/last-persp persp-nil-name)
@@ -78,6 +76,7 @@
 
 (use-package general
   :straight t
+  :after evil
   :init
   ;; to override evil-collection
   (setq general-override-states '(insert
@@ -89,130 +88,190 @@
                                   operator
                                   replace))
   :config
-  (general-define-key
-   :states '(normal visual motion)
-   :keymaps '(override
-              dired-mode-map
-    	      magit-mode-map
-	      magit-blame-mode-map
-    	      evil-normal-state-map)
-   "SPC"
-   'leader-menu)
+  ;; (general-define-key
+  ;;  :states '(normal visual motion)
+  ;;  :keymaps '(override
+  ;;             dired-mode-map
+  ;;   	      magit-mode-map
+  ;; 	      magit-blame-mode-map
+  ;;   	      evil-normal-state-map)
+  ;;  "SPC"
+  ;;  'leader-menu)
 
   (general-evil-setup)
+
+  ;;; Vim Mappings
 
   (general-nmap "c" ;; this must be defined after evil to bind c
               (general-key-dispatch 'evil-change
                 "c" (general-simulate-key ('evil-change "e"))
                 ))
   (general-vmap "c" 'evil-change)
+  (general-nmap "s" 'avy-goto-char-flex)
 
-  (define-prefix-command 'leader-menu)
-  (define-key leader-menu (kbd "SPC") 'execute-extended-command)
-  (define-key leader-menu (kbd "'") 'switch-to-previous-buffer)
-  (define-key leader-menu (kbd ",") 'ace-window)
-  (define-prefix-command 'apps-keys)
-  (define-prefix-command 'toggle-keys)
-  (define-key toggle-keys "b" 'default-text-scale-increase)
-  (define-key toggle-keys "s" 'default-text-scale-decrease)
-  (define-key leader-menu "a" 'apps-keys)
-  (define-key leader-menu "t" 'toggle-keys)
+  ;;; Leader Key Mappings
 
-  (define-prefix-command 'window-keys)
-  (define-key leader-menu "w" 'window-keys)
-  (general-define-key :keymaps 'window-keys
-                      "v" 'split-window-right
-                      "s" 'split-window-below
-                      "h" 'evil-window-left
-                      "j" 'evil-window-down
-                      "k" 'evil-window-up
-                      "l" 'evil-window-right
-                      "H" 'evil-window-move-far-left
-                      "J" 'evil-window-move-very-bottom
-                      "K" 'evil-window-move-very-top
-                      "L" 'evil-window-move-far-right
-                      "r" 'hydra-rotate-menu/body
-                      "R" 'evil-window-rotate-upwards
-                      "d" 'delete-window
-                      "w" 'evil-window-next)
+  (general-create-definer my-leader-def
+    :prefix "SPC")
 
-  (define-prefix-command 'buffer-keys)
-  (define-key leader-menu "b" 'buffer-keys)
-  (general-define-key :keymaps 'buffer-keys
-                      "d" 'kill-this-buffer
-                      "e" 'eval-buffer
-                      "k" 'evil-prev-buffer
-                      "j" 'evil-next-buffer
-                      "b" 'switch-to-buffer
-                      "s" 'save-buffer
-                      "f" 'find-file
-                      "w" 'write-file
-                      "r" 'consult-recent-file
-                      "u" 'sudo-find-file
-                      "U" 'sudo-this-file)
+  ;; (which-key-add-key-based-replacements
+  ;;   "SPC SPC" "command"
+  ;;   "SPC '" "prev buffer"
+  ;;   "SPC a" "app"
+  ;;   "SPC b" "buffer"
+  ;;   "SPC e" "error"
+  ;;   "SPC f" "file"
+  ;;   "SPC i" "ivy"
+  ;;   "SPC g" "git"
+  ;;   "SPC o" "org"
+  ;;   "SPC p" "projectile"
+  ;;   "SPC s" "space"
+  ;;   "SPC t" "toggle"
+  ;;   "SPC w" "window"
+  ;; )
+  (my-leader-def
+    :states '(normal visual)
+    :keymaps 'override
+    "SPC" '(execute-extended-command :which-key "command")
+    "'" '(switch-to-previous-buffer :which-key "other buffer")
+    ;"," '(ace-window :which-key "other window")
+    "a" '(app-keys :which-key "apps")
+    "b" '(buffer-keys :which-key "buffer")
+    "e" '(flycheck-keys :which-key "error")
+    "i" '(ivy-keys :which-key "ivy")
+    "g" '(magit-keys :which-key "git")
+    "o" '(org-global-hydra/body :which-key "org")
+    "p" '(projectile-keys :which-key "project")
+    "s" '(persp-hydra/body :which-key "workspace")
+    "t" '(toggle-keys :which-key "toggle")
+    "w" '(window-keys :which-key "window")
+    "m" '(mpd-hydra/body :which-key "mpd")
+    "M" '(mail-hydra/body :which-key "mail")
+   )
 
-  (define-key toggle-keys "l" 'global-display-line-numbers-mode)
+  (general-define-key
+   :keymaps '(override vertico-map)
+   "M-0" 'winum-select-window-0
+   "M-1" 'winum-select-window-1
+   "M-2" 'winum-select-window-2
+   "M-3" 'winum-select-window-3
+   "M-4" 'winum-select-window-4
+   "M-5" 'winum-select-window-5
+   "M-6" 'winum-select-window-6
+   "M-7" 'winum-select-window-7
+   "M-8" 'winum-select-window-8
+   "M-9" 'winum-select-window-9
+   )
 
-  (define-key apps-keys "d" 'dired)
+  (general-define-key
+   :prefix-command 'window-keys
+   "v" 'split-window-right
+   "s" 'split-window-below
+   "h" 'evil-window-left
+   "j" 'evil-window-down
+   "k" 'evil-window-up
+   "l" 'evil-window-right
+   "H" 'evil-window-move-far-left
+   "J" 'evil-window-move-very-bottom
+   "K" 'evil-window-move-very-top
+   "L" 'evil-window-move-far-right
+   "r" 'hydra-rotate-menu/body
+   "R" 'evil-window-rotate-upwards
+   "d" 'delete-window
+   "w" 'evil-window-next)
 
-  (eval-after-load 'dired
-    '(progn
-       (evil-define-key 'normal dired-mode-map
-         "G" 'evil-goto-line
-         "gg" 'evil-goto-first-line
-         "K" 'dired-kill-subdir
-         "S" 'dired-sort-toggle-or-edit
-         "s" 'avy-goto-char-flex
-         ")" 'dired-next-subdir
-         "(" 'dired-prev-subdir)))
+  (general-define-key
+   :prefix-command 'buffer-keys
+   "d" 'kill-this-buffer
+   "e" 'eval-buffer
+   "k" 'evil-prev-buffer
+   "j" 'evil-next-buffer
+   "b" 'switch-to-buffer
+   "s" 'save-buffer
+   "f" 'find-file
+   "w" 'write-file
+   "r" 'consult-recent-file
+   "u" 'sudo-find-file
+   "U" 'sudo-this-file)
 
-  (define-key leader-menu "s" 'persp-hydra/body)
-  (define-key leader-menu "m" 'mpd-hydra/body)
+  (general-define-key
+   :prefix-command 'toggle-keys
+   "l" 'global-display-line-numbers-mode
+   "g" 'global-git-gutter-mode
+   "b" 'default-text-scale-increase
+   "s" 'default-text-scale-decrease)
 
-  ;(define-key evil-normal-state-map "s" 'avy-goto-char-timer)
-  ;(define-key evil-normal-state-map "s" 'avy-goto-char-flex)
-  ;(define-key evil-normal-state-map "s" 'avy-goto-word-or-subword-1)
-  (define-key evil-normal-state-map "s" 'avy-goto-char-flex)
+  (general-define-key
+   :prefix-command 'app-keys
+   "d" 'dired)
 
-  (define-prefix-command 'ivy-keys)
-  (define-key leader-menu "i" 'ivy-keys)
-  (define-key ivy-keys "i" 'consult-imenu)
-  (define-key ivy-keys "g" 'consult-line)
+  (general-define-key
+   :prefix-command 'magit-keys
+   "s" 'magit-status
+   "b" 'magit-blame
+   "B" 'magit-blame-quit)
 
-  (define-prefix-command 'magit-keys)
-  (define-key leader-menu "g" 'magit-keys)
-  (define-key magit-keys "s" 'magit-status)
-  (define-key magit-keys "b" 'magit-blame)
-  (define-key magit-keys "B" 'magit-blame-quit)
+  (general-define-key
+   :prefix-command 'ivy-keys
+   "i" 'consult-imenu
+   "g" 'consult-line)
 
-  (define-key toggle-keys "g" 'global-git-gutter-mode)
+  (general-define-key
+   :prefix-command 'projectile-keys
+   "f" 'projectile-find-file
+   "b" 'projectile-switch-to-buffer
+   "p" 'switch-persp-project
+   "P" 'projectile-switch-project
+   "a" 'consult-git-grep)
 
-  (define-prefix-command 'projectile-keys)
-  (define-key leader-menu "p" 'projectile-keys)
-  (define-key projectile-keys "f" 'projectile-find-file)
-  (define-key projectile-keys "b" 'projectile-switch-to-buffer)
-  (define-key projectile-keys "p" 'switch-persp-project)
-  (define-key projectile-keys "P" 'projectile-switch-project)
-  ;(define-key projectile-keys "a" 'ftzm/consult-ripgrep)
-  (define-key projectile-keys "a" 'consult-git-grep)
+  (general-define-key
+   :prefix-command 'flycheck-keys
+   "p" 'evil-flycheck-previous
+   "n" 'evil-flycheck-next)
 
-  (define-prefix-command 'org-mode-keys)
-  (evil-define-key 'normal org-mode-map (kbd ",") 'org-mode-keys)
-  (define-key org-mode-keys "s" 'org-schedule)
-  (define-key org-mode-keys "r" 'org-refile)
-  (define-key org-mode-keys "t" 'org-set-tags-command)
+  ;;; mode keys
 
-  ;; Map for my custom ',' prefix.
-  (define-prefix-command 'agenda-mode-map-keys)
-  (define-key agenda-mode-map-keys "w" 'org-agenda-week-view)
-  (define-key agenda-mode-map-keys "D" 'org-agenda-day-view)
-  (define-key agenda-mode-map-keys "d" 'org-agenda-deadline)
-  (define-key agenda-mode-map-keys "r" 'org-agenda-refile)
-  (define-key agenda-mode-map-keys "s" 'org-agenda-schedule)
-  (define-key agenda-mode-map-keys "p" 'org-agenda-priority)
-  (define-key agenda-mode-map-keys "f" 'org-agenda-filter-by-tag)
-  (define-key agenda-mode-map-keys "cs" 'agenda-remove-schedule)
-  (define-key agenda-mode-map-keys "k" 'org-agenda-kill)
+  ;; (eval-after-load 'dired
+  ;;   '(progn
+  ;;      (evil-define-key 'normal dired-mode-map
+  ;;        "G" 'evil-goto-line
+  ;;        "gg" 'evil-goto-first-line
+  ;;        "K" 'dired-kill-subdir
+  ;;        "S" 'dired-sort-toggle-or-edit
+  ;;        "s" 'avy-goto-char-flex
+  ;;        ")" 'dired-next-subdir
+  ;;        "(" 'dired-prev-subdir)))
+
+  (general-define-key
+   :states 'normal
+   :keymaps 'org-mode-map
+   :prefix ","
+   "s" 'org-schedule
+   "r" 'org-refile
+   "t" 'org-set-tags-command)
+
+  (general-define-key
+   :states 'normal
+   :keymaps 'org-capture-mode-map
+   :prefix ","
+   "k" 'org-capture-kill
+   "r" 'org-capture-refile
+   "c" 'org-capture-finalize
+   "t" 'org-set-tags-command)
+
+  ;; ;; Map for my custom ',' prefix.
+  ;; (define-prefix-command 'agenda-mode-map-keys)
+  ;; (general-define-key
+  ;;  :keymaps 'agenda-mode-map)
+  ;; (define-key agenda-mode-map-keys "w" 'org-agenda-week-view)
+  ;; (define-key agenda-mode-map-keys "D" 'org-agenda-day-view)
+  ;; (define-key agenda-mode-map-keys "d" 'org-agenda-deadline)
+  ;; (define-key agenda-mode-map-keys "r" 'org-agenda-refile)
+  ;; (define-key agenda-mode-map-keys "s" 'org-agenda-schedule)
+  ;; (define-key agenda-mode-map-keys "p" 'org-agenda-priority)
+  ;; (define-key agenda-mode-map-keys "f" 'org-agenda-filter-by-tag)
+  ;; (define-key agenda-mode-map-keys "cs" 'agenda-remove-schedule)
+  ;; (define-key agenda-mode-map-keys "k" 'org-agenda-kill)
 
   (evil-define-key 'normal org-agenda-mode-map
     (kbd "<DEL>") 'org-agenda-show-scroll-down
@@ -306,57 +365,19 @@
     "[" 'org-agenda-manipulate-query-add
     "g\\" 'org-agenda-filter-by-tag-refine
     "]" 'org-agenda-manipulate-query-subtract
-
-    ;; prefix for my custom map
-    "," 'agenda-mode-map-keys
-
-
     )
-
-    (define-key leader-menu "o" 'org-global-hydra/body)
-    (define-key leader-menu "M" 'mail-hydra/body)
 
     ;;;; org-capture setting
     ;; Start capture mode in evil insert state
 
-    ;; Map for my custom ',' prefix in capture mode
-    (define-prefix-command 'capture-mode-map-keys)
-    (evil-define-key 'normal org-capture-mode-map "," 'capture-mode-map-keys)
-    (define-key capture-mode-map-keys "k" 'org-capture-kill)
-    (define-key capture-mode-map-keys "r" 'org-capture-refile)
-    (define-key capture-mode-map-keys "c" 'org-capture-finalize)
-    (define-key capture-mode-map-keys "t" 'org-set-tags-command)
+  (general-define-key
+   :states 'normal
+   :keymaps 'treemacs-mode-map
+   "TAB" 'treemacs-TAB-action
+   "RET" 'treemacs-RET-action
+   "q" 'kill-buffer-and-window)
 
-  (define-prefix-command 'flycheck-keys)
-  (define-key leader-menu "e" 'flycheck-keys)
-  (define-key flycheck-keys "p" 'evil-flycheck-previous)
-  (define-key flycheck-keys "n" 'evil-flycheck-next)
 
-  )
 
-(use-package which-key
-  :straight t
-  :diminish which-key-mode
-  :config
-  (which-key-setup-side-window-bottom)
-  (which-key-mode)
-  (setq which-key-idle-delay 0.3)
-  (which-key-add-key-based-replacements
-    "SPC SPC" "command"
-    "SPC '" "prev buffer"
-    "SPC a" "app"
-    "SPC b" "buffer"
-    "SPC e" "error"
-    "SPC f" "file"
-    "SPC i" "ivy"
-    "SPC g" "git"
-    "SPC o" "org"
-    "SPC p" "projectile"
-    "SPC s" "space"
-    "SPC t" "toggle"
-    "SPC w" "window"
-    )
 
-  )
-
-(provide 'init-keys)
+    (provide 'init-keys))

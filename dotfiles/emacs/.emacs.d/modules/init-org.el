@@ -43,6 +43,7 @@
 
 (use-package org
   :mode (("\\.org$" . org-mode))
+  :commands org-agenda
   ;:straight (org)
   ;:straight (org org-plus-contrib)
   ;:hook (
@@ -66,7 +67,7 @@
   :config
 
   ;(add-hook 'org-mode-hook (lambda ()(load-theme-buffer-local 'gruvbox-light-soft (current-buffer)) ))
-  (setq org-ellipsis " ↓")
+  (setq org-ellipsis "...")
 
   ;(require 'org-num)
   (add-hook 'org-mode-hook #'visual-line-mode)
@@ -111,8 +112,8 @@
      ;'(variable-pitch ((t (:family "Source Serif Pro" :weight normal :height 1.1))))
      ;'(fixed-pitch ((t ( :family "Iosevka Lig" :slant normal :weight normal))))
      ;'(org-level-1 ((t ( ))))
-     '(org-level-2 ((t ( :foreground nil :inherit org-level-1))))
-     '(org-level-3 ((t ( :foreground nil :inherit org-level-1))))
+     ;'(org-level-2 ((t ( :foreground nil :inherit org-level-2))))
+     ;'(org-level-3 ((t ( :foreground nil :inherit org-level-3))))
      '(org-block-begin-line ((t ( :inherit font-lock-comment-face :background
 					   nil))))
      '(org-block-end-line ((t ( :inherit font-lock-comment-face :background

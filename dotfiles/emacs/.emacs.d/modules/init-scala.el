@@ -1,9 +1,3 @@
-(use-package lsp-ui
-  :straight t
-  :config
-  (setq lsp-ui-doc-enable nil)
-  )
-
 (use-package scala-mode
   :straight t
   :mode ".scala\\'"
@@ -14,8 +8,36 @@
 	 ; This is an ugly hack to stop an error about an invalid hanler in
 	 ; file-name-handler alist that prevents visiting library source files
 	 ; in scala.
-	 (scala-mode . (lambda () (setq file-name-handler-alist nil)))
-	 ))
+	 (scala-mode . (lambda () (setq file-name-handler-alist nil))))
+
+  :config
+  (defun scala-hydra-header ()
+      (let ((workspace (car (lsp-workspaces))))
+        (if workspace
+	    (format "root:   %s\n server: %s" (lsp--workspace-root workspace) (lsp--workspace-print workspace))
+	  "No active workspace")))
+
+  (pretty-hydra-define scala-hydra
+    (:color blue
+     :quit-key "q"
+     :title (scala-hydra-header))
+    ("Commands" (( "f" lsp-format-buffer "format buffer")
+	         ( "e" ftzm/lsp-treemacs-errors-list-toggle "toggle error list")
+	         ( "a" lsp-execute-code-action)
+	         ( "r" lsp-find-references))
+     "LSP" (( "s" lsp "start lsp")
+	    ( "i" lsp-metals-build-import "metals build+import")
+	    ( "d" lsp-describe-thing-at-point-minibuffer "describe thing at point"))))
+
+  (evil-define-key 'normal scala-mode-map (kbd ",") 'scala-hydra/body)
+	 )
+
+;; (use-package lsp-ui
+;;   :straight t
+;;   :after lsp-mode
+;;   :config
+;;   (setq lsp-ui-doc-enable nil)
+;;   )
 
 ;; Enable sbt mode for executing sbt commands
 (use-package sbt-mode
@@ -34,10 +56,12 @@
 
 (use-package lsp-mode
   :straight t
+  :commands lsp-mode
   :hook ((lsp-mode . lsp-lens-mode)(scala-mode . lsp))
   :diminish lsp-lens-mode
   :diminish lsp-mode
   :config
+  ;(setq lsp-auto-configure nil)
   (setq lsp-prefer-flymake nil)
   (setq lsp-file-watch-threshold 100000)
 
@@ -80,41 +104,21 @@ point in the minibuffer."
 	     :type git
 	     :repo "emacs-lsp/lsp-metals"
 	     :host github)
+  :after lsp-mode
   :config (setq lsp-metals-treeview-show-when-views-received nil))
-
-
 
 ;; Use the Debug Adapter Protocol for running tests and debugging
 (use-package posframe
   ;; Posframe is a pop-up tool that must be manually installed for dap-mode
-  :straight t)
+  :straight t
+  :after dap-mode)
 
 (use-package dap-mode
   :straight t
+  :after lsp-mode
   :hook
   (lsp-mode . dap-mode)
   (lsp-mode . dap-ui-mode)
   )
-
-(use-package lsp-ivy
-  :straight t)
-
-(defun scala-hydra-header ()
-    (let ((workspace (car (lsp-workspaces))))
-      (if workspace
-	  (format "root:   %s\n server: %s" (lsp--workspace-root workspace) (lsp--workspace-print workspace))
-	"No active workspace")))
-
-(pretty-hydra-define scala-hydra
-  (:color blue
-   :quit-key "q"
-   :title (scala-hydra-header))
-  ("Commands" (( "f" lsp-format-buffer "format buffer")
-	       ( "e" ftzm/lsp-treemacs-errors-list-toggle "toggle error list"))
-   "LSP" (( "s" lsp "start lsp")
-	  ( "i" lsp-metals-build-import "metals build+import")
-	  ( "d" lsp-describe-thing-at-point-minibuffer "describe thing at point"))))
-
-(evil-define-key 'normal scala-mode-map (kbd ",") 'scala-hydra/body)
 
 (provide 'init-scala)

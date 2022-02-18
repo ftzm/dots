@@ -15,6 +15,8 @@
 
 (use-package web-mode
   :straight t
+  :mode ("\\.tsx\\'" . web-mode)
+  :commands web-mode
   :config
   (setq web-mode-markup-indent-offset 2)
   (setq web-mode-css-indent-offset 2)
@@ -29,6 +31,7 @@
 
 (use-package typescript-mode
   :straight t
+  :mode ("\\.tsx\\'" . typescript-mode)
   :config
   (setq js-indent-level 2)
   ;(add-to-list 'auto-mode-alist '("\\.tsx\\'" . typescript-mode))

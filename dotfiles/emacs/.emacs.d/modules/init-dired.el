@@ -1,5 +1,6 @@
 (use-package dired+
   :straight t
+  :commands dired-omit-mode
   :hook (dired-mode . dired-omit-mode)
   :config
   (set-face-attribute 'diredp-omit-file-name nil
