@@ -63,6 +63,7 @@
   environment.systemPackages = with pkgs; [
     vim
     ranger
+    foot.terminfo
   ];
 
   # Enable the OpenSSH daemon.

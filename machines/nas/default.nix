@@ -63,6 +63,7 @@ in {
     shntool
     cuetools
     flac
+    foot.terminfo
   ];
 
   age.secrets.smtppw.file = ../../secrets/smtppw.age;

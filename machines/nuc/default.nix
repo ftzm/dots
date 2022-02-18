@@ -47,6 +47,7 @@
     git
     direnv
     nix-direnv
+    foot.terminfo
   ];
 
   services = {
