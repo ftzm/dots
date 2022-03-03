@@ -125,6 +125,8 @@ in {
     deploy-rs.deploy-rs
     inputs.agenix.defaultPackage.x86_64-linux
     alsaUtils
+    # X
+    alacritty
   ];
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
   programs.zsh.enable = true;
@@ -198,6 +200,17 @@ in {
   };
   # ---------------------------------------------------------------------------
   # GUI
+
+  #X
+  services.xserver = {
+    enable = true;
+    layout = "us";
+
+    # Enable touchpad support.
+    libinput.enable = true;
+  };
+  services.xserver.autorun = false;
+  services.xserver.displayManager.startx.enable = true;
 
   programs.light.enable = true;
 

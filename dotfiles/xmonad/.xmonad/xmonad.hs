@@ -59,7 +59,7 @@ writeFileLn f s = writeFile f $ "x;" ++ s ++ "\n"
 
 status_pipe = "/tmp/statuspipe.fifo"
 
-myLogHook = dynamicLogWithPP $ def { ppOutput = writeFileLn status_pipe}
+myLogHook = dynamicLogWithPP $ def { ppOutput = \x -> return ()}
 
 myTabsTheme = def
   { fontName            = "xft:Iosevka Lig:medium:size=10.5"
@@ -142,7 +142,7 @@ emacsStyleKeys l = M.union
     , ("M-S-t", testMap)
     --applications
     , ("M-S-z", spawn "clip_key")
-    , ("M-<Space>", spawn "rofi-dmenu")
+    , ("M-<Space>", spawn "my_dmenu_x.sh")
     , ("M-f", spawn "rofi-filer")
     , ("<XF86AudioPlay>", spawn "timeout 1 playerctl play-pause")
     ])
