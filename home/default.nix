@@ -8,8 +8,10 @@ in {
     ./shell.nix
     ./development.nix
     ./mail.nix
-    ./window-system.nix
     ./pipestatus.nix
+    ./wayland.nix
+    ./X.nix
+    ./notification.nix
   ];
 
   # Let Home Manager install and manage itself.

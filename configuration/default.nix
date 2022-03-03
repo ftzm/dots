@@ -129,7 +129,6 @@ in {
     alacritty
     # for screen sharing
     slurp
-    xdg-fix
   ];
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
   programs.zsh.enable = true;
