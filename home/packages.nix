@@ -28,7 +28,7 @@ in {
     dunst
     libnotify # for notify-send in scripts
     entr # file watcher + command firer
-    sshfsFuse # sshfs
+    sshfs-fuse # sshfs
     playerctl
     restic # backups
     acpi
@@ -38,7 +38,7 @@ in {
     brightnessctl
     gotop
     gnupg
-    wireguard
+    wireguard-tools
     nixfmt
     pavucontrol
     mpd-mpris
@@ -73,7 +73,7 @@ in {
     neovim
     git
     git-crypt
-    ag
+    silver-searcher
     stack
     gnumake
     jq
@@ -162,7 +162,8 @@ in {
   home.stateVersion = "21.05";
   programs.firefox = {
     enable = true;
-    package = pkgs.firefox.override {
+    package = pkgs.wrapFirefox pkgs.firefox-unwrapped {
+      forceWayland = true;
       extraPolicies = {
         LocalFileLinks = ["http://localhost:8080"];
       };

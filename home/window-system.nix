@@ -182,6 +182,10 @@ in {
         scroll_button 275
         scroll_factor 0.3
       }
+
+      exec systemctl --user import-environment XDG_SESSION_TYPE XDG_CURRENT_DESKTOP
+      exec dbus-update-activation-environment WAYLAND_DISPLAY
+
     '';
   };
   home.packages = with pkgs; [

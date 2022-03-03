@@ -3,7 +3,7 @@
 let
   package = pkgs.emacsPgtkGcc.override {
   };
-  emacsWithPackages = (pkgs.emacsPackagesNgGen package).emacsWithPackages;
+  emacsWithPackages = (pkgs.emacsPackagesFor package).emacsWithPackages;
   emms-taglib = pkgs.stdenv.mkDerivation {
     name = "emms-taglib";
     src = pkgs.fetchurl {
