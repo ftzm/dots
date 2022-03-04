@@ -14,71 +14,51 @@
 
   outputs = inputs@{ self, nixpkgs, deploy-rs, nixpkgs-ftzmlab, ... }:
     let
-      system = "x86_64-linux";
-      # pkgs = nixpkgs.legacyPackages.${system};
+      defaultSystem = "x86_64-linux";
       mkUserSystem = host-config:
         nixpkgs.lib.nixosSystem {
-          inherit system;
+          system = defaultSystem;
           specialArgs = { inherit inputs; };
           modules = [ ./configuration host-config ];
         };
-      nuc = nixpkgs-ftzmlab.lib.nixosSystem {
-        inherit system;
-        specialArgs = { inherit inputs; };
-        modules = [ ./machines/nuc ];
-      };
-      nas = nixpkgs-ftzmlab.lib.nixosSystem {
-        inherit system;
-        specialArgs = { inherit inputs; };
-        modules = [ ./machines/nas ];
-      };
-      pi = nixpkgs-ftzmlab.lib.nixosSystem {
-        system = "aarch64-linux";
-        specialArgs = { inherit inputs; };
-        modules = [ ./machines/pi ];
+      mkLabSystem = { host, system ? defaultSystem }:
+        nixpkgs-ftzmlab.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit inputs; };
+          modules = [ (./machines/. + "/${host}") ];
+        };
+      mkDeployNode = { host, networkHost ? host }: {
+        hostname = "${networkHost}";
+        profiles.system = {
+          sshUser = "admin";
+          user = "root";
+          path = deploy-rs.lib.x86_64-linux.activate.nixos
+            self.nixosConfigurations."${host}";
+          autoRollback = false;
+          magicRollback = false;
+        };
       };
     in {
       nixosConfigurations = {
         oibri-nixos = mkUserSystem ./machines/oibri-nixos;
         leigheas = mkUserSystem ./machines/leigheas;
-        inherit nuc;
-        inherit nas;
-        inherit pi;
+        nuc = mkLabSystem { host = "nuc"; };
+        nas = mkLabSystem { host = "nas"; };
+        pi = mkLabSystem {
+          host = "pi";
+          system = "aarch64-linux";
+        };
       };
       deploy.nodes = {
-        nuc = {
-          hostname = "wg-nuc";
-          profiles.system = {
-            sshUser = "admin";
-            user = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos
-              self.nixosConfigurations.nuc;
-            autoRollback = false;
-            magicRollback = false;
-          };
+        nuc = mkDeployNode {
+          host = "nuc";
+          networkHost = "wg-nuc";
         };
-        nas = {
-          hostname = "wg-nas";
-          profiles.system = {
-            sshUser = "admin";
-            user = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos
-              self.nixosConfigurations.nas;
-          };
-          autoRollback = false;
-          magicRollback = false;
+        nuc = mkDeployNode {
+          host = "nas";
+          networkHost = "wg-nas";
         };
-        pi = {
-          hostname = "pi";
-          profiles.system = {
-            sshUser = "admin";
-            user = "root";
-            path = deploy-rs.lib.aarch64-linux.activate.nixos
-              self.nixosConfigurations.pi;
-            autoRollback = false;
-            magicRollback = false;
-          };
-        };
+        pi = mkDeployNode { host = "pi"; };
       };
     };
 }
