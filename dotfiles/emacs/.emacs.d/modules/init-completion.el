@@ -52,10 +52,16 @@
 		 (lambda (string table _pred _point)
 		   (funcall orderless-all-completions-orig string table 'grep-no-filename-pred _point))))
 	(consult-ripgrep dir initial))))
+
+
+    ;; Use Consult to select xref locations with preview
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
+
   (consult-customize
    ftzm/consult-ripgrep consult-ripgrep consult-git-grep consult-grep
-   consult-bookmark consult-recent-file consult-xref
-   consult--source-file consult--source-project-file consult--source-bookmark
+   consult-bookmark consult-recent-file ;consult-xref
+   consult--source-bookmark
    :preview-key (kbd "M-."))
   )
 
@@ -113,7 +119,7 @@ targets."
 
 (embark-define-keymap embark-composer-actions
   "Keymap for actions on composers."
-  ("s" (lambda (x) (interactive "s") (ftzm-mpd-composer-search x)))
+  ("s" ftzm-mpd-composer-search)
   ("r" ftzm-mpd-composer-findadd))
 
 (assq-delete-all 'composer embark-keymap-alist)
@@ -162,7 +168,8 @@ targets."
 
 (use-package vertico
   :ensure t ; use straight to install extensions is not registerd in elpa
-  :straight (:files (:defaults "extensions/*")
+  :straight (:type git :repo "minad/vertico"
+	     :files (:defaults "extensions/*")
                         :includes (vertico-buffer
                                    vertico-directory
                                    vertico-flat
@@ -172,7 +179,7 @@ targets."
                                    vertico-repeat
                                    vertico-reverse))
   :init
-  (vertico-mode +1)
+  (vertico-mode)
   :config
 ;; Use `consult-completion-in-region' if Vertico is enabled.
 ;; Otherwise use the default `completion--in-region' function.
@@ -182,11 +189,37 @@ targets."
                    #'consult-completion-in-region
                  #'completion--in-region)
                args)))
-  ;(require 'vertico-quick)
+
+  (require 'vertico-quick)
+
+  (require 'vertico-directory)
   (define-key vertico-map "\C-q" #'vertico-quick-exit)
   (define-key vertico-map "\d" #'vertico-directory-delete-char)
   (define-key vertico-map "\M-\d" #'vertico-directory-delete-word)
-  (add-to-list 'completion-ignored-extensions "#"))
+
+  (add-to-list 'completion-ignored-extensions "#")
+  )
+
+;; Configure directory extension.
+;(use-package vertico-directory
+;  :after vertico
+;  :ensure nil
+;  ;; More convenient directory navigation commands
+;  :bind (:map vertico-map
+;              ("RET" . vertico-directory-enter)
+;              ("DEL" . vertico-directory-delete-char)
+;              ("M-DEL" . vertico-directory-delete-word))
+;  ;; Tidy shadowed file names
+;  :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
+
+;; (use-package vertico-multiform
+;;   :after vertico
+;;   :ensure nil
+;;   :config
+;;   ;; don't sort the candidates in these functions
+;;   (setq vertico-multiform-commands '((ftzm/bash-history (vertico-sort-function . nil))))
+;;   (vertico-multiform-mode)
+;;   )
 
 
 (use-package consult-dir
