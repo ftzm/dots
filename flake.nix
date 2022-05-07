@@ -54,7 +54,7 @@
           host = "nuc";
           networkHost = "wg-nuc";
         };
-        nuc = mkDeployNode {
+        nas = mkDeployNode {
           host = "nas";
           networkHost = "wg-nas";
         };
