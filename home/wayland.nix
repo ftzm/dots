@@ -3,7 +3,22 @@ let
   font_size_float = config.personal.font_size;
   font_size = toString font_size_float;
 in {
-  wayland.windowManager.sway = {
+  wayland.windowManager.sway = let
+    swaylockCmd = ''
+      swaylock -S \
+        --effect-pixelate 10 \
+        --effect-greyscale \
+        --indicator \
+        --clock \
+        --ring-color \#000000 \
+        --key-hl-color \#FFFFFF \
+        --text-color \#FFFFFF \
+    '';
+    swayidleCmd = ''
+      swayidle -w \
+        timeout 120 '[ ! onHomeWifi ] && ${swaylockCmd}'
+    '';
+  in {
     enable = true;
     package = null;
     extraSessionCommands = ''
@@ -39,51 +54,54 @@ in {
         { command = "sway_workspace_dump.sh"; }
         { command = "kanshi"; }
         { command = "mpDris2"; }
+        { command = swayidleCmd; }
+        { command = "\"pkill flashfocus; flashfocus -o 0.7 -t 150 -l never\""; }
+        { command = "swaybg -c '#3c3836'"; }
       ];
       keybindings =
         let modifier = config.wayland.windowManager.sway.config.modifier;
         in lib.mkOptionDefault {
           "${modifier}+Shift+r" = "reload";
           "${modifier}+Shift+c" = "kill";
-          "${modifier}+space" = "exec my_dmenu.sh | xargs swaymsg exec --";
+          "${modifier}+space" = "exec fzf_launcher.sh";
           "${modifier}+Shift+b" = "exec splitv";
           "${modifier}+v" = "exec panel_volume +";
           "${modifier}+Shift+v" = "exec panel_volume -";
           "${modifier}+F1" = "exec amixer set Master toggle";
           "${modifier}+p" = "exec mpc toggle";
-          "${modifier}+Shift+z" = "exec clip_key";
+          "${modifier}+Shift+z" = "exec fzf_key.sh";
           "${modifier}+s" = ''mode "system"'';
+          "${modifier}+o" = ''mode "org"'';
+          "${modifier}+f" = ''exec dired.sh'';
+          "${modifier}+Shift+k" = "nop i3ipc_move next";
         };
       modes.system = let
         md = "swaymsg mode default;";
-        swaylockCmd = ''
-          swaylock -S \
-            --effect-pixelate 10 \
-            --effect-greyscale \
-            --indicator \
-            --clock \
-            --ring-color \#000000 \
-            --key-hl-color \#FFFFFF \
-            --text-color \#FFFFFF \
-        '';
         brightness = let
-          range = [ 0 1 2 3 4 5 6 7 8 9 ];
           toKey = n: {
             name = toString n;
             value = "exec light -S ${toString (n + 1)}0";
           };
-        in builtins.listToAttrs (map toKey range);
+        in builtins.listToAttrs (map toKey (range 0 9));
       in {
         "l" = ''exec "${md}${swaylockCmd}"'';
         "d" = ''exec "${md}echo '?' > /tmp/statuspipe.fifo"'';
         "Escape" = "mode default";
         "Return" = "mode default";
       } // brightness;
+      modes.org = let
+        md = "swaymsg mode default;";
+      in {
+        "t" = ''exec "${md}capture.sh t"'';
+        "w" = ''exec "${md}capture.sh w"'';
+        "Escape" = "mode default";
+        "Return" = "mode default";
+      };
       colors = {
         focused = {
           background = "#5f676a";
           border = "#000000";
-          childBorder = "#458588";
+          childBorder = "#3c3836";
           indicator = "#484e50";
           text = "#ffffff";
         };
@@ -97,7 +115,17 @@ in {
       };
     };
     extraConfig = ''
-      default_border pixel
+      for_window [title="capture"] floating enable, resize set 660 300
+      for_window [title="capture"] border pixel 1
+      for_window [app_id="foot-launcher"] floating enable, resize set 400 300
+      for_window [app_id="foot-launcher"] border pixel 1
+
+      default_border pixel 0
+
+      smart_gaps on
+      gaps inner 1
+      gaps outer -1
+
 
       hide_edge_borders smart
       seat seat0 xcursor_theme Vanilla-DMZ 64
@@ -140,13 +168,16 @@ in {
     swaybg
     mpdris2 # mpd shtuff
     wdisplays
+    flashfocus
+    wl-clipboard
   ];
   programs.foot = {
     enable = true;
     settings = {
       main = {
         font = "Iosevka Lig:medium:size=12";
-        line-height = "17"; # This is arbitrary but matches the height I had tweaked in emacs
+        line-height =
+          "17"; # This is arbitrary but matches the height I had tweaked in emacs
         dpi-aware = "no";
       };
       colors = {

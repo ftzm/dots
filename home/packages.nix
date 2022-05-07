@@ -2,6 +2,17 @@
 
 let
   custom-emacs = pkgs.callPackage ./emacs.nix { };
+  homeWifiSsid = "waifu";
+  onHomeWifi =  pkgs.writeShellScriptBin "onHomeWifi" ''
+    ssid=$(nmcli -t -f name,device connection show --active \
+             | grep wlp0s20f3 \
+             | cut -d\: -f1)
+    [ "$ssid" = "${homeWifiSsid}" ]
+  '';
+  dmenuFuzzyPatch = builtins.fetchurl {
+    url = "https://tools.suckless.org/dmenu/patches/fuzzymatch/dmenu-fuzzymatch-4.9.diff";
+    sha256 = "0yababzi655mhpgixzgbca2hjckj16ykzj626zy4i0sirmcyg8fr";
+  };
 in {
   home.packages = with pkgs; [
     ps
