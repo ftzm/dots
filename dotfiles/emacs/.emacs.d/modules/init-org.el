@@ -1,37 +1,36 @@
 ;; org requires this hacky shit, this will install it on every run, should
 ;; optimize this. Got this recipe from the straight.el readme
 
+ ;; (require 'subr-x)
+ ;; (straight-use-package 'git)
 
-; (require 'subr-x)
-; (straight-use-package 'git)
-;
-; (defun org-git-version ()
-;   "The Git version of org-mode.
-; Inserted by installing org-mode or when a release is made."
-;   (require 'git)
-;   (let ((git-repo (expand-file-name
-;                    "straight/repos/org/" user-emacs-directory)))
-;     (string-trim
-;      (git-run "describe"
-;               "--match=release\*"
-;               "--abbrev=6"
-;               "HEAD"))))
-;
-; (defun org-release ()
-;   "The release version of org-mode.
-; Inserted by installing org-mode or when a release is made."
-;   (require 'git)
-;   (let ((git-repo (expand-file-name
-;                    "straight/repos/org/" user-emacs-directory)))
-;     (string-trim
-;      (string-remove-prefix
-;       "release_"
-;       (git-run "describe"
-;                "--match=release\*"
-;                "--abbrev=0"
-;                "HEAD")))))
-;
-; (provide 'org-version)
+ ;; (defun org-git-version ()
+ ;;   "The Git version of org-mode.
+ ;; Inserted by installing org-mode or when a release is made."
+ ;;   (require 'git)
+ ;;   (let ((git-repo (expand-file-name
+ ;;                    "straight/repos/org/" user-emacs-directory)))
+ ;;     (string-trim
+ ;;      (git-run "describe"
+ ;;               "--match=release\*"
+ ;;               "--abbrev=6"
+ ;;               "HEAD"))))
+
+ ;; (defun org-release ()
+ ;;   "The release version of org-mode.
+ ;; Inserted by installing org-mode or when a release is made."
+ ;;   (require 'git)
+ ;;   (let ((git-repo (expand-file-name
+ ;;                    "straight/repos/org/" user-emacs-directory)))
+ ;;     (string-trim
+ ;;      (string-remove-prefix
+ ;;       "release_"
+ ;;       (git-run "describe"
+ ;;                "--match=release\*"
+ ;;                "--abbrev=0"
+ ;;                "HEAD")))))
+
+ ;; (provide 'org-version)
 
 ; (use-package load-theme-buffer-local
 ; :straight t)
@@ -41,16 +40,23 @@
   ;:config
   ;(setq org-bullets-bullet-list '(" ")))
 
+  ;(setq org-bullets-bullet-list '(" ")))
+
+(use-package org-ql
+  :straight t)
+
 (use-package org
+  :straight (:type built-in)
   :mode (("\\.org$" . org-mode))
-  :commands org-agenda
+  :commands (org-agenda ftzm/org-capture-frame)
   ;:straight (org)
   ;:straight (org org-plus-contrib)
-  ;:hook (
-  ;	 ;(org-mode . org-bullets-mode)
-  ;	 ;(org-mode . variable-pitch-mode)
-  ;	 ;(org-mode . org-num-mode)
-  ;	 )
+  ;; :hook (
+  ;; 	; (org-mode . auto-revert-mode)
+  ;; ;	 ;(org-mode . org-bullets-mode)
+  ;; ;	 ;(org-mode . variable-pitch-mode)
+  ;; ;	 ;(org-mode . org-num-mode)
+  ;; 	 )
   :init
   (pretty-hydra-define org-global-hydra
     (:color blue :quit-key "q" :title "Org Dispatch")
@@ -291,7 +297,57 @@
 	  (list
 	   ))
 
+
+    (setq org-super-agenda-header-separator "")
+
     (setq org-agenda-block-separator nil)
+    (setq ftzm/org-agenda-todo-view-ql
+	  `("q" "test ql"
+	    (
+	     (org-ql-block '(and (not (todo "DONE"))
+				 (deadline auto))
+                        ((org-ql-block-header "Deadlines")))
+	     (org-ql-block '(and (not (todo "DONE"))
+				 (scheduled :from today)
+				 (not (category "habits")))
+                        ((org-ql-block-header "Today")))
+	     (agenda ""
+                     ((org-agenda-overriding-header "Habits")
+	 	      (org-agenda-span 'day)
+	 	      (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
+	 	      (org-agenda-files '("~/org/habits.org"))
+                      ))
+	     (org-ql-block '(and (todo "TODO" "NEXT")
+				 (not (scheduled))
+				 (not (deadline))
+				 (path "org/inbox.org"))
+                           ((org-ql-block-header "Inbox")))
+	     (org-ql-block '(and (todo "NEXT")
+				 (not (scheduled))
+				 (not (deadline))
+				 (path "org/todo.org"))
+                           ((org-ql-block-header "Ad Hoc Shortlist")))
+	     (org-ql-block '(and (todo "NEXT")
+				 (not (scheduled))
+				 (not (deadline))
+				 (path "org/projects")
+				 )
+                           ((org-agenda-prefix-format " ohfuckwhat %?-12t% s")
+			    (org-ql-block-header "Project Shortlist")
+			    (org-super-agenda-groups '(
+			    			       (:auto-category t
+			    			       )))))
+			    ;; (org-super-agenda-groups '(
+			    ;; 			       (:name "test"
+			    ;; 				:anything t
+			    ;; 				:transformer (--> it
+			    ;; 						  (upcase it)
+			    ;; 						  (propertize it 'face '(:foreground "RosyBrown1"))))
+			    ;; 			       ))))
+	     (org-ql-block '(and (closed today))
+                           ((org-ql-block-header "Completed")))
+	 )))
+
     (setq ftzm/org-agenda-todo-view
       `(" " "Agenda"
         ((org-sep-header "Ní dhéanfaidh smaoineamh an treabhadh dhuit\n")
@@ -305,25 +361,25 @@
 	       ((org-agenda-overriding-header "Today")))
 	 (agenda ""
                  ((org-agenda-overriding-header "Habits")
-		  (org-agenda-span 'day)
-		  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
-		  (org-agenda-files '("~/org/habits.org"))
+	 	  (org-agenda-span 'day)
+	 	  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
+	 	  (org-agenda-files '("~/org/habits.org"))
                  ))
          (todo "TODO|NEXT"
                ((org-agenda-overriding-header "To Refile")
                 (org-agenda-files '("~/org/inbox.org"))
-		(org-agenda-todo-ignore-scheduled 'all)
-		(org-agenda-todo-ignore-deadlines 'all)
-		(org-agenda-prefix-format "  %?-12t% s")))
+	 	(org-agenda-todo-ignore-scheduled 'all)
+	 	(org-agenda-todo-ignore-deadlines 'all)
+	 	(org-agenda-prefix-format "  %?-12t% s")))
          (todo "NEXT"
                ((org-agenda-overriding-header "Ad Hoc Shortlist")
                 (org-agenda-files '("~/org/todo.org"))
-		(org-agenda-todo-ignore-scheduled 'all)
-		(org-agenda-prefix-format "  %?-12t% s")
-		))
+	 	(org-agenda-todo-ignore-scheduled 'all)
+	 	(org-agenda-prefix-format "  %?-12t% s")
+	 	))
          (todo "NEXT"
                ((org-agenda-overriding-header "Project Shortlist")
-		(org-agenda-todo-ignore-scheduled 'all)
+	 	(org-agenda-todo-ignore-scheduled 'all)
                 (org-agenda-files '("~/org/projects"))
 	       ))
          (tags "CLOSED>=\"<today>\""
@@ -361,13 +417,13 @@
 		  (org-agenda-overriding-header "\n"
 		   )
                  ))
-         (todo "NEXT"
+         (todo "TODO|NEXT"
                ((org-agenda-overriding-header "To Refile")
                 (org-agenda-files '("~/org/work/inbox.org"))))
 	 ;; Exclude todo entries scheduled in the future. This way entries can
 	 ;; be postponed by scheduling them, as a sort of integrated "tickler" function.
          (tags "TODO=\"TODO\"+SCHEDULED<=\"<today>\"|TODO=\"NEXT\""
-               ((org-agenda-overriding-header "Single tasks")
+               ((org-agenda-overriding-header "Next Up")
                 (org-agenda-files '("~/org/work/todo.org"))))
          (tags "CLOSED>=\"<today>\""
                ((org-agenda-overriding-header "Completed Tasks")
@@ -395,6 +451,7 @@
     (setq org-agenda-custom-commands
       `(;;,jethro/org-agenda-inbox-view
         ;;,jethro/org-agenda-someday-view
+	,ftzm/org-agenda-todo-view-ql
         ,ftzm/org-agenda-todo-view
         ,ftzm/org-agenda-work-view
         ;; ,jethro/org-agenda-papers-view ;; archived
@@ -514,12 +571,34 @@ are equal return t."
     (org-todo arg)
     ))
 
+(defun ftzm/delete-capture-frame (&rest _)
+  "Delete frame when its name frame-parameter is set to \"capture\"."
+  (if (equal "capture" (frame-parameter nil 'name))
+      (delete-frame)))
+(advice-add 'org-capture-finalize :after #'ftzm/delete-capture-frame)
 
-  )
+(defun ftzm/org-capture-frame (org-arg)
+  "Run org-capture in its own frame."
+  (interactive)
+  (require 'cl-lib)
+  (select-frame-by-name "capture")
+  (delete-other-windows)
+  (cl-letf (((symbol-function 'switch-to-buffer-other-window) #'switch-to-buffer))
+    (condition-case err
+        (progn  (ftzm/revert-all-file-buffers)
+		(org-capture nil org-arg)
+		(setq mode-line-format nil))
+      ;; "q" signals (error "Abort") in `org-capture'
+      ;; delete the newly created frame in this scenario.
+      (user-error (when (string= (cadr err) "Abort")
+                    (delete-frame))))))
+
+
+
 
 (use-package org-habit
   :after org
-  )
+  ))
 
 ;; (use-package org-depend
   ;; :config
