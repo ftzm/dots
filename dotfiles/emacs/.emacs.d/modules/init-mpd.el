@@ -39,25 +39,68 @@
   ;; 	       :caller 'composer-names))))
 
 
-  (with-eval-after-load "consult"
   (defun ftzm-embark-composer-search ()
     (interactive)
     (libmpdel-send-command
-     "list composer"
+     "list composer  \"(Genre == \\\"Classical\\\")\""
      (lambda (data)
-       (with-local-quit
+       (with-local-quit ;; I can't remember why this was necessary, maybe it's not?
          (ftzm-mpd-composer-search
 	  (consult--read (seq-filter (lambda (x) (> (length x) 0)) (mapcar (lambda (x) (cdr x)) data))
 		         :prompt "Composer: "
 		         :category 'composer
 		         ))))))
-  )
 
-  ;; (ivy-add-actions
-  ;;  'composer-names
-  ;;  `(("a" (lambda (x)  (ftzm-mpd-composer-findadd x)) "Add to playlist")
-  ;;    ("r" (lambda (x) (ftzm-mpd-clear-playlist) (ftzm-mpd-composer-findadd x)) "Replace current playlist")))
+  (defun ftzm-embark-artist-search ()
+    (interactive)
+    (libmpdel-send-command
+     ;"list artist  \"(Genre == \\\"Classical\\\")\""
+     "list artist"
+     (lambda (data)
+       (with-local-quit
+         (mpdel-core-search-by-artist
+	  (consult--read (seq-filter (lambda (x) (> (length x) 0)) (mapcar (lambda (x) (cdr x)) data))
+		         :prompt "Artist: "
+		         :category 'artist
+		         ))))))
 
+  (defun prepare-candidates (data)
+    (seq-filter (lambda (x) (> (length x) 0)) (mapcar (lambda (x) (cdr x)) data)))
+
+  (defun select-candidate-callback (candidates prompt category)
+    ;; `with-local-quit` is necessary to avoid getting an error when quitting
+    ;; the completion in a callback
+    (consult--read (prepare-candidates candidates)
+				    :prompt prompt
+				    :category 'category))
+
+  (defun list-non-classical-artists (fun)
+    (with-local-quit
+      (libmpdel-send-command "list artist \"(Genre != \\\"Classical\\\")\"" fun)))
+
+  (defun list-artist-albums (artist fun)
+    (with-local-quit
+      (libmpdel-send-command
+       (format  "list album \"(Artist == \\\"%s\\\")\"" artist)
+       fun)))
+
+  (require 'libmpdel)
+  (defun ftzm-embark-artist-album-search ()
+    (interactive)
+    (list-non-classical-artists
+     (lambda (artist-data)
+       (let ((artist-name (select-candidate-callback artist-data "Artist: " 'artist)))
+	 (list-artist-albums
+	  artist-name
+	  `(lambda (album-data)
+	     (with-local-quit
+	       (let* ((album-name (select-candidate-callback album-data "Album: " 'album))
+		      (artist (libmpdel--artist-create :name ,artist-name))
+		      (album (libmpdel--album-create :name album-name :artist artist))
+		      )
+		 (libmpdel-playlist-add album 'current-playlist)
+				;	;(mpdel-core-search-by-album)
+		 ))))))))
 
   (defun ftzm-mpd-format-time (data)
     (format "%s / %s" (libmpdel-time-to-string (cdr (assq 'elapsed data)))
