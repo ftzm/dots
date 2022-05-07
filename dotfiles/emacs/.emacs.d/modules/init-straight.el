@@ -1,5 +1,10 @@
 ;(setq package-enable-at-startup nil)
 
+;; don't check for local modifications. Maybe check back that this isn't a bad
+;; idea
+;; https://www.reddit.com/r/emacs/comments/tb6vvt/decrease_emacs_launch_time_when_using_straightel/
+;(setq straight-check-for-modifications nil)
+
 (defvar bootstrap-version)
 (let ((bootstrap-file
        (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
@@ -13,6 +18,8 @@
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
+
+
 ;;set up use-package
 (straight-use-package 'use-package)
 ;;used by use-package's :diminish
@@ -20,8 +27,8 @@
 ;;used by use-package's :bind variants
 (straight-use-package 'bind-key)
 
-;(setq load-prefer-newer t)
-;(add-to-list 'load-path "/home/ftzm/.dots/emacs/src/emacs.d/")
+(setq load-prefer-newer t)
+(add-to-list 'load-path "/home/ftzm/.dots/emacs/src/emacs.d/")
 
 ; ;for profiling startup
 ; (use-package esup

@@ -43,3 +43,6 @@
                     nil
                     :family "DejaVu Sans")
 (setq-default line-spacing 0.1)
+
+;; Disable package.el in favor of straight.el
+(setq package-enable-at-startup nil)

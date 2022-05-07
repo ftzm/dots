@@ -21,3 +21,6 @@
 
 ; don't show native comp warnings
 (setq warning-suppress-types '((comp)))
+
+;workaround for org
+(setq max-specpdl-size 1300000)
