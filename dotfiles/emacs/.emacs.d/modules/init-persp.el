@@ -1,6 +1,7 @@
 (use-package perspective
   :straight t
   :config
+  (setq persp-mode-prefix-key (kbd "C-c M-p"))  ; pick your own prefix key here
   (persp-mode)
 
   ;; Override persp-mode-line to hide in global-mode-string
@@ -58,6 +59,7 @@
       ("7" (persp-switch-command 7) nil)
       ("8" (persp-switch-command 8) nil)
       ("7" (persp-switch-command 7) nil))))
+
 
 )
 

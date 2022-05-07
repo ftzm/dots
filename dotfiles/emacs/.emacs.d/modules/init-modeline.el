@@ -20,8 +20,6 @@
   )
 
 
-(setq quiet-evil (propertize evil-mode-line-tag 'face (list :background theme-highlight :foreground theme-bg :weight 'bold)))
-(put 'quiet-evil 'risky-local-variable t)
 
 (setq ml-position '(:eval (list (propertize "%4l:" 'face (list :background  "#504945"))
 				(propertize (format "%-3d" (current-column))

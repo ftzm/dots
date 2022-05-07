@@ -27,9 +27,6 @@ or nil."
                 (`suspicious "?"))))
     (concat " " flycheck-mode-line-prefix text)))
 
-(setq quiet-evil (propertize evil-mode-line-tag 'face (list :background theme-highlight :foreground theme-bg :weight 'bold)))
-(put 'quiet-evil 'risky-local-variable t)
-
   (defun powerline-ftzm-theme ()
   "Setup the default mode-line."
   (interactive)
@@ -51,7 +48,15 @@ or nil."
                           (lhs (list
 				(if active
 				    (powerline-raw evil-mode-line-tag)
-				  (powerline-raw quiet-evil))
+				  (powerline-raw (propertize evil-mode-line-tag
+							     'face (list
+								    :background
+								    (face-attribute
+								     'highlight
+								     :background)
+								    :foreground
+								    (face-attribute 'default :background)
+								    :weight 'bold))))
 				(powerline-raw "%*" face0 'l)
                                      ;(powerline-buffer-id `(mode-line-buffer-id ,face0) 'l)
 				     (powerline-raw (buffer-name) face0 'l)
@@ -78,7 +83,7 @@ or nil."
                                      (powerline-raw "%l" face0 'l)
                                      (powerline-raw ":" face0 'l)
                                      (powerline-raw "%2c" face0 'r)
-                                     (powerline-raw " " face0 'r)
+                                     (powerline-raw (if (display-graphic-p) "  " " ") face0 'r)
                                      )))
                      (concat (powerline-render lhs)
                              (powerline-fill face2 (powerline-width rhs))

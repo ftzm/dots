@@ -33,12 +33,12 @@
   (evil-define-key 'normal scala-mode-map (kbd ",") 'scala-hydra/body)
 	 )
 
-;; (use-package lsp-ui
-;;   :straight t
-;;   :after lsp-mode
-;;   :config
-;;   (setq lsp-ui-doc-enable nil)
-;;   )
+(use-package lsp-ui
+  :straight t
+  :after lsp-mode
+  :config
+  (setq lsp-ui-doc-enable nil)
+  )
 
 ;; Enable sbt mode for executing sbt commands
 (use-package sbt-mode

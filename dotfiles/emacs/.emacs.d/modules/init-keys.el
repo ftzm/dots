@@ -129,13 +129,20 @@
   ;;   "SPC t" "toggle"
   ;;   "SPC w" "window"
   ;; )
+
+  (defun ftzm/flip-window ()
+  (interactive)
+  (let ((win  (get-mru-window nil nil t)))
+    (when win (select-window win))))
+
   (my-leader-def
     :states '(normal visual)
     :keymaps 'override
     "SPC" '(execute-extended-command :which-key "command")
     "'" '(switch-to-previous-buffer :which-key "other buffer")
-    ;"," '(ace-window :which-key "other window")
+    "," '(ftzm/flip-window :which-key "previous window")
     "a" '(app-keys :which-key "apps")
+    "b" '(buffer-keys :which-key "buffer")
     "b" '(buffer-keys :which-key "buffer")
     "e" '(flycheck-keys :which-key "error")
     "i" '(ivy-keys :which-key "ivy")
@@ -197,6 +204,7 @@
    "k" 'evil-prev-buffer
    "j" 'evil-next-buffer
    "b" 'switch-to-buffer
+   "B" 'switch-to-buffer-other-window
    "s" 'save-buffer
    "f" 'find-file
    "w" 'write-file
@@ -229,10 +237,12 @@
   (general-define-key
    :prefix-command 'projectile-keys
    "f" 'projectile-find-file
+   "F" 'projectile-find-file-other-window
    "b" 'projectile-switch-to-buffer
    "p" 'switch-persp-project
    "P" 'projectile-switch-project
-   "a" 'consult-git-grep)
+   "a" 'consult-git-grep
+   "t" 'projectile-run-vterm)
 
   (general-define-key
    :prefix-command 'flycheck-keys

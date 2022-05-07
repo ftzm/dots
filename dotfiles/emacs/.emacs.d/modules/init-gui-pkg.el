@@ -30,8 +30,7 @@
 (use-package rainbow-delimiters
   :straight t
   :commands rainbow-delimiters-mode
-  :config
-  (add-hook 'prog-mode-hook 'rainbow-delimiters-mode)
+  :hook (prog-mode-hook . rainbow-delimiters-mode)
   )
 
 (use-package fringe-helper

@@ -1,10 +1,10 @@
 ;;global
 (require 'init-gui)
 (require 'init-straight)
-(require 'init-gui-pkg)
 (require 'init-themes)
-(require 'init-evil)
 (require 'init-powerline)
+(require 'init-gui-pkg)
+(require 'init-evil)
 (require 'init-hydra)
 (require 'init-avy)
 (require 'init-shackle)
@@ -56,7 +56,7 @@
 ;(require 'init-slack)
 ;(require 'init-telega)
 ;(require 'init-music)
-;(require 'init-vterm)
+(require 'init-vterm)
 
 ;;;centralized key mappings
 (require 'init-keys)
