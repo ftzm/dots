@@ -49,7 +49,7 @@ in {
       # if the builder supports building for multiple architectures,
       # replace the previous line by, e.g.,
       # systems = ["x86_64-linux" "aarch64-linux"];
-      maxJobs = 1;
+      maxJobs = 4;
       speedFactor = 1;
       supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
       mandatoryFeatures = [ ];
@@ -144,6 +144,32 @@ in {
   # Or disable the firewall altogether.
   networking.firewall.enable = false;
   networking.networkmanager.enable = true;
+
+  # Cheeky hack to restart the wireguard service on wifi connection.
+  # Easiest way to re-resolve hostnames on new network.
+  networking.networkmanager.dispatcherScripts = [{
+    source = pkgs.writeText "upHook" ''
+      if [ $1 != "wg0" ]; then
+          case "$2" in
+              #up|vpn-up)
+              up)
+                logger -s " interface $1 up, restarting wireguard"
+                ${pkgs.systemd}/bin/systemctl restart wireguard-wg0.service
+              ;;
+              down|vpn-down)
+              ;;
+              hostname|dhcp4-change|dhcp6-change)
+              # Do nothing
+              ;;
+              *)
+              echo "$0: called with unknown action \`$2'" 1>&2
+              exit 1
+              ;;
+          esac
+      fi
+    '';
+    type = "basic";
+  }];
 
   # ---------------------------------------------------------------------------
   # Media

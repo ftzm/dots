@@ -29,7 +29,7 @@ in {
     # system
     binutils
     file
-    dmenu
+    (dmenu.override( { patches = [ dmenuFuzzyPatch ]; } ))
     ranger
     htop
     arandr
@@ -55,10 +55,12 @@ in {
     mpd-mpris
     dig
     chromium
+    onHomeWifi
 
     # office/document/media
     libreoffice
     gimp
+    inkscape
     slack
     vlc
     (wrapMpv mpv-unwrapped { scripts = [ mpvScripts.mpris ]; })
@@ -100,8 +102,10 @@ in {
     aspellDicts.en
 
     # cloud
-    kops
-    kubernetes
+    # kops
+    kubectl
+    k9s
+
 
     # mpd
     mpc_cli
@@ -151,6 +155,9 @@ in {
     playonlinux
     wine
 
+    river
+    rivercarro
+
   ];
   xdg = {
     enable = true;
@@ -170,6 +177,7 @@ in {
       statusbar-fg = "#ebdbb2";
     };
   };
+  # for some reason necessary for firefox
   home.stateVersion = "21.05";
   programs.firefox = {
     enable = true;
