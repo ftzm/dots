@@ -4,33 +4,41 @@
 { config, lib, pkgs, ... }:
 
 {
-  # imports =
-  #   [ <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
-  #   ];
-
-  # from above import
   hardware.enableRedistributableFirmware = lib.mkDefault true;
 
-  boot.initrd.availableKernelModules = [ "xhci_pci" "nvme" "usb_storage" "sd_mod" ];
-  boot.initrd.kernelModules = [ "dm-snapshot" ];
-  boot.kernelModules = [ "kvm-intel" ];
-  boot.extraModulePackages = [ ];
-
-  fileSystems."/" =
-    { device = "/dev/disk/by-uuid/e72eb7f9-425d-4a23-bc79-7f1756869d51";
-      fsType = "ext4";
+  boot = {
+    # Use the systemd-boot EFI boot loader.
+    loader = {
+      systemd-boot.enable = true;
+      efi.canTouchEfiVariables = true;
     };
-
-  fileSystems."/boot" =
-    { device = "/dev/disk/by-uuid/064C-E5D1";
-      fsType = "vfat";
+    initrd = {
+      luks.devices.root = {
+        device = "/dev/nvme0n1p2";
+        preLVM = true;
+      };
+      availableKernelModules = [ "xhci_pci" "nvme" "usb_storage" "sd_mod" ];
+      kernelModules = [ "dm-snapshot" ];
     };
+    kernelModules = [ "kvm-intel" ];
+    extraModulePackages = [ ];
+  };
+
+  fileSystems."/" = {
+    device = "/dev/disk/by-uuid/e72eb7f9-425d-4a23-bc79-7f1756869d51";
+    fsType = "ext4";
+  };
+
+  fileSystems."/boot" = {
+    device = "/dev/disk/by-uuid/064C-E5D1";
+    fsType = "vfat";
+  };
 
   swapDevices =
-    [ { device = "/dev/disk/by-uuid/b2cfd442-a40b-454e-bd95-21d357167194"; }
-    ];
+    [{ device = "/dev/disk/by-uuid/b2cfd442-a40b-454e-bd95-21d357167194"; }];
 
   powerManagement.cpuFreqGovernor = lib.mkDefault "powersave";
+
   # high-resolution display
   hardware.video.hidpi.enable = lib.mkDefault true;
 }

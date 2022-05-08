@@ -84,21 +84,6 @@ in {
   };
 
   # ---------------------------------------------------------------------------
-  # Boot
-
-  boot = {
-    # Use the systemd-boot EFI boot loader.
-    loader = {
-      systemd-boot.enable = true;
-      efi.canTouchEfiVariables = true;
-    };
-    initrd.luks.devices.root = {
-      device = "/dev/nvme0n1p2";
-      preLVM = true;
-    };
-  };
-
-  # ---------------------------------------------------------------------------
   # System
 
   system.activationScripts = {
