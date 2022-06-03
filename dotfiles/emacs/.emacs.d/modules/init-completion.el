@@ -172,6 +172,7 @@ targets."
 	     :files (:defaults "extensions/*")
                         :includes (vertico-buffer
                                    vertico-directory
+                                   vertico-multiform
                                    vertico-flat
                                    vertico-indexed
                                    vertico-mouse
@@ -198,6 +199,11 @@ targets."
   (define-key vertico-map "\M-\d" #'vertico-directory-delete-word)
 
   (add-to-list 'completion-ignored-extensions "#")
+
+  ;; don't sort the candidates in these functions
+  (require 'vertico-multiform)
+  (setq vertico-multiform-commands '((ftzm/bash-history (vertico-sort-function . nil))))
+  (vertico-multiform-mode)
   )
 
 ;; Configure directory extension.
