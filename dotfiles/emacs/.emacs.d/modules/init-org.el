@@ -51,12 +51,12 @@
   :commands (org-agenda ftzm/org-capture-frame)
   ;:straight (org)
   ;:straight (org org-plus-contrib)
-  ;; :hook (
-  ;; 	; (org-mode . auto-revert-mode)
+   :hook (
+  	 (org-mode . auto-revert-mode)
   ;; ;	 ;(org-mode . org-bullets-mode)
   ;; ;	 ;(org-mode . variable-pitch-mode)
   ;; ;	 ;(org-mode . org-num-mode)
-  ;; 	 )
+   	 )
   :init
   (pretty-hydra-define org-global-hydra
     (:color blue :quit-key "q" :title "Org Dispatch")
@@ -84,7 +84,9 @@
 				   "~/org/todo.org"
 				   "~/org/projects/"
 				   "~/org/special-dates.org"
-				   "~/org/habits.org")))
+				   "~/org/habits.org"
+				   "~/org/work/"
+				   )))
     (setq org-agenda-files canonical-org-agenda-files)
 
     ;;There are other options for this that may deserve investigation
@@ -211,7 +213,7 @@
 		   "* %?")
 		  ("u" "work diary entry" entry (file+datetree "~/org/work/diary.org")
 		   "* %?")
-		  ("w" "work todo" entry (file "~/org/work/inbox.org")
+		  ("w" "work todo" entry (file "~/org/work/work-inbox.org")
 		   "* NEXT %?")
 		  ("P" "process-soon" entry (file+headline "todo.org" "Todo")
 		   "* TODO %a %?\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))")
@@ -419,12 +421,12 @@
                  ))
          (todo "TODO|NEXT"
                ((org-agenda-overriding-header "To Refile")
-                (org-agenda-files '("~/org/work/inbox.org"))))
+                (org-agenda-files '("~/org/work/work-inbox.org"))))
 	 ;; Exclude todo entries scheduled in the future. This way entries can
 	 ;; be postponed by scheduling them, as a sort of integrated "tickler" function.
          (tags "TODO=\"TODO\"+SCHEDULED<=\"<today>\"|TODO=\"NEXT\""
                ((org-agenda-overriding-header "Next Up")
-                (org-agenda-files '("~/org/work/todo.org"))))
+                (org-agenda-files '("~/org/work/work-todo.org"))))
          (tags "CLOSED>=\"<today>\""
                ((org-agenda-overriding-header "Completed Tasks")
                 (org-agenda-files '("~/org/work/"))
