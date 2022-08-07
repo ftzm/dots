@@ -14,7 +14,7 @@ let
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP0ssURM8nW08YFCTUk4nCF7wQjvO9kLHJ66w7nwi6B/";
   pi =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH2o+TmAP8oFE4BesbUG6mr+nkak6DmGWHEkkQrjRx4N";
-  systems = [ leigheas nas nuc ];
+  systems = [ leigheas saoiste nas nuc ];
 in {
   "wireguard-private-key-leigheas.age".publicKeys = [ personal leigheas ];
   "wireguard-private-key-nas.age".publicKeys = [ personal nas ];
@@ -24,6 +24,6 @@ in {
   "nextcloud-db-pass.age".publicKeys = [ personal nuc ];
   "nextcloud-admin-pass.age".publicKeys = [ personal nuc ];
   "ddclient.age".publicKeys = [ personal pi ];
-  "fitzmattd-email.age".publicKeys = [ personal leigheas];
-  "ftzm-org-email.age".publicKeys = [ personal leigheas ];
+  "fitzmattd-email.age".publicKeys = [ personal leigheas saoiste];
+  "ftzm-org-email.age".publicKeys = [ personal leigheas saoiste];
 }
