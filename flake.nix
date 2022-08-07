@@ -42,6 +42,7 @@
       nixosConfigurations = {
         oibri-nixos = mkUserSystem ./machines/oibri-nixos;
         leigheas = mkUserSystem ./machines/leigheas;
+        saoiste = mkUserSystem ./machines/saoiste;
         nuc = mkLabSystem { host = "nuc"; };
         nas = mkLabSystem { host = "nas"; };
         pi = mkLabSystem {

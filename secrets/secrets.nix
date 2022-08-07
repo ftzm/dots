@@ -6,6 +6,8 @@ let
 
   leigheas =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILrMG913bhuH9n8yAYd7DtuAHeClFFjQgRPwv0FJUiDy";
+  saoiste =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFwI/wXI5lQdgesvIfnenQxUrqbSwCNT3I/ESZ28eQoG";
   nas =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoyzVr7G3uC7YJI4vH8jhYI+sJcIlcckhwzeMVZOYqn";
   nuc =
