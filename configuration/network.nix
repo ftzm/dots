@@ -51,6 +51,6 @@ in {
       };
     };
     extraHosts = lib.strings.concatMapStrings (x: x + "\n")
-      (lib.attrsets.mapAttrsToList (k: v: "${v.wg.ip} wg-${k}") others);
+      ((lib.attrsets.mapAttrsToList (k: v: "${v.wg.ip} wg-${k}") others) ++ ["127.0.0.1 www.localhost.com"]);
   };
 }

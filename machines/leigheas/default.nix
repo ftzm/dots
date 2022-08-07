@@ -46,6 +46,10 @@
 
   services.xserver.dpi = 192;
 
+  programs.steam = {
+    enable = true;
+  };
+
   system.stateVersion = "20.09";
 
   home-manager.users.ftzm.imports = [ ./home.nix ];

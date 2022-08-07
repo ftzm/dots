@@ -5,6 +5,14 @@
   (add-hook 'vterm-mode-hook (lambda ()
   			       (setq-local global-hl-line-mode nil)))
 
+  (setq vterm-max-scrollback 50000)
+
+
+  ;; Workaround for starship prompt
+  ;; https://github.com/akermu/emacs-libvterm/issues/265
+    (setq vterm-use-vterm-prompt nil
+           term-prompt-regexp "[#$] ")
+
   ;; ;The upstream of this keeps flaking out on me, defining it here for security
   ;; (defun ftzm/vterm-send-return ()
   ;;   "Sends C-m to the libvterm."

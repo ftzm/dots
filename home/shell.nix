@@ -1,9 +1,7 @@
-{ pkgs, config, ... }:
+{ pkgs, lib, config, ... }:
 
-let
-  emacs-vterm-bash = builtins.readFile ./emacs-vterm-bash.sh;
-in
-{
+let emacs-vterm-bash = builtins.readFile ./emacs-vterm-bash.sh;
+in {
   programs.zsh = {
     enable = true;
     # plugins = [
@@ -67,7 +65,7 @@ in
 
       export SHELL=bash
 
-      export PS1='\[\e[1;$(($?==0?32:91))m\]\w\a\] $ \[\e[0m\]'
+      # export PS1='\[\e[1;$(($?==0?32:91))m\]\w\a\] $ \[\e[0m\]'
 
       # write to history immediately
       shopt -s histappend
@@ -90,17 +88,28 @@ in
     enableBashIntegration = true;
     defaultCommand = "ag -g ''";
     defaultOptions = [
-      "--color fg:223,hl:166,bg+:\#282828,fg+:223,hl+:\#fabd2f"
-      "--color info:\#504945,prompt:223,spinner:142,pointer:166,marker:166 "
+      "--color fg:223,hl:166,bg+:#282828,fg+:223,hl+:#fabd2f"
+      "--color info:#504945,prompt:223,spinner:142,pointer:166,marker:166 "
     ];
   };
-  # programs.starship = {
-  #   enable = true;
-  #   enableBashIntegration = true;
-  #   settings = {
-  #     add_newline = false;
-  #   };
-  # };
+  programs.starship = {
+    enable = true;
+    enableBashIntegration = true;
+    settings = {
+      add_newline = false;
+      format = lib.concatStrings [
+        "$directory"
+        "$cmd_duration"
+        "$line_break"
+        "$character"
+      ];
+      scan_timeout = 10;
+      character = {
+        success_symbol = "[\\$](green)";
+        error_symbol = "[\\$](red)";
+      };
+    };
+  };
   programs.direnv = {
     enable = true;
     enableBashIntegration = true;

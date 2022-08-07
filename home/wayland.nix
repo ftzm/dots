@@ -52,10 +52,7 @@ in {
           always = true;
         }
         { command = "sway_workspace_dump.sh"; }
-        { command = "kanshi"; }
-        { command = "mpDris2"; }
         { command = swayidleCmd; }
-        { command = "\"pkill flashfocus; flashfocus -o 0.7 -t 150 -l never\""; }
         { command = "swaybg -c '#3c3836'"; }
       ];
       keybindings =
@@ -82,7 +79,7 @@ in {
             name = toString n;
             value = "exec light -S ${toString (n + 1)}0";
           };
-        in builtins.listToAttrs (map toKey (range 0 9));
+        in builtins.listToAttrs (map toKey (lib.lists.range 0 9));
       in {
         "l" = ''exec "${md}${swaylockCmd}"'';
         "d" = ''exec "${md}echo '?' > /tmp/statuspipe.fifo"'';
@@ -200,6 +197,36 @@ in {
         bright6 = "8ec07c";
         bright7 = "ebdbb2";
       };
+    };
+  };
+
+  # interact with mpd via playerctl
+  services.mpdris2.enable = true;
+  # hotplug monitors
+  services.kanshi.enable = true;
+  services.kanshi.extraConfig = ''
+    {
+      output eDP-1 enable scale 2.0 mode 3840x2160
+    }
+    {
+      output eDP-1 disable
+      output "Dell Inc. DELL U3419W HWGQ5T2" scale 1.0 mode 3440x1440
+    }
+  '';
+  systemd.user.services.flashfocus = {
+    Unit = {
+      Description = "Perform windows animations on focus";
+      PartOf = [ "graphical-session.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.flashfocus}/bin/flashfocus -o 0.7 -t 150 -l never";
+      ExecReload = "kill -SIGUSR2 $MAINPID";
+      Restart = "on-failure";
+      KillMode = "mixed";
+      PrivateTmp = "false";
+    };
+    Install = {
+      WantedBy = [ "graphical-session.target" ];
     };
   };
 }

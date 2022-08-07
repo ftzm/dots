@@ -174,6 +174,7 @@
 	         ( "}" libmpdel-playback-next "next" :exit nil))
      "Selection" (( "s" mpdel-playlist-open "open current playlist")
 		  ( "C" ftzm-mpd-clear-playlist "clear playlist")
+		  ( "a" ftzm-embark-artist-search "search artists")
 		  ( "c" ftzm-embark-composer-search "search composers")
 		  ;( "a" ivy-mpdel-artists "search artists")
 		  )

@@ -13,7 +13,7 @@
   home.packages = with pkgs; [
     # fun
     # nixpkgs-steam.steam
-    steam
+    # steam
     discord
     # ps
     epsxe

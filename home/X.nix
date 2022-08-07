@@ -19,11 +19,11 @@ in {
       export FONT_SIZE=${font_size}
       xsetroot -cursor_name left_ptr
     '';
-    pointerCursor = {
-      package = pkgs.vanilla-dmz;
-      name = "Vanilla-DMZ";
-      size = config.personal.cursor_size;
-    };
+  # pointerCursor = {
+    # package = pkgs.vanilla-dmz;
+    # name = "Vanilla-DMZ";
+    # size = config.personal.cursor_size;
+  # };
   };
   programs.alacritty = {
     enable = true;

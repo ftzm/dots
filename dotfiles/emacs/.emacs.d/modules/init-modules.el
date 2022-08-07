@@ -31,6 +31,7 @@
 (require 'init-haskell)
 (require 'init-purescript)
 (require 'init-scala)
+(require 'init-lsp)
 (require 'init-elm)
 (require 'init-python)
 (require 'init-go)

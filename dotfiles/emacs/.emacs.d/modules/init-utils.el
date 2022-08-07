@@ -40,4 +40,22 @@ will be killed."
             (message "Killed non-existing/unreadable file buffer: %s" filename))))))
   (message "Finished reverting buffers containing unmodified files."))
 
+(defun ftzm/flymake-diag-buffer ()
+  (interactive)
+  (let* ((current-point (point))
+	 (errors-at-point (seq-filter
+			   (lambda (diag)
+			     (and (<= (flymake-diagnostic-beg diag)
+				      current-point)
+				  (>= current-point
+				      (flymake-diagnostic-beg diag))))
+			   (flymake-diagnostics))))
+    (if errors-at-point
+	(with-help-window "*error-at-point*"
+	  (mapc (lambda (d)
+		  (princ (flymake-diagnostic-text d))
+		  (princ "\n\n"))
+		errors-at-point))
+      (message "No flymake error at point."))))
+
 (provide 'init-utils)

@@ -295,6 +295,8 @@
 
     ;; for GTD
 
+    (set 'org-habit-show-all-today t)
+
     (setq personal-agenda-items
 	  (list
 	   ))
@@ -316,7 +318,6 @@
 	     (agenda ""
                      ((org-agenda-overriding-header "Habits")
 	 	      (org-agenda-span 'day)
-	 	      (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
 	 	      (org-agenda-files '("~/org/habits.org"))
                       ))
 	     (org-ql-block '(and (todo "TODO" "NEXT")
@@ -364,7 +365,6 @@
 	 (agenda ""
                  ((org-agenda-overriding-header "Habits")
 	 	  (org-agenda-span 'day)
-	 	  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
 	 	  (org-agenda-files '("~/org/habits.org"))
                  ))
          (todo "TODO|NEXT"

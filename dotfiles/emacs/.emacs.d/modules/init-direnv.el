@@ -1,5 +1,5 @@
 (use-package direnv
-  :after lsp-mode
+  ;:after lsp-mode
   :straight t
   :config
   (advice-add 'lsp :before #'direnv-update-environment)
