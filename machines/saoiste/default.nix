@@ -1,4 +1,4 @@
-{ inputs, lib, ... }:
+{ inputs, lib, pkgs, ... }:
 
 {
   imports = [
@@ -23,4 +23,30 @@
   system.stateVersion = "22.05";
   #nix.settings.maxJobs = lib.mkDefault 8;
   home-manager.users.ftzm.imports = [ ./home.nix  ];
+
+
+  # make things work
+  time.timeZone = "Europe/Copenhagen";
+
+  nixpkgs.config.packageOverrides = pkgs: {
+    vaapiIntel = pkgs.vaapiIntel.override { enableHybridCodec = true; };
+  };
+  hardware.opengl = {
+    enable = true;
+    extraPackages = with pkgs; [
+      intel-media-driver
+      vaapiIntel
+      vaapiVdpau
+      libvdpau-va-gl
+    ];
+  };
+
+  services = {
+    sshd.enable = true;
+  };
+
+  services.xserver.videoDrivers = [ "intel" ];
+  boot.kernelParams = [ "i915.force_probe=4c8a" ];
+  boot.kernelPackages = pkgs.linuxPackages_5_17;
+
 }

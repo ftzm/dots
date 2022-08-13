@@ -19,6 +19,7 @@ in {
   "wireguard-private-key-leigheas.age".publicKeys = [ personal leigheas ];
   "wireguard-private-key-nas.age".publicKeys = [ personal nas ];
   "wireguard-private-key-nuc.age".publicKeys = [ personal nuc ];
+  "wireguard-private-key-saoiste.age".publicKeys = [ personal ];
   "smtppw.age".publicKeys = [ personal nas ];
   "deluge.age".publicKeys = [ personal nuc ];
   "nextcloud-db-pass.age".publicKeys = [ personal nuc ];

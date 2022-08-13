@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-deprecations #-}
+
 import XMonad
 import qualified XMonad.StackSet as W
 import qualified Data.Map as M
