@@ -57,7 +57,7 @@
         };
         nas = mkDeployNode {
           host = "nas";
-          networkHost = "wg-nas";
+          networkHost = "nas";
         };
         pi = mkDeployNode { host = "pi"; };
       };

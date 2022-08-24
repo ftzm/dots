@@ -16,7 +16,7 @@
     # steam
     discord
     # ps
-    epsxe
+    # epsxe
     ecmtools
 
   ];

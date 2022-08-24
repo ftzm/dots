@@ -149,15 +149,17 @@ in {
         "PXRZLWU-5SGAHJC-5ZOID7T-ZNRZG32-6HWJKDG-PRYTIBS-WZSXNAE-HEIFSAZ";
       nas.id =
         "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+      saoiste.id =
+        "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
     };
     folders = {
       org = {
-        devices = [ "leigheas" "nas" ];
+        devices = [ "leigheas" "nas" "saoiste"];
         path = "/pool-1/org";
         enable = true;
       };
       password-store = {
-        devices = [ "leigheas" "nas" ];
+        devices = [ "leigheas" "nas" "saoiste"];
         path = "/pool-1/.password-store";
         enable = true;
       };
