@@ -7,7 +7,7 @@
   ;; for evil-collections
   (setq evil-want-integration t) ;; This is optional since it's already set to t by default.
   (setq evil-want-keybinding nil)
-  (setq evil-undo-system 'undo-tree)
+  (setq evil-undo-system 'undo-redo)
   ;; for visual line mode
   (setq evil-respect-visual-line-mode t)
 
@@ -46,10 +46,14 @@
   (define-key evil-normal-state-map (kbd "] d") 'delete-line-below)
 
   ; When I need training
-  ;(define-key evil-normal-state-map (kbd "h") (lambda () (interactive) (message "no!")))
-  ;(define-key evil-normal-state-map (kbd "j") (lambda () (interactive) (message "no!")))
-  ;(define-key evil-normal-state-map (kbd "k") (lambda () (interactive) (message "no!")))
-  ;(define-key evil-normal-state-map (kbd "l") (lambda () (interactive) (message "no!")))
+  ; (define-key evil-normal-state-map (kbd "h") (lambda () (interactive) (message "no!")))
+  ; (define-key evil-normal-state-map (kbd "j") (lambda () (interactive) (message "no!")))
+  ; (define-key evil-normal-state-map (kbd "k") (lambda () (interactive) (message "no!")))
+  ; (define-key evil-normal-state-map (kbd "l") (lambda () (interactive) (message "no!")))
+  ; (define-key evil-normal-state-map (kbd "<up>") (lambda () (interactive) (message "no!")))
+  ; (define-key evil-normal-state-map (kbd "<down>") (lambda () (interactive) (message "no!")))
+  ; (define-key evil-normal-state-map (kbd "<left>") (lambda () (interactive) (message "no!")))
+  ; (define-key evil-normal-state-map (kbd "<right>") (lambda () (interactive) (message "no!")))
 
   (evil-define-minor-mode-key 'normal 'visual-line-mode
     "^" 'evil-beginning-of-visual-line)
@@ -133,12 +137,12 @@
 ;;   :straight t
 ;;   :hook (tty-setup . evil-terminal-cursor-changer-activate))
 
-(use-package term-cursor
-  :straight (term-cursor
-	     :type git
-	     :repo "denrat/term-cursor.el"
-	     :host github)
-  :config
-  (global-term-cursor-mode))
+;; (use-package term-cursor
+;;   :straight (term-cursor
+;; 	     :type git
+;; 	     :repo "denrat/term-cursor.el"
+;; 	     :host github)
+;;   :config
+;;   (global-term-cursor-mode))
 
 (provide 'init-evil)

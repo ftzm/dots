@@ -244,10 +244,22 @@
    "a" 'consult-git-grep
    "t" 'projectile-run-vterm)
 
+  (defun prev-error-overloaded ()
+    (interactive)
+    (if (bound-and-true-p flycheck-mode)
+		      (evil-flycheck-previous)
+		    (flymake-goto-prev-error)))
+
+  (defun next-error-overloaded ()
+    (interactive)
+    (if (bound-and-true-p flycheck-mode)
+		      (evil-flycheck-next)
+		    (flymake-goto-next-error)))
+
   (general-define-key
    :prefix-command 'flycheck-keys
-   "p" 'evil-flycheck-previous
-   "n" 'evil-flycheck-next)
+   "p" 'prev-error-overloaded
+   "n" 'next-error-overloaded)
 
   ;;; mode keys
 

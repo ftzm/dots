@@ -6,13 +6,6 @@
 
 (setq create-lockfiles nil)
 
-(use-package undo-tree
-  :straight t
-  :init
-  (global-undo-tree-mode)
-  :diminish undo-tree-mode
-  )
-
 ;; Emacs 28: Hide commands in M-x which do not work in the current mode.
 ;; Vertico commands are hidden in normal buffers.
 (setq read-extended-command-predicate
@@ -23,7 +16,7 @@
 
 (add-hook 'before-save-hook 'delete-trailing-whitespace)
 
-;(savehist-mode 1)
+(savehist-mode 1)
 
 ;; keeps a list of recently visisted files
 ;;(use-package recentf
@@ -51,6 +44,6 @@
 (setq-default fill-column 79)
 (diminish 'auto-fill-function)
 
-;(global-eldoc-mode -1)
+(global-eldoc-mode -1)
 
 (provide 'init-settings)

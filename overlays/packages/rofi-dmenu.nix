@@ -1,7 +1,7 @@
 {pkgs, ...}:
 
 pkgs.writeShellScriptBin "rofi-dmenu" ''
-${pkgs.rofi}/bin/rofi \
+${pkgs.rofi-wayland}/bin/rofi \
 	-show run \
 	-location 1 \
 	-width 100 \

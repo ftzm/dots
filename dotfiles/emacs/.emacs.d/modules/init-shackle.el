@@ -24,11 +24,28 @@
           ;("\\*poporg.*\\*"      :regexp t :select t                          :other t               )
           ;("*Calendar*"                  :select t                          :size 0.3  :align below)
           ;("*info*"                      :select t   :inhibit-window-quit t                         :same t)
+          ;("*eldoc*"                  :select t                          :size 0.3  :align below)
           (magit-status-mode             :select t   :inhibit-window-quit t                         :same t)
           (magit-log-mode                :select t   :inhibit-window-quit t                         :same t)
           ))
 
   (shackle-mode 1)
   )
+
+(use-package popper
+  :straight t ; or :straight t
+  :bind (("C-'"   . popper-toggle-latest)
+         ("M-`"   . popper-cycle)
+         ("C-M-`" . popper-toggle-type))
+  :init
+  (setq popper-reference-buffers
+        '("\\*Messages\\*"
+          "Output\\*$"
+          "\\*Async Shell Command\\*"
+          "\\*Eldoc\\*"
+          help-mode
+          compilation-mode))
+  (popper-mode +1)
+  (popper-echo-mode +1))                ; For echo area hints
 
 (provide 'init-shackle)
