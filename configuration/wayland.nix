@@ -14,7 +14,10 @@
         xdg-desktop-portal-wlr
         xdg-desktop-portal-gtk
       ];
-      gtkUsePortal = true;
+      # Deprecated. People who really want it and aware of the downsides can just set
+      # `environment.sessionVariables.GTK_USE_PORTAL = "1";` NixOS option
+      # directly to set the environment variable globally.
+      # gtkUsePortal = true;
     };
   };
 
