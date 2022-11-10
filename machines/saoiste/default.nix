@@ -65,6 +65,5 @@
 
   services.xserver.videoDrivers = [ "intel" ];
   boot.kernelParams = [ "i915.force_probe=4c8a" ];
-  boot.kernelPackages = pkgs.linuxPackages_5_17;
 
 }

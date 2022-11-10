@@ -200,8 +200,6 @@ in {
     };
   };
 
-  # interact with mpd via playerctl
-  services.mpdris2.enable = true;
   # hotplug monitors
   services.kanshi.enable = true;
   services.kanshi.extraConfig = ''

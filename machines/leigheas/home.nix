@@ -26,6 +26,12 @@ in {
 
     '';
   };
+
+  # interact with mpd via playerctl
+  services.mpdris2 = {
+    enable = true;
+  };
+
   home.activation = {
     myActivationAction = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
