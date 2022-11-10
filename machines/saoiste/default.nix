@@ -3,6 +3,7 @@
 {
   imports = [
     ./hardware.nix
+    ../../configuration/network.nix
   ];
 
   # Bootloader.
@@ -44,6 +45,23 @@
   services = {
     sshd.enable = true;
   };
+
+  services.syncthing = {
+    enable = true;
+    #guiAddress = "localhost:8384";
+    openDefaultPorts = true;
+    user = "ftzm";
+    configDir = "/home/ftzm/.config/syncthing";
+    dataDir = "/home/ftzm";
+
+    # overrides any devices added or deleted through the WebUI
+    overrideDevices = true;
+    # overrides any folders added or deleted through the WebUI
+    overrideFolders = true;
+
+
+  };
+
 
   services.xserver.videoDrivers = [ "intel" ];
   boot.kernelParams = [ "i915.force_probe=4c8a" ];
