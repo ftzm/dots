@@ -42,6 +42,7 @@
   };
   hardware.opengl = {
     enable = true;
+    driSupport = true;
     extraPackages = with pkgs; [
       intel-media-driver
       vaapiIntel
@@ -53,6 +54,8 @@
   services = {
     sshd.enable = true;
   };
+
+  services.openssh.permitRootLogin = "yes";
 
   services.syncthing = {
     enable = true;
@@ -72,6 +75,7 @@
 
 
   services.xserver.videoDrivers = [ "intel" ];
+  boot.kernelPackages = pkgs.linuxPackages_latest;
   boot.kernelParams = [ "i915.force_probe=4c8a" ];
 
 }
