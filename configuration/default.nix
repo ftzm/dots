@@ -54,8 +54,7 @@ in {
       supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
       mandatoryFeatures = [ ];
     }];
-    # disabled while home infra is down
-    # distributedBuilds = true;
+    distributedBuilds = true;
   };
 
   # ---------------------------------------------------------------------------

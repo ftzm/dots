@@ -1,10 +1,27 @@
 (setq inhibit-startup-screen t)
 
+;; Set up fonts early.
+;; (set-face-attribute 'default
+;;                     nil
+;;                     :height 120
+;; 		    :weight 'medium
+;;                     :font "Iosevka Lig")
+;; (set-face-attribute 'fixed-pitch
+;;                     nil
+;;                     :height 120
+;; 		    :weight 'medium
+;;                     :font "Iosevka Lig")
+;; (set-face-attribute 'variable-pitch
+;;                     nil
+;;                     :family "DejaVu Sans")
+
+(setq-default line-spacing 0.1)
+
 ; ;;Set font
 ; ;; >>= :: <*> == /= >> {-#
-; (setq my-font (format "Iosevka Lig Medium-12" (or (getenv "FONT_SIZE") "16")))
+(setq my-font (format "Iosevka Lig Medium-12" (or (getenv "FONT_SIZE") "16")))
 ; ;;to set in existing window:
-; (set-frame-font my-font nil t)
+(set-frame-font my-font nil t)
 
 ;; no blink
 (blink-cursor-mode 0)
