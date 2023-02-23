@@ -236,13 +236,14 @@
 
   (general-define-key
    :prefix-command 'projectile-keys
-   "f" 'projectile-find-file
-   "F" 'projectile-find-file-other-window
-   "b" 'projectile-switch-to-buffer
+   "f" 'project-find-file
+   ;"F" 'projectile-find-file-other-window
+   "b" 'project-switch-to-buffer
    "p" 'switch-persp-project
-   "P" 'projectile-switch-project
+   "P" 'project-switch-project
    "a" 'consult-git-grep
-   "t" 'projectile-run-vterm)
+   ;"t" 'projectile-run-vterm
+   )
 
   (defun prev-error-overloaded ()
     (interactive)

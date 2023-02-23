@@ -1,6 +1,6 @@
-{ pkgs, ... }:
+{ iosevkaPkgs, pkgs, ... }:
 
-pkgs.iosevka.override {
+let iosevkaOrig = iosevkaPkgs.iosevka.override {
   privateBuildPlan = {
     weights.regular = {
       shape = 500;
@@ -34,4 +34,33 @@ pkgs.iosevka.override {
   };
   set = "ftzm";
   extraParameters = builtins.readFile ./iosevka.toml;
+    };
+  in
+pkgs.stdenv.mkDerivation {
+  name = "iosevka-nerd";
+  dontUnpack = true;
+  buildPhase = ''
+    shopt -s globstar
+    cp -r ${iosevkaOrig} .
+    for file in **/*.ttf; do
+      ${pkgs.nerd-font-patcher}/bin/nerd-font-patcher \
+        -c \
+        "$file"
+    done
+  '';
+  installPhase = ''
+    cp -r . $out
+  '';
 }
+
+#   overrideAttrs(oldAttrs: {
+#     buildPhase = ''
+#     export HOME=$TMPDIR
+#     runHook preBuild
+#     ${pkgs.nerd-font-patcher/bin/nerd-font-patcher} *.otf
+#     ${pkgs.nerd-font-patcher/bin/nerd-font-patcher} *.ttf
+#     npm run build --no-update-notifier -- --jCmd=$NIX_BUILD_CORES --verbose=9 ttf::$pname
+#     runHook postBuild
+#   '';
+# }
+# )

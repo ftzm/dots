@@ -3,14 +3,15 @@
 let
   custom-emacs = pkgs.callPackage ./emacs.nix { };
   homeWifiSsid = "waifu";
-  onHomeWifi =  pkgs.writeShellScriptBin "onHomeWifi" ''
+  onHomeWifi = pkgs.writeShellScriptBin "onHomeWifi" ''
     ssid=$(nmcli -t -f name,device connection show --active \
              | grep wlp0s20f3 \
              | cut -d\: -f1)
     [ "$ssid" = "${homeWifiSsid}" ]
   '';
   dmenuFuzzyPatch = builtins.fetchurl {
-    url = "https://tools.suckless.org/dmenu/patches/fuzzymatch/dmenu-fuzzymatch-4.9.diff";
+    url =
+      "https://tools.suckless.org/dmenu/patches/fuzzymatch/dmenu-fuzzymatch-4.9.diff";
     sha256 = "0yababzi655mhpgixzgbca2hjckj16ykzj626zy4i0sirmcyg8fr";
   };
 in {
@@ -21,6 +22,9 @@ in {
     zlib.out # also needed for a lot
     glibcLocales # for non-broken locales in non-nixos
 
+    nzbhydra2
+    unrar
+
     nyxt
     scrot
     go
@@ -29,7 +33,7 @@ in {
     # system
     binutils
     file
-    (dmenu.override( { patches = [ dmenuFuzzyPatch ]; } ))
+    (dmenu.override ({ patches = [ dmenuFuzzyPatch ]; }))
     ranger
     htop
     arandr
@@ -83,7 +87,7 @@ in {
 
     # programming
     custom-emacs
-    neovim
+    # neovim
     git
     git-crypt
     silver-searcher
@@ -105,7 +109,6 @@ in {
     # kops
     kubectl
     k9s
-
 
     # mpd
     mpc_cli
@@ -161,7 +164,6 @@ in {
     # code
     sqlfluff
 
-
   ];
   xdg = {
     enable = true;
@@ -188,36 +190,38 @@ in {
   };
   # for some reason necessary for firefox
   home.stateVersion = "21.05";
+  programs.neovim = {
+    enable = true;
+    plugins = [ pkgs.vimPlugins.nvim-treesitter.withAllGrammars ];
+  };
   programs.firefox = {
     enable = true;
     package = pkgs.wrapFirefox pkgs.firefox-unwrapped {
-      forceWayland = true;
-      extraPolicies = {
-        LocalFileLinks = ["http://localhost:8080"];
-      };
+      # forceWayland = true;
+      extraPolicies = { LocalFileLinks = [ "http://localhost:8080" ]; };
     };
     profiles.main = {
       settings = {
         "toolkit.legacyUserProfileCustomizations.stylesheets" = true;
         "browser.startup.homepage" = "www.google.com";
       };
-      # userChrome = ''
+      userChrome = ''
 
-      #     /* Hide tabs */
+        /* Hide tabs */
 
-      #     #TabsToolbar {
-      #       visibility: collapse !important;
-      #       margin-bottom: 21px !important;
-      #     }
+        #TabsToolbar {
+          visibility: collapse !important;
+          margin-bottom: 21px !important;
+        }
 
-      #     /* Hide sidebar header */
+        # /* Hide sidebar header */
 
-      #     #sidebar-box[sidebarcommand="treestyletab_piro_sakura_ne_jp-sidebar-action"] #sidebar-header {
-      #       visibility: collapse !important;
-      #     }
-      #     .sidebar-splitter { display: none;}
+        # #sidebar-box[sidebarcommand="treestyletab_piro_sakura_ne_jp-sidebar-action"] #sidebar-header {
+        #   visibility: collapse !important;
+        # }
+        # .sidebar-splitter { display: none;}
 
-      #   '';
+      '';
     };
   };
 }

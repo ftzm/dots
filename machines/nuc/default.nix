@@ -115,19 +115,54 @@
     };
   };
 
+  services.radarr = {
+    enable = true;
+    group = "storage";
+  };
+  users.users.radarr.extraGroups = [ "users" "storage" ];
+
+  services.sonarr = {
+    enable = true;
+    group = "storage";
+  };
+  users.users.sonarr.extraGroups = [ "users" "storage" ];
+
+  services.prowlarr = {
+    enable = true;
+  };
+
+  services.ombi = {
+    enable = true;
+  };
+
+
   age.secrets.deluge = {
     file = ../../secrets/deluge.age;
     owner = "deluge";
   };
-  services.deluge.enable = true;
-  services.deluge.declarative = true;
-  services.deluge.web.enable = true;
-  services.deluge.authFile = config.age.secrets.deluge.path;
-  services.deluge.config = {
-    download_location = "/var/lib/deluge/downloads";
-    move_completed_path = "/var/lib/deluge/complete";
-    torrentfiles_location = "/var/lib/deluge/torrents";
-    move_completed = true;
+  services.deluge = {
+    enable = true;
+    declarative = true;
+    web.enable = true;
+    authFile = config.age.secrets.deluge.path;
+    config = {
+      download_location = "/var/lib/deluge/downloads";
+      move_completed_path = "/var/lib/deluge/complete";
+      torrentfiles_location = "/var/lib/deluge/torrents";
+      move_completed = true;
+    };
+    group = "storage";
+  };
+  # We need to make the deluge directories accessible to the storage group so
+  # that other services can access finished files, etc.
+  system.activationScripts = {
+    delugeDirPerms = {
+      text = ''
+        chmod 775 -R /var/lib/deluge
+        chgrp -R storage /var/lib/deluge
+      '';
+      deps = [];
+    };
   };
 
   users.users.deluge.extraGroups = [ "users" "storage" ];
@@ -246,6 +281,15 @@
     virtualHosts."nextcloud.ftzmlab.xyz" = {
       forceSSL = true;
       enableACME = true;
+    };
+    virtualHosts."ombi.ftzmlab.xyz" = {
+      forceSSL = true;
+      enableACME = true;
+      locations."/" = {
+        proxyPass =
+          "http://127.0.0.1:${toString config.services.ombi.port}";
+        proxyWebsockets = true;
+      };
     };
   };
 

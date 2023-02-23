@@ -3,7 +3,7 @@
 {
   imports = [
     ./hardware.nix
-    ../../configuration/network.nix
+    #../../configuration/network.nix
   ];
 
   # Bootloader.
@@ -21,6 +21,14 @@
   boot.initrd.luks.devices."luks-80ee3586-78e6-4101-b35d-6c0bd7c3f26a".keyFile = "/crypto_keyfile.bin";
 
   networking.hostName = "saoiste"; # Define your hostname.
+  networking.networkmanager.enable = true;
+  networking.networkmanager.dns = "systemd-resolved";
+  networking.networkmanager.extraConfig = ''
+ [main]
+ rc-manager=resolvconf
+'';
+  networking.dhcpcd.enable = false;
+
   system.stateVersion = "22.05";
   #nix.settings.maxJobs = lib.mkDefault 8;
   home-manager.users.ftzm.imports = [ ./home.nix  ];

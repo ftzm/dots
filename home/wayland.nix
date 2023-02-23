@@ -18,6 +18,20 @@ in {
       swayidle -w \
         timeout 120 '[ ! onHomeWifi ] && ${swaylockCmd}'
     '';
+    fuzzelCmd = ''
+      fuzzel \
+        -f iosevkaLig \
+        -I \
+        -x 15 \
+        -y 15 \
+        -r 0 \
+        -b 282828ff \
+        -C 3c3836ff \
+        -t ebdbb2ff \
+        -s 3c3836ff \
+        -S ebdbb2ff \
+        -B 4
+    '';
   in {
     enable = true;
     package = null;
@@ -60,7 +74,8 @@ in {
         in lib.mkOptionDefault {
           "${modifier}+Shift+r" = "reload";
           "${modifier}+Shift+c" = "kill";
-          "${modifier}+space" = "exec fzf_launcher.sh";
+          #"${modifier}+space" = "exec fzf_launcher.sh";
+          "${modifier}+space" = "exec ${fuzzelCmd}";
           "${modifier}+Shift+b" = "exec splitv";
           "${modifier}+v" = "exec panel_volume +";
           "${modifier}+Shift+v" = "exec panel_volume -";
@@ -162,6 +177,7 @@ in {
     kanshi # autorandr
     wofi
     dmenu-wayland
+    fuzzel
     swaybg
     mpdris2 # mpd shtuff
     wdisplays

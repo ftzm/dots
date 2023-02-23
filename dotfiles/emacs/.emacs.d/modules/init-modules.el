@@ -13,7 +13,7 @@
 (require 'init-magit)
 (require 'init-persp)
 (require 'init-settings)
-(require 'init-projectile)
+;(require 'init-projectile)
 (require 'init-flycheck)
 (require 'init-snippets)
 (require 'init-company)
@@ -21,8 +21,11 @@
 (require 'init-spell)
 (require 'init-direnv)
 
+; tangled literate config
+(require 'literate-config)
+
 ; Languages
-(require 'init-org) ; Loading org later/below this point breaks it. There must
+;(require 'init-org) ; Loading org later/below this point breaks it. There must
         	    ; be a loading order incompatibility with one of the
         	    ; modules below.
 (require 'init-elisp)
@@ -59,7 +62,9 @@
 ;(require 'init-music)
 (require 'init-vterm)
 
+
 ;;;centralized key mappings
 (require 'init-keys)
+
 
 (provide 'init-modules)

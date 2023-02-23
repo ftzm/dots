@@ -3,7 +3,7 @@
 ;; don't check for local modifications. Maybe check back that this isn't a bad
 ;; idea
 ;; https://www.reddit.com/r/emacs/comments/tb6vvt/decrease_emacs_launch_time_when_using_straightel/
-;(setq straight-check-for-modifications nil)
+(setq straight-check-for-modifications nil)
 
 (defvar bootstrap-version)
 (let ((bootstrap-file
@@ -21,7 +21,7 @@
 
 
 ;;set up use-package
-(straight-use-package 'use-package)
+;(straight-use-package 'use-package)
 ;;used by use-package's :diminish
 (straight-use-package 'diminish)
 ;;used by use-package's :bind variants

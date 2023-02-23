@@ -34,4 +34,14 @@
 ;  :after (projectile, counsel)
 ;  )
 
+(defun switch-persp-project ()
+  (interactive "")
+  (let ((projects project--list))
+    (if projects (let* ((project (completing-read "Project: " projects))
+		  (persp-name (file-name-nondirectory (substring project 0 -1))))
+	     (persp-switch persp-name)
+	     (project-switch-project project))
+(user-error
+ "There are no known projects"))))
+
 (provide 'init-projectile)

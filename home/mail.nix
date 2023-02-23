@@ -4,7 +4,7 @@
   accounts.email.maildirBasePath = ".maildir";
 
   programs.mbsync.enable = true;
-  programs.msmtp.enable = true;
+  # programs.msmtp.enable = true;
   programs.mu.enable = true;
 
   xdg.configFile."mbsync/postExec" = {
@@ -53,9 +53,9 @@
       };
     };
     mu.enable = true;
-    msmtp = {
-      enable = true;
-    };
+    # msmtp = {
+    #   enable = true;
+    # };
     imap = {
       host = "imap.fastmail.com";
       port = 993;

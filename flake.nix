@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
     nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-20.09";
@@ -53,7 +53,7 @@
       deploy.nodes = {
         nuc = mkDeployNode {
           host = "nuc";
-          networkHost = "wg-nuc";
+          networkHost = "nuc";
         };
         nas = mkDeployNode {
           host = "nas";

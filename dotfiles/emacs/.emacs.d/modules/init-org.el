@@ -43,19 +43,34 @@
   ;(setq org-bullets-bullet-list '(" ")))
 
 (use-package org-ql
-  :straight t)
+  :straight t
+  :config
+  (defun zdo/org-ql-view--format-element (orig-fun &rest args)
+    "This function will intercept the original function and
+   add the category to the result.
+
+   ARGS is `element' in `org-ql-view--format-element'"
+    (if (not args)
+        ""
+      (let* ((element args)
+             (properties (cadar element))
+             (result (apply orig-fun element))
+             (category (org-entry-get (plist-get properties :org-marker) "CATEGORY")))
+        (org-add-props
+            (format "   %-8s %s" (concat category ":") result)
+            (text-properties-at 0 result)))))
+  (advice-add 'org-ql-view--format-element :around #'zdo/org-ql-view--format-element)
+  )
 
 (use-package org
   :straight (:type built-in)
   :mode (("\\.org$" . org-mode))
   :commands (org-agenda ftzm/org-capture-frame)
-  ;:straight (org)
-  ;:straight (org org-plus-contrib)
    :hook (
   	 (org-mode . auto-revert-mode)
-  ;; ;	 ;(org-mode . org-bullets-mode)
-  ;; ;	 ;(org-mode . variable-pitch-mode)
-  ;; ;	 ;(org-mode . org-num-mode)
+  	 (org-mode . yas-minor-mode)
+  	 (org-mode . olivetti-mode)
+  	 (org-mode . typo-mode)
    	 )
   :init
   (pretty-hydra-define org-global-hydra
@@ -72,7 +87,6 @@
 
   :config
 
-  ;(add-hook 'org-mode-hook (lambda ()(load-theme-buffer-local 'gruvbox-light-soft (current-buffer)) ))
   (setq org-ellipsis "...")
 
   ;(require 'org-num)
@@ -96,8 +110,6 @@
     ;(add-hook 'org-mode-hook 'org-indent-mode)
     ;(setq org-hide-leading-stars t)
 
-    (add-hook 'org-mode-hook 'olivetti-mode)
-
     (setq org-hide-emphasis-markers nil)
 
     ;(defun my/org-mode-hook ()
@@ -115,53 +127,20 @@
 
     (setq org-num-face font-lock-comment-face)
 
-    (custom-theme-set-faces
-     'user
-     ;'(variable-pitch ((t (:family "Source Serif Pro" :weight normal :height 1.1))))
-     ;'(fixed-pitch ((t ( :family "Iosevka Lig" :slant normal :weight normal))))
-     ;'(org-level-1 ((t ( ))))
-     ;'(org-level-2 ((t ( :foreground nil :inherit org-level-2))))
-     ;'(org-level-3 ((t ( :foreground nil :inherit org-level-3))))
-     '(org-block-begin-line ((t ( :inherit font-lock-comment-face :background
-					   nil))))
-     '(org-block-end-line ((t ( :inherit font-lock-comment-face :background
-					   nil))))
-     )
-
     ; the languages that can be executed in org code blocks
     (setq org-plantuml-jar-path "/nix/store/zbr9v2vmp7456a0vkd8kq8s4s97fbci5-plantuml-1.2020.16/lib/plantuml.jar")
-    (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t) (dot . t)))
+    (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t) (dot . t) (emacs-lisp . t)))
     (setq org-confirm-babel-evaluate nil)
 
     (setq org-display-inline-images t)
     (setq org-redisplay-inline-images t)
     (setq org-startup-with-inline-images t)
 
-    (custom-theme-set-faces
-     'user
-     ;'(org-block ((t (:background nil))))
-     )
-
-    ;(custom-theme-set-faces
-    ; 'user
-    ; '(org-block ((t (:inherit fixed-pitch :height 0.85 :background nil))))
-    ; '(org-code ((t (:inherit (shadow fixed-pitch) :height 0.85)))))
-
-    ;(my/org-mode-hook)
-
     ;; Autosave
     ;; passive saving
     ;;(add-hook 'auto-save-hook (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
     ;; save on specific actions
     (advice-add 'org-agenda-quit :before (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
-
-
-    ;; automatically save org buffers when agenda open
-    ;;;(add-hook 'org-agenda-mode-hook
-    ;;;      (lambda ()
-    ;;;        (add-hook 'auto-save-hook 'org-save-all-org-buffers nil t)
-    ;;;        (auto-save-mode)))
-    ;;;
 
     ;; apply CLOSED property on done
     (setq org-log-done 'time)
@@ -181,7 +160,7 @@
 
     (defun create-meeting-file ()
       (interactive)
-      (find-file (replace-regexp-in-string " " "-" (create-dated-file "~/org/meetings")))
+      (find-file (replace-regexp-in-string " " "-" (create-dated-file "~/org/work/meeting")))
       )
 
   (defun agenda-remove-schedule ()
@@ -196,6 +175,30 @@
             (save-restriction
               (widen)
               (setq-local org-tag-alist (org-get-buffer-tags)))))
+
+    (defun get-dir-org-tags (dir)
+      (string-lines
+       (shell-command-to-string
+	(format "grep -roh ':[a-z]\\+:' %s/* | sort | uniq | tr -d :" dir))))
+
+    (defun ftzm/org-set-tags-command ()
+      (interactive)
+      (save-excursion
+	(org-back-to-heading)
+	(let* ((global-tags (mapcar #'list (get-dir-org-tags "~/org")))
+	       (all-tags (org-get-tags))
+	       (current-tags
+		(cl-remove-if
+		 (lambda (tag) (get-text-property 0 'inherited tag)) all-tags))
+	       (crm-separator "[ \t]*:[ \t]*")
+	       (tags (mapconcat #'identity
+                                (completing-read-multiple
+			         "Tags: "
+			         global-tags
+			         nil nil (org-make-tag-string current-tags)
+			         'org-tags-history)
+                                ":")))
+	  (org-set-tags tags))))
 
 
     (defun ftzm/var-defaulted (variable def-val)
@@ -215,10 +218,18 @@
 		   "* %?")
 		  ("w" "work todo" entry (file "~/org/work/work-inbox.org")
 		   "* NEXT %?")
+		  ("m" "meeting" entry (file (lambda () (if (boundp 'meeting-title)
+								      (format "~/org/work/meeting/%s-%s.org" (format-time-string "%Y-%m-%d")
+									      (replace-regexp-in-string " " "-" meeting-title)) "~/org/work/meeting/meetings.org")))
+		   (function (lambda () (format  "* NEXT %s %%?" (ftzm/var-defaulted 'meeting-title "meeting: ")))))
 		  ("P" "process-soon" entry (file+headline "todo.org" "Todo")
 		   "* TODO %a %?\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+2d\"))")
 		  )))
 
+    (defun capture-meeting ()
+      (interactive)
+      (let ((meeting-title "worked thing"))
+	(org-capture nil "m")))
 
     (defun ftzm/search-diary ()
       (interactive)
@@ -276,7 +287,6 @@
     ;; Now has been customized a fair bit actually
     (evil-set-initial-state 'org-agenda-mode 'normal)
 
-
     (defun agenda-remove-schedule ()
       (interactive)
       (org-agenda-schedule '(4))
@@ -304,7 +314,66 @@
 
     (setq org-super-agenda-header-separator "")
 
+    (defun custom-agenda ()
+      (interactive)
+      (let ((org-super-agenda-groups
+       '((:log t)  ; Automatically named "Log"
+         (:name "Schedule"
+                :time-grid t)
+         (:name "Today"
+                :scheduled today)
+         (:habit t)
+         (:name "Due today"
+                :deadline today)
+         (:name "Overdue"
+                :deadline past)
+         (:name "Due soon"
+                :deadline future)
+         (:name "Unimportant"
+                :todo ("SOMEDAY" "MAYBE" "CHECK" "TO-READ" "TO-WATCH")
+                :order 100)
+         (:name "Waiting..."
+                :todo "WAITING"
+                :order 98)
+         (:name "Scheduled earlier"
+                :scheduled past))))
+	(org-agenda nil "Q")))
+
     (setq org-agenda-block-separator nil)
+    (setq ftzm/org-agenda-todo-view-ql-combined
+	  `("Q" "test ql"
+	    (
+	     (org-ql-block '(or
+			     ;; deadlined
+			     (and (not (todo "DONE"))
+				      (deadline auto))
+			     ;; today
+			     (and (not (todo "DONE"))
+				 (scheduled :from today)
+				 (not (category "habits")))
+			     ;; habits
+	 		     ;; (org-agenda-files '("~/org/habits.org"))
+			     (habit)
+			     ;; Inbox
+			     (and (todo "TODO" "NEXT")
+				 (not (scheduled))
+				 (not (deadline))
+				 (path "org/inbox.org"))
+			     ;; Ad Hoc Shortlist
+			     (and (todo "NEXT")
+				 (not (scheduled))
+				 (not (deadline))
+				 (path "org/todo.org"))
+			     ;; Project shortlist
+			     (and (todo "NEXT")
+				 (not (scheduled))
+				 (not (deadline))
+				 (path "org/projects")
+				 )
+			     ;; Completed
+			     (and (closed :on today))
+			     )
+			  ((org-ql-block-header "Agenda")) ))))
     (setq ftzm/org-agenda-todo-view-ql
 	  `("q" "test ql"
 	    (
@@ -329,7 +398,7 @@
 				 (not (scheduled))
 				 (not (deadline))
 				 (path "org/todo.org"))
-                           ((org-ql-block-header "Ad Hoc Shortlist")))
+                           ((org-ql-block-header "Ad Hoc Shortlist yadig")))
 	     (org-ql-block '(and (todo "NEXT")
 				 (not (scheduled))
 				 (not (deadline))
@@ -347,7 +416,7 @@
 			    ;; 						  (upcase it)
 			    ;; 						  (propertize it 'face '(:foreground "RosyBrown1"))))
 			    ;; 			       ))))
-	     (org-ql-block '(and (closed today))
+	     (org-ql-block '(and (closed :on today))
                            ((org-ql-block-header "Completed")))
 	 )))
 
@@ -454,6 +523,7 @@
       `(;;,jethro/org-agenda-inbox-view
         ;;,jethro/org-agenda-someday-view
 	,ftzm/org-agenda-todo-view-ql
+	,ftzm/org-agenda-todo-view-ql-combined
         ,ftzm/org-agenda-todo-view
         ,ftzm/org-agenda-work-view
         ;; ,jethro/org-agenda-papers-view ;; archived
@@ -668,5 +738,54 @@ are equal return t."
   :straight t
   :after org
   )
+
+(use-package org-modern
+  :straight t
+  ;;   :after org
+    :config
+  ;;   ;; Choose some fonts
+  ;;   ;; (set-face-attribute 'default nil :family "Iosevka")
+  ;;   ;; (set-face-attribute 'variable-pitch nil :family "Iosevka Aile")
+  ;;   ;; (set-face-attribute 'org-modern-symbol nil :family "Iosevka")
+
+  ;;   ;; Add frame borders and window dividers
+  ;;   ;; (modify-all-frames-parameters
+  ;;   ;;  '((right-divider-width . 40)
+  ;;   ;;    (internal-border-width . 40)))
+  ;;   ;; (dolist (face '(window-divider
+  ;;   ;;                 window-divider-first-pixel
+  ;;   ;;                 window-divider-last-pixel))
+  ;;   ;;   (face-spec-reset-face face)
+  ;;   ;;   (set-face-foreground face (face-attribute 'default :background)))
+  ;;   ;; (set-face-background 'fringe (face-attribute 'default :background))
+
+  ;;   ;; (setq
+  ;;   ;;  ;; Edit settings
+  ;;   ;;  ;org-auto-align-tags nil
+  ;;   ;;  ;org-tags-column 0
+  ;;   ;;  org-catch-invisible-edits 'show-and-error
+  ;;   ;;  org-special-ctrl-a/e t
+  ;;   ;;  org-insert-heading-respect-content t
+
+  ;;   ;;  ;; Org styling, hide markup etc.
+  ;;   ;;  org-hide-emphasis-markers t
+  ;;   ;;  org-pretty-entities t
+  ;;   ;;  org-ellipsis "…"
+
+  ;;   ;;  ;; Agenda styling
+  ;;   ;;  ;org-agenda-tags-column 0
+  ;;   ;;  ;org-agenda-block-separator ?─
+  ;;   ;;  org-agenda-time-grid
+  ;;   ;;  '((daily today require-timed)
+  ;;   ;;    (800 1000 1200 1400 1600 1800 2000)
+  ;;   ;;    " ┄┄┄┄┄ " "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄")
+  ;;   ;;  org-agenda-current-time-string
+  ;;   ;;  "<- now ─────────────────────────────────────────────────")
+
+  ;;   ;; (set-face-attribute 'org-modern-done nil
+  ;;   ;; 		      :foreground "#ebdbb2")
+     (global-org-modern-mode)
+  )
+
 
 (provide 'init-org)

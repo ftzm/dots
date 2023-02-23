@@ -18,6 +18,13 @@
       wlp0s20f3.useDHCP = true;
     };
   };
+  # networking.networkmanager.insertNameservers = ["10.2.34.189"];
+  # networking.resolvconf.extraConfig = ''
+  #   name_servers="10.2.35.177 10.2.34.189"
+  # '';
+  # networking.resolvconf.enable = false;
+  networking.nameservers = ["1.1.1.1"];
+
   services.rpcbind.enable = true;
 
   services.printing.enable = true;
@@ -52,9 +59,7 @@
 
   services.xserver.dpi = 192;
 
-  programs.steam = {
-    enable = true;
-  };
+  programs.steam = { enable = true; };
 
   system.stateVersion = "20.09";
 

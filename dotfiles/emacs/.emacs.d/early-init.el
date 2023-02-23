@@ -5,7 +5,7 @@
 ;; From https://www.reddit.com/r/emacs/comments/3kqt6e/2_easy_little_known_steps_to_speed_up_emacs_start/
 
 (setq gc-cons-threshold-original gc-cons-threshold)
-(setq gc-cons-threshold (* 1024 1024 100))
+(setq gc-cons-threshold (* 1024 1024 1000))
 
 ;;;;;; Set file-name-handler-alist
 
@@ -37,3 +37,24 @@
 
 ;; Disable package.el in favor of straight.el
 (setq package-enable-at-startup nil)
+
+;; Set up fonts early.
+(set-face-attribute 'default
+                    nil
+                    :height 120
+                    :family "Iosevka Lig Medium")
+(set-face-attribute 'variable-pitch
+                    nil
+                    :height 120
+                    :family "Iosevka Lig Medium")
+(set-face-attribute 'fixed-pitch
+                    nil
+                    :height 120
+                    :family "Iosevka Lig Medium")
+
+;; Emacs daemon needs this
+(add-to-list 'default-frame-alist '(font . "Iosevka Lig Medium-12"))
+
+(setq-default line-spacing 0.1)
+
+(require 'use-package)

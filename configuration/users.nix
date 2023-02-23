@@ -7,7 +7,6 @@
     group = "users";
     home = "/home/ftzm";
     isNormalUser = true;
-    # shell = pkgs.zsh;
     uid = 1000;
   };
 }
