@@ -9,7 +9,7 @@ let
         clientOnly = true;
       };
     };
-    #oibri-nixos = { };
+    # oibri-nixos = { };
     nas = {
       wg = {
         ip = "10.0.100.3";
@@ -21,6 +21,7 @@ let
     nuc = {
       wg = {
         ip = "10.0.100.4";
+        subnet = "10.0.0.248/29";
         listenPort = 51840;
         publicKey = "hkBdJ/i5Aei5RXNcoYluvJcScIoDz+Na8iVhiHQv6TA=";
         clientOnly = false;
@@ -44,13 +45,13 @@ in {
   networking = {
     wireguard.interfaces = {
       wg0 = {
-        ips = [ "${this.wg.ip}/24" ];
+        ips = [ "${this.wg.ip}/24" ] ++ (if this.wg ? "subnet" then [this.wg.subnet] else []);
         inherit (this.wg) listenPort;
         privateKeyFile =
           config.age.secrets."wireguard-private-key-${host}".path;
         peers = lib.attrsets.mapAttrsToList (k: v: {
           inherit (v.wg) publicKey;
-          allowedIPs = [ v.wg.ip ];
+          allowedIPs = [ v.wg.ip] ++ (if v.wg ? "subnet" then [v.wg.subnet] else []);
           endpoint = if v.wg.clientOnly then
             null
           else

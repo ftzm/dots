@@ -164,7 +164,9 @@
 	  "*Embark Actions*"
 	  "Errors List"
           help-mode
-          compilation-mode))
+          compilation-mode
+	  flymake-diagnostics-buffer-mode
+	  flymake-project-diagnostics-mode))
   (popper-mode +1)
   (popper-echo-mode +1); For echo area hints
   )

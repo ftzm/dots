@@ -25,7 +25,7 @@
 (require 'literate-config)
 
 ; Languages
-;(require 'init-org) ; Loading org later/below this point breaks it. There must
+(require 'init-org) ; Loading org later/below this point breaks it. There must
         	    ; be a loading order incompatibility with one of the
         	    ; modules below.
 (require 'init-elisp)

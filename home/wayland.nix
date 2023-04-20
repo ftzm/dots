@@ -193,6 +193,9 @@ in {
           "17"; # This is arbitrary but matches the height I had tweaked in emacs
         dpi-aware = "no";
       };
+      cursor = {
+        color = "282828 ebdbb2";
+      };
       colors = {
         background = "282828";
         foreground = "ebdbb2";

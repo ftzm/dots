@@ -260,7 +260,9 @@
   (general-define-key
    :prefix-command 'flycheck-keys
    "p" 'prev-error-overloaded
-   "n" 'next-error-overloaded)
+   "n" 'next-error-overloaded
+   "b" 'consult-flymake
+   "a" (lambda () (interactive) (consult-flymake 't)))
 
   ;;; mode keys
 

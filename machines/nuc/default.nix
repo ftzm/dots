@@ -171,7 +171,7 @@
   # nextcloud
 
   services.nextcloud = {
-    enable = true;
+    enable = false;
     package = pkgs.nextcloud22;
     hostName = "nextcloud.ftzmlab.xyz";
 
@@ -217,21 +217,21 @@
     after = [ "postgresql.service" ];
   };
 
-  age.secrets.nextcloud-db-pass = {
-    file = ../../secrets/nextcloud-db-pass.age;
-    owner = "nextcloud";
-  };
+  # age.secrets.nextcloud-db-pass = {
+  #   file = ../../secrets/nextcloud-db-pass.age;
+  #   owner = "nextcloud";
+  # };
 
-  age.secrets.nextcloud-admin-pass = {
-    file = ../../secrets/nextcloud-admin-pass.age;
-    owner = "nextcloud";
-  };
+  # age.secrets.nextcloud-admin-pass = {
+  #   file = ../../secrets/nextcloud-admin-pass.age;
+  #   owner = "nextcloud";
+  # };
 
   users.groups.storage = {
     gid = 1001;
   };
-  users.users.nextcloud.extraGroups = [ "users" "storage" ];
-  users.users.nextcloud.isSystemUser = true;
+  # users.users.nextcloud.extraGroups = [ "users" "storage" ];
+  # users.users.nextcloud.isSystemUser = true;
 
   # ----------------------------------------------------------------------
 
