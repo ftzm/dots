@@ -78,4 +78,16 @@
   boot.kernelPackages = pkgs.linuxPackages_latest;
   boot.kernelParams = [ "i915.force_probe=4c8a" ];
 
+  programs.tmux = {
+    enable = true;
+    secureSocket = false;
+    extraConfig = ''
+      set -g xterm-keys on
+      set -g default-terminal "xterm-256color"
+      set -sg terminal-overrides ",*:RGB"
+      set -g escape-time 0
+      set -g status off
+    '';
+  };
+
 }

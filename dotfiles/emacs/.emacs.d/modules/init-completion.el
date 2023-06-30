@@ -204,6 +204,8 @@ targets."
   (require 'vertico-multiform)
   (setq vertico-multiform-commands '((ftzm/bash-history (vertico-sort-function . nil))))
   (vertico-multiform-mode)
+
+
   )
 
 ;; Configure directory extension.

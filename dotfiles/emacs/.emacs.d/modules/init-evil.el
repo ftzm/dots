@@ -92,6 +92,9 @@
     (next-line)
     (kill-whole-line))
   (undo-boundary)
+
+
+  (define-key evil-insert-state-map "\C-n" 'completion-at-point)
   )
 
 
@@ -133,9 +136,9 @@
 (use-package evil-string-inflection
    :straight t)
 
-;; (use-package evil-terminal-cursor-changer
-;;   :straight t
-;;   :hook (tty-setup . evil-terminal-cursor-changer-activate))
+(use-package evil-terminal-cursor-changer
+  :straight t
+  :hook (tty-setup . evil-terminal-cursor-changer-activate))
 
 ;; (use-package term-cursor
 ;;   :straight (term-cursor

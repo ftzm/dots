@@ -12,6 +12,7 @@ let
     # oibri-nixos = { };
     nas = {
       wg = {
+        # LAN IP: 192.168.1.3
         ip = "10.0.100.3";
         listenPort = 51830;
         publicKey = "9742uVx1meQuUeJvlwq63I4Bc1eI5XpOjQUVUC7eP2c=";
@@ -20,6 +21,7 @@ let
     };
     nuc = {
       wg = {
+        # LAN IP: 192.168.1.4
         ip = "10.0.100.4";
         subnet = "10.0.0.248/29";
         listenPort = 51840;
@@ -29,6 +31,7 @@ let
     };
     saoiste = {
       wg = {
+        # LAN IP: 192.168.1.6
         ip = "10.0.100.6";
         listenPort = 51860;
         publicKey = "x90h2zR9keCjpS8WksehZnXNgFwGIhwCxzy+QdQqqRA=";

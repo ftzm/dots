@@ -143,7 +143,7 @@ in {
       wget
       openvpn
       deluge
-      bpytop
+      btop
 
       # appearance
       hsetroot
@@ -218,7 +218,7 @@ in {
       dmidecode
 
       dconf
-      zoom-us
+      # zoom-us
       keybase
       w3m
 
