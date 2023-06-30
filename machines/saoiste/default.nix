@@ -3,7 +3,7 @@
 {
   imports = [
     ./hardware.nix
-    #../../configuration/network.nix
+    # ../../configuration/network.nix
   ];
 
   # Bootloader.
@@ -22,56 +22,50 @@
 
   networking.hostName = "saoiste"; # Define your hostname.
   networking.networkmanager.enable = true;
-  networking.networkmanager.dns = "systemd-resolved";
-  networking.networkmanager.extraConfig = ''
- [main]
- rc-manager=resolvconf
-'';
-  networking.dhcpcd.enable = false;
 
   system.stateVersion = "22.05";
   #nix.settings.maxJobs = lib.mkDefault 8;
-  home-manager.users.ftzm.imports = [ ./home.nix  ];
+  # home-manager.users.ftzm.imports = [ ./home.nix  ];
 
 
   # make things work
   time.timeZone = "Europe/Copenhagen";
 
-  nixpkgs.config.packageOverrides = pkgs: {
-    vaapiIntel = pkgs.vaapiIntel.override { enableHybridCodec = true; };
-  };
-  hardware.opengl = {
-    enable = true;
-    driSupport = true;
-    extraPackages = with pkgs; [
-      intel-media-driver
-      vaapiIntel
-      vaapiVdpau
-      libvdpau-va-gl
-    ];
-  };
+  # nixpkgs.config.packageOverrides = pkgs: {
+  #   vaapiIntel = pkgs.vaapiIntel.override { enableHybridCodec = true; };
+  # };
+  # hardware.opengl = {
+  #   enable = true;
+  #   driSupport = true;
+  #   extraPackages = with pkgs; [
+  #     intel-media-driver
+  #     vaapiIntel
+  #     vaapiVdpau
+  #     libvdpau-va-gl
+  #   ];
+  # };
 
-  services = {
-    sshd.enable = true;
-  };
+  # services = {
+  #   sshd.enable = true;
+  # };
 
-  services.openssh.permitRootLogin = "yes";
+  # services.openssh.permitRootLogin = "yes";
 
-  services.syncthing = {
-    enable = true;
-    #guiAddress = "localhost:8384";
-    openDefaultPorts = true;
-    user = "ftzm";
-    configDir = "/home/ftzm/.config/syncthing";
-    dataDir = "/home/ftzm";
+  # services.syncthing = {
+  #   enable = true;
+  #   #guiAddress = "localhost:8384";
+  #   openDefaultPorts = true;
+  #   user = "ftzm";
+  #   configDir = "/home/ftzm/.config/syncthing";
+  #   dataDir = "/home/ftzm";
 
-    # overrides any devices added or deleted through the WebUI
-    overrideDevices = true;
-    # overrides any folders added or deleted through the WebUI
-    overrideFolders = true;
+  #   # overrides any devices added or deleted through the WebUI
+  #   overrideDevices = true;
+  #   # overrides any folders added or deleted through the WebUI
+  #   overrideFolders = true;
 
 
-  };
+  # };
 
 
   services.xserver.videoDrivers = [ "intel" ];
@@ -80,7 +74,7 @@
 
   programs.tmux = {
     enable = true;
-    secureSocket = false;
+    # secureSocket = false;
     extraConfig = ''
       set -g xterm-keys on
       set -g default-terminal "xterm-256color"
