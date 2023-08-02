@@ -49,6 +49,8 @@
 (require 'init-prose)
 (require 'init-dockerfile)
 (require 'init-terraform)
+(require 'init-copilot)
+(require 'init-rust)
 
 ; Applications
 (require 'init-shell)

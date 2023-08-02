@@ -68,23 +68,26 @@ in {
 
   age.secrets.smtppw.file = ../../secrets/smtppw.age;
 
-  # Enable the OpenSSH daemon.
+  programs = {
+    msmtp = {
+      enable = true;
+      setSendmail = true;
+      accounts = {
+        default = {
+          tls = true;
+          tls_starttls = true;
+          auth = true;
+          host = "smtp.fastmail.com";
+          port = 465;
+          user = "ftzm@fastmail.com";
+          passwordeval = "cat ${config.age.secrets.smtppw.path}";
+        };
+      };
+    };
+  };
   services = {
     sshd.enable = true;
     openssh.enable = true;
-    ssmtp = {
-      enable = true;
-      setSendmail = true;
-      root = "m@ftzm.org";
-      useTLS = true;
-      hostName = "smtp.fastmail.com:465";
-      domain = "ftzmlab.xyz";
-      authUser = "ftzm@fastmail.com";
-      authPassFile = config.age.secrets.smtppw.path;
-      settings = {
-        # Debug = "true";
-      };
-    };
     smartd = {
       enable = true;
       notifications = {

@@ -112,15 +112,11 @@ in {
     deploy-rs.deploy-rs
     inputs.agenix.defaultPackage.x86_64-linux
     alsaUtils
-    # X
-    alacritty
     # for screen sharing
     slurp
   ];
   environment.pathsToLink = [ "/share/zsh" ]; # for zsh completion
   programs.zsh.enable = true;
-
-  # services.earlyoom.enable = true;
 
   virtualisation.docker.enable = true;
   hardware.bluetooth.enable = true;

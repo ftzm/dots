@@ -31,6 +31,7 @@
 
   system.stateVersion = "22.05";
   #nix.settings.maxJobs = lib.mkDefault 8;
+  home-manager.users.ftzm.home.stateVersion = "21.05";
   home-manager.users.ftzm.imports = [ ./home.nix  ];
 
 

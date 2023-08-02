@@ -8,4 +8,12 @@ let
       systemctl suspend
     fi
   '';
-in { services.cron.systemCronJobs = [ "*/5 * * * * root ${sleepCheck}" ]; }
+in {
+  services = {
+    upower.enable = true;
+    cron = {
+      enable = true;
+      systemCronJobs = [ "*/5 * * * * root ${sleepCheck}" ];
+    };
+  };
+}

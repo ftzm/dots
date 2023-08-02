@@ -19,7 +19,7 @@ in {
         frame_width = 3;
         frame_color = "#bdae93";
         separator_color = "frame";
-        idle_threshold = 120;
+        # idle_threshold = 120;
         font = "Iosevka Lig Medium ${toString (font_size_float + 2)}";
         line_height = 0;
         markup = "full";

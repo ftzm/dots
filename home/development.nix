@@ -5,7 +5,9 @@
       # Emacs
       "**/*~"
       "**/*#"
+      # Python
       ".mypy_cache"
+      # direnv
       ".direnv"
       # Haskell
       "*.hi"
@@ -13,7 +15,7 @@
       # Nix
       "result"
     ];
-    userEmail = "matthew@fitzsimmons.io";
+    userEmail = "m@ftzm.org";
     userName = "ftzm";
     extraConfig = {
       status = {

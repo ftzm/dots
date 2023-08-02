@@ -40,15 +40,19 @@
       };
     in {
       nixosConfigurations = {
-        oibri-nixos = mkUserSystem ./machines/oibri-nixos;
-        leigheas = mkUserSystem ./machines/leigheas;
+        # oibri-nixos = mkUserSystem ./machines/oibri-nixos;
+        leigheas = nixpkgs.lib.nixosSystem {
+          system = defaultSystem;
+          specialArgs = { inherit inputs; };
+          modules = [ ./machines/leigheas ];
+        };
         saoiste = mkUserSystem ./machines/saoiste;
         nuc = mkLabSystem { host = "nuc"; };
         nas = mkLabSystem { host = "nas"; };
-        pi = mkLabSystem {
-          host = "pi";
-          system = "aarch64-linux";
-        };
+        # pi = mkLabSystem {
+        #   host = "pi";
+        #   system = "aarch64-linux";
+        # };
       };
       deploy.nodes = {
         nuc = mkDeployNode {
@@ -59,7 +63,7 @@
           host = "nas";
           networkHost = "nas";
         };
-        pi = mkDeployNode { host = "pi"; };
+        # pi = mkDeployNode { host = "pi"; };
       };
     };
 }
