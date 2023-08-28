@@ -126,6 +126,11 @@
   };
   users.users.sonarr.extraGroups = [ "users" "storage" ];
 
+  services.lidarr = {
+    enable = true;
+    group = "storage";
+  };
+
   services.prowlarr = { enable = true; };
 
   services.ombi = { enable = true; };
@@ -259,16 +264,28 @@
     }];
   };
 
-  fileSystems."/var/lib/private/photoprism" =
-    { device = "/data/photoprism";
-      options = [ "bind" ];
-    };
+  fileSystems."/var/lib/private/photoprism" = {
+    device = "/data/photoprism";
+    options = [ "bind" ];
+  };
 
-  fileSystems."/var/lib/private/photoprism/originals" =
-    { device = "/mnt/nas/img";
-      options = [ "bind" ];
-    };
+  fileSystems."/var/lib/private/photoprism/originals" = {
+    device = "/mnt/nas/img";
+    options = [ "bind" ];
+  };
 
+  virtualisation.oci-containers.containers.filestash = {
+    image = "machines/filestash";
+    ports = [ "0.0.0.0:8334:8334" ];
+    environment = {
+    };
+  virtualisation.oci-containers.containers.filebrowser = {
+    image = "filebrowser/filebrowser";
+    ports = [ "0.0.0.0:8899:80" ];
+    user = "user:admin";
+    environment = {
+    };
+  };
   # ----------------------------------------------------------------------
 
   security.acme = {
@@ -293,7 +310,9 @@
       enableACME = true;
       forceSSL = true;
       locations."/" = {
-        proxyPass = "http://127.0.0.1:${toString config.services.grafana.settings.server.http_port}";
+        proxyPass = "http://127.0.0.1:${
+            toString config.services.grafana.settings.server.http_port
+          }";
         proxyWebsockets = true;
       };
     };
@@ -334,37 +353,46 @@
         proxyWebsockets = true;
       };
     };
+    virtualHosts."filestash.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:8334";
+        proxyWebsockets = true;
+      };
+    };
     virtualHosts."dav.ftzmlab.xyz" = {
       enableACME = true;
       forceSSL = true;
       root = "/var/www/dav/";
       locations."/" = {
         extraConfig = ''
-        autoindex on;
+          autoindex on;
 
-        dav_methods PUT DELETE MKCOL COPY MOVE;
-        dav_ext_methods PROPFIND OPTIONS;
-        dav_access user:rw group:rw all:rw;
+          dav_methods PUT DELETE MKCOL COPY MOVE;
+          dav_ext_methods PROPFIND OPTIONS;
+          dav_access user:rw group:rw all:rw;
 
-        client_max_body_size 0;
-        create_full_put_path on;
-        client_body_temp_path /tmp/;
+          client_max_body_size 0;
+          create_full_put_path on;
+          client_body_temp_path /tmp/;
 
-        #auth_pam "Restricted";
-        #auth_pam_service_name "common-auth";
-        auth_basic "Restricted";
-        auth_basic_user_file /.htpasswd;
+          #auth_pam "Restricted";
+          #auth_pam_service_name "common-auth";
+          auth_basic "Restricted";
+          auth_basic_user_file /.htpasswd;
 
         '';
       };
     };
   };
 
-  fileSystems."/var/www/dav" =
-    { device = "/dav";
-      options = [ "bind" ];
-    };
-  systemd.services.nginx.serviceConfig.ReadWritePaths = [ "/tmp/" "/var/www/dav/" ];
+  fileSystems."/var/www/dav" = {
+    device = "/dav";
+    options = [ "bind" ];
+  };
+  systemd.services.nginx.serviceConfig.ReadWritePaths =
+    [ "/tmp/" "/var/www/dav/" ];
 
   # Not ideal, but makes deployment smoother
   security.sudo.extraRules = [{
