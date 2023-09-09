@@ -55,7 +55,7 @@ in {
       # to get a cursor
       export WLR_NO_HARDWARE_CURSORS=1
     '';
-    systemdIntegration = true;
+    systemd.enable = true;
     config = {
       terminal = "foot";
       modifier = "Mod4";

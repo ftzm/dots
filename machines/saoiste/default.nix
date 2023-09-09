@@ -3,7 +3,7 @@
 {
   imports = [
     ./hardware.nix
-    # ../../configuration/network.nix
+    ../../configuration/network.nix
   ];
 
   # Bootloader.
@@ -25,7 +25,7 @@
 
   system.stateVersion = "22.05";
   #nix.settings.maxJobs = lib.mkDefault 8;
-  # home-manager.users.ftzm.imports = [ ./home.nix  ];
+  home-manager.users.ftzm.imports = [ ./home.nix  ];
 
 
   # make things work

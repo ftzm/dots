@@ -57,7 +57,7 @@ in {
 
       alias groot='cd $(git rev-parse --show-toplevel)'
 
-    '' + config.personal.zsh_extra;
+    ''; # + config.personal.zsh_extra;
   };
   programs.bash = {
     enable = true;

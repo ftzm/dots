@@ -29,6 +29,7 @@
 /dotfiles/emacs/.emacs.d/transient
 /dotfiles/emacs/.emacs.d/eln-cache
 /dotfiles/emacs/.emacs.d/.*
+/dotfiles/emacs/.emacs.d/projects
 
 
 /dotfiles/ranger/src/ranger/bookmarks

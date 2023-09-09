@@ -259,7 +259,6 @@ in {
       };
     };
     # for some reason necessary for firefox
-    home.stateVersion = "21.05";
     # programs.neovim = {
       #   enable = true;
       #   plugins = [ pkgs.vimPlugins.nvim-treesitter.withAllGrammars ];

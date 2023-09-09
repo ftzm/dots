@@ -16,5 +16,6 @@ in {
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
-  programs.home-manager.path = "/home/ftzm/home-manager"; # can be any string; requred but unsused
+  programs.home-manager.path = "/home/ftzm/home-manager"; # can be any string; required but unsused
+  home.stateVersion = "21.05";
 }

@@ -7,16 +7,16 @@
   # programs.msmtp.enable = true;
   programs.mu.enable = true;
 
-  xdg.configFile."mbsync/postExec" = {
-    text = with pkgs;''
-      #!${stdenv.shell}
-      ${procps}/bin/pkill mu
-      ${coreutils}/bin/sleep 0.1
-      # [ ! -d ~/.cache/mu ] && ${mu}/bin/mu init --maildir=.maildir
-      ${mu}/bin/mu index
-    '';
-    executable = true;
-  };
+  # xdg.configFile."mbsync/postExec" = {
+  #   text = with pkgs;''
+  #     #!${stdenv.shell}
+  #     ${procps}/bin/pkill mu
+  #     ${coreutils}/bin/sleep 0.1
+  #     # [ ! -d ~/.cache/mu ] && ${mu}/bin/mu init --maildir=.maildir
+  #     ${mu}/bin/mu index
+  #   '';
+  #   executable = true;
+  # };
   services.mbsync = {
     enable = true;
     postExec = "${config.xdg.configHome}/mbsync/postExec";

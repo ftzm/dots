@@ -11,27 +11,27 @@ let
   iosevkaLig = pkgs.callPackage ../iosevka { iosevkaPkgs = iosevkaPkgs; inherit pkgs; };
 in {
   imports = [
-    #inputs.home-manager.nixosModules.home-manager
-    # inputs.agenix.nixosModules.age
-    #./sleep.nix
+    inputs.home-manager.nixosModules.home-manager
+    inputs.agenix.nixosModules.age
+    ./sleep.nix
     ./users.nix
-    #./cachix.nix
+    ./cachix.nix
     #./wayland.nix
     #./X.nix
   ];
 
-  # nixpkgs = {
-  #   config = {
-  #     allowUnfree = true;
-  #     permittedInsecurePackages = [ "p7zip-16.02" "openssl-1.0.2u" ];
-  #   };
-  #   overlays = [
-  #     (import ../overlays)
-  #     inputs.pipestatus.overlay
-  #     inputs.emacs-overlay.overlay
-  #     inputs.deploy-rs.overlay
-  #   ];
-  # };
+  nixpkgs = {
+    config = {
+      allowUnfree = true;
+      permittedInsecurePackages = [ "p7zip-16.02" "openssl-1.0.2u" ];
+    };
+    overlays = [
+      (import ../overlays)
+      inputs.pipestatus.overlay
+      inputs.emacs-overlay.overlay
+      inputs.deploy-rs.overlay
+    ];
+  };
 
   nix = {
     package = pkgs.nixFlakes;
@@ -60,28 +60,28 @@ in {
   # ---------------------------------------------------------------------------
   # Home Manager
 
-  # home-manager = {
-  #   useGlobalPkgs = true;
-  #   useUserPackages = true;
-  #   users.ftzm.imports = [ ../home ];
-  # };
+  home-manager = {
+    useGlobalPkgs = true;
+    useUserPackages = true;
+    users.ftzm.imports = [ ../home ];
+  };
 
-  # age.secrets = {
-  #   fitzmattd-email = {
-  #     file = ../secrets/fitzmattd-email.age;
-  #     owner = "ftzm";
-  #   };
-  #   ftzm-org-email = {
-  #     file = ../secrets/ftzm-org-email.age;
-  #     owner = "ftzm";
-  #   };
-  # };
-  # home-manager.users.ftzm = {
-  #   accounts.email.accounts.fitzmattd.passwordCommand =
-  #     "${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}";
-  #   accounts.email.accounts.ftzm.passwordCommand =
-  #     "${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}";
-  # };
+  age.secrets = {
+    fitzmattd-email = {
+      file = ../secrets/fitzmattd-email.age;
+      owner = "ftzm";
+    };
+    ftzm-org-email = {
+      file = ../secrets/ftzm-org-email.age;
+      owner = "ftzm";
+    };
+  };
+  home-manager.users.ftzm = {
+    accounts.email.accounts.fitzmattd.passwordCommand =
+      "${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}";
+    accounts.email.accounts.ftzm.passwordCommand =
+      "${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}";
+  };
 
   # ---------------------------------------------------------------------------
   # System
@@ -123,16 +123,16 @@ in {
 
   # services.earlyoom.enable = true;
 
-  # virtualisation.docker.enable = true;
-  # hardware.bluetooth.enable = true;
-  # services = {
-  #   blueman.enable = true;
-  #   sshd.enable = true;
-  #   cron.enable = true;
+  virtualisation.docker.enable = true;
+  hardware.bluetooth.enable = true;
+  services = {
+    blueman.enable = true;
+    sshd.enable = true;
+    cron.enable = true;
   #   upower.enable = true;
   #   # for rpc-statd for nfs client: https://github.com/NixOS/nixpkgs/issues/76671
   #   nfs.server.enable = true;
-  # };
+  };
 
   # programs.mosh.enable = true;
 
