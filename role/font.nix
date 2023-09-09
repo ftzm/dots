@@ -9,6 +9,6 @@ in {
   fonts = {
     fontconfig.enable = true;
     enableGhostscriptFonts = true;
-    fonts = with pkgs; [ font-awesome iosevkaLig jetbrains-mono];
+    packages = with pkgs; [ font-awesome iosevkaLig jetbrains-mono];
   };
 }

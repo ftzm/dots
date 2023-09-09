@@ -11,7 +11,7 @@ in {
   config = {
     #needed for sway to work
     hardware.opengl.enable = lib.mkDefault true;
-    fonts.enableDefaultFonts = lib.mkDefault true;
+    fonts.enableDefaultPackages = lib.mkDefault true;
     programs.dconf.enable = lib.mkDefault true;
 
     # wayland screen sharing
@@ -114,7 +114,7 @@ in {
           # to get a cursor
           export WLR_NO_HARDWARE_CURSORS=1
         '';
-        systemdIntegration = true;
+        systemd.enable = true;
         config = {
           terminal = "foot";
           modifier = "Mod4";

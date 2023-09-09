@@ -135,7 +135,7 @@
   # ---------------------------------------------------------------------------
   # GUI
 
-  qt5.platformTheme = "qt5ct";
+  qt.platformTheme = "qt5ct";
 
   # Allows building for arch64
   # Current use-case is building system images for raspberrypi

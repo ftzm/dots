@@ -140,7 +140,7 @@ in {
     wget
     openvpn
     deluge
-    bpytop
+    btop
 
     # appearance
     hsetroot

@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  package = pkgs.emacsPgtk.override { };
+  package = pkgs.emacs-pgtk.override { };
   emacsWithPackages = (pkgs.emacsPackagesFor package).emacsWithPackages;
   emms-taglib = pkgs.stdenv.mkDerivation {
     name = "emms-taglib";
