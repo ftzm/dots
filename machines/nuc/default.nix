@@ -1,4 +1,4 @@
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, inputs, lib, ... }:
 
 {
   imports = [ # Include the results of the hardware scan.
@@ -10,7 +10,7 @@
   # make members of wheel group trusted users, allowing them additional rights when
   # connection to nix daemon.
   # This was enable to allow deploying via deploy-rs as non-root.
-  nix.trustedUsers = [ "@wheel" ];
+  nix.settings.trusted-users = [ "@wheel" ];
 
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
@@ -39,7 +39,7 @@
     vim
     mpc_cli
     ncmpcpp
-    (beets.override { enableExtraFiles = true; })
+    beets
     sqlite
     ranger
     htop
@@ -56,7 +56,6 @@
   };
 
   programs.mosh.enable = true;
-
 
   services.jellyfin = {
     enable = true;
@@ -101,12 +100,12 @@
 
   services.grafana = {
     enable = true;
-    domain = "grafana.ftzmlab.xyz";
-    port = 2342;
-    addr = "127.0.0.1";
+    settings.server.domain = "grafana.ftzmlab.xyz";
+    settings.server.http_port = 2342;
+    settings.server.http_addr = "127.0.0.1";
     provision = {
       enable = true;
-      datasources = [{
+      datasources.settings.datasources = [{
         name = "prometheus nuc";
         type = "prometheus";
         isDefault = true;
@@ -127,14 +126,14 @@
   };
   users.users.sonarr.extraGroups = [ "users" "storage" ];
 
-  services.prowlarr = {
+  services.lidarr = {
     enable = true;
+    group = "storage";
   };
 
-  services.ombi = {
-    enable = true;
-  };
+  services.prowlarr = { enable = true; };
 
+  services.ombi = { enable = true; };
 
   age.secrets.deluge = {
     file = ../../secrets/deluge.age;
@@ -161,7 +160,7 @@
         chmod 775 -R /var/lib/deluge
         chgrp -R storage /var/lib/deluge
       '';
-      deps = [];
+      deps = [ ];
     };
   };
 
@@ -227,17 +226,71 @@
   #   owner = "nextcloud";
   # };
 
-  users.groups.storage = {
-    gid = 1001;
-  };
+  users.groups.storage = { gid = 1001; };
   # users.users.nextcloud.extraGroups = [ "users" "storage" ];
   # users.users.nextcloud.isSystemUser = true;
 
   # ----------------------------------------------------------------------
 
+  services.photoprism = {
+    enable = true;
+    port = 2343;
+    originalsPath = "/var/lib/private/photoprism/originals";
+    address = "0.0.0.0";
+    passwordFile = "/photoprism_pw";
+    settings = {
+      PHOTOPRISM_ADMIN_USER = "admin";
+      PHOTOPRISM_DEFAULT_LOCALE = "en";
+      PHOTOPRISM_DATABASE_DRIVER = "mysql";
+      PHOTOPRISM_DATABASE_NAME = "photoprism";
+      PHOTOPRISM_DATABASE_SERVER = "/run/mysqld/mysqld.sock";
+      PHOTOPRISM_DATABASE_USER = "photoprism";
+      PHOTOPRISM_SITE_URL = "https://img.ftzmlab.xyz";
+      PHOTOPRISM_SITE_TITLE = "PhotoPrism";
+    };
+  };
+
+  # force it to run as storage group so imported folders can be accessed
+  systemd.services.photoprism.serviceConfig.Group = lib.mkForce "storage";
+
+  services.mysql = {
+    enable = true;
+    dataDir = "/data/mysql";
+    package = pkgs.mariadb;
+    ensureDatabases = [ "photoprism" ];
+    ensureUsers = [{
+      name = "photoprism";
+      ensurePermissions = { "photoprism.*" = "ALL PRIVILEGES"; };
+    }];
+  };
+
+  fileSystems."/var/lib/private/photoprism" = {
+    device = "/data/photoprism";
+    options = [ "bind" ];
+  };
+
+  fileSystems."/var/lib/private/photoprism/originals" = {
+    device = "/mnt/nas/img";
+    options = [ "bind" ];
+  };
+
+  virtualisation.oci-containers.containers.filestash = {
+    image = "machines/filestash";
+    ports = [ "0.0.0.0:8334:8334" ];
+    environment = {
+    };
+  virtualisation.oci-containers.containers.filebrowser = {
+    image = "filebrowser/filebrowser";
+    ports = [ "0.0.0.0:8899:80" ];
+    user = "user:admin";
+    environment = {
+    };
+  };
+  # ----------------------------------------------------------------------
+
   security.acme = {
     acceptTerms = true;
-    email = "fitz.matt.d@gmail.com";
+    defaults.email = "fitz.matt.d@gmail.com";
   };
 
   # nginx reverse proxy
@@ -253,11 +306,13 @@
     sslCiphers = "AES256+EECDH:AES256+EDH:!aNULL";
 
     enable = true;
-    virtualHosts.${config.services.grafana.domain} = {
+    virtualHosts.${config.services.grafana.settings.server.domain} = {
       enableACME = true;
       forceSSL = true;
       locations."/" = {
-        proxyPass = "http://127.0.0.1:${toString config.services.grafana.port}";
+        proxyPass = "http://127.0.0.1:${
+            toString config.services.grafana.settings.server.http_port
+          }";
         proxyWebsockets = true;
       };
     };
@@ -286,12 +341,58 @@
       forceSSL = true;
       enableACME = true;
       locations."/" = {
-        proxyPass =
-          "http://127.0.0.1:${toString config.services.ombi.port}";
+        proxyPass = "http://127.0.0.1:${toString config.services.ombi.port}";
         proxyWebsockets = true;
       };
     };
+    virtualHosts."img.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:2343";
+        proxyWebsockets = true;
+      };
+    };
+    virtualHosts."filestash.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:8334";
+        proxyWebsockets = true;
+      };
+    };
+    virtualHosts."dav.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
+      root = "/var/www/dav/";
+      locations."/" = {
+        extraConfig = ''
+          autoindex on;
+
+          dav_methods PUT DELETE MKCOL COPY MOVE;
+          dav_ext_methods PROPFIND OPTIONS;
+          dav_access user:rw group:rw all:rw;
+
+          client_max_body_size 0;
+          create_full_put_path on;
+          client_body_temp_path /tmp/;
+
+          #auth_pam "Restricted";
+          #auth_pam_service_name "common-auth";
+          auth_basic "Restricted";
+          auth_basic_user_file /.htpasswd;
+
+        '';
+      };
+    };
   };
+
+  fileSystems."/var/www/dav" = {
+    device = "/dav";
+    options = [ "bind" ];
+  };
+  systemd.services.nginx.serviceConfig.ReadWritePaths =
+    [ "/tmp/" "/var/www/dav/" ];
 
   # Not ideal, but makes deployment smoother
   security.sudo.extraRules = [{

@@ -38,7 +38,4 @@
     [{ device = "/dev/disk/by-uuid/b2cfd442-a40b-454e-bd95-21d357167194"; }];
 
   powerManagement.cpuFreqGovernor = lib.mkDefault "powersave";
-
-  # high-resolution display
-  hardware.video.hidpi.enable = lib.mkDefault true;
 }

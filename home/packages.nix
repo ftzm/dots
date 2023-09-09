@@ -98,6 +98,9 @@ in {
       go
       cachix
 
+      # (tmux.override ({ withUtempter = false;}))
+      tmux
+
       # system
       binutils
       file

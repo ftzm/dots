@@ -13,7 +13,7 @@
 (require 'init-magit)
 (require 'init-persp)
 (require 'init-settings)
-;(require 'init-projectile)
+(require 'init-projectile)
 (require 'init-flycheck)
 (require 'init-snippets)
 (require 'init-company)
@@ -49,6 +49,8 @@
 (require 'init-prose)
 (require 'init-dockerfile)
 (require 'init-terraform)
+(require 'init-copilot)
+(require 'init-rust)
 
 ; Applications
 (require 'init-shell)

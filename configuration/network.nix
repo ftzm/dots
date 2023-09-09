@@ -43,18 +43,24 @@ let
   this = hosts."${host}";
   others = lib.attrsets.filterAttrs (k: v: k != host) hosts;
 in {
+
+  # Secret for this device
   age.secrets."wireguard-private-key-${host}".file =
     ../secrets/wireguard-private-key + "-${host}.age";
+
   networking = {
+    # Set up wireguard connections
     wireguard.interfaces = {
       wg0 = {
-        ips = [ "${this.wg.ip}/24" ] ++ (if this.wg ? "subnet" then [this.wg.subnet] else []);
+        ips = [ "${this.wg.ip}/24" ]
+          ++ (if this.wg ? "subnet" then [ this.wg.subnet ] else [ ]);
         inherit (this.wg) listenPort;
         privateKeyFile =
           config.age.secrets."wireguard-private-key-${host}".path;
         peers = lib.attrsets.mapAttrsToList (k: v: {
           inherit (v.wg) publicKey;
-          allowedIPs = [ v.wg.ip] ++ (if v.wg ? "subnet" then [v.wg.subnet] else []);
+          allowedIPs = [ v.wg.ip ]
+            ++ (if v.wg ? "subnet" then [ v.wg.subnet ] else [ ]);
           endpoint = if v.wg.clientOnly then
             null
           else
@@ -62,7 +68,36 @@ in {
         }) others;
       };
     };
+
+    # set up wireguard aliases
     extraHosts = lib.strings.concatMapStrings (x: x + "\n")
-      ((lib.attrsets.mapAttrsToList (k: v: "${v.wg.ip} wg-${k}") others) ++ ["127.0.0.1 www.localhost.com"]);
+      ((lib.attrsets.mapAttrsToList (k: v: "${v.wg.ip} wg-${k}") others)
+        ++ [ "127.0.0.1 www.localhost.com" ]);
+
+    # Cheeky hack to restart the wireguard service on wifi connection.
+    # Easiest way to re-resolve hostnames on new network.
+    networkmanager.dispatcherScripts = [{
+      source = pkgs.writeText "upHook" ''
+        if [ $1 != "wg0" ]; then
+            case "$2" in
+                #up|vpn-up)
+                up)
+                  logger -s " interface $1 up, restarting wireguard"
+                  ${pkgs.systemd}/bin/systemctl restart wireguard-wg0.service
+                ;;
+                down|vpn-down)
+                ;;
+                hostname|dhcp4-change|dhcp6-change)
+                # Do nothing
+                ;;
+                *)
+                echo "$0: called with unknown action \`$2'" 1>&2
+                exit 1
+                ;;
+            esac
+        fi
+      '';
+      type = "basic";
+    }];
   };
 }
