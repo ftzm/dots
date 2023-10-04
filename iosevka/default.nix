@@ -1,4 +1,4 @@
-{ iosevkaPkgs, pkgs, ... }:
+{ iosevkaPkgs, ... }:
 
 let iosevkaOrig = iosevkaPkgs.iosevka.override {
   privateBuildPlan = {
@@ -36,14 +36,14 @@ let iosevkaOrig = iosevkaPkgs.iosevka.override {
   extraParameters = builtins.readFile ./iosevka.toml;
     };
   in
-pkgs.stdenv.mkDerivation {
+iosevkaPkgs.stdenv.mkDerivation {
   name = "iosevka-nerd";
   dontUnpack = true;
   buildPhase = ''
     shopt -s globstar
     cp -r ${iosevkaOrig} .
     for file in **/*.ttf; do
-      ${pkgs.nerd-font-patcher}/bin/nerd-font-patcher \
+      ${iosevkaPkgs.nerd-font-patcher}/bin/nerd-font-patcher \
         -c \
         "$file"
     done

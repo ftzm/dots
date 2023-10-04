@@ -411,8 +411,9 @@
    "TAB" 'treemacs-TAB-action
    "RET" 'treemacs-RET-action
    "q" 'kill-buffer-and-window)
+  )
 
 
 
 
-    (provide 'init-keys))
+  (provide 'init-keys)

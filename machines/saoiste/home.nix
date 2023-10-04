@@ -4,7 +4,6 @@
   home.packages = with pkgs; [
     # fun
     # nixpkgs-steam.steam
-    # steam
     # discord
     # ps
 

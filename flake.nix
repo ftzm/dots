@@ -45,7 +45,11 @@
           specialArgs = { inherit inputs; };
           modules = [ ./machines/leigheas ];
         };
-        saoiste = mkUserSystem ./machines/saoiste;
+        saoiste = nixpkgs.lib.nixosSystem {
+          system = defaultSystem;
+          specialArgs = { inherit inputs; };
+          modules = [ ./machines/saoiste ];
+        };
         nuc = mkLabSystem { host = "nuc"; };
         nas = mkLabSystem { host = "nas"; };
         # pi = mkLabSystem {
