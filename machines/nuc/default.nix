@@ -279,10 +279,17 @@
     ports = [ "0.0.0.0:8334:8334" ];
     environment = {
     };
+  };
+
   virtualisation.oci-containers.containers.filebrowser = {
     image = "filebrowser/filebrowser";
-    ports = [ "0.0.0.0:8899:80" ];
+    ports = [ "0.0.0.0:8899:8899" ];
     user = "user:admin";
+    volumes = [
+     "/filebrowser:/srv"
+     "/filebrowser/filebrowser_db.db:/database.db"
+     #"/path/.filebrowser.json:/.filebrowser.json"
+    ];
     environment = {
     };
   };

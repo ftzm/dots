@@ -93,14 +93,13 @@
   (add-hook 'org-mode-hook #'visual-line-mode)
   (add-hook 'org-mode-hook #'(lambda () (setq evil-auto-indent nil)))
   (progn
-    (setq org-directory "~/org")
-    (setq canonical-org-agenda-files (quote ("~/org/inbox.org"
-				   "~/org/todo.org"
-				   "~/org/projects/"
-				   "~/org/special-dates.org"
-				   "~/org/habits.org"
-				   "~/org/work/"
-				   )))
+    (setq org-directory "~/org/personal/")
+    (setq canonical-org-agenda-files (quote ("inbox.org"
+					     "todo.org"
+					     "~/org/personal/projects"
+					     "special-dates.org"
+					     "habits.org"
+					     )))
     (setq org-agenda-files canonical-org-agenda-files)
 
     ;;There are other options for this that may deserve investigation
@@ -210,9 +209,9 @@
 
 
     (setq org-capture-templates
-	  (quote (("t" "todo" entry (file "~/org/inbox.org")
+	  (quote (("t" "todo" entry (file "~/org/personal/inbox.org")
 		   "* NEXT %?")
-		  ("d" "diary entry" entry (file+datetree "~/org/diary.org")
+		  ("d" "diary entry" entry (file+datetree "~/org/personal/diary.org")
 		   "* %?")
 		  ("u" "work diary entry" entry (file+datetree "~/org/work/diary.org")
 		   "* %?")
@@ -292,8 +291,10 @@
       (org-agenda-schedule '(4))
       )
 
+    (setq org-use-fast-todo-selection t) ; select todo via key rather than cycling
+    (setq org-use-fast-todo-selection 'expert) ; show options in minibuffer
     (setq org-todo-keywords
-      '((sequence "TODO" "NEXT" "DONE")))
+      '((sequence "TODO(t)" "NEXT(n)" "DONE(d)")))
 
     (defun org-sep-header (text)
       (let ((buffer-read-only nil))
@@ -381,44 +382,43 @@
 				 (deadline auto))
                         ((org-ql-block-header "Deadlines")))
 	     (org-ql-block '(and (not (todo "DONE"))
-				 (scheduled :from today)
-				 (not (category "habits")))
+	     			 (scheduled :from today)
+	     			 (not (category "habits")))
                         ((org-ql-block-header "Today")))
 	     (agenda ""
                      ((org-agenda-overriding-header "Habits")
-	 	      (org-agenda-span 'day)
-	 	      (org-agenda-files '("~/org/habits.org"))
+	     	      (org-agenda-span 'day)
+	     	      (org-agenda-files '("~/org/habits.org"))
                       ))
 	     (org-ql-block '(and (todo "TODO" "NEXT")
-				 (not (scheduled))
-				 (not (deadline))
-				 (path "org/inbox.org"))
+	     			 (not (scheduled))
+	     			 (not (deadline))
+	     			 (path "org/inbox.org"))
                            ((org-ql-block-header "Inbox")))
 	     (org-ql-block '(and (todo "NEXT")
-				 (not (scheduled))
-				 (not (deadline))
-				 (path "org/todo.org"))
-                           ((org-ql-block-header "Ad Hoc Shortlist yadig")))
+	     			 (not (scheduled))
+	     			 (not (deadline))
+	     			 (path "org/todo.org"))
+                           ((org-ql-block-header "Ad Hoc Shortlist yadig")
+			    (org-agenda-prefix-format " ohfuckwhat %?-12t% s")))
 	     (org-ql-block '(and (todo "NEXT")
-				 (not (scheduled))
-				 (not (deadline))
-				 (path "org/projects")
-				 )
-                           ((org-agenda-prefix-format " ohfuckwhat %?-12t% s")
-			    (org-ql-block-header "Project Shortlist")
-			    (org-super-agenda-groups '(
-			    			       (:auto-category t
-			    			       )))))
-			    ;; (org-super-agenda-groups '(
-			    ;; 			       (:name "test"
-			    ;; 				:anything t
-			    ;; 				:transformer (--> it
-			    ;; 						  (upcase it)
-			    ;; 						  (propertize it 'face '(:foreground "RosyBrown1"))))
-			    ;; 			       ))))
-	     (org-ql-block '(and (closed :on today))
-                           ((org-ql-block-header "Completed")))
-	 )))
+	     			 (not (scheduled))
+	     			 (not (deadline))
+	     			 (path "org/projects"))
+	     ;; 		    (org-ql-block-header "Project Shortlist")
+	     ;; 		    (org-super-agenda-groups '(
+	     ;; 		    			       (:auto-category t
+	     ;; 		    			       )))))
+	     ;; 		    ;; (org-super-agenda-groups '(
+	     ;; 		    ;; 			       (:name "test"
+	     ;; 		    ;; 				:anything t
+	     ;; 		    ;; 				:transformer (--> it
+	     ;; 		    ;; 						  (upcase it)
+	     ;; 		    ;; 						  (propertize it 'face '(:foreground "RosyBrown1"))))
+	     ;; 		    ;; 			       ))))
+	     ;; (org-ql-block '(and (closed :on today))
+             ;;               ((org-ql-block-header "Completed")))
+	 ))))
 
     (setq ftzm/org-agenda-todo-view
       `(" " "Agenda"
@@ -434,24 +434,24 @@
 	 (agenda ""
                  ((org-agenda-overriding-header "Habits")
 	 	  (org-agenda-span 'day)
-	 	  (org-agenda-files '("~/org/habits.org"))
+	 	  (org-agenda-files '("habits.org"))
                  ))
          (todo "TODO|NEXT"
                ((org-agenda-overriding-header "To Refile")
-                (org-agenda-files '("~/org/inbox.org"))
+                (org-agenda-files '("inbox.org"))
 	 	(org-agenda-todo-ignore-scheduled 'all)
 	 	(org-agenda-todo-ignore-deadlines 'all)
 	 	(org-agenda-prefix-format "  %?-12t% s")))
          (todo "NEXT"
                ((org-agenda-overriding-header "Ad Hoc Shortlist")
-                (org-agenda-files '("~/org/todo.org"))
+                (org-agenda-files '("todo.org"))
 	 	(org-agenda-todo-ignore-scheduled 'all)
 	 	(org-agenda-prefix-format "  %?-12t% s")
 	 	))
          (todo "NEXT"
                ((org-agenda-overriding-header "Project Shortlist")
 	 	(org-agenda-todo-ignore-scheduled 'all)
-                (org-agenda-files '("~/org/projects"))
+                (org-agenda-files '("~/org/personal/projects"))
 	       ))
          (tags "CLOSED>=\"<today>\""
                ((org-agenda-overriding-header "Completed Tasks")
@@ -475,49 +475,55 @@
          ;;       (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))))
 	 )))
 
+    (defun testf ()
+      "oi")
+
     (setq ftzm/org-agenda-work-view
-      `("W" "Agenda"
-        ((insert
-		    (propertize
-		     "Ní dhéanfaidh smaoineamh an treabhadh dhuit"
-		     'face (list :foreground (face-attribute 'font-lock-function-name-face :foreground) :weight 'bold) ))
-	 (agenda ""
-                 ((org-agenda-span 'day)
-		  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
-		  (org-agenda-files '("~/org/work/main.org"))
-		  (org-agenda-overriding-header "\n"
-		   )
-                 ))
-         (todo "TODO|NEXT"
-               ((org-agenda-overriding-header "To Refile")
-                (org-agenda-files '("~/org/work/work-inbox.org"))))
-	 ;; Exclude todo entries scheduled in the future. This way entries can
-	 ;; be postponed by scheduling them, as a sort of integrated "tickler" function.
-         (tags "TODO=\"TODO\"+SCHEDULED<=\"<today>\"|TODO=\"NEXT\""
-               ((org-agenda-overriding-header "Next Up")
-                (org-agenda-files '("~/org/work/work-todo.org"))))
-         (tags "CLOSED>=\"<today>\""
-               ((org-agenda-overriding-header "Completed Tasks")
-                (org-agenda-files '("~/org/work/"))
-                ))
-	 ;;(agenda ""
-	 ;;	 ((org-agenda-overriding-header "Completed Tasks")
-	 ;;	  (org-agenda-span 'day)
-         ;;         (org-agenda-start-with-log-mode t)
-	 ;;	  (org-agenda-use-time-grid nil)
-         ;;         (org-agenda-skip-function
-         ;;          '(org-agenda-skip-entry-if 'nottodo 'done))
-         ;;        ))
-         ;;(todo "TODO"
-         ;;      ((org-agenda-overriding-header "Projects")
-         ;;       (org-agenda-files '("~/.org/gtd/projects.org"))
-         ;;       ))
-         ;;(todo "TODO"
-         ;;      ((org-agenda-overriding-header "One-off Tasks")
-         ;;       (org-agenda-files '("~/.org/gtd/next.org"))
-         ;;       (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))))
-         nil
-	 ("~/test-gtd.html"))))
+	  `("W" "Agenda"
+            ((insert
+	      (propertize
+	       "Ní dhéanfaidh smaoineamh an treabhadh dhuit"
+	       'face (list :foreground (face-attribute 'font-lock-function-name-face :foreground) :weight 'bold) ))
+	     (agenda ""
+                     ((org-agenda-span 'day)
+					;(org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
+		      (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
+		      (org-agenda-files '("~/org/work/"))
+		      (org-agenda-overriding-header "\n"
+						    )
+                      ))
+             (todo "TODO|NEXT"
+		   ((org-agenda-overriding-header "To Refile")
+                    (org-agenda-prefix-format "%c %i %?-12t% s")
+		    (org-agenda-files '("~/org/work/work-inbox.org"))
+		    ))
+	     ;; Exclude todo entries scheduled in the future. This way entries can
+	     ;; be postponed by scheduling them, as a sort of integrated "tickler" function.
+             (tags "TODO=\"TODO\"+SCHEDULED<=\"<today>\"|TODO=\"NEXT\""
+		   ((org-agenda-overriding-header "Next Up")
+                    (org-agenda-files '("~/org/work/work-todo.org"))))
+             (tags "CLOSED>=\"<today>\""
+		   ((org-agenda-overriding-header "Completed Tasks")
+                    (org-agenda-files '("~/org/work/"))
+                    ))
+	     ;;(agenda ""
+	     ;;	 ((org-agenda-overriding-header "Completed Tasks")
+	     ;;	  (org-agenda-span 'day)
+             ;;         (org-agenda-start-with-log-mode t)
+	     ;;	  (org-agenda-use-time-grid nil)
+             ;;         (org-agenda-skip-function
+             ;;          '(org-agenda-skip-entry-if 'nottodo 'done))
+             ;;        ))
+             ;;(todo "TODO"
+             ;;      ((org-agenda-overriding-header "Projects")
+             ;;       (org-agenda-files '("~/.org/gtd/projects.org"))
+             ;;       ))
+             ;;(todo "TODO"
+             ;;      ((org-agenda-overriding-header "One-off Tasks")
+             ;;       (org-agenda-files '("~/.org/gtd/next.org"))
+             ;;       (org-agenda-skip-function '(org-agenda-skip-entry-if 'deadline 'scheduled))))
+             nil
+	     ("~/test-gtd.html"))))
 
     (setq org-agenda-custom-commands
       `(;;,jethro/org-agenda-inbox-view
@@ -786,6 +792,5 @@ are equal return t."
   ;;   ;; 		      :foreground "#ebdbb2")
      (global-org-modern-mode)
   )
-
 
 (provide 'init-org)

@@ -92,6 +92,8 @@ in {
     scrot
     go
     cachix
+    awscli2
+    pcmanfm
 
     # (tmux.override ({ withUtempter = false;}))
     tmux
@@ -230,7 +232,15 @@ in {
     sqlfluff
     tablePlus
 
+    gnome.nautilus
+
   ];
+
+  programs.thunar.enable = true;
+  services.tumbler.enable = true;
+  services.gvfs.enable = true;
+
+
   home-manager.users.ftzm = {
     xdg = {
       enable = true;

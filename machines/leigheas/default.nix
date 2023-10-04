@@ -66,7 +66,7 @@
       supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
       mandatoryFeatures = [ ];
     }];
-    # distributedBuilds = true;
+    distributedBuilds = true;
   };
 
   # ---------------------------------------------------------------------------
