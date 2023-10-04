@@ -124,7 +124,7 @@
   ;;   "SPC i" "ivy"
   ;;   "SPC g" "git"
   ;;   "SPC o" "org"
-  ;;   "SPC p" "projectile"
+  ;;   "SPC p" " projectile"
   ;;   "SPC s" "space"
   ;;   "SPC t" "toggle"
   ;;   "SPC w" "window"
@@ -148,7 +148,7 @@
     "i" '(ivy-keys :which-key "ivy")
     "g" '(magit-keys :which-key "git")
     "o" '(org-global-hydra/body :which-key "org")
-    "p" '(projectile-keys :which-key "project")
+    "p" '(project-keys :which-key "project")
     "s" '(persp-hydra/body :which-key "workspace")
     "t" '(toggle-keys :which-key "toggle")
     "w" '(window-keys :which-key "window")
@@ -235,7 +235,7 @@
    "g" 'consult-line)
 
   (general-define-key
-   :prefix-command 'projectile-keys
+   :prefix-command 'project-keys
    "f" 'project-find-file
    ;"F" 'projectile-find-file-other-window
    "b" 'project-switch-to-buffer

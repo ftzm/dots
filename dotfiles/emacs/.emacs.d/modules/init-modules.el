@@ -13,7 +13,7 @@
 (require 'init-magit)
 (require 'init-persp)
 (require 'init-settings)
-(require 'init-projectile)
+;(require 'init-projectile)
 (require 'init-flycheck)
 (require 'init-snippets)
 (require 'init-company)

@@ -11,8 +11,6 @@
 	     :branch "main")
   :config
   ;(setq completion-in-region-function #'consult-completion-in-region)
-  (autoload 'projectile-project-root "projectile")
-  (setq consult-project-root-function 'projectile-project-root)
   ;; Will need to make sure this doesn't get out of date
   ;(setq consult-ripgrep-args "rg")
 
@@ -239,7 +237,6 @@ targets."
   :config
   (setq consult-dir-shadow-filenames nil) ;don't leave "shadowed" original
 					;search text
-  (setq consult-dir-project-list-function #'consult-dir-projectile-dirs)
   )
 
 (provide 'init-completion)

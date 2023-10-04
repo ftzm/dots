@@ -3,7 +3,6 @@
   nix = {
     settings.substituters = [
       "https://nix-community.cachix.org"
-      "https://hydra.iohk.io"
       "https://cache.iog.io"
       "https://undo-foundation.cachix.org"
       "https://cache.zw3rk.com"

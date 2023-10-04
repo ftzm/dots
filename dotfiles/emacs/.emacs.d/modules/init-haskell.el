@@ -1,3 +1,7 @@
+; workaround for emacs 30, check if necessary after package update
+(setq flymake-allowed-file-name-masks nil)
+
+
 (use-package haskell-mode
   :straight t
   :mode "\\.hs\\'"
