@@ -13,7 +13,7 @@ in {
   # make members of wheel group trusted users, allowing them additional rights when
   # connection to nix daemon.
   # This was enable to allow deploying via deploy-rs as non-root.
-  nix.trustedUsers = [ "@wheel" ];
+  nix.settings.trusted-users = [ "@wheel" ];
 
   users.groups.storage = { gid = 1001; };
   users.users.root.extraGroups = [ "users" "storage" ];
@@ -119,6 +119,27 @@ in {
     };
   };
 
+  #############################################################################
+  # Borg Backup
+
+  age.secrets.borgbase-key.file = ../../secrets/borgbase_key.age;
+  age.secrets.borgbase-passphrase.file = ../../secrets/borgbase_passphrase.age;
+
+  services.borgbackup.jobs."borgbase" = {
+    paths = [ "/pool-1/cloud/photos" ];
+    exclude = [ ];
+    repo = "d6hr008k@d6hr008k.repo.borgbase.com:repo";
+    encryption = {
+      mode = "repokey-blake2";
+      passCommand = "cat ${config.age.secrets.borgbase-passphrase.path}";
+    };
+    environment.BORG_RSH = "ssh -i ${config.age.secrets.borgbase-key.path}";
+    compression = "auto,lzma";
+    startAt = "daily";
+  };
+
+  #############################################################################
+
   networking.firewall.enable = false;
 
   services.prometheus = {
@@ -143,28 +164,30 @@ in {
     # I think these mean it doesn't try to merge the configs, and the merging is error prone.
     overrideFolders = true;
     overrideDevices = true;
-    devices = {
-      leigheas.id =
-        "3QY6BVK-DLFFWP5-WT62MGS-7WX3NQ5-X5BNZDA-ZRG44DM-DDH7LPQ-EMU4BQN";
-      oibri-nixos.id =
-        "XKUQLBZ-YZZ2OTU-TDBLNFK-CKUKTAH-5Q4JUIK-6G4K5WP-EHVJFBX-SN5JRAQ";
-      phone.id =
-        "PXRZLWU-5SGAHJC-5ZOID7T-ZNRZG32-6HWJKDG-PRYTIBS-WZSXNAE-HEIFSAZ";
-      nas.id =
-        "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
-      saoiste.id =
-        "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
-    };
-    folders = {
-      org = {
-        devices = [ "leigheas" "nas" "saoiste"];
-        path = "/pool-1/org";
-        enable = true;
+    settings = {
+      devices = {
+        leigheas.id =
+          "3QY6BVK-DLFFWP5-WT62MGS-7WX3NQ5-X5BNZDA-ZRG44DM-DDH7LPQ-EMU4BQN";
+        oibri-nixos.id =
+          "XKUQLBZ-YZZ2OTU-TDBLNFK-CKUKTAH-5Q4JUIK-6G4K5WP-EHVJFBX-SN5JRAQ";
+        phone.id =
+          "PXRZLWU-5SGAHJC-5ZOID7T-ZNRZG32-6HWJKDG-PRYTIBS-WZSXNAE-HEIFSAZ";
+        nas.id =
+          "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+        saoiste.id =
+          "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
       };
-      password-store = {
-        devices = [ "leigheas" "nas" "saoiste"];
-        path = "/pool-1/.password-store";
-        enable = true;
+      folders = {
+        org = {
+          devices = [ "leigheas" "nas" "saoiste" ];
+          path = "/pool-1/org";
+          enable = true;
+        };
+        password-store = {
+          devices = [ "leigheas" "nas" "saoiste" ];
+          path = "/pool-1/.password-store";
+          enable = true;
+        };
       };
     };
   };

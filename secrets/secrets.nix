@@ -28,4 +28,6 @@ in {
   "ddclient.age".publicKeys = [ personal pi ];
   "fitzmattd-email.age".publicKeys = [ personal leigheas saoiste];
   "ftzm-org-email.age".publicKeys = [ personal leigheas saoiste];
+  "borgbase_key.age".publicKeys = [ personal leigheas saoiste nuc nas];
+  "borgbase_passphrase.age".publicKeys = [ personal leigheas saoiste nuc nas];
 }
