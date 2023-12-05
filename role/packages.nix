@@ -97,6 +97,7 @@ in {
 
     # (tmux.override ({ withUtempter = false;}))
     tmux
+    wezterm
 
     # system
     binutils
@@ -234,6 +235,8 @@ in {
 
     gnome.nautilus
 
+    teams-for-linux
+    # redpanda
   ];
 
   programs.thunar.enable = true;

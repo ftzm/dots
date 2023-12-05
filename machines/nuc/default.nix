@@ -34,6 +34,8 @@
     extraGroups = [ "wheel" ]; # Enable ‘sudo’ for the user.
   };
 
+  virtualisation.oci-containers.backend = "podman";
+
   environment.systemPackages = with pkgs; [
     wget
     vim
@@ -86,13 +88,18 @@
         enabledCollectors = [ "processes" "systemd" ];
         port = 9002;
       };
+      zfs = {
+        enable = true;
+      };
+      wireguard = {
+        enable = true;
+      };
     };
     scrapeConfigs = [{
       job_name = "node";
       static_configs = [{
         targets = [
           "127.0.0.1:${toString config.services.prometheus.exporters.node.port}"
-          "10.0.0.13:9002"
         ];
       }];
     }];
@@ -166,18 +173,60 @@
 
   users.users.deluge.extraGroups = [ "users" "storage" ];
 
+  services.samba-wsdd.enable =
+    true; # make shares visible for windows 10 clients
+  networking.firewall.allowedTCPPorts = [
+    5357 # wsdd
+  ];
+  networking.firewall.allowedUDPPorts = [
+    3702 # wsdd
+  ];
+
+  # ----------------------------------------------------------------------
+  services.samba = {
+    enable = true;
+    extraConfig = ''
+      browseable = yes
+      smb encrypt = required
+    '';
+    shares = {
+      public = {
+        path = "/mnt/nas/cloud";
+        browseable = "yes";
+        "read only" = "no";
+        #"guest ok" = "yes";
+        # "create mask" = "0644";
+        # "directory mask" = "0755";
+        # "force user" = "admin";
+        # "force group" = "storage";
+      };
+      # private = {
+      #   path = "/mnt/Shares/Private";
+      #   browseable = "yes";
+      #   "read only" = "no";
+      #   "guest ok" = "no";
+      #   "create mask" = "0644";
+      #   "directory mask" = "0755";
+      #   "force user" = "username";
+      #   "force group" = "groupname";
+      # };
+    };
+  };
+
   # ----------------------------------------------------------------------
   # nextcloud
 
+  nixpkgs.config.permittedInsecurePackages = [ "openssl-1.1.1u" ];
+
   services.nextcloud = {
     enable = false;
-    package = pkgs.nextcloud22;
+    package = pkgs.nextcloud27;
     hostName = "nextcloud.ftzmlab.xyz";
 
     # Use HTTPS for links
     https = true;
 
-    home = "/mnt/nas/nextcloud";
+    # home = "/mnt/nas/nextcloud";
 
     # Auto-update Nextcloud Apps
     autoUpdateApps.enable = true;
@@ -189,32 +238,32 @@
       overwriteProtocol = "https";
 
       # Nextcloud PostegreSQL database configuration, recommended over using SQLite
-      dbtype = "pgsql";
-      dbuser = "nextcloud";
-      dbhost = "/run/postgresql"; # nextcloud will add /.s.PGSQL.5432 by itself
-      dbname = "nextcloud";
-      dbpassFile = config.age.secrets.nextcloud-db-pass.path;
+      # dbtype = "pgsql";
+      # dbuser = "nextcloud";
+      # dbhost = "/run/postgresql"; # nextcloud will add /.s.PGSQL.5432 by itself
+      # dbname = "nextcloud";
+      # dbpassFile = config.age.secrets.nextcloud-db-pass.path;
 
       adminpassFile = config.age.secrets.nextcloud-admin-pass.path;
       adminuser = "admin";
     };
   };
 
-  services.postgresql = {
-    enable = true;
+  # services.postgresql = {
+  #   enable = true;
 
-    # Ensure the database, user, and permissions always exist
-    ensureDatabases = [ "nextcloud" ];
-    ensureUsers = [{
-      name = "nextcloud";
-      ensurePermissions."DATABASE nextcloud" = "ALL PRIVILEGES";
-    }];
-  };
+  #   # Ensure the database, user, and permissions always exist
+  #   ensureDatabases = [ "nextcloud" ];
+  #   ensureUsers = [{
+  #     name = "nextcloud";
+  #     ensurePermissions."DATABASE nextcloud" = "ALL PRIVILEGES";
+  #   }];
+  # };
 
-  systemd.services."nextcloud-setup" = {
-    requires = [ "postgresql.service" ];
-    after = [ "postgresql.service" ];
-  };
+  # systemd.services."nextcloud-setup" = {
+  #   requires = [ "postgresql.service" ];
+  #   after = [ "postgresql.service" ];
+  # };
 
   # age.secrets.nextcloud-db-pass = {
   #   file = ../../secrets/nextcloud-db-pass.age;
@@ -232,67 +281,73 @@
 
   # ----------------------------------------------------------------------
 
-  services.photoprism = {
-    enable = true;
-    port = 2343;
-    originalsPath = "/var/lib/private/photoprism/originals";
-    address = "0.0.0.0";
-    passwordFile = "/photoprism_pw";
-    settings = {
-      PHOTOPRISM_ADMIN_USER = "admin";
-      PHOTOPRISM_DEFAULT_LOCALE = "en";
-      PHOTOPRISM_DATABASE_DRIVER = "mysql";
-      PHOTOPRISM_DATABASE_NAME = "photoprism";
-      PHOTOPRISM_DATABASE_SERVER = "/run/mysqld/mysqld.sock";
-      PHOTOPRISM_DATABASE_USER = "photoprism";
-      PHOTOPRISM_SITE_URL = "https://img.ftzmlab.xyz";
-      PHOTOPRISM_SITE_TITLE = "PhotoPrism";
-    };
-  };
-
   # force it to run as storage group so imported folders can be accessed
-  systemd.services.photoprism.serviceConfig.Group = lib.mkForce "storage";
-
-  services.mysql = {
-    enable = true;
-    dataDir = "/data/mysql";
-    package = pkgs.mariadb;
-    ensureDatabases = [ "photoprism" ];
-    ensureUsers = [{
-      name = "photoprism";
-      ensurePermissions = { "photoprism.*" = "ALL PRIVILEGES"; };
-    }];
-  };
-
-  fileSystems."/var/lib/private/photoprism" = {
-    device = "/data/photoprism";
-    options = [ "bind" ];
-  };
-
-  fileSystems."/var/lib/private/photoprism/originals" = {
-    device = "/mnt/nas/img";
-    options = [ "bind" ];
-  };
+  #  systemd.services.photoprism.serviceConfig.Group = lib.mkForce "storage";
 
   virtualisation.oci-containers.containers.filestash = {
     image = "machines/filestash";
     ports = [ "0.0.0.0:8334:8334" ];
-    environment = {
-    };
+    environment = { };
   };
 
   virtualisation.oci-containers.containers.filebrowser = {
     image = "filebrowser/filebrowser";
-    ports = [ "0.0.0.0:8899:8899" ];
-    user = "user:admin";
-    volumes = [
-     "/filebrowser:/srv"
-     "/filebrowser/filebrowser_db.db:/database.db"
-     #"/path/.filebrowser.json:/.filebrowser.json"
-    ];
+    ports = [ "0.0.0.0:8899:80" ];
+    # user = "admin";
+    volumes =
+      [ "/mnt/nas/cloud:/srv" "/filebrowser/filebrowser_db.db:/database.db" ];
+    environment = { };
+  };
+
+  virtualisation.oci-containers.containers.lychee = {
+    image = "lycheeorg/lychee";
+    ports = [ "0.0.0.0:90:80" ];
+    volumes = [ "/mnt/nas/cloud/photos:/srv" ];
+    environment = { };
+  };
+
+  # we create a systemd service so that we can create a single "pod"
+  # for our containers to live inside of. This will mimic how docker compose
+  # creates one network for the containers to live inside of
+  systemd.services.create-photoview-network =
+    with config.virtualisation.oci-containers; {
+      serviceConfig.Type = "oneshot";
+      wantedBy =
+        [ "${backend}-photoview.service" "${backend}-photoview-db.service" ];
+      script = ''
+        ${pkgs.podman}/bin/podman network exists pv-net || \
+        ${pkgs.podman}/bin/podman network create pv-net
+      '';
+    };
+
+
+  virtualisation.oci-containers.containers.photoview-db = {
+    image = "mysql:latest";
+    volumes = [ "db:/var/lib/mysql" ];
+    autoStart = true;
     environment = {
+      MYSQL_DATABASE = "photoview";
+      MYSQL_USER = "photoview";
+      MYSQL_PASSWORD = "photosecret";
+      MYSQL_RANDOM_ROOT_PASSWORD = "1";
+    };
+    extraOptions = [ "--network=pv-net" ];
+  };
+
+  virtualisation.oci-containers.containers.photoview = {
+    image = "viktorstrate/photoview:2";
+    ports = [ "0.0.0.0:8888:80" ];
+    volumes = [ "/photoview:/app/cache" "/mnt/nas/cloud/photos:/photos:ro" ];
+    extraOptions = [ "--network=pv-net" ];
+    environment = {
+      PHOTOVIEW_DATABASE_DRIVER = "mysql";
+      PHOTOVIEW_MYSQL_URL = "photoview:photosecret@tcp(photoview-db)/photoview";
+      PHOTOVIEW_LISTEN_IP = "photoview";
+      PHOTOVIEW_LISTEN_PORT = "80";
+      PHOTOVIEW_MEDIA_CACHE = "/app/cache";
     };
   };
+
   # ----------------------------------------------------------------------
 
   security.acme = {
@@ -340,10 +395,6 @@
         proxyWebsockets = true;
       };
     };
-    virtualHosts."nextcloud.ftzmlab.xyz" = {
-      forceSSL = true;
-      enableACME = true;
-    };
     virtualHosts."ombi.ftzmlab.xyz" = {
       forceSSL = true;
       enableACME = true;
@@ -356,7 +407,7 @@
       enableACME = true;
       forceSSL = true;
       locations."/" = {
-        proxyPass = "http://127.0.0.1:2343";
+        proxyPass = "http://127.0.0.1:8888";
         proxyWebsockets = true;
       };
     };
@@ -395,7 +446,7 @@
   };
 
   fileSystems."/var/www/dav" = {
-    device = "/dav";
+    device = "/mnt/nas/cloud";
     options = [ "bind" ];
   };
   systemd.services.nginx.serviceConfig.ReadWritePaths =

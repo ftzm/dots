@@ -36,6 +36,7 @@
     config = {
       allowUnfree = true;
       permittedInsecurePackages = [ "p7zip-16.02" "openssl-1.0.2u" ];
+      allowBroken = true;
     };
     overlays = [
       (import ../../overlays)
@@ -109,7 +110,7 @@
     htop
     git
     deploy-rs.deploy-rs
-    inputs.agenix.defaultPackage.x86_64-linux
+    inputs.agenix.packages.x86_64-linux.agenix
   ];
 
   virtualisation.docker.enable = true;
