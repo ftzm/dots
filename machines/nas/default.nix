@@ -68,6 +68,8 @@ in {
 
   age.secrets.smtppw.file = ../../secrets/smtppw.age;
 
+  # Set up email for sending mail from the server (e.g. reporting on
+  # automated tasks or alerts)
   programs = {
     msmtp = {
       enable = true;
@@ -76,15 +78,20 @@ in {
         default = {
           tls = true;
           tls_starttls = true;
+          # tls_starttls = false;
           auth = true;
+          from = "nas@ftzmlab.xyz";
           host = "smtp.fastmail.com";
-          port = 465;
+          port = 587; # for starttls
+          #port = 565;
           user = "ftzm@fastmail.com";
-          passwordeval = "cat ${config.age.secrets.smtppw.path}";
+          passwordeval =
+            "${pkgs.coreutils}/bin/cat ${config.age.secrets.smtppw.path}";
         };
       };
     };
   };
+
   services = {
     sshd.enable = true;
     openssh.enable = true;
@@ -92,7 +99,7 @@ in {
       enable = true;
       notifications = {
         # Nice to temporarily enable when testing a new configuration
-        # test = true;
+        test = true;
         mail = {
           enable = true;
           sender = "nas@ftzmlab.xyz";
@@ -131,7 +138,8 @@ in {
     repo = "d6hr008k@d6hr008k.repo.borgbase.com:repo";
     encryption = {
       mode = "repokey-blake2";
-      passCommand = "cat ${config.age.secrets.borgbase-passphrase.path}";
+      passCommand =
+        "${pkgs.coreutils}/bin/cat ${config.age.secrets.borgbase-passphrase.path}";
     };
     environment.BORG_RSH = "ssh -i ${config.age.secrets.borgbase-key.path}";
     compression = "auto,lzma";
