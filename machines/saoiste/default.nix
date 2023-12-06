@@ -58,7 +58,6 @@
       (import ../../overlays)
       inputs.pipestatus.overlay
       inputs.emacs-overlay.overlay
-      inputs.deploy-rs.overlay
     ];
   };
 

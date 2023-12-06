@@ -42,7 +42,6 @@
       (import ../../overlays)
       inputs.pipestatus.overlay
       inputs.emacs-overlay.overlay
-      inputs.deploy-rs.overlay
     ];
   };
 
@@ -109,7 +108,6 @@
     vim
     htop
     git
-    deploy-rs.deploy-rs
     inputs.agenix.packages.x86_64-linux.agenix
   ];
 

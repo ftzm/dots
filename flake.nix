@@ -5,13 +5,12 @@
     nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager.url = "github:nix-community/home-manager";
-    deploy-rs.url = "github:serokell/deploy-rs";
     pipestatus.url = "github:ftzm/pipestatus";
     emacs-overlay.url = "github:nix-community/emacs-overlay";
     agenix.url = "github:ryantm/agenix";
   };
 
-  outputs = inputs@{ self, nixpkgs, deploy-rs, nixpkgs-ftzmlab, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-ftzmlab, ... }:
     let
       defaultSystem = "x86_64-linux";
       mkUserSystem = host-config:
@@ -26,20 +25,9 @@
           specialArgs = { inherit inputs; };
           modules = [ (./machines/. + "/${host}") ];
         };
-      mkDeployNode = { host, networkHost ? host }: {
-        hostname = "${networkHost}";
-        profiles.system = {
-          sshUser = "admin";
-          user = "root";
-          path = deploy-rs.lib.x86_64-linux.activate.nixos
-            self.nixosConfigurations."${host}";
-          autoRollback = false;
-          magicRollback = false;
-        };
       };
     in {
       nixosConfigurations = {
-        # oibri-nixos = mkUserSystem ./machines/oibri-nixos;
         leigheas = nixpkgs.lib.nixosSystem {
           system = defaultSystem;
           specialArgs = { inherit inputs; };
@@ -56,17 +44,6 @@
         #   host = "pi";
         #   system = "aarch64-linux";
         # };
-      };
-      deploy.nodes = {
-        nuc = mkDeployNode {
-          host = "nuc";
-          networkHost = "nuc";
-        };
-        nas = mkDeployNode {
-          host = "nas";
-          networkHost = "nas";
-        };
-        # pi = mkDeployNode { host = "pi"; };
       };
     };
 }
