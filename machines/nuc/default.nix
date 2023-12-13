@@ -43,7 +43,6 @@
     ncmpcpp
     beets
     sqlite
-    ranger
     htop
     ffmpeg
     git

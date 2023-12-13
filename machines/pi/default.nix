@@ -62,7 +62,6 @@
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     vim
-    ranger
     foot.terminfo
   ];
 

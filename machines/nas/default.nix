@@ -58,7 +58,6 @@ in {
     lshw
     smartmontools
     hdparm
-    ranger
     htop
     shntool
     cuetools

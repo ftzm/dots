@@ -103,7 +103,6 @@ in {
     binutils
     file
     (dmenu.override ({ patches = [ dmenuFuzzyPatch ]; }))
-    ranger
     htop
     arandr
     pass
