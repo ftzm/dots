@@ -4,13 +4,13 @@
   :config
   (setq slime-contribs '(slime-fancy)))
 
-(use-package paredit
-  :straight t
-  :commands paredit-mode
-  :diminish "pr"
-  :hook ((emacs-lisp-mode
-	  lisp-interaction-mode ; enable in the *scratch* buffer
-	  list-mode
-	  eval-expression-minibuffer-setup) . paredit-mode))
+;; (use-package paredit
+;;   :straight t
+;;   :commands paredit-mode
+;;   :diminish "pr"
+;;   :hook ((emacs-lisp-mode
+;; 	  lisp-interaction-mode ; enable in the *scratch* buffer
+;; 	  list-mode
+;; 	  eval-expression-minibuffer-setup) . paredit-mode))
 
 (provide 'init-lisp)

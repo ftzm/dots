@@ -1,5 +1,4 @@
-{ self, system, nixpkgs, pkgs, config, lib, inputs, ... }:
-{
+{ self, system, nixpkgs, pkgs, config, lib, inputs, ... }: {
   imports = [
     # System specific
     ./hardware.nix
@@ -36,12 +35,12 @@
     config = {
       allowUnfree = true;
       permittedInsecurePackages = [ "p7zip-16.02" "openssl-1.0.2u" ];
+      allowBroken = true;
     };
     overlays = [
       (import ../../overlays)
       inputs.pipestatus.overlay
       inputs.emacs-overlay.overlay
-      inputs.deploy-rs.overlay
     ];
   };
 
@@ -78,10 +77,11 @@
   };
   home-manager.users.ftzm.home.stateVersion = "21.05";
   home-manager.users.ftzm.home.activation = {
-    myActivationAction = inputs.home-manager.lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
-        -f ${builtins.toPath ./../../dotfiles/MODULES}
-    '';
+    myActivationAction =
+      inputs.home-manager.lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
+          -f ${builtins.toPath ./../../dotfiles/MODULES}
+      '';
   };
 
   # System
@@ -108,8 +108,7 @@
     vim
     htop
     git
-    deploy-rs.deploy-rs
-    inputs.agenix.defaultPackage.x86_64-linux
+    inputs.agenix.packages.x86_64-linux.agenix
   ];
 
   virtualisation.docker.enable = true;
@@ -130,7 +129,6 @@
   # Or disable the firewall altogether.
   networking.firewall.enable = false;
   networking.networkmanager.enable = true;
-
 
   # ---------------------------------------------------------------------------
   # GUI
@@ -156,8 +154,6 @@
   # networking.resolvconf.enable = false;
   networking.nameservers = [ "1.1.1.1" ];
 
-
-
   services.syncthing = {
     enable = true;
     #guiAddress = "localhost:8384";
@@ -169,6 +165,9 @@
 
   # System specific DPI
   services.xserver.dpi = 192;
+
+  virtualisation.virtualbox.host.enable = true;
+  users.extraGroups.vboxusers.members = [ "ftzm" ];
 
   programs.steam = { enable = true; };
 

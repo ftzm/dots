@@ -97,12 +97,12 @@ in {
 
     # (tmux.override ({ withUtempter = false;}))
     tmux
+    wezterm
 
     # system
     binutils
     file
     (dmenu.override ({ patches = [ dmenuFuzzyPatch ]; }))
-    ranger
     htop
     arandr
     pass
@@ -234,6 +234,11 @@ in {
 
     gnome.nautilus
 
+    teams-for-linux
+    # redpanda
+
+    waypaper
+    waybar
   ];
 
   programs.thunar.enable = true;

@@ -1,4 +1,5 @@
 ;;global
+
 (require 'init-gui)
 (require 'init-straight)
 (require 'init-themes)

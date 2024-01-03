@@ -34,14 +34,22 @@
     extraGroups = [ "wheel" ]; # Enable ‘sudo’ for the user.
   };
 
+  virtualisation.oci-containers.backend = "podman";
+
   environment.systemPackages = with pkgs; [
     wget
     vim
     mpc_cli
     ncmpcpp
-    beets
+    (beets.override {
+      pluginOverrides = {
+        extrafiles = {
+          enable = true;
+          propagatedBuildInputs = [ beetsPackages.extrafiles ];
+        };
+      };
+    })
     sqlite
-    ranger
     htop
     ffmpeg
     git
@@ -86,13 +94,14 @@
         enabledCollectors = [ "processes" "systemd" ];
         port = 9002;
       };
+      zfs = { enable = true; };
+      wireguard = { enable = true; };
     };
     scrapeConfigs = [{
       job_name = "node";
       static_configs = [{
         targets = [
           "127.0.0.1:${toString config.services.prometheus.exporters.node.port}"
-          "10.0.0.13:9002"
         ];
       }];
     }];
@@ -166,18 +175,60 @@
 
   users.users.deluge.extraGroups = [ "users" "storage" ];
 
+  services.samba-wsdd.enable =
+    true; # make shares visible for windows 10 clients
+  networking.firewall.allowedTCPPorts = [
+    5357 # wsdd
+  ];
+  networking.firewall.allowedUDPPorts = [
+    3702 # wsdd
+  ];
+
+  # ----------------------------------------------------------------------
+  services.samba = {
+    enable = true;
+    extraConfig = ''
+      browseable = yes
+      smb encrypt = required
+    '';
+    shares = {
+      public = {
+        path = "/mnt/nas/cloud";
+        browseable = "yes";
+        "read only" = "no";
+        #"guest ok" = "yes";
+        # "create mask" = "0644";
+        # "directory mask" = "0755";
+        # "force user" = "admin";
+        # "force group" = "storage";
+      };
+      # private = {
+      #   path = "/mnt/Shares/Private";
+      #   browseable = "yes";
+      #   "read only" = "no";
+      #   "guest ok" = "no";
+      #   "create mask" = "0644";
+      #   "directory mask" = "0755";
+      #   "force user" = "username";
+      #   "force group" = "groupname";
+      # };
+    };
+  };
+
   # ----------------------------------------------------------------------
   # nextcloud
 
+  nixpkgs.config.permittedInsecurePackages = [ "openssl-1.1.1u" ];
+
   services.nextcloud = {
     enable = false;
-    package = pkgs.nextcloud22;
+    package = pkgs.nextcloud27;
     hostName = "nextcloud.ftzmlab.xyz";
 
     # Use HTTPS for links
     https = true;
 
-    home = "/mnt/nas/nextcloud";
+    # home = "/mnt/nas/nextcloud";
 
     # Auto-update Nextcloud Apps
     autoUpdateApps.enable = true;
@@ -189,32 +240,32 @@
       overwriteProtocol = "https";
 
       # Nextcloud PostegreSQL database configuration, recommended over using SQLite
-      dbtype = "pgsql";
-      dbuser = "nextcloud";
-      dbhost = "/run/postgresql"; # nextcloud will add /.s.PGSQL.5432 by itself
-      dbname = "nextcloud";
-      dbpassFile = config.age.secrets.nextcloud-db-pass.path;
+      # dbtype = "pgsql";
+      # dbuser = "nextcloud";
+      # dbhost = "/run/postgresql"; # nextcloud will add /.s.PGSQL.5432 by itself
+      # dbname = "nextcloud";
+      # dbpassFile = config.age.secrets.nextcloud-db-pass.path;
 
       adminpassFile = config.age.secrets.nextcloud-admin-pass.path;
       adminuser = "admin";
     };
   };
 
-  services.postgresql = {
-    enable = true;
+  # services.postgresql = {
+  #   enable = true;
 
-    # Ensure the database, user, and permissions always exist
-    ensureDatabases = [ "nextcloud" ];
-    ensureUsers = [{
-      name = "nextcloud";
-      ensurePermissions."DATABASE nextcloud" = "ALL PRIVILEGES";
-    }];
-  };
+  #   # Ensure the database, user, and permissions always exist
+  #   ensureDatabases = [ "nextcloud" ];
+  #   ensureUsers = [{
+  #     name = "nextcloud";
+  #     ensurePermissions."DATABASE nextcloud" = "ALL PRIVILEGES";
+  #   }];
+  # };
 
-  systemd.services."nextcloud-setup" = {
-    requires = [ "postgresql.service" ];
-    after = [ "postgresql.service" ];
-  };
+  # systemd.services."nextcloud-setup" = {
+  #   requires = [ "postgresql.service" ];
+  #   after = [ "postgresql.service" ];
+  # };
 
   # age.secrets.nextcloud-db-pass = {
   #   file = ../../secrets/nextcloud-db-pass.age;
@@ -231,27 +282,198 @@
   # users.users.nextcloud.isSystemUser = true;
 
   # ----------------------------------------------------------------------
+  # Librephotos
 
+  # we create a systemd service so that we can create a single "pod"
+  # for our containers to live inside of. This will mimic how docker compose
+  # creates one network for the containers to live inside of
+  systemd.services.create-librephotos-network =
+    with config.virtualisation.oci-containers; {
+      serviceConfig.Type = "oneshot";
+      wantedBy = [
+        "${backend}-librephotos-backend.service"
+        "${backend}-librephotos-db.service"
+      ];
+      script = ''
+        ${pkgs.podman}/bin/podman network exists lp-net || \
+        ${pkgs.podman}/bin/podman network create lp-net
+      '';
+    };
+
+  virtualisation.oci-containers.containers.librephotos-proxy = {
+    image = "reallibrephotos/librephotos-proxy:latest";
+    volumes = [
+      "/mnt/nas/cloud/photos:/data"
+      "/librephotos/protected_media:/protected_media"
+    ];
+    ports = [ "0.0.0.0:780:80" ];
+    extraOptions = [ "--network=lp-net" ];
+    dependsOn = [ "librephotos-backend" "librephotos-frontend" ];
+  };
+
+  virtualisation.oci-containers.containers.librephotos-db = {
+    image = "postgres:13";
+    environment = {
+      POSTGRES_USER = "docker";
+      POSTGRES_PASSWORD = "AaAa1234";
+      POSTGRES_DB = "librephotos";
+    };
+    volumes = [ "/librephotos/data/db:/var/lib/postgresql/data" ];
+    entrypoint = "docker-entrypoint.sh";
+    cmd = [
+      "-c"
+      "fsync=off"
+      "-c"
+      "synchronous_commit=off"
+      "-c"
+      "full_page_writes=off"
+      "-c"
+      "random_page_cost=1.0"
+    ];
+    extraOptions = [ "--network=lp-net" ];
+  };
+
+  virtualisation.oci-containers.containers.librephotos-frontend = {
+    image = "reallibrephotos/librephotos-frontend:latest";
+    extraOptions = [ "--network=lp-net" ];
+    hostname = "frontend";
+  };
+
+  virtualisation.oci-containers.containers.librephotos-backend = {
+    image = "reallibrephotos/librephotos:latest";
+    volumes = [
+      "/mnt/nas/cloud/photos:/data"
+      "/librephotos/protected_media:/protected_media"
+      "/librephotos/logs:/logs"
+      "/librephotos/cache:/root/.cache"
+    ];
+    extraOptions = [ "--network=lp-net" ];
+    hostname = "backend";
+    environment = {
+      SECRET_KEY = "shhhhKey";
+      BACKEND_HOST = "backend";
+      ADMIN_EMAIL = "";
+      ADMIN_USERNAME = "admin";
+      ADMIN_PASSWORD = "admin";
+      DB_BACKEND = "postgresql";
+      DB_NAME = "librephotos";
+      DB_USER = "docker";
+      DB_PASS = "AaAa1234";
+      DB_HOST = "librephotos-db";
+      DB_PORT = "5432";
+      MAPBOX_API_KEY = "";
+      WEB_CONCURRENCY = "2";
+      SKIP_PATTERNS = "";
+      ALLOW_UPLOAD = "false";
+      CSRF_TRUSTED_ORIGINS = "";
+      DEBUG = "0";
+      HEAVYWEIGHT_PROCESS = "";
+    };
+    dependsOn = [ "librephotos-db" ];
+  };
+
+  # ----------------------------------------------------------------------
+
+  # force it to run as storage group so imported folders can be accessed
+  #  systemd.services.photoprism.serviceConfig.Group = lib.mkForce "storage";
+
+  virtualisation.oci-containers.containers.filestash = {
+    image = "machines/filestash";
+    ports = [ "0.0.0.0:8334:8334" ];
+    environment = { };
+  };
+
+  virtualisation.oci-containers.containers.filebrowser = {
+    image = "filebrowser/filebrowser";
+    ports = [ "0.0.0.0:8899:80" ];
+    # user = "admin";
+    volumes =
+      [ "/mnt/nas/cloud:/srv" "/filebrowser/filebrowser_db.db:/database.db" ];
+    environment = { };
+  };
+
+  virtualisation.oci-containers.containers.lychee = {
+    image = "lycheeorg/lychee";
+    ports = [ "0.0.0.0:90:80" ];
+    volumes = [ "/mnt/nas/cloud/photos:/srv" ];
+    environment = { };
+  };
+
+  # we create a systemd service so that we can create a single "pod"
+  # for our containers to live inside of. This will mimic how docker compose
+  # creates one network for the containers to live inside of
+  systemd.services.create-photoview-network =
+    with config.virtualisation.oci-containers; {
+      serviceConfig.Type = "oneshot";
+      wantedBy =
+        [ "${backend}-photoview.service" "${backend}-photoview-db.service" ];
+      script = ''
+        ${pkgs.podman}/bin/podman network exists pv-net || \
+        ${pkgs.podman}/bin/podman network create pv-net
+      '';
+    };
+
+  virtualisation.oci-containers.containers.photoview-db = {
+    image = "mysql:latest";
+    volumes = [ "db:/var/lib/mysql" ];
+    autoStart = true;
+    environment = {
+      MYSQL_DATABASE = "photoview";
+      MYSQL_USER = "photoview";
+      MYSQL_PASSWORD = "photosecret";
+      MYSQL_RANDOM_ROOT_PASSWORD = "1";
+    };
+    extraOptions = [ "--network=pv-net" ];
+  };
+
+  virtualisation.oci-containers.containers.photoview = {
+    image = "viktorstrate/photoview:2";
+    ports = [ "0.0.0.0:8888:80" ];
+    volumes = [ "/photoview:/app/cache" "/mnt/nas/cloud/photos:/photos:ro" ];
+    extraOptions = [ "--network=pv-net" ];
+    environment = {
+      PHOTOVIEW_DATABASE_DRIVER = "mysql";
+      PHOTOVIEW_MYSQL_URL = "photoview:photosecret@tcp(photoview-db)/photoview";
+      PHOTOVIEW_LISTEN_IP = "photoview";
+      PHOTOVIEW_LISTEN_PORT = "80";
+      PHOTOVIEW_MEDIA_CACHE = "/app/cache";
+    };
+  };
+
+  # ----------------------------------------------------------------------
+
+  virtualisation.oci-containers.containers.pigallery2 = {
+    image = "bpatrik/pigallery2:latest";
+    environment = {
+      NODE_ENV = "production"; # set to 'debug' for full debug logging
+    };
+    volumes = [
+      "/pigallery2/config:/app/data/config" # CHANGE ME
+      "db-data:/app/data/db"
+      "/mnt/nas/cloud/photos:/app/data/images:ro" # CHANGE ME, ':ro' means read-only
+      "/pigallery2/tmp:/app/data/tmp" # CHANGE ME
+    ];
+    ports = [ "0.0.0.0:8875:80" ];
+  };
+  # ----------------------------------------------------------------------
+  # Photoprism
   services.photoprism = {
     enable = true;
     port = 2343;
-    originalsPath = "/var/lib/private/photoprism/originals";
+    originalsPath = "/mnt/nas/cloud/photos";
     address = "0.0.0.0";
-    passwordFile = "/photoprism_pw";
     settings = {
       PHOTOPRISM_ADMIN_USER = "admin";
+      PHOTOPRISM_ADMIN_PASSWORD = "admin";
       PHOTOPRISM_DEFAULT_LOCALE = "en";
       PHOTOPRISM_DATABASE_DRIVER = "mysql";
       PHOTOPRISM_DATABASE_NAME = "photoprism";
       PHOTOPRISM_DATABASE_SERVER = "/run/mysqld/mysqld.sock";
       PHOTOPRISM_DATABASE_USER = "photoprism";
       PHOTOPRISM_SITE_URL = "https://img.ftzmlab.xyz";
-      PHOTOPRISM_SITE_TITLE = "PhotoPrism";
+      PHOTOPRISM_SITE_TITLE = "My PhotoPrism";
     };
   };
-
-  # force it to run as storage group so imported folders can be accessed
-  systemd.services.photoprism.serviceConfig.Group = lib.mkForce "storage";
 
   services.mysql = {
     enable = true;
@@ -262,36 +484,6 @@
       name = "photoprism";
       ensurePermissions = { "photoprism.*" = "ALL PRIVILEGES"; };
     }];
-  };
-
-  fileSystems."/var/lib/private/photoprism" = {
-    device = "/data/photoprism";
-    options = [ "bind" ];
-  };
-
-  fileSystems."/var/lib/private/photoprism/originals" = {
-    device = "/mnt/nas/img";
-    options = [ "bind" ];
-  };
-
-  virtualisation.oci-containers.containers.filestash = {
-    image = "machines/filestash";
-    ports = [ "0.0.0.0:8334:8334" ];
-    environment = {
-    };
-  };
-
-  virtualisation.oci-containers.containers.filebrowser = {
-    image = "filebrowser/filebrowser";
-    ports = [ "0.0.0.0:8899:8899" ];
-    user = "user:admin";
-    volumes = [
-     "/filebrowser:/srv"
-     "/filebrowser/filebrowser_db.db:/database.db"
-     #"/path/.filebrowser.json:/.filebrowser.json"
-    ];
-    environment = {
-    };
   };
   # ----------------------------------------------------------------------
 
@@ -339,10 +531,6 @@
         proxyPass = "http://127.0.0.1:8096";
         proxyWebsockets = true;
       };
-    };
-    virtualHosts."nextcloud.ftzmlab.xyz" = {
-      forceSSL = true;
-      enableACME = true;
     };
     virtualHosts."ombi.ftzmlab.xyz" = {
       forceSSL = true;
@@ -395,7 +583,7 @@
   };
 
   fileSystems."/var/www/dav" = {
-    device = "/dav";
+    device = "/mnt/nas/cloud";
     options = [ "bind" ];
   };
   systemd.services.nginx.serviceConfig.ReadWritePaths =

@@ -115,10 +115,11 @@ targets."
 (advice-add #'embark-completing-read-prompter
             :around #'embark-hide-which-key-indicator)
 
-(embark-define-keymap embark-composer-actions
-  "Keymap for actions on composers."
-  ("s" ftzm-mpd-composer-search)
-  ("r" ftzm-mpd-composer-findadd))
+(defvar-keymap embark-composer-actions
+  :doc "Keymap for actions on composers."
+  :parent embark-general-map
+  "s" #'ftzm-mpd-composer-search
+  "r" #'ftzm-mpd-composer-findadd)
 
 (assq-delete-all 'composer embark-keymap-alist)
 (add-to-list 'embark-keymap-alist '(composer . embark-composer-actions))
@@ -238,5 +239,9 @@ targets."
   (setq consult-dir-shadow-filenames nil) ;don't leave "shadowed" original
 					;search text
   )
+
+(defun try-custom ()
+  (delete-minibuffer-contents)
+  (insert "/var/"))
 
 (provide 'init-completion)

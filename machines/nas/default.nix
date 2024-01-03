@@ -18,7 +18,7 @@ in {
   # make members of wheel group trusted users, allowing them additional rights when
   # connection to nix daemon.
   # This was enable to allow deploying via deploy-rs as non-root.
-  nix.trustedUsers = ["@wheel"];
+  nix.settings.trusted-users = ["@wheel"];
 
   users.groups.storage = {gid = 1001;};
   users.users.root.extraGroups = ["users" "storage"];
@@ -63,7 +63,6 @@ in {
     lshw
     smartmontools
     hdparm
-    ranger
     htop
     shntool
     cuetools
@@ -73,6 +72,8 @@ in {
 
   age.secrets.smtppw.file = ../../secrets/smtppw.age;
 
+  # Set up email for sending mail from the server (e.g. reporting on
+  # automated tasks or alerts)
   programs = {
     msmtp = {
       enable = true;
@@ -81,15 +82,19 @@ in {
         default = {
           tls = true;
           tls_starttls = true;
+          # tls_starttls = false;
           auth = true;
+          from = "nas@ftzmlab.xyz";
           host = "smtp.fastmail.com";
-          port = 465;
+          port = 587; # for starttls
+          #port = 565;
           user = "ftzm@fastmail.com";
-          passwordeval = "cat ${config.age.secrets.smtppw.path}";
+          passwordeval = "${pkgs.coreutils}/bin/cat ${config.age.secrets.smtppw.path}";
         };
       };
     };
   };
+
   services = {
     sshd.enable = true;
     openssh.enable = true;
@@ -97,7 +102,7 @@ in {
       enable = true;
       notifications = {
         # Nice to temporarily enable when testing a new configuration
-        # test = true;
+        test = true;
         mail = {
           enable = true;
           sender = "nas@ftzmlab.xyz";
@@ -124,6 +129,27 @@ in {
       '';
     };
   };
+
+  #############################################################################
+  # Borg Backup
+
+  age.secrets.borgbase-key.file = ../../secrets/borgbase_key.age;
+  age.secrets.borgbase-passphrase.file = ../../secrets/borgbase_passphrase.age;
+
+  services.borgbackup.jobs."borgbase" = {
+    paths = ["/pool-1/cloud/photos"];
+    exclude = [];
+    repo = "d6hr008k@d6hr008k.repo.borgbase.com:repo";
+    encryption = {
+      mode = "repokey-blake2";
+      passCommand = "${pkgs.coreutils}/bin/cat ${config.age.secrets.borgbase-passphrase.path}";
+    };
+    environment.BORG_RSH = "ssh -i ${config.age.secrets.borgbase-key.path}";
+    compression = "auto,lzma";
+    startAt = "daily";
+  };
+
+  #############################################################################
 
   networking.firewall.enable = false;
 
