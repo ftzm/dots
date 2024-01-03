@@ -19,7 +19,7 @@
 
 ; ;;Set font
 ; ;; >>= :: <*> == /= >> {-#
-(setq my-font (format "Iosevka Lig Medium-12" (or (getenv "FONT_SIZE") "16")))
+(setq my-font (format "Jetbrains Mono-12" (or (getenv "FONT_SIZE") "16")))
 ; ;;to set in existing window:
 (set-frame-font my-font nil t)
 

@@ -1,10 +1,15 @@
-{ config, pkgs, inputs, lib, ... }:
-
-with lib;
-let shares = [ "music" ];
-
+{
+  config,
+  pkgs,
+  inputs,
+  lib,
+  ...
+}:
+with lib; let
+  shares = ["music"];
 in {
-  imports = [ # Include the results of the hardware scan.
+  imports = [
+    # Include the results of the hardware scan.
     inputs.agenix.nixosModules.age
     ./hardware.nix
     ../../configuration/network.nix
@@ -13,19 +18,19 @@ in {
   # make members of wheel group trusted users, allowing them additional rights when
   # connection to nix daemon.
   # This was enable to allow deploying via deploy-rs as non-root.
-  nix.trustedUsers = [ "@wheel" ];
+  nix.trustedUsers = ["@wheel"];
 
-  users.groups.storage = { gid = 1001; };
-  users.users.root.extraGroups = [ "users" "storage" ];
+  users.groups.storage = {gid = 1001;};
+  users.users.root.extraGroups = ["users" "storage"];
 
   boot.loader.systemd-boot.enable = true;
 
   # For ZFS
   # ZFS needs this unique id
   networking.hostId = "b901a7b2";
-  boot.supportedFilesystems = [ "zfs" ];
+  boot.supportedFilesystems = ["zfs"];
   services.zfs.zed.settings = {
-    ZED_EMAIL_ADDR = [ "m@ftzm.org" ];
+    ZED_EMAIL_ADDR = ["m@ftzm.org"];
     ZED_DEBUG_LOG = "/tmp/zed.debug.log";
     ZED_EMAIL_OPTS = "-s '@SUBJECT@' @ADDRESS@";
     ZED_NOTIFY_INTERVAL_SECS = 3600;
@@ -101,11 +106,11 @@ in {
       };
       autodetect = false;
       devices = [
-        { device = "/dev/sda"; }
-        { device = "/dev/sdb"; }
-        { device = "/dev/sdc"; }
-        { device = "/dev/sdd"; }
-        { device = "/dev/sde"; }
+        {device = "/dev/sda";}
+        {device = "/dev/sdb";}
+        {device = "/dev/sdc";}
+        {device = "/dev/sdd";}
+        {device = "/dev/sde";}
       ];
       defaults.monitored = "-a -o on -s (S/../.././02|L/../../7/04)";
     };
@@ -114,7 +119,8 @@ in {
       exports = ''
         /pool-1/ *(rw,fsid=root,no_subtree_check,no_root_squash)
         ${concatMapStringsSep "\n"
-        (n: "/pool-1/${n} *(rw,no_subtree_check,nohide,no_root_squash)") shares}
+          (n: "/pool-1/${n} *(rw,no_subtree_check,nohide,no_root_squash)")
+          shares}
       '';
     };
   };
@@ -127,7 +133,7 @@ in {
     exporters = {
       node = {
         enable = true;
-        enabledCollectors = [ "processes" "systemd" ];
+        enabledCollectors = ["processes" "systemd"];
         port = 9002;
       };
     };
@@ -144,25 +150,21 @@ in {
     overrideFolders = true;
     overrideDevices = true;
     devices = {
-      leigheas.id =
-        "3QY6BVK-DLFFWP5-WT62MGS-7WX3NQ5-X5BNZDA-ZRG44DM-DDH7LPQ-EMU4BQN";
-      oibri-nixos.id =
-        "XKUQLBZ-YZZ2OTU-TDBLNFK-CKUKTAH-5Q4JUIK-6G4K5WP-EHVJFBX-SN5JRAQ";
-      phone.id =
-        "PXRZLWU-5SGAHJC-5ZOID7T-ZNRZG32-6HWJKDG-PRYTIBS-WZSXNAE-HEIFSAZ";
-      nas.id =
-        "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
-      saoiste.id =
-        "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
+      leigheas.id = "3QY6BVK-DLFFWP5-WT62MGS-7WX3NQ5-X5BNZDA-ZRG44DM-DDH7LPQ-EMU4BQN";
+      oibri-nixos.id = "XKUQLBZ-YZZ2OTU-TDBLNFK-CKUKTAH-5Q4JUIK-6G4K5WP-EHVJFBX-SN5JRAQ";
+      phone.id = "PXRZLWU-5SGAHJC-5ZOID7T-ZNRZG32-6HWJKDG-PRYTIBS-WZSXNAE-HEIFSAZ";
+      nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+      saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
+      eachtrai.id = "MVEJLRV-Y2K6WNZ-SFGOKM6-XMIPA4M-FSJRFVM-6LHQBK4-B2RRWMN-YMFL4QA";
     };
     folders = {
       org = {
-        devices = [ "leigheas" "nas" "saoiste"];
+        devices = ["leigheas" "nas" "saoiste" "eachtrai"];
         path = "/pool-1/org";
         enable = true;
       };
       password-store = {
-        devices = [ "leigheas" "nas" "saoiste"];
+        devices = ["leigheas" "nas" "saoiste" "eachtrai"];
         path = "/pool-1/.password-store";
         enable = true;
       };
@@ -170,22 +172,25 @@ in {
   };
 
   # Not ideal, but makes deployment smoother
-  security.sudo.extraRules = [{
-    groups = [ "wheel" ];
-    commands = [{
-      command = "ALL";
-      options = [ "NOPASSWD" ];
-    }];
-  }];
+  security.sudo.extraRules = [
+    {
+      groups = ["wheel"];
+      commands = [
+        {
+          command = "ALL";
+          options = ["NOPASSWD"];
+        }
+      ];
+    }
+  ];
 
   users.users.admin = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "users" "storage" ];
+    extraGroups = ["wheel" "users" "storage"];
     openssh.authorizedKeys.keys = [
       "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
     ];
   };
 
   system.stateVersion = "20.09";
-
 }

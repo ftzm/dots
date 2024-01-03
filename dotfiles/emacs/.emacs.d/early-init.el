@@ -38,23 +38,6 @@
 ;; Disable package.el in favor of straight.el
 (setq package-enable-at-startup nil)
 
-;; Set up fonts early.
-(set-face-attribute 'default
-                    nil
-                    :height 120
-                    :family "Iosevka Lig Medium")
-(set-face-attribute 'variable-pitch
-                    nil
-                    :height 120
-                    :family "Iosevka Lig Medium")
-(set-face-attribute 'fixed-pitch
-                    nil
-                    :height 120
-                    :family "Iosevka Lig Medium")
-
-;; Emacs daemon needs this
-(add-to-list 'default-frame-alist '(font . "Iosevka Lig Medium-12"))
-
 (setq-default line-spacing 0.1)
 
 (require 'use-package)

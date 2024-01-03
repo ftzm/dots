@@ -1,7 +1,6 @@
 ;;; init-gui-el.el --- gui setup requiring external packages
 
 (use-package winum
-  :straight t
   :init
   :config
   (setq window-numbering-scope            'frame
