@@ -1,5 +1,4 @@
-{ self, system, nixpkgs, pkgs, config, lib, inputs, ... }:
-{
+{ self, system, nixpkgs, pkgs, config, lib, inputs, ... }: {
   imports = [
     # System specific
     ./hardware.nix
@@ -78,10 +77,11 @@
   };
   home-manager.users.ftzm.home.stateVersion = "21.05";
   home-manager.users.ftzm.home.activation = {
-    myActivationAction = inputs.home-manager.lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
-        -f ${builtins.toPath ./../../dotfiles/MODULES}
-    '';
+    myActivationAction =
+      inputs.home-manager.lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
+          -f ${builtins.toPath ./../../dotfiles/MODULES}
+      '';
   };
 
   # System
@@ -130,7 +130,6 @@
   networking.firewall.enable = false;
   networking.networkmanager.enable = true;
 
-
   # ---------------------------------------------------------------------------
   # GUI
 
@@ -155,8 +154,6 @@
   # networking.resolvconf.enable = false;
   networking.nameservers = [ "1.1.1.1" ];
 
-
-
   services.syncthing = {
     enable = true;
     #guiAddress = "localhost:8384";
@@ -168,6 +165,9 @@
 
   # System specific DPI
   services.xserver.dpi = 192;
+
+  virtualisation.virtualbox.host.enable = true;
+  users.extraGroups.vboxusers.members = [ "ftzm" ];
 
   programs.steam = { enable = true; };
 

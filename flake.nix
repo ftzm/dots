@@ -1,7 +1,7 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixos-23.11";
     nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager.url = "github:nix-community/home-manager";
@@ -25,7 +25,6 @@
           specialArgs = { inherit inputs; };
           modules = [ (./machines/. + "/${host}") ];
         };
-      };
     in {
       nixosConfigurations = {
         leigheas = nixpkgs.lib.nixosSystem {

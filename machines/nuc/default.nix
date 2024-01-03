@@ -41,7 +41,14 @@
     vim
     mpc_cli
     ncmpcpp
-    beets
+    (beets.override {
+      pluginOverrides = {
+        extrafiles = {
+          enable = true;
+          propagatedBuildInputs = [ beetsPackages.extrafiles ];
+        };
+      };
+    })
     sqlite
     htop
     ffmpeg
@@ -87,12 +94,8 @@
         enabledCollectors = [ "processes" "systemd" ];
         port = 9002;
       };
-      zfs = {
-        enable = true;
-      };
-      wireguard = {
-        enable = true;
-      };
+      zfs = { enable = true; };
+      wireguard = { enable = true; };
     };
     scrapeConfigs = [{
       job_name = "node";
@@ -279,6 +282,97 @@
   # users.users.nextcloud.isSystemUser = true;
 
   # ----------------------------------------------------------------------
+  # Librephotos
+
+  # we create a systemd service so that we can create a single "pod"
+  # for our containers to live inside of. This will mimic how docker compose
+  # creates one network for the containers to live inside of
+  systemd.services.create-librephotos-network =
+    with config.virtualisation.oci-containers; {
+      serviceConfig.Type = "oneshot";
+      wantedBy = [
+        "${backend}-librephotos-backend.service"
+        "${backend}-librephotos-db.service"
+      ];
+      script = ''
+        ${pkgs.podman}/bin/podman network exists lp-net || \
+        ${pkgs.podman}/bin/podman network create lp-net
+      '';
+    };
+
+  virtualisation.oci-containers.containers.librephotos-proxy = {
+    image = "reallibrephotos/librephotos-proxy:latest";
+    volumes = [
+      "/mnt/nas/cloud/photos:/data"
+      "/librephotos/protected_media:/protected_media"
+    ];
+    ports = [ "0.0.0.0:780:80" ];
+    extraOptions = [ "--network=lp-net" ];
+    dependsOn = [ "librephotos-backend" "librephotos-frontend" ];
+  };
+
+  virtualisation.oci-containers.containers.librephotos-db = {
+    image = "postgres:13";
+    environment = {
+      POSTGRES_USER = "docker";
+      POSTGRES_PASSWORD = "AaAa1234";
+      POSTGRES_DB = "librephotos";
+    };
+    volumes = [ "/librephotos/data/db:/var/lib/postgresql/data" ];
+    entrypoint = "docker-entrypoint.sh";
+    cmd = [
+      "-c"
+      "fsync=off"
+      "-c"
+      "synchronous_commit=off"
+      "-c"
+      "full_page_writes=off"
+      "-c"
+      "random_page_cost=1.0"
+    ];
+    extraOptions = [ "--network=lp-net" ];
+  };
+
+  virtualisation.oci-containers.containers.librephotos-frontend = {
+    image = "reallibrephotos/librephotos-frontend:latest";
+    extraOptions = [ "--network=lp-net" ];
+    hostname = "frontend";
+  };
+
+  virtualisation.oci-containers.containers.librephotos-backend = {
+    image = "reallibrephotos/librephotos:latest";
+    volumes = [
+      "/mnt/nas/cloud/photos:/data"
+      "/librephotos/protected_media:/protected_media"
+      "/librephotos/logs:/logs"
+      "/librephotos/cache:/root/.cache"
+    ];
+    extraOptions = [ "--network=lp-net" ];
+    hostname = "backend";
+    environment = {
+      SECRET_KEY = "shhhhKey";
+      BACKEND_HOST = "backend";
+      ADMIN_EMAIL = "";
+      ADMIN_USERNAME = "admin";
+      ADMIN_PASSWORD = "admin";
+      DB_BACKEND = "postgresql";
+      DB_NAME = "librephotos";
+      DB_USER = "docker";
+      DB_PASS = "AaAa1234";
+      DB_HOST = "librephotos-db";
+      DB_PORT = "5432";
+      MAPBOX_API_KEY = "";
+      WEB_CONCURRENCY = "2";
+      SKIP_PATTERNS = "";
+      ALLOW_UPLOAD = "false";
+      CSRF_TRUSTED_ORIGINS = "";
+      DEBUG = "0";
+      HEAVYWEIGHT_PROCESS = "";
+    };
+    dependsOn = [ "librephotos-db" ];
+  };
+
+  # ----------------------------------------------------------------------
 
   # force it to run as storage group so imported folders can be accessed
   #  systemd.services.photoprism.serviceConfig.Group = lib.mkForce "storage";
@@ -319,7 +413,6 @@
       '';
     };
 
-
   virtualisation.oci-containers.containers.photoview-db = {
     image = "mysql:latest";
     volumes = [ "db:/var/lib/mysql" ];
@@ -347,6 +440,51 @@
     };
   };
 
+  # ----------------------------------------------------------------------
+
+  virtualisation.oci-containers.containers.pigallery2 = {
+    image = "bpatrik/pigallery2:latest";
+    environment = {
+      NODE_ENV = "production"; # set to 'debug' for full debug logging
+    };
+    volumes = [
+      "/pigallery2/config:/app/data/config" # CHANGE ME
+      "db-data:/app/data/db"
+      "/mnt/nas/cloud/photos:/app/data/images:ro" # CHANGE ME, ':ro' means read-only
+      "/pigallery2/tmp:/app/data/tmp" # CHANGE ME
+    ];
+    ports = [ "0.0.0.0:8875:80" ];
+  };
+  # ----------------------------------------------------------------------
+  # Photoprism
+  services.photoprism = {
+    enable = true;
+    port = 2343;
+    originalsPath = "/mnt/nas/cloud/photos";
+    address = "0.0.0.0";
+    settings = {
+      PHOTOPRISM_ADMIN_USER = "admin";
+      PHOTOPRISM_ADMIN_PASSWORD = "admin";
+      PHOTOPRISM_DEFAULT_LOCALE = "en";
+      PHOTOPRISM_DATABASE_DRIVER = "mysql";
+      PHOTOPRISM_DATABASE_NAME = "photoprism";
+      PHOTOPRISM_DATABASE_SERVER = "/run/mysqld/mysqld.sock";
+      PHOTOPRISM_DATABASE_USER = "photoprism";
+      PHOTOPRISM_SITE_URL = "https://img.ftzmlab.xyz";
+      PHOTOPRISM_SITE_TITLE = "My PhotoPrism";
+    };
+  };
+
+  services.mysql = {
+    enable = true;
+    dataDir = "/data/mysql";
+    package = pkgs.mariadb;
+    ensureDatabases = [ "photoprism" ];
+    ensureUsers = [{
+      name = "photoprism";
+      ensurePermissions = { "photoprism.*" = "ALL PRIVILEGES"; };
+    }];
+  };
   # ----------------------------------------------------------------------
 
   security.acme = {
@@ -406,7 +544,7 @@
       enableACME = true;
       forceSSL = true;
       locations."/" = {
-        proxyPass = "http://127.0.0.1:8888";
+        proxyPass = "http://127.0.0.1:2343";
         proxyWebsockets = true;
       };
     };

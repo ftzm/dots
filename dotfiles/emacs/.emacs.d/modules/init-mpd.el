@@ -62,6 +62,7 @@
 	  (consult--read (seq-filter (lambda (x) (> (length x) 0)) (mapcar (lambda (x) (cdr x)) data))
 		         :prompt "Artist: "
 		         :category 'artist
+			 :sort nil
 		         ))))))
 
   (defun prepare-candidates (data)
@@ -101,6 +102,48 @@
 		 (libmpdel-playlist-add album 'current-playlist)
 				;	;(mpdel-core-search-by-album)
 		 ))))))))
+
+  (defun climb-entries (f)
+    (catch 'exit
+    (save-excursion
+      (while t
+	(funcall f)
+        ;; if we are at top level, return nil
+        (when (= (org-outline-level) 1)
+          (throw 'exit nil))
+        ;; if we cannot go up any further, return nil
+        (when (not (outline-up-heading 1))
+          (throw 'exit nil))))))
+
+  (defun entries-from-top ()
+    (let ((acc (list)))
+      (climb-entries '(lambda () (push (org-entry-properties) acc)))
+      acc))
+
+  (defun assoc-to-query-string (key val)
+    (format
+     (pcase key
+	   ("album" "(album == '%s')")
+	   ("artist" "(artist contains '%s')")
+	   ("composer" "(composer == '%s')")
+	   ("work" "(title contains '%s')"))
+     val))
+
+  (defun construct-request ()
+    (interactive)
+    (let* ((text-quoting-style 'straight)
+	   (entries (entries-from-top))
+	   (fields (split-string (cdr (assoc "FIELDS" (car entries))) " "))
+	   (titles (mapcar (lambda (x) (cdr (assoc "ITEM" x)))  (cdr entries)))
+	   (pairs (cl-mapcar (lambda (x y) `(,x . ,y)) fields titles))
+	   (inner-query (string-join
+			 (mapcar (lambda (p)
+				   (assoc-to-query-string (car p) (cdr p))) pairs) " AND "))
+	   (query (format "(%s)" inner-query)))
+
+      (mpdel-core-search-by-filter (message (format "%s" query)))
+      ;;(mpdel-core-search-by-filter "((composer == 'Lucien Durosoir'))")
+      ))
 
   (defun ftzm-mpd-format-time (data)
     (format "%s / %s" (libmpdel-time-to-string (cdr (assq 'elapsed data)))

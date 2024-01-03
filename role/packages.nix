@@ -236,6 +236,9 @@ in {
 
     teams-for-linux
     # redpanda
+
+    waypaper
+    waybar
   ];
 
   programs.thunar.enable = true;

@@ -790,7 +790,7 @@ are equal return t."
 
   ;;   ;; (set-face-attribute 'org-modern-done nil
   ;;   ;; 		      :foreground "#ebdbb2")
-     (global-org-modern-mode)
+     ;(global-org-modern-mode)
   )
 
 (provide 'init-org)
