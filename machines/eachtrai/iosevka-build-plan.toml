@@ -1,0 +1,55 @@
+[buildPlans.Iosevka-ftzm]
+family = "Iosevka ftzm"
+spacing = "normal"
+serifs = "sans"
+noCvSs = true
+exportGlyphNames = false
+
+  [buildPlans.Iosevka-ftzm.variants]
+  inherits = "ss08"
+
+    [buildPlans.Iosevka-ftzm.variants.design]
+    capital-k = "symmetric-connected-serifless"
+    c = "serifless"
+    f = "flat-hook-serifless"
+    k = "symmetric-connected-serifless"
+    l = "serifed-flat-tailed"
+    m = "serifless"
+    n = "straight-serifless"
+    p = "eared-serifless"
+    r = "corner-hooked-serifed"
+    t = "flat-hook"
+    g = "single-storey-serifless"
+    zero = "slashed"
+    two = "straight-neck-serifless"
+    five = "oblique-arched-serifless"
+    six = "straight-bar"
+    nine = "straight-bar"
+    paren = "normal"
+    w = "straight-serifless"
+    # punctuation-dot = "square"
+    underscore = "low"
+    
+
+  [buildPlans.Iosevka-ftzm.ligations]
+  inherits = "haskell"
+
+[buildPlans.Iosevka-ftzm.weights.Regular]
+shape = 400
+menu = 400
+css = 400
+
+[buildPlans.Iosevka-ftzm.weights.Medium]
+shape = 500
+menu = 500
+css = 500
+
+[buildPlans.Iosevka-ftzm.weights.Bold]
+shape = 700
+menu = 700
+css = 700
+
+[buildPlans.Iosevka-ftzm.widths.Normal]
+shape = 500
+menu = 5
+css = "normal"

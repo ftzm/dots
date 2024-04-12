@@ -1,9 +1,8 @@
-{ pkgs, ... }:
-
-{
+{pkgs, ...}: {
   environment.systemPackages = with pkgs; [
     nfs-utils
     libnfs
+    ncmpcpp
   ];
 
   # for rpc-statd for nfs client: https://github.com/NixOS/nixpkgs/issues/76671
@@ -48,7 +47,6 @@
     };
 
     # interact with mpd via playerctl
-    services.mpdris2 = { enable = true; };
+    services.mpdris2 = {enable = true;};
   };
-
 }

@@ -173,28 +173,28 @@ in {
     configDir = "/home/admin/.config/syncthing";
     dataDir = "/home/admin/sync";
     # I think these mean it doesn't try to merge the configs, and the merging is error prone.
-    overrideFolders = true;
-    overrideDevices = true;
-    devices = {
-      leigheas.id = "3QY6BVK-DLFFWP5-WT62MGS-7WX3NQ5-X5BNZDA-ZRG44DM-DDH7LPQ-EMU4BQN";
-      oibri-nixos.id = "XKUQLBZ-YZZ2OTU-TDBLNFK-CKUKTAH-5Q4JUIK-6G4K5WP-EHVJFBX-SN5JRAQ";
-      phone.id = "PXRZLWU-5SGAHJC-5ZOID7T-ZNRZG32-6HWJKDG-PRYTIBS-WZSXNAE-HEIFSAZ";
-      nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
-      saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
-      eachtrai.id = "MVEJLRV-Y2K6WNZ-SFGOKM6-XMIPA4M-FSJRFVM-6LHQBK4-B2RRWMN-YMFL4QA";
-    };
-    folders = {
-      org = {
-        devices = ["leigheas" "nas" "saoiste" "eachtrai"];
-        path = "/pool-1/org";
-        enable = true;
-      };
-      password-store = {
-        devices = ["leigheas" "nas" "saoiste" "eachtrai"];
-        path = "/pool-1/.password-store";
-        enable = true;
-      };
-    };
+    # overrideFolders = true;
+    # overrideDevices = true;
+    # devices = {
+    #   leigheas.id = "3QY6BVK-DLFFWP5-WT62MGS-7WX3NQ5-X5BNZDA-ZRG44DM-DDH7LPQ-EMU4BQN";
+    #   oibri-nixos.id = "XKUQLBZ-YZZ2OTU-TDBLNFK-CKUKTAH-5Q4JUIK-6G4K5WP-EHVJFBX-SN5JRAQ";
+    #   phone.id = "PXRZLWU-5SGAHJC-5ZOID7T-ZNRZG32-6HWJKDG-PRYTIBS-WZSXNAE-HEIFSAZ";
+    #   nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+    #   saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
+    #   eachtrai.id = "MVEJLRV-Y2K6WNZ-SFGOKM6-XMIPA4M-FSJRFVM-6LHQBK4-B2RRWMN-YMFL4QA";
+    # };
+    # folders = {
+    #   org = {
+    #     devices = ["leigheas" "nas" "saoiste" "eachtrai"];
+    #     path = "/pool-1/org";
+    #     enable = true;
+    #   };
+    #   password-store = {
+    #     devices = ["leigheas" "nas" "saoiste" "eachtrai"];
+    #     path = "/pool-1/.password-store";
+    #     enable = true;
+    #   };
+    # };
   };
 
   # Not ideal, but makes deployment smoother

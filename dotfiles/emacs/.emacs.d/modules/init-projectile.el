@@ -29,11 +29,6 @@
 
   )
 
-;(use-package counsel-projectile
-;  :straight t
-;  :after (projectile, counsel)
-;  )
-
 (defun switch-persp-project ()
   (interactive "")
   (let ((projects project--list))

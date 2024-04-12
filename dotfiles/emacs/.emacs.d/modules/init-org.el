@@ -426,7 +426,7 @@
 	 (agenda ""
                  ((org-agenda-overriding-header "Deadlines")
 		  (org-agenda-span 'day)
-		  (org-agenda-entry-types '(:deadline))
+		  (org-agenda-entry-types '(:deadline :scheduled))
 		  (org-agenda-skip-function  '(org-agenda-skip-entry-if 'todo 'done))
                  ))
 	 (tags "TODO=\"NEXT\"+SCHEDULED<=\"<today>\"|TODO=\"TODO\"+SCHEDULED<=\"<today>\"-CATEGORY=\"habits\""

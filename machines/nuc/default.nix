@@ -1,7 +1,12 @@
-{ config, pkgs, inputs, lib, ... }:
-
 {
-  imports = [ # Include the results of the hardware scan.
+  config,
+  pkgs,
+  inputs,
+  lib,
+  ...
+}: {
+  imports = [
+    # Include the results of the hardware scan.
     inputs.agenix.nixosModules.age
     ./hardware.nix
     ../../configuration/network.nix
@@ -10,7 +15,7 @@
   # make members of wheel group trusted users, allowing them additional rights when
   # connection to nix daemon.
   # This was enable to allow deploying via deploy-rs as non-root.
-  nix.settings.trusted-users = [ "@wheel" ];
+  nix.settings.trusted-users = ["@wheel"];
 
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
@@ -31,7 +36,7 @@
 
   users.users.admin = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ]; # Enable ‘sudo’ for the user.
+    extraGroups = ["wheel"]; # Enable ‘sudo’ for the user.
   };
 
   virtualisation.oci-containers.backend = "podman";
@@ -45,7 +50,7 @@
       pluginOverrides = {
         extrafiles = {
           enable = true;
-          propagatedBuildInputs = [ beetsPackages.extrafiles ];
+          propagatedBuildInputs = [beetsPackages.extrafiles];
         };
       };
     })
@@ -65,24 +70,40 @@
 
   programs.mosh.enable = true;
 
+  # --------------------------
   services.jellyfin = {
     enable = true;
     group = "storage";
   };
 
-  users.users.jellyfin.extraGroups = [ "users" "storage" ];
+  nixpkgs.config.packageOverrides = pkgs: {
+    vaapiIntel = pkgs.vaapiIntel.override {enableHybridCodec = true;};
+  };
+  hardware.opengl = {
+    enable = true;
+    extraPackages = with pkgs; [
+      intel-media-driver
+      vaapiIntel
+      vaapiVdpau
+      libvdpau-va-gl
+      intel-compute-runtime # OpenCL filter support (hardware tonemapping and subtitle burn-in)
+    ];
+  };
+
+  users.users.jellyfin.extraGroups = ["users" "storage"];
+  # --------------------------
 
   services.nfs.server.enable = true;
   fileSystems."/mnt/nas" = {
     device = "nas:/pool-1";
     fsType = "nfs";
-    options = [ "nfsvers=3" "noatime" "nodiratime" "rsize=32768" "async" ];
+    options = ["nfsvers=3" "noatime" "nodiratime" "rsize=32768" "async"];
   };
 
   services.mpd = {
     enable = true;
     musicDirectory = "/mnt/nas/music";
-    network = { listenAddress = "any"; };
+    network = {listenAddress = "any";};
   };
 
   services.prometheus = {
@@ -91,20 +112,24 @@
     exporters = {
       node = {
         enable = true;
-        enabledCollectors = [ "processes" "systemd" ];
+        enabledCollectors = ["processes" "systemd"];
         port = 9002;
       };
-      zfs = { enable = true; };
-      wireguard = { enable = true; };
+      zfs = {enable = true;};
+      wireguard = {enable = true;};
     };
-    scrapeConfigs = [{
-      job_name = "node";
-      static_configs = [{
-        targets = [
-          "127.0.0.1:${toString config.services.prometheus.exporters.node.port}"
+    scrapeConfigs = [
+      {
+        job_name = "node";
+        static_configs = [
+          {
+            targets = [
+              "127.0.0.1:${toString config.services.prometheus.exporters.node.port}"
+            ];
+          }
         ];
-      }];
-    }];
+      }
+    ];
   };
 
   services.grafana = {
@@ -114,12 +139,14 @@
     settings.server.http_addr = "127.0.0.1";
     provision = {
       enable = true;
-      datasources.settings.datasources = [{
-        name = "prometheus nuc";
-        type = "prometheus";
-        isDefault = true;
-        url = "http://localhost:9001";
-      }];
+      datasources.settings.datasources = [
+        {
+          name = "prometheus nuc";
+          type = "prometheus";
+          isDefault = true;
+          url = "http://localhost:9001";
+        }
+      ];
     };
   };
 
@@ -127,22 +154,22 @@
     enable = true;
     group = "storage";
   };
-  users.users.radarr.extraGroups = [ "users" "storage" ];
+  users.users.radarr.extraGroups = ["users" "storage"];
 
   services.sonarr = {
     enable = true;
     group = "storage";
   };
-  users.users.sonarr.extraGroups = [ "users" "storage" ];
+  users.users.sonarr.extraGroups = ["users" "storage"];
 
   services.lidarr = {
     enable = true;
     group = "storage";
   };
 
-  services.prowlarr = { enable = true; };
+  services.prowlarr = {enable = true;};
 
-  services.ombi = { enable = true; };
+  services.ombi = {enable = true;};
 
   age.secrets.deluge = {
     file = ../../secrets/deluge.age;
@@ -169,11 +196,11 @@
         chmod 775 -R /var/lib/deluge
         chgrp -R storage /var/lib/deluge
       '';
-      deps = [ ];
+      deps = [];
     };
   };
 
-  users.users.deluge.extraGroups = [ "users" "storage" ];
+  users.users.deluge.extraGroups = ["users" "storage"];
 
   services.samba-wsdd.enable =
     true; # make shares visible for windows 10 clients
@@ -218,7 +245,7 @@
   # ----------------------------------------------------------------------
   # nextcloud
 
-  nixpkgs.config.permittedInsecurePackages = [ "openssl-1.1.1u" ];
+  nixpkgs.config.permittedInsecurePackages = ["openssl-1.1.1u"];
 
   services.nextcloud = {
     enable = false;
@@ -277,7 +304,7 @@
   #   owner = "nextcloud";
   # };
 
-  users.groups.storage = { gid = 1001; };
+  users.groups.storage = {gid = 1001;};
   # users.users.nextcloud.extraGroups = [ "users" "storage" ];
   # users.users.nextcloud.isSystemUser = true;
 
@@ -287,18 +314,17 @@
   # we create a systemd service so that we can create a single "pod"
   # for our containers to live inside of. This will mimic how docker compose
   # creates one network for the containers to live inside of
-  systemd.services.create-librephotos-network =
-    with config.virtualisation.oci-containers; {
-      serviceConfig.Type = "oneshot";
-      wantedBy = [
-        "${backend}-librephotos-backend.service"
-        "${backend}-librephotos-db.service"
-      ];
-      script = ''
-        ${pkgs.podman}/bin/podman network exists lp-net || \
-        ${pkgs.podman}/bin/podman network create lp-net
-      '';
-    };
+  systemd.services.create-librephotos-network = with config.virtualisation.oci-containers; {
+    serviceConfig.Type = "oneshot";
+    wantedBy = [
+      "${backend}-librephotos-backend.service"
+      "${backend}-librephotos-db.service"
+    ];
+    script = ''
+      ${pkgs.podman}/bin/podman network exists lp-net || \
+      ${pkgs.podman}/bin/podman network create lp-net
+    '';
+  };
 
   virtualisation.oci-containers.containers.librephotos-proxy = {
     image = "reallibrephotos/librephotos-proxy:latest";
@@ -306,9 +332,9 @@
       "/mnt/nas/cloud/photos:/data"
       "/librephotos/protected_media:/protected_media"
     ];
-    ports = [ "0.0.0.0:780:80" ];
-    extraOptions = [ "--network=lp-net" ];
-    dependsOn = [ "librephotos-backend" "librephotos-frontend" ];
+    ports = ["0.0.0.0:780:80"];
+    extraOptions = ["--network=lp-net"];
+    dependsOn = ["librephotos-backend" "librephotos-frontend"];
   };
 
   virtualisation.oci-containers.containers.librephotos-db = {
@@ -318,7 +344,7 @@
       POSTGRES_PASSWORD = "AaAa1234";
       POSTGRES_DB = "librephotos";
     };
-    volumes = [ "/librephotos/data/db:/var/lib/postgresql/data" ];
+    volumes = ["/librephotos/data/db:/var/lib/postgresql/data"];
     entrypoint = "docker-entrypoint.sh";
     cmd = [
       "-c"
@@ -330,12 +356,12 @@
       "-c"
       "random_page_cost=1.0"
     ];
-    extraOptions = [ "--network=lp-net" ];
+    extraOptions = ["--network=lp-net"];
   };
 
   virtualisation.oci-containers.containers.librephotos-frontend = {
     image = "reallibrephotos/librephotos-frontend:latest";
-    extraOptions = [ "--network=lp-net" ];
+    extraOptions = ["--network=lp-net"];
     hostname = "frontend";
   };
 
@@ -347,7 +373,7 @@
       "/librephotos/logs:/logs"
       "/librephotos/cache:/root/.cache"
     ];
-    extraOptions = [ "--network=lp-net" ];
+    extraOptions = ["--network=lp-net"];
     hostname = "backend";
     environment = {
       SECRET_KEY = "shhhhKey";
@@ -369,7 +395,7 @@
       DEBUG = "0";
       HEAVYWEIGHT_PROCESS = "";
     };
-    dependsOn = [ "librephotos-db" ];
+    dependsOn = ["librephotos-db"];
   };
 
   # ----------------------------------------------------------------------
@@ -379,43 +405,40 @@
 
   virtualisation.oci-containers.containers.filestash = {
     image = "machines/filestash";
-    ports = [ "0.0.0.0:8334:8334" ];
-    environment = { };
+    ports = ["0.0.0.0:8334:8334"];
+    environment = {};
   };
 
   virtualisation.oci-containers.containers.filebrowser = {
     image = "filebrowser/filebrowser";
-    ports = [ "0.0.0.0:8899:80" ];
+    ports = ["0.0.0.0:8899:80"];
     # user = "admin";
-    volumes =
-      [ "/mnt/nas/cloud:/srv" "/filebrowser/filebrowser_db.db:/database.db" ];
-    environment = { };
+    volumes = ["/mnt/nas/cloud:/srv" "/filebrowser/filebrowser_db.db:/database.db"];
+    environment = {};
   };
 
   virtualisation.oci-containers.containers.lychee = {
     image = "lycheeorg/lychee";
-    ports = [ "0.0.0.0:90:80" ];
-    volumes = [ "/mnt/nas/cloud/photos:/srv" ];
-    environment = { };
+    ports = ["0.0.0.0:90:80"];
+    volumes = ["/mnt/nas/cloud/photos:/srv"];
+    environment = {};
   };
 
   # we create a systemd service so that we can create a single "pod"
   # for our containers to live inside of. This will mimic how docker compose
   # creates one network for the containers to live inside of
-  systemd.services.create-photoview-network =
-    with config.virtualisation.oci-containers; {
-      serviceConfig.Type = "oneshot";
-      wantedBy =
-        [ "${backend}-photoview.service" "${backend}-photoview-db.service" ];
-      script = ''
-        ${pkgs.podman}/bin/podman network exists pv-net || \
-        ${pkgs.podman}/bin/podman network create pv-net
-      '';
-    };
+  systemd.services.create-photoview-network = with config.virtualisation.oci-containers; {
+    serviceConfig.Type = "oneshot";
+    wantedBy = ["${backend}-photoview.service" "${backend}-photoview-db.service"];
+    script = ''
+      ${pkgs.podman}/bin/podman network exists pv-net || \
+      ${pkgs.podman}/bin/podman network create pv-net
+    '';
+  };
 
   virtualisation.oci-containers.containers.photoview-db = {
     image = "mysql:latest";
-    volumes = [ "db:/var/lib/mysql" ];
+    volumes = ["db:/var/lib/mysql"];
     autoStart = true;
     environment = {
       MYSQL_DATABASE = "photoview";
@@ -423,14 +446,14 @@
       MYSQL_PASSWORD = "photosecret";
       MYSQL_RANDOM_ROOT_PASSWORD = "1";
     };
-    extraOptions = [ "--network=pv-net" ];
+    extraOptions = ["--network=pv-net"];
   };
 
   virtualisation.oci-containers.containers.photoview = {
     image = "viktorstrate/photoview:2";
-    ports = [ "0.0.0.0:8888:80" ];
-    volumes = [ "/photoview:/app/cache" "/mnt/nas/cloud/photos:/photos:ro" ];
-    extraOptions = [ "--network=pv-net" ];
+    ports = ["0.0.0.0:8888:80"];
+    volumes = ["/photoview:/app/cache" "/mnt/nas/cloud/photos:/photos:ro"];
+    extraOptions = ["--network=pv-net"];
     environment = {
       PHOTOVIEW_DATABASE_DRIVER = "mysql";
       PHOTOVIEW_MYSQL_URL = "photoview:photosecret@tcp(photoview-db)/photoview";
@@ -453,8 +476,23 @@
       "/mnt/nas/cloud/photos:/app/data/images:ro" # CHANGE ME, ':ro' means read-only
       "/pigallery2/tmp:/app/data/tmp" # CHANGE ME
     ];
-    ports = [ "0.0.0.0:8875:80" ];
+    ports = ["0.0.0.0:8875:80"];
   };
+
+  # ----------------------------------------------------------------------
+  # Atuin
+
+  services.postgresql = {
+    enable = true;
+    package = pkgs.postgresql_15;
+  };
+
+  services.atuin = {
+    enable = true;
+    port = 8889;
+    openRegistration = true;
+  };
+
   # ----------------------------------------------------------------------
   # Photoprism
   services.photoprism = {
@@ -479,11 +517,13 @@
     enable = true;
     dataDir = "/data/mysql";
     package = pkgs.mariadb;
-    ensureDatabases = [ "photoprism" ];
-    ensureUsers = [{
-      name = "photoprism";
-      ensurePermissions = { "photoprism.*" = "ALL PRIVILEGES"; };
-    }];
+    ensureDatabases = ["photoprism"];
+    ensureUsers = [
+      {
+        name = "photoprism";
+        ensurePermissions = {"photoprism.*" = "ALL PRIVILEGES";};
+      }
+    ];
   };
   # ----------------------------------------------------------------------
 
@@ -494,7 +534,6 @@
 
   # nginx reverse proxy
   services.nginx = {
-
     # Use recommended settings
     recommendedGzipSettings = true;
     recommendedOptimisation = true;
@@ -510,8 +549,8 @@
       forceSSL = true;
       locations."/" = {
         proxyPass = "http://127.0.0.1:${
-            toString config.services.grafana.settings.server.http_port
-          }";
+          toString config.services.grafana.settings.server.http_port
+        }";
         proxyWebsockets = true;
       };
     };
@@ -519,8 +558,7 @@
       enableACME = true;
       forceSSL = true;
       locations."/" = {
-        proxyPass =
-          "http://127.0.0.1:${toString config.services.deluge.web.port}";
+        proxyPass = "http://127.0.0.1:${toString config.services.deluge.web.port}";
         proxyWebsockets = true;
       };
     };
@@ -584,19 +622,22 @@
 
   fileSystems."/var/www/dav" = {
     device = "/mnt/nas/cloud";
-    options = [ "bind" ];
+    options = ["bind"];
   };
-  systemd.services.nginx.serviceConfig.ReadWritePaths =
-    [ "/tmp/" "/var/www/dav/" ];
+  systemd.services.nginx.serviceConfig.ReadWritePaths = ["/tmp/" "/var/www/dav/"];
 
   # Not ideal, but makes deployment smoother
-  security.sudo.extraRules = [{
-    groups = [ "wheel" ];
-    commands = [{
-      command = "ALL";
-      options = [ "NOPASSWD" ];
-    }];
-  }];
+  security.sudo.extraRules = [
+    {
+      groups = ["wheel"];
+      commands = [
+        {
+          command = "ALL";
+          options = ["NOPASSWD"];
+        }
+      ];
+    }
+  ];
 
   users.users.admin.openssh.authorizedKeys.keys = [
     "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
