@@ -187,20 +187,20 @@
 
   # services.openssh.permitRootLogin = "yes";
 
-  # services.syncthing = {
-  #   enable = true;
-  #   #guiAddress = "localhost:8384";
-  #   openDefaultPorts = true;
-  #   user = "ftzm";
-  #   configDir = "/home/ftzm/.config/syncthing";
-  #   dataDir = "/home/ftzm";
+  services.syncthing = {
+    enable = true;
+    guiAddress = "0.0.0.0:8384";
+    openDefaultPorts = true;
+    user = "ftzm";
+    configDir = "/home/ftzm/.config/syncthing";
+    dataDir = "/home/ftzm";
 
-  #   # overrides any devices added or deleted through the WebUI
-  #   overrideDevices = true;
-  #   # overrides any folders added or deleted through the WebUI
-  #   overrideFolders = true;
+    # overrides any devices added or deleted through the WebUI
+    overrideDevices = true;
+    # overrides any folders added or deleted through the WebUI
+    overrideFolders = true;
 
-  # };
+  };
 
   services.xserver.videoDrivers = ["intel"];
 
