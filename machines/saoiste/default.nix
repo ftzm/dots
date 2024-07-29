@@ -1,6 +1,9 @@
-{ inputs, lib, pkgs, ... }:
-
 {
+  inputs,
+  lib,
+  pkgs,
+  ...
+}: {
   imports = [
     # Nix extensions
     inputs.agenix.nixosModules.age
@@ -10,9 +13,7 @@
     ./hardware.nix
 
     # Generic
-    ../../configuration/users.nix
-    ../../configuration/cachix.nix
-    ../../configuration/network.nix
+    ../../role/network.nix
     ../../role/mpd.nix
     ../../role/mail.nix
     ../../role/printing.nix
@@ -29,6 +30,15 @@
     ../../role/notification.nix
   ];
 
+  users.extraUsers.ftzm = {
+    createHome = true;
+    extraGroups = ["wheel" "video" "audio" "disk" "networkmanager" "docker"];
+    group = "users";
+    home = "/home/ftzm";
+    isNormalUser = true;
+    uid = 1000;
+  };
+
   personal.font_size = 10.0;
   personal.zsh_extra = "";
 
@@ -41,28 +51,31 @@
   # }];
 
   # Not ideal, but makes deployment smoother
-  security.sudo.extraRules = [{
-    groups = [ "wheel" ];
-    commands = [{
-      command = "ALL";
-      options = [ "NOPASSWD" ];
-    }];
-  }];
+  security.sudo.extraRules = [
+    {
+      groups = ["wheel"];
+      commands = [
+        {
+          command = "ALL";
+          options = ["NOPASSWD"];
+        }
+      ];
+    }
+  ];
 
   nixpkgs = {
     config = {
       allowUnfree = true;
-      permittedInsecurePackages = [ "p7zip-16.02" "openssl-1.0.2u" ];
+      permittedInsecurePackages = ["p7zip-16.02" "openssl-1.0.2u"];
     };
     overlays = [
       (import ../../overlays)
-      inputs.pipestatus.overlay
       inputs.emacs-overlay.overlay
     ];
   };
 
   nix = {
-    settings.trusted-users = [ "@wheel" ];
+    settings.trusted-users = ["@wheel"];
     package = pkgs.nixFlakes;
     extraOptions = ''
       experimental-features = nix-command flakes
@@ -70,19 +83,21 @@
       keep-derivations = true
       builders-use-substitutes = true
     '';
-    buildMachines = [{
-      hostName = "wg-nuc";
-      sshUser = "admin";
-      sshKey = "/home/ftzm/.ssh/id_rsa";
-      system = "x86_64-linux";
-      # if the builder supports building for multiple architectures,
-      # replace the previous line by, e.g.,
-      # systems = ["x86_64-linux" "aarch64-linux"];
-      maxJobs = 4;
-      speedFactor = 1;
-      supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
-      mandatoryFeatures = [ ];
-    }];
+    buildMachines = [
+      {
+        hostName = "wg-nuc";
+        sshUser = "admin";
+        sshKey = "/home/ftzm/.ssh/id_rsa";
+        system = "x86_64-linux";
+        # if the builder supports building for multiple architectures,
+        # replace the previous line by, e.g.,
+        # systems = ["x86_64-linux" "aarch64-linux"];
+        maxJobs = 4;
+        speedFactor = 1;
+        supportedFeatures = ["nixos-test" "benchmark" "big-parallel" "kvm"];
+        mandatoryFeatures = [];
+      }
+    ];
     # distributedBuilds = true;
   };
 
@@ -101,19 +116,17 @@
     authorizedKeys = [
       "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
     ];
-    hostKeys = [ "/etc/secrets/initrd/ssh_host_rsa_key" ];
+    hostKeys = ["/etc/secrets/initrd/ssh_host_rsa_key"];
   };
-  boot.kernelParams = [ "ip=dhcp" "i915.force_probe=4c8a" ];
-  boot.initrd.availableKernelModules = [ "r8169" ];
+  boot.kernelParams = ["ip=dhcp" "i915.force_probe=4c8a"];
+  boot.initrd.availableKernelModules = ["r8169"];
 
   # Setup keyfile
-  boot.initrd.secrets = { "/crypto_keyfile.bin" = null; };
+  boot.initrd.secrets = {"/crypto_keyfile.bin" = null;};
 
   # Enable swap on luks
-  boot.initrd.luks.devices."luks-80ee3586-78e6-4101-b35d-6c0bd7c3f26a".device =
-    "/dev/disk/by-uuid/80ee3586-78e6-4101-b35d-6c0bd7c3f26a";
-  boot.initrd.luks.devices."luks-80ee3586-78e6-4101-b35d-6c0bd7c3f26a".keyFile =
-    "/crypto_keyfile.bin";
+  boot.initrd.luks.devices."luks-80ee3586-78e6-4101-b35d-6c0bd7c3f26a".device = "/dev/disk/by-uuid/80ee3586-78e6-4101-b35d-6c0bd7c3f26a";
+  boot.initrd.luks.devices."luks-80ee3586-78e6-4101-b35d-6c0bd7c3f26a".keyFile = "/crypto_keyfile.bin";
 
   networking.hostName = "saoiste"; # Define your hostname.
   networking.firewall.enable = false;
@@ -130,11 +143,10 @@
   };
   home-manager.users.ftzm.home.stateVersion = "21.05";
   home-manager.users.ftzm.home.activation = {
-    myActivationAction =
-      inputs.home-manager.lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
-          -f ${builtins.toPath ./../../dotfiles/MODULES}
-      '';
+    myActivationAction = inputs.home-manager.lib.hm.dag.entryAfter ["writeBoundary"] ''
+      $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
+        -f ${builtins.toPath ./../../dotfiles/MODULES}
+    '';
   };
 
   # ---------------------------------------------------------------------------
@@ -142,7 +154,7 @@
   system.activationScripts = {
     # This is required to run third-party dynamically linked binaries
     # which expect their interpreter to be in the standard Linux FSH.
-    ldso = lib.stringAfter [ "usrbinenv" ] ''
+    ldso = lib.stringAfter ["usrbinenv"] ''
       mkdir -m 0755 -p /lib64
       ln -sfn ${pkgs.glibc.out}/lib64/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2.tmp
       mv -f /lib64/ld-linux-x86-64.so.2.tmp /lib64/ld-linux-x86-64.so.2 # atomically replace
@@ -190,7 +202,7 @@
 
   # };
 
-  services.xserver.videoDrivers = [ "intel" ];
+  services.xserver.videoDrivers = ["intel"];
 
   programs.tmux = {
     enable = true;
@@ -218,6 +230,4 @@
   users.users.ftzm.openssh.authorizedKeys.keys = [
     "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
   ];
-
-
 }

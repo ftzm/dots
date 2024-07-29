@@ -154,6 +154,7 @@ in {
   networking.firewall.enable = false;
 
   services.prometheus = {
+    # we don't need prometheus proper, just the exporter
     #enable = true;
     port = 9001;
     exporters = {

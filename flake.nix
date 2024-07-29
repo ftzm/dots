@@ -1,10 +1,20 @@
 {
+  nixConfig = {
+    extra-substituters = [
+      "https://nix-community.cachix.org"
+      "https://cache.iog.io"
+      "https://cache.zw3rk.com"
+    ];
+    extra-trusted-public-keys = [
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
+      "loony-tools:pr9m4BkM/5/eSTZlkQyRt57Jz7OMBxNSUiMC4FkcNfk="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/d6b3ddd253c578a7ab98f8011e59990f21dc3932";
-    # nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    #nixpkgs.url = "github:NixOS/nixpkgs/db1ee6dfe67b724b78e995fae47f6aad56ecc9b2";
-    #nixpkgs.url = "path:/home/ftzm/dev/nixpkgs";
-    nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixos-23.11";
+    nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixos-24.05";
     nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager.url = "github:nix-community/home-manager";
@@ -38,11 +48,6 @@
       };
   in {
     nixosConfigurations = {
-      leigheas = nixpkgs.lib.nixosSystem {
-        system = defaultSystem;
-        specialArgs = {inherit inputs;};
-        modules = [./machines/leigheas];
-      };
       saoiste = nixpkgs.lib.nixosSystem {
         system = defaultSystem;
         specialArgs = {inherit inputs;};

@@ -16,11 +16,12 @@
     ./hardware-configuration.nix
 
     ./disks.nix
-    ../../configuration/sleep.nix
-    ../../configuration/network.nix
-    ./home-setup.nix
+    ../../role/sleep.nix
+    ../../role/network.nix
     ../../role/shell.nix
     ../../role/mpd.nix
+    ./home-setup.nix
+    ./patched-alsa-ucm-conf.nix
   ];
 
   nix = {
@@ -41,32 +42,6 @@
     };
     overlays = [
       inputs.emacs-overlay.overlay
-      (
-        final: prev: {
-          alsa-ucm-conf = prev.alsa-ucm-conf.overrideAttrs (old: rec {
-            # pname = "alsa-ucm-conf";
-            # version = "1.2.10";
-            # src = pkgs.fetchurl {
-            #   url = "mirror://alsa/lib/${pname}-${version}.tar.bz2";
-            #   hash = "sha256-nCHj8B/wC6p1jfF+hnzTbiTrtBpr7ElzfpkQXhbyrpc=";
-            # };
-            patches = [
-              (pkgs.fetchpatch {
-                # TODO: Remove this patch in the next package upgrade
-                name = "rt1318-fix-one.patch";
-                url = "https://github.com/alsa-project/alsa-ucm-conf/commit/7e22b7c214d346bd156131f3e6c6a5900bbf116d.patch";
-                hash = "sha256-5X0ANXTSRnC9jkvMLl7lA5TBV3d1nwWE57DP6TwliII=";
-              })
-              (pkgs.fetchpatch {
-                # TODO: Remove this patch in the next package upgrade
-                name = "rt1318-fix-two.patch";
-                url = "https://github.com/alsa-project/alsa-ucm-conf/commit/4e0fcc79b7d517a957e12f02ecae5f3c69fa94dc.patch";
-                hash = "sha256-cuZPEEqb8+d1Ak2tA+LVEh6gtGt1X+LiAnfFYMIDCXY=";
-              })
-            ];
-          });
-        }
-      )
     ];
   };
 
@@ -202,6 +177,7 @@
     packages = with pkgs; [
       inputs.agenix.packages.x86_64-linux.agenix
       firefox
+      zathura
       tree
       git
       (((emacsPackagesFor emacs-pgtk).emacsWithPackages) (epkgs: [
@@ -230,6 +206,7 @@
       gnumake
       #gimp
       #libreoffice
+      nil
     ];
     hashedPasswordFile = "/persist/passwords/ftzm";
   };
@@ -254,7 +231,7 @@
   # started in user sessions.
   # programs.mtr.enable = true;
 
-  my-home.services.gpg-agent = {
+  hm.services.gpg-agent = {
     enable = true;
     enableSshSupport = true;
     pinentryFlavor = "gtk2";
@@ -296,7 +273,7 @@
   #needed for gtklock to work
   security.pam.services.gtklock = {};
 
-  my-home = {
+  hm = {
     programs.foot = {
       enable = true;
       settings = {
@@ -399,7 +376,7 @@
         };
         keybindings = let
           modifier =
-            config.my-home.wayland.windowManager.sway.config.modifier;
+            config.hm.wayland.windowManager.sway.config.modifier;
           fuzzelCmd = ''
             fuzzel \
               -f iosevkaLig \
@@ -420,8 +397,8 @@
             #"${modifier}+Shift+c" = "kill";
             "${modifier}+space" = "exec tofi-drun --drun-launch=true -c ~/.config/tofi/dmenu";
             # "${modifier}+Shift+b" = "exec splitv";
-            "${modifier}+v" = "exec volumectl -D 54 -u up";
-            "${modifier}+Shift+v" = "exec volumectl -D 54 -u down";
+            "${modifier}+v" = "exec volumectl -p -u up";
+            "${modifier}+Shift+v" = "exec volumectl -p -u down";
             "${modifier}+F1" = "exec volumectl toggle-mute";
             "${modifier}+p" = "exec mpc toggle";
             # "${modifier}+Shift+z" = "exec fzf_key.sh";
@@ -532,14 +509,14 @@
     home.stateVersion = "23.11"; # Did you read the comment?
   };
 
-  my-home.home.pointerCursor = {
+  hm.home.pointerCursor = {
     name = "Vanilla-DMZ";
     package = pkgs.vanilla-dmz;
     size = 16;
     gtk.enable = true;
   };
 
-  my-home.services.avizo = {
+  hm.services.avizo = {
     enable = true;
     settings = {
       default = {
@@ -603,14 +580,20 @@
   # ----------------------------------------------------------------------
   # Atuin
 
-  my-home.programs.atuin = {
+  hm.programs.atuin = {
     enable = true;
     enableBashIntegration = true;
+    settings = {
+      auto_sync = true;
+      sync_frequency = "5m";
+      sync_address = "http://wg-nuc:8889";
+      search_mode = "prefix";
+    };
   };
 
   # ----------------------------------------------------------------------
 
-  my-home.programs.git = {
+  hm.programs.git = {
     enable = true;
     ignores = [
       # Emacs
@@ -634,6 +617,8 @@
       };
     };
   };
+
+  services.fwupd.enable = true;
 
   system.stateVersion = "23.11";
 }

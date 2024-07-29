@@ -2,14 +2,13 @@
   config,
   pkgs,
   inputs,
-  lib,
   ...
 }: {
   imports = [
     # Include the results of the hardware scan.
     inputs.agenix.nixosModules.age
     ./hardware.nix
-    ../../configuration/network.nix
+    ../../role/network.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
@@ -46,14 +45,15 @@
     vim
     mpc_cli
     ncmpcpp
-    (beets.override {
-      pluginOverrides = {
-        extrafiles = {
-          enable = true;
-          propagatedBuildInputs = [beetsPackages.extrafiles];
-        };
-      };
-    })
+    # error building
+    # (beets.override {
+    #   pluginOverrides = {
+    #     extrafiles = {
+    #       enable = true;
+    #       propagatedBuildInputs = [beetsPackages.extrafiles];
+    #     };
+    #   };
+    # })
     sqlite
     htop
     ffmpeg
@@ -125,12 +125,181 @@
           {
             targets = [
               "127.0.0.1:${toString config.services.prometheus.exporters.node.port}"
+              "nas:9002"
             ];
           }
         ];
       }
     ];
   };
+
+  services.loki = {
+    enable = true;
+    configuration = {
+      server.http_listen_port = 3030;
+      auth_enabled = false;
+
+      ingester = {
+        lifecycler = {
+          address = "127.0.0.1";
+          ring = {
+            kvstore = {
+              store = "inmemory";
+            };
+            replication_factor = 1;
+          };
+        };
+        chunk_idle_period = "1h";
+        max_chunk_age = "1h";
+        chunk_target_size = 999999;
+        chunk_retain_period = "30s";
+      };
+
+      schema_config = {
+        configs = [
+          {
+            from = "2023-01-05";
+            store = "tsdb";
+            object_store = "filesystem";
+            schema = "v13";
+            index = {
+              period = "24h";
+              prefix = "index_";
+            };
+          }
+        ];
+      };
+
+      storage_config = {
+        tsdb_shipper = {
+          active_index_directory = "/var/lib/loki/tsdb-index";
+          cache_location = "/var/lib/loki/tsdb-cache";
+          cache_ttl = "24h";
+        };
+
+        filesystem = {
+          directory = "/var/lib/loki/chunks";
+        };
+      };
+
+      # for tsdb
+      query_scheduler = {
+        max_outstanding_requests_per_tenant = 32768;
+      };
+      # for tsdb
+      querier = {
+        max_concurrent = 16;
+      };
+
+      limits_config = {
+        reject_old_samples = true;
+        reject_old_samples_max_age = "168h";
+      };
+
+      table_manager = {
+        retention_deletes_enabled = false;
+        retention_period = "0s";
+      };
+
+      compactor = {
+        working_directory = "/var/lib/loki";
+        compactor_ring = {
+          kvstore = {
+            store = "inmemory";
+          };
+        };
+      };
+    };
+    # user, group, dataDir, extraFlags, (configFile)
+  };
+
+  services.promtail = {
+    enable = true;
+    configuration = {
+      server = {
+        http_listen_port = 3031;
+        grpc_listen_port = 0;
+      };
+      positions = {
+        filename = "/tmp/positions.yaml";
+      };
+      clients = [
+        {
+          url = "http://127.0.0.1:${toString config.services.loki.configuration.server.http_listen_port}/loki/api/v1/push";
+        }
+      ];
+      scrape_configs = [
+        {
+          job_name = "nginx";
+          static_configs = [
+            {
+              labels = {
+                job = "nginx";
+                host = "nuc";
+                agent = "promtail";
+                __path__ = "/var/log/nginx/access.log";
+              };
+            }
+          ];
+          pipeline_stages = [
+            {
+              json = {
+                expressions = {
+                  timestamp = "timestamp";
+                };
+              };
+            }
+            {
+              timestamp = {
+                source = "timestamp";
+                format = "RFC3339Nano";
+              };
+            }
+          ];
+        }
+        {
+          job_name = "journal";
+          journal = {
+            max_age = "12h";
+            labels = {
+              job = "systemd-journal";
+              host = "nuc";
+            };
+          };
+          relabel_configs = [
+            {
+              source_labels = ["__journal__systemd_unit"];
+              target_label = "unit";
+            }
+            {
+              source_labels = ["__journal_priority_keyword"];
+              target_label = "level";
+            }
+            {
+              source_labels = ["__journal_syslog_identifier"];
+              target_label = "syslog_identifier";
+            }
+          ];
+          pipeline_stages = [
+            {
+              match = {
+                selector = "{unit=\"promtail.service\"}";
+                action = "drop";
+              };
+            }
+            {
+              match = {
+                selector = "{syslog_identifier=\"podman\"}";
+                action = "drop";
+              };
+            }
+          ];
+        }
+      ];
+    };
+  };
+  # need to make promtail user a member of the nginx group so that it can access log files
+  users.users.promtail.extraGroups = ["nginx"];
 
   services.grafana = {
     enable = true;
@@ -145,6 +314,12 @@
           type = "prometheus";
           isDefault = true;
           url = "http://localhost:9001";
+        }
+        {
+          name = "Loki";
+          type = "loki";
+          access = "proxy";
+          url = "http://127.0.0.1:${toString config.services.loki.configuration.server.http_listen_port}";
         }
       ];
     };
@@ -168,6 +343,17 @@
   };
 
   services.prowlarr = {enable = true;};
+
+  services.readarr = {
+    enable = true;
+    group = "storage";
+  };
+
+  services.audiobookshelf = {
+    enable = true;
+    group = "storage";
+    host = "0.0.0.0";
+  };
 
   services.ombi = {enable = true;};
 
@@ -312,7 +498,7 @@
   # Librephotos
 
   # we create a systemd service so that we can create a single "pod"
-  # for our containers to live inside of. This will mimic how docker compose
+  # for our containers to live inside of. This will mimic how docKER compose
   # creates one network for the containers to live inside of
   systemd.services.create-librephotos-network = with config.virtualisation.oci-containers; {
     serviceConfig.Type = "oneshot";
@@ -489,6 +675,7 @@
 
   services.atuin = {
     enable = true;
+    host = "0.0.0.0";
     port = 8889;
     openRegistration = true;
   };
@@ -525,6 +712,14 @@
       }
     ];
   };
+
+  # ----------------------------------------------------------------------
+  # The Lounge
+
+  services.thelounge = {
+    enable = true;
+  };
+
   # ----------------------------------------------------------------------
 
   security.acme = {
@@ -534,6 +729,28 @@
 
   # nginx reverse proxy
   services.nginx = {
+    commonHttpConfig = ''
+      map "$time_iso8601 # $msec" $time_iso8601_ms { "~(^[^+]+)(\+[0-9:]+) # \d+\.(\d+)$" $1.$3$2; }
+
+      log_format main_json escape=json '{'
+        '"timestamp":"$time_iso8601_ms",'
+        '"remote_addr":"$remote_addr",'
+        '"remote_user":"$remote_user",'
+        '"host":"$host",'
+        '"request":"$request",'
+        '"status":$status,'
+        '"body_bytes_sent":$body_bytes_sent,'
+        '"http_referer":"$http_referer",'
+        '"http_user_agent":"$http_user_agent",'
+        '"http_x_forwarded_for":"$http_x_forwarded_for"'
+        '"request_time":"$request_time"'
+      '}';
+    '';
+
+    appendHttpConfig = ''
+      access_log /var/log/nginx/access.log main_json;
+    '';
+
     # Use recommended settings
     recommendedGzipSettings = true;
     recommendedOptimisation = true;
@@ -567,6 +784,14 @@
       forceSSL = true;
       locations."/" = {
         proxyPass = "http://127.0.0.1:8096";
+        proxyWebsockets = true;
+      };
+    };
+    virtualHosts."audiobookshelf.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:${toString config.services.audiobookshelf.port}";
         proxyWebsockets = true;
       };
     };

@@ -3,11 +3,11 @@
   lib,
   ...
 }: let
-  cfg = config.my-home;
+  cfg = config.hm;
 in {
-  options.my-home = lib.mkOption {
+  options.hm = lib.mkOption {
     type = lib.types.attrs;
-    description = "my home options";
+    description = "my home manager options";
   };
   config.home-manager.users.ftzm = cfg;
 }
