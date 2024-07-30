@@ -1,29 +1,27 @@
-{ config, pkgs, ... }:
-
-let
+{
+  config,
+  pkgs,
+  ...
+}: let
   dmenuFuzzyPatch = builtins.fetchurl {
-    url =
-      "https://tools.suckless.org/dmenu/patches/fuzzymatch/dmenu-fuzzymatch-4.9.diff";
+    url = "https://tools.suckless.org/dmenu/patches/fuzzymatch/dmenu-fuzzymatch-4.9.diff";
     sha256 = "0yababzi655mhpgixzgbca2hjckj16ykzj626zy4i0sirmcyg8fr";
   };
   tablePlus = pkgs.stdenv.mkDerivation {
     name = "TablePlus";
 
     libldapSrc = pkgs.fetchurl {
-      url =
-        "http://ftp.de.debian.org/debian/pool/main/o/openldap/libldap-2.5-0_2.5.13+dfsg-5_amd64.deb";
+      url = "http://ftp.de.debian.org/debian/pool/main/o/openldap/libldap-2.5-0_2.5.13+dfsg-5_amd64.deb";
       sha256 = "sha256-S2ww9lVBScWUYo2UXtxgA/DuqNDME0FjjA5xN12xR+0=";
     };
 
     libsaslSrc = pkgs.fetchurl {
-      url =
-        "http://archive.ubuntu.com/ubuntu/pool/main/c/cyrus-sasl2/libsasl2-2_2.1.27+dfsg-2_amd64.deb";
+      url = "http://archive.ubuntu.com/ubuntu/pool/main/c/cyrus-sasl2/libsasl2-2_2.1.27+dfsg-2_amd64.deb";
       sha256 = "3OguEgUoKpB8lvlzUItzB7imn6Td46+Sl+YCFXM/LTA=";
     };
 
     tableplusSrc = pkgs.fetchurl {
-      url =
-        "https://deb.tableplus.com/debian/21/pool/main/t/tableplus/tableplus_0.1.212_amd64.deb";
+      url = "https://deb.tableplus.com/debian/21/pool/main/t/tableplus/tableplus_0.1.212_amd64.deb";
       sha256 = "sha256-4+Z2zjpetEBrbvKG11GrCwzcR3IBTO0VLcQyUixFmSA=";
     };
 
@@ -74,7 +72,7 @@ let
     meta = with pkgs.stdenv.lib; {
       description = "Tableplus";
       homepage = "https://tableplus.com/";
-      platforms = [ "x86_64-linux" ];
+      platforms = ["x86_64-linux"];
     };
   };
 in {
@@ -102,7 +100,7 @@ in {
     # system
     binutils
     file
-    (dmenu.override ({ patches = [ dmenuFuzzyPatch ]; }))
+    (dmenu.override {patches = [dmenuFuzzyPatch];})
     htop
     arandr
     pass
@@ -134,7 +132,7 @@ in {
     inkscape
     slack
     vlc
-    (wrapMpv mpv-unwrapped { scripts = [ mpvScripts.mpris ]; })
+    (wrapMpv mpv-unwrapped {scripts = [mpvScripts.mpris];})
     keybase-gui
     nomacs
     gnome.cheese
@@ -245,14 +243,13 @@ in {
   services.tumbler.enable = true;
   services.gvfs.enable = true;
 
-
   home-manager.users.ftzm = {
     xdg = {
       enable = true;
       mimeApps = {
         enable = true;
         defaultApplications = {
-          "application/pdf" = [ "org.pwmt.zathura.desktop" ];
+          "application/pdf" = ["org.pwmt.zathura.desktop"];
           "text/html" = "firefox.desktop";
           "x-scheme-handler/http" = "firefox.desktop";
           "x-scheme-handler/https" = "firefox.desktop";
@@ -264,7 +261,7 @@ in {
     programs.zathura = {
       enable = true;
       options = {
-        font = "Iosevka Lig normal ${toString (config.personal.font_size + 1)}";
+        font = "Iosevka Lig normal 12";
         default-bg = "#282828";
         statusbar-bg = "#282828";
         statusbar-fg = "#ebdbb2";
@@ -279,7 +276,7 @@ in {
       enable = true;
       package = pkgs.wrapFirefox pkgs.firefox-unwrapped {
         # forceWayland = true;
-        extraPolicies = { LocalFileLinks = [ "http://localhost:8080" ]; };
+        extraPolicies = {LocalFileLinks = ["http://localhost:8080"];};
       };
       profiles.main = {
         settings = {
