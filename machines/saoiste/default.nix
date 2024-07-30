@@ -41,8 +41,6 @@
     uid = 1000;
   };
 
-  personal.font_size = 10.0;
-
   # security.sudo.extraRules = [{
   #   users = [ "@wheel" ];
   #   commands = [{
