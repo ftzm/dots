@@ -20,8 +20,7 @@
     ../../role/font.nix
     ../../role/audio.nix
     ../../role/git.nix
-    ../../role/pipestatus.nix
-    ../../role/wayland.nix
+    ../../role/interface.nix
     ../../role/shell.nix
     ../../role/comms.nix
     ../../role/emacs.nix
