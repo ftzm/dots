@@ -120,7 +120,8 @@ in {
     gotop
     gnupg
     wireguard-tools
-    nixfmt
+    # nixfmt
+    alejandra
     pavucontrol
     mpd-mpris
     dig
