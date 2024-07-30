@@ -29,7 +29,6 @@
     ../../role/emacs.nix
     ../../role/wifi.nix
     ../../role/packages.nix
-    ../../role/notification.nix
   ];
 
   users.extraUsers.ftzm = {
