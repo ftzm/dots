@@ -19,7 +19,7 @@
     ./patched-alsa-ucm-conf.nix # can probably be removed after updating nixpkgs, my patch was merged
 
     # Generic
-    ../../home-setup.nix
+    ../../role/home-setup.nix
     ../../role/network.nix
     ../../role/mpd.nix
     ../../role/sleep.nix
