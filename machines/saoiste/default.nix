@@ -238,6 +238,9 @@
       sync_frequency = "5m";
       sync_address = "http://wg-nuc:8889";
       search_mode = "prefix";
+      sync = {
+        records = true;
+      };
     };
   };
 }
