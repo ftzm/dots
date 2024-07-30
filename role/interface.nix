@@ -2,6 +2,7 @@
   pkgs,
   lib,
   config,
+  ...
 }: {
   hm.wayland.windowManager.sway = {
     enable = true;
