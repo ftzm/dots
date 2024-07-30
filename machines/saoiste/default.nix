@@ -70,7 +70,6 @@
       permittedInsecurePackages = ["p7zip-16.02" "openssl-1.0.2u"];
     };
     overlays = [
-      (import ../../overlays)
       inputs.emacs-overlay.overlay
       (
         final: prev: {
@@ -226,7 +225,6 @@
     overrideDevices = true;
     # overrides any folders added or deleted through the WebUI
     overrideFolders = true;
-
   };
 
   services.xserver.videoDrivers = ["intel"];
