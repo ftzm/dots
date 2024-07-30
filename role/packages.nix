@@ -198,7 +198,6 @@ in {
     # system management
     niv
 
-    get-auth
     rofi-filer
     rofi-dmenu
     dbeaver
