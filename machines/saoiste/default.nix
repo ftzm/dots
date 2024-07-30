@@ -18,7 +18,7 @@
     # Generic
     ../../role/network.nix
     ../../role/mpd.nix
-    ../../role/mail.nix
+    # ../../role/mail.nix
     ../../role/printing.nix
     ../../role/font.nix
     ../../role/audio.nix
