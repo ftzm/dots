@@ -198,8 +198,6 @@ in {
     # system management
     niv
 
-    rofi-filer
-    rofi-dmenu
     dbeaver
     kitty
     xdg_utils
