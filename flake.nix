@@ -65,5 +65,9 @@
       #   system = "aarch64-linux";
       # };
     };
+    f = import ./config.nix {
+      self = inputs.self;
+      lib = nixpkgs.lib;
+    };
   };
 }

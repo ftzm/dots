@@ -1,6 +1,0 @@
-* Imperative Dotfiles
-This directory contains imperatively managed, symlinked dotfiles. These are used with applications which expect to be able to write to their config files, or where a tighter feedback loop is desired than a ~nixos-rebild switch~.
-
-The dotfiles for each application are stored in a sub-directory containing a directory structure describing where they should be linked in ~$HOME~. This means that if a file should be linked to ~$HOME/.config/application/config.yaml~, it will be stored here as ~application/.config/application/config.yaml~.
-
-Files are installed via the custom `install.sh` script, which provides some niceties such as a pretty-printed description of the files to be linked, warnings about changes to existing files, and backups of existing files.

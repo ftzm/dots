@@ -210,6 +210,9 @@
       #gimp
       #libreoffice
       nil
+      steam
+      wine
+      lutris
     ];
     hashedPasswordFile = "/persist/passwords/ftzm";
   };
@@ -260,6 +263,12 @@
   };
 
   hm.home.stateVersion = "23.11"; # Did you read the comment?
+  hm.home.activation = {
+    myActivationAction = inputs.home-manager.lib.hm.dag.entryAfter ["writeBoundary"] ''
+      cd /home/ftzm/dots
+      ${pkgs.stow}/bin/stow -t $HOME --no-folding dotfiles
+    '';
+  };
 
   programs.dconf.enable = true;
 
@@ -296,7 +305,7 @@
     # I think these mean it doesn't try to merge the configs, and the merging is error prone.
     overrideFolders = true;
     overrideDevices = true;
-    devices = {
+    settings.devices = {
       nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
       saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
     };
@@ -321,6 +330,8 @@
 
   # ----------------------------------------------------------------------
   services.fwupd.enable = true;
+
+  # ----------------------------------------------------------------------
 
   system.stateVersion = "23.11";
 }

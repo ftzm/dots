@@ -229,6 +229,10 @@
 
   # ----------------------------------------------------------------------
   # Atuin
+  #
+  # - enhanced shell history interface
+  # - sync shell history to central server
+  # - share history between machines
 
   hm.programs.atuin = {
     enable = true;
