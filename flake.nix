@@ -61,7 +61,7 @@
       eibhlis = nixpkgs.lib.nixosSystem {
         system = defaultSystem;
         specialArgs = {inherit inputs;};
-        modules = [./machines/eachtrai];
+        modules = [./machines/eibhlis];
       };
       nuc = mkLabSystem {host = "nuc";};
       nas = mkLabSystem {host = "nas";};
