@@ -226,6 +226,8 @@
     wget
     curl
     alsaUtils
+    git
+    gnumake
   ];
 
   ###########
