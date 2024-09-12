@@ -16,12 +16,11 @@
     # System specific
     ./hardware-configuration.nix
     ./disks.nix
-    ./patched-alsa-ucm-conf.nix # can probably be removed after updating nixpkgs, my patch was merged
 
     # Generic
     ../../role/home-setup.nix
-    ../../role/network.nix
-    ../../role/mpd.nix
+    # ../../role/network.nix
+    # ../../role/mpd.nix
     ../../role/sleep.nix
     ../../role/shell.nix
     ../../role/comms.nix
@@ -134,7 +133,7 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "eachtrai";
+  networking.hostName = "eibhlis";
   # Pick only one of the below networking options.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
   networking.networkmanager.enable = true; # Easiest to use and most distros use this by default.
@@ -155,7 +154,6 @@
   # };
 
   # hotmount external media
-  services.devmon.enable = true;
   services.gvfs.enable = true;
   services.udisks2.enable = true;
 
@@ -246,17 +244,17 @@
   services.blueman.enable = true;
 
   # Video
-  hardware = {
-    opengl.enable = true;
-    opengl.driSupport = true;
-    opengl.driSupport32Bit = true;
+  # hardware = {
+  #   opengl.enable = true;
+  #   opengl.driSupport = true;
+  #   opengl.driSupport32Bit = true;
 
-    opengl.extraPackages = with pkgs; [
-      intel-media-driver
-      vaapiVdpau
-      libvdpau-va-gl
-    ];
-  };
+  #   opengl.extraPackages = with pkgs; [
+  #     intel-media-driver
+  #     vaapiVdpau
+  #     libvdpau-va-gl
+  #   ];
+  # };
 
   hm.home.stateVersion = "23.11"; # Did you read the comment?
   hm.home.activation = {
@@ -268,17 +266,17 @@
 
   programs.dconf.enable = true;
 
-  fonts.packages = with pkgs; [
-    jetbrains-mono
-    (let
-      iosevkaPkgs = inputs.nixpkgs-iosevka.legacyPackages.x86_64-linux;
-    in
-      iosevkaPkgs.iosevka.override {
-        privateBuildPlan = builtins.readFile ./iosevka-build-plan.toml;
-        extraParameters = builtins.readFile ./iosevka.toml;
-        set = "-ftzm";
-      })
-  ];
+  # fonts.packages = with pkgs; [
+  #   jetbrains-mono
+  #   (let
+  #     iosevkaPkgs = inputs.nixpkgs-iosevka.legacyPackages.x86_64-linux;
+  #   in
+  #     iosevkaPkgs.iosevka.override {
+  #       privateBuildPlan = builtins.readFile ./iosevka-build-plan.toml;
+  #       extraParameters = builtins.readFile ./iosevka.toml;
+  #       set = "-ftzm";
+  #     })
+  # ];
 
   # ----------------------------------------------------------------------
   # Laptop
@@ -291,43 +289,43 @@
 
   # ----------------------------------------------------------------------
 
-  services.syncthing = {
-    enable = true;
-    #guiAddress = "localhost:8384";
-    openDefaultPorts = true;
-    user = "ftzm";
-    configDir = "/home/ftzm/.config/syncthing";
-    dataDir = "/home/ftzm";
-    # I think these mean it doesn't try to merge the configs, and the merging is error prone.
-    overrideFolders = true;
-    overrideDevices = true;
-    settings.devices = {
-      nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
-      saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
-    };
-  };
+  # services.syncthing = {
+  #   enable = true;
+  #   #guiAddress = "localhost:8384";
+  #   openDefaultPorts = true;
+  #   user = "ftzm";
+  #   configDir = "/home/ftzm/.config/syncthing";
+  #   dataDir = "/home/ftzm";
+  #   # I think these mean it doesn't try to merge the configs, and the merging is error prone.
+  #   overrideFolders = true;
+  #   overrideDevices = true;
+  #   settings.devices = {
+  #     nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+  #     saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
+  #   };
+  # };
 
   # ----------------------------------------------------------------------
   # Atuin
 
-  hm.programs.atuin = {
-    enable = true;
-    enableBashIntegration = true;
-    settings = {
-      auto_sync = true;
-      sync_frequency = "5m";
-      sync_address = "http://wg-nuc:8889";
-      search_mode = "fuzzy";
-      sync = {
-        records = true;
-      };
-    };
-  };
+  # hm.programs.atuin = {
+  #   enable = true;
+  #   enableBashIntegration = true;
+  #   settings = {
+  #     auto_sync = true;
+  #     sync_frequency = "5m";
+  #     sync_address = "http://wg-nuc:8889";
+  #     search_mode = "fuzzy";
+  #     sync = {
+  #       records = true;
+  #     };
+  #   };
+  # };
 
   # ----------------------------------------------------------------------
   services.fwupd.enable = true;
 
   # ----------------------------------------------------------------------
 
-  system.stateVersion = "23.11";
+  system.stateVersion = "24.05";
 }
