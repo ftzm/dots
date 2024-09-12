@@ -173,12 +173,11 @@
       zathura
       tree
       git
-      emacs
-      # (((emacsPackagesFor emacs-pgtk).emacsWithPackages) (epkgs: [
-      #   epkgs.treesit-grammars.with-all-grammars
-      #   epkgs.vterm
-      #   pkgs.python3
-      # ]))
+      (((emacsPackagesFor emacs-pgtk).emacsWithPackages) (epkgs: [
+        epkgs.treesit-grammars.with-all-grammars
+        epkgs.vterm
+        pkgs.python3
+      ]))
       nixpkgs-fmt
       alejandra
       brightnessctl
