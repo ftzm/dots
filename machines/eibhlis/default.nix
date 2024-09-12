@@ -26,6 +26,7 @@
     ../../role/comms.nix
     ../../role/git.nix
     ../../role/interface.nix
+    ../../role/iosevka.nix
   ];
 
   nix = {
@@ -257,18 +258,6 @@
   };
 
   programs.dconf.enable = true;
-
-  # fonts.packages = with pkgs; [
-  #   jetbrains-mono
-  #   (let
-  #     iosevkaPkgs = inputs.nixpkgs-iosevka.legacyPackages.x86_64-linux;
-  #   in
-  #     iosevkaPkgs.iosevka.override {
-  #       privateBuildPlan = builtins.readFile ./iosevka-build-plan.toml;
-  #       extraParameters = builtins.readFile ./iosevka.toml;
-  #       set = "-ftzm";
-  #     })
-  # ];
 
   # ----------------------------------------------------------------------
   # Laptop
