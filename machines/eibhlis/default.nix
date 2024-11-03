@@ -16,12 +16,11 @@
     # System specific
     ./hardware-configuration.nix
     ./disks.nix
-    ./patched-alsa-ucm-conf.nix # can probably be removed after updating nixpkgs, my patch was merged
 
     # Generic
     ../../role/home-setup.nix
-    ../../role/network.nix
-    ../../role/mpd.nix
+    # ../../role/network.nix
+    # ../../role/mpd.nix
     ../../role/sleep.nix
     ../../role/shell.nix
     ../../role/comms.nix
@@ -77,39 +76,28 @@
     # run once and wait for completion before running subsequent systemd units
     serviceConfig.Type = "oneshot";
     script = ''
-      mkdir -p /btrfs
+      mkdir /btrfs_tmp
+      mount /dev/mapper/crypted /btrfs_tmp
+      if [[ -e /btrfs_tmp/root ]]; then
+          mkdir -p /btrfs_tmp/old_roots
+          timestamp=$(date --date="@$(stat -c %Y /btrfs_tmp/root)" "+%Y-%m-%-d_%H:%M:%S")
+          mv /btrfs_tmp/root "/btrfs_tmp/old_roots/$timestamp"
+      fi
 
-      mount /dev/mapper/crypted /btrfs
+      delete_subvolume_recursively() {
+          IFS=$'\n'
+          for i in $(btrfs subvolume list -o "$1" | cut -f 9- -d ' '); do
+              delete_subvolume_recursively "/btrfs_tmp/$i"
+          done
+          btrfs subvolume delete "$1"
+      }
 
-      # While we're tempted to just delete /root and create
-      # a new snapshot from /root-blank, /root is already
-      # populated at this point with a number of subvolumes,
-      # which makes `btrfs subvolume delete` fail.
-      # So, we remove them first.
-      #
-      # /root contains subvolumes:
-      # - /root/var/lib/portables
-      # - /root/var/lib/machines
-      #
-      # I suspect these are related to systemd-nspawn, but
-      # since I don't use it I'm not 100% sure.
-      # Anyhow, deleting these subvolumes hasn't resulted
-      # in any issues so far, except for fairly
-      # benign-looking errors from systemd-tmpfiles.
-      btrfs subvolume list -o /btrfs/root |
-      cut -f9 -d' ' |
-      while read subvolume; do
-        echo "deleting /$subvolume subvolume..."
-        btrfs subvolume delete "/btrfs/$subvolume"
-      done &&
+      for i in $(find /btrfs_tmp/old_roots/ -maxdepth 1 -mtime +30); do
+          delete_subvolume_recursively "$i"
+      done
 
-      echo "deleting /root subvolume..."
-      btrfs subvolume delete /btrfs/root
-
-      echo "restoring blank /root subvolume"
-      btrfs subvolume snapshot /btrfs/root-blank /btrfs/root
-
-      umount /btrfs
+      btrfs subvolume create /btrfs_tmp/root
+      umount /btrfs_tmp
     '';
   };
 
@@ -135,7 +123,7 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "eachtrai";
+  networking.hostName = "eibhlis";
   # Pick only one of the below networking options.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
   networking.networkmanager.enable = true; # Easiest to use and most distros use this by default.
@@ -156,7 +144,6 @@
   # };
 
   # hotmount external media
-  services.devmon.enable = true;
   services.gvfs.enable = true;
   services.udisks2.enable = true;
 
@@ -249,17 +236,17 @@
   services.blueman.enable = true;
 
   # Video
-  hardware = {
-    opengl.enable = true;
-    opengl.driSupport = true;
-    opengl.driSupport32Bit = true;
+  # hardware = {
+  #   opengl.enable = true;
+  #   opengl.driSupport = true;
+  #   opengl.driSupport32Bit = true;
 
-    opengl.extraPackages = with pkgs; [
-      intel-media-driver
-      vaapiVdpau
-      libvdpau-va-gl
-    ];
-  };
+  #   opengl.extraPackages = with pkgs; [
+  #     intel-media-driver
+  #     vaapiVdpau
+  #     libvdpau-va-gl
+  #   ];
+  # };
 
   hm.home.stateVersion = "23.11"; # Did you read the comment?
   hm.home.activation = {
@@ -282,43 +269,43 @@
 
   # ----------------------------------------------------------------------
 
-  services.syncthing = {
-    enable = true;
-    #guiAddress = "localhost:8384";
-    openDefaultPorts = true;
-    user = "ftzm";
-    configDir = "/home/ftzm/.config/syncthing";
-    dataDir = "/home/ftzm";
-    # I think these mean it doesn't try to merge the configs, and the merging is error prone.
-    overrideFolders = true;
-    overrideDevices = true;
-    settings.devices = {
-      nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
-      saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
-    };
-  };
+  # services.syncthing = {
+  #   enable = true;
+  #   #guiAddress = "localhost:8384";
+  #   openDefaultPorts = true;
+  #   user = "ftzm";
+  #   configDir = "/home/ftzm/.config/syncthing";
+  #   dataDir = "/home/ftzm";
+  #   # I think these mean it doesn't try to merge the configs, and the merging is error prone.
+  #   overrideFolders = true;
+  #   overrideDevices = true;
+  #   settings.devices = {
+  #     nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+  #     saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
+  #   };
+  # };
 
   # ----------------------------------------------------------------------
   # Atuin
 
-  hm.programs.atuin = {
-    enable = true;
-    enableBashIntegration = true;
-    settings = {
-      auto_sync = true;
-      sync_frequency = "5m";
-      sync_address = "http://wg-nuc:8889";
-      search_mode = "fuzzy";
-      sync = {
-        records = true;
-      };
-    };
-  };
+  # hm.programs.atuin = {
+  #   enable = true;
+  #   enableBashIntegration = true;
+  #   settings = {
+  #     auto_sync = true;
+  #     sync_frequency = "5m";
+  #     sync_address = "http://wg-nuc:8889";
+  #     search_mode = "fuzzy";
+  #     sync = {
+  #       records = true;
+  #     };
+  #   };
+  # };
 
   # ----------------------------------------------------------------------
   services.fwupd.enable = true;
 
   # ----------------------------------------------------------------------
 
-  system.stateVersion = "23.11";
+  system.stateVersion = "24.05";
 }

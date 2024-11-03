@@ -58,12 +58,21 @@
         specialArgs = {inherit inputs;};
         modules = [./machines/eachtrai];
       };
+      eibhlis = nixpkgs.lib.nixosSystem {
+        system = defaultSystem;
+        specialArgs = {inherit inputs;};
+        modules = [./machines/eibhlis];
+      };
       nuc = mkLabSystem {host = "nuc";};
       nas = mkLabSystem {host = "nas";};
       # pi = mkLabSystem {
       #   host = "pi";
       #   system = "aarch64-linux";
       # };
+    };
+    f = import ./config.nix {
+      self = inputs.self;
+      lib = nixpkgs.lib;
     };
   };
 }
