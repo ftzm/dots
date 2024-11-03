@@ -105,16 +105,16 @@
 
   # ssh setup
   boot.kernelPackages = pkgs.linuxPackages_latest;
-  boot.initrd.network.enable = true;
-  boot.initrd.network.ssh = {
-    enable = true;
-    port = 22;
-    shell = "/bin/cryptsetup-askpass";
-    authorizedKeys = [
-      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
-    ];
-    hostKeys = ["/etc/secrets/initrd/ssh_host_rsa_key"];
-  };
+  # boot.initrd.network.enable = true;
+  # boot.initrd.network.ssh = {
+  #   enable = true;
+  #   port = 22;
+  #   shell = "/bin/cryptsetup-askpass";
+  #   authorizedKeys = [
+  #     "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
+  #   ];
+  #   hostKeys = ["/etc/secrets/initrd/ssh_host_rsa_key"];
+  # };
   boot.kernelParams = ["ip=dhcp" "i915.force_probe=4c8a"];
   boot.initrd.availableKernelModules = ["r8169"];
 
