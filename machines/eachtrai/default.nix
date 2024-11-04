@@ -161,11 +161,11 @@
   services.udisks2.enable = true;
 
   hardware.enableAllFirmware = true;
-  hardware.pulseaudio.enable = false;
+  hardware.pulseaudio.enable = true;
   hardware.pulseaudio.package = pkgs.pulseaudioFull;
   security.rtkit.enable = true;
   services.pipewire = {
-    enable = true;
+    enable = false;
     alsa.enable = true;
     jack.enable = true;
     pulse.enable = true;
@@ -179,7 +179,7 @@
   users.users.root.hashedPasswordFile = "/persist/passwords/root";
   users.users.ftzm = {
     isNormalUser = true;
-    extraGroups = ["wheel" "video" "audio" "disk" "networkmanager"]; # Enable ‘sudo’ for the user.
+    extraGroups = ["wheel" "video" "audio" "disk" "networkmanager" "docker"]; # Enable ‘sudo’ for the user.
     packages = with pkgs; [
       inputs.agenix.packages.x86_64-linux.agenix
       firefox
@@ -216,6 +216,8 @@
       steam
       wine
       lutris
+      zip
+      unzip
     ];
     hashedPasswordFile = "/persist/passwords/ftzm";
   };
@@ -316,7 +318,12 @@
   };
 
   # ----------------------------------------------------------------------
+
   services.fwupd.enable = true;
+
+  # ----------------------------------------------------------------------
+
+  virtualisation.docker.enable = true;
 
   # ----------------------------------------------------------------------
 
