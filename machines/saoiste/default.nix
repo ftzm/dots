@@ -20,7 +20,7 @@
     ../../role/mpd.nix
     # ../../role/mail.nix
     ../../role/printing.nix
-    ../../role/font.nix
+    # ../../role/font.nix
     ../../role/audio.nix
     ../../role/git.nix
     ../../role/interface.nix
@@ -29,6 +29,7 @@
     ../../role/emacs.nix
     ../../role/wifi.nix
     ../../role/packages.nix
+    ../../role/iosevka.nix
   ];
 
   users.extraUsers.ftzm = {
@@ -141,8 +142,8 @@
   home-manager.users.ftzm.home.stateVersion = "21.05";
   home-manager.users.ftzm.home.activation = {
     myActivationAction = inputs.home-manager.lib.hm.dag.entryAfter ["writeBoundary"] ''
-      $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
-        -f ${builtins.toPath ./../../dotfiles/MODULES}
+      cd /home/ftzm/dots
+      ${pkgs.stow}/bin/stow -t $HOME --no-folding dotfiles
     '';
   };
 
