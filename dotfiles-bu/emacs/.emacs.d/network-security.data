@@ -1,0 +1,4 @@
+(
+ (:id "sha1:8d63925b603309136d74b0ded2eaf380fe206f7e" :fingerprint "sha1:43:3a:05:93:0f:f8:ad:d5:f1:43:89:0c:cd:bf:7e:e2:6f:cd:8c:2f" :host "127.0.0.1:1025" :conditions (:self-signed))
+ (:id "sha1:706608f9b7fcfdea563351d49047f296d74a5a76" :fingerprint "sha1:0b:f4:5e:a9:2a:0b:e5:0b:f1:0d:aa:ed:3f:99:01:3f:85:61:7f:ed")
+)

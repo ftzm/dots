@@ -21,8 +21,8 @@
   # enable_psr=0 fixes an issue where the tty doesn't refresh properly (stutters, don't update until there is a keypress, etc.)
   boot.kernelParams = ["i915.enable_psr=0" "resume_offset=4203776"];
   boot.extraModulePackages = [];
-  # boot.kernelPackages = pkgs.linuxPackages_latest;
-  boot.kernelPackages = pkgs.linuxPackages_6_8;
+  boot.kernelPackages = pkgs.linuxPackages_latest;
+  # boot.kernelPackages = pkgs.linuxPackages_6_8;
   # no audio < this version < (hang on shutdown boot | frozen on wake from hibernate)
   # boot.kernelPackages = pkgs.linuxPackagesFor (pkgs.linux_6_7.override {
   #   argsOverride = rec {

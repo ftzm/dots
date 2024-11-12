@@ -1032,7 +1032,7 @@ in which case does avy-goto-char with the first char."
   :interpreter ("rust" . rust-mode)
   :hook ((rust-mode . eglot-ensure))
   :config
-  ;(add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer")))
+  (add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer")))
   )
 
 

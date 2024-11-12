@@ -158,7 +158,7 @@
           "sway/language"
           "battery"
           "clock"
-          "tray"
+          # "tray"
         ];
         "position" = "bottom";
       }
@@ -223,4 +223,20 @@
   security.pam.services.swaylock = {};
   #needed for gtklock to work
   security.pam.services.gtklock = {};
+
+  # wayland screensharing
+  xdg.portal = {
+    enable = true;
+    config = {
+      common = {
+        default = "wlr";
+      };
+    };
+    wlr.enable = true;
+    wlr.settings.screencast = {
+      output_name = "eDP-1";
+      chooser_type = "simple";
+      chooser_cmd = "${pkgs.slurp}/bin/slurp -f %o -or";
+    };
+  };
 }
