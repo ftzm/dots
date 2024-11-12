@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: src-short
+# key: <s
+# --
+#+begin_src $0
+#+end_src

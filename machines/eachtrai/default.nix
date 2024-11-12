@@ -12,11 +12,12 @@
     inputs.home-manager.nixosModules.home-manager
     inputs.disko.nixosModules.disko
     inputs.impermanence.nixosModules.impermanence
+    inputs.nixos-hardware.nixosModules.dell-latitude-9430
 
     # System specific
     ./hardware-configuration.nix
     ./disks.nix
-    ./patched-alsa-ucm-conf.nix # can probably be removed after updating nixpkgs, my patch was merged
+    # ./patched-alsa-ucm-conf.nix # can probably be removed after updating nixpkgs, my patch was merged
 
     # Generic
     ../../role/home-setup.nix
@@ -31,7 +32,7 @@
   ];
 
   nix = {
-    package = pkgs.nixFlakes;
+    # package = pkgs.nixFlakes;
     extraOptions = ''
       experimental-features = nix-command flakes
     '';
@@ -179,7 +180,7 @@
   users.users.root.hashedPasswordFile = "/persist/passwords/root";
   users.users.ftzm = {
     isNormalUser = true;
-    extraGroups = ["wheel" "video" "audio" "disk" "networkmanager"]; # Enable ‘sudo’ for the user.
+    extraGroups = ["wheel" "video" "audio" "disk" "networkmanager" "docker"]; # Enable ‘sudo’ for the user.
     packages = with pkgs; [
       inputs.agenix.packages.x86_64-linux.agenix
       firefox
@@ -216,6 +217,9 @@
       steam
       wine
       lutris
+      zip
+      unzip
+      chromium
     ];
     hashedPasswordFile = "/persist/passwords/ftzm";
   };
@@ -226,7 +230,7 @@
     neovim
     wget
     curl
-    alsaUtils
+    alsa-utils
     git
     gnumake
   ];
@@ -250,15 +254,18 @@
 
   # Video
   hardware = {
-    opengl.enable = true;
-    opengl.driSupport = true;
-    opengl.driSupport32Bit = true;
-
-    opengl.extraPackages = with pkgs; [
+    graphics.enable = true;
+    graphics.enable32Bit = true;
+    graphics.extraPackages = with pkgs; [
       intel-media-driver
       vaapiVdpau
       libvdpau-va-gl
     ];
+  };
+
+  hardware.ipu6 = {
+    enable = true;
+    platform = "ipu6ep";
   };
 
   hm.home.stateVersion = "23.11"; # Did you read the comment?
@@ -276,7 +283,7 @@
   # ----------------------------------------------------------------------
 
   services.thermald.enable = true;
-  services.auto-cpufreq.enable = true;
+  # services.auto-cpufreq.enable = true; temp disable for gnome
   hardware.enableRedistributableFirmware = true;
   hardware.cpu.intel.updateMicrocode = true;
 
@@ -316,9 +323,27 @@
   };
 
   # ----------------------------------------------------------------------
+
   services.fwupd.enable = true;
 
   # ----------------------------------------------------------------------
 
+  virtualisation.docker.enable = true;
+
+  # ----------------------------------------------------------------------
+
   system.stateVersion = "23.11";
+
+  # ----------------------------------------------------------------------
+  # Temporary workaround for impermanence, see more here: https://github.com/nix-community/impermanence/issues/229
+  # check for updates and better solutions
+  boot.initrd.systemd.suppressedUnits = ["systemd-machine-id-commit.service"];
+  systemd.suppressedSystemUnits = ["systemd-machine-id-commit.service"];
+
+  # ----------------------------------------------------------------------
+  # Gnome baby
+
+  # services.xserver.enable = true;
+  # services.xserver.displayManager.gdm.enable = true;
+  # services.xserver.desktopManager.gnome.enable = true;
 }

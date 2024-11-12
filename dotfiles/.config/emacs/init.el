@@ -419,7 +419,11 @@ See `eval-after-load' for the possible formats of FORM."
   :demand t
   :custom
   (completion-styles '(orderless basic))
-  (completion-category-overrides '((file (styles basic partial-completion)))))
+  (completion-category-overrides '(
+				   (file (styles orderless basic partial-completion))
+				   (project-file (styles orderless))))
+  (setq orderless-smart-case t)
+  )
 
 (use-package marginalia
   ;; Bind `marginalia-cycle' locally in the minibuffer.  To make the binding
@@ -1027,7 +1031,7 @@ in which case does avy-goto-char with the first char."
   :interpreter ("rust" . rust-mode)
   :hook ((rust-mode . eglot-ensure))
   :config
-  ;(add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer")))
+  (add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer")))
   )
 
 
@@ -1728,3 +1732,49 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 	      (when (featurep 'filladapt)
 		(c-setup-filladapt)))) )
 
+;; ==============================================================================
+;; Scala
+;; ==============================================================================
+
+;; Enable scala-mode and sbt-mode
+(use-package scala-mode
+  :interpreter ("scala" . scala-mode))
+
+;; Enable sbt mode for executing sbt commands
+(use-package sbt-mode
+  :commands sbt-start sbt-command
+  :config
+  ;; WORKAROUND: https://github.com/ensime/emacs-sbt-mode/issues/31
+  ;; allows using SPACE when in the minibuffer
+  (substitute-key-definition
+   'minibuffer-complete-word
+   'self-insert-command
+   minibuffer-local-completion-map)
+  ;; sbt-supershell kills sbt-mode:  https://github.com/hvesalai/emacs-sbt-mode/issues/152
+  (setq sbt:program-options '("-Dsbt.supershell=false")))
+
+
+;; Enable nice rendering of diagnostics like compile errors.
+(use-package flycheck
+  :init (global-flycheck-mode))
+
+(use-package lsp-mode
+  ;; Optional - enable lsp-mode automatically in scala files
+  ;; You could also swap out lsp for lsp-deffered in order to defer loading
+  :hook  (scala-mode . lsp)
+					;(lsp-mode . lsp-lens-mode)
+  :config
+  ;; Uncomment following section if you would like to tune lsp-mode performance according to
+  ;; https://emacs-lsp.github.io/lsp-mode/page/performance/
+  (setq gc-cons-threshold 100000000) ;; 100mb
+  (setq read-process-output-max (* 1024 1024)) ;; 1mb
+  (setq lsp-idle-delay 0.500)
+  (setq lsp-log-io nil)
+  (setq lsp-completion-provider :capf)
+  (setq lsp-prefer-flymake nil)
+  ;; Makes LSP shutdown the metals server when all buffers in the project are closed.
+  ;; https://emacs-lsp.github.io/lsp-mode/page/settings/mode/#lsp-keep-workspace-alive
+  (setq lsp-keep-workspace-alive nil))
+
+;; Add metals backend for lsp-mode
+(use-package lsp-metals)

@@ -161,7 +161,7 @@
           "sway/language"
           "battery"
           "clock"
-          "tray"
+          # "tray"
         ];
         "position" = "bottom";
       }
@@ -227,12 +227,19 @@
   #needed for gtklock to work
   security.pam.services.gtklock = {};
 
-  # screen sharing with sway
+  # wayland screensharing
   xdg.portal = {
     enable = true;
-    wlr.enable = true; # adds pkgs.xdg-desktop-portal-wlr to extraPortals
-    extraPortals = [
-      pkgs.xdg-desktop-portal-gtk # gtk portal needed to make gtk apps happy
-    ];
+    config = {
+      common = {
+        default = "wlr";
+      };
+    };
+    wlr.enable = true;
+    wlr.settings.screencast = {
+      output_name = "eDP-1";
+      chooser_type = "simple";
+      chooser_cmd = "${pkgs.slurp}/bin/slurp -f %o -or";
+    };
   };
 }

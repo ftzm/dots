@@ -9,7 +9,7 @@
     services.gpg-agent = {
       enable = true;
       enableSshSupport = true;
-      pinentryFlavor = "gtk2";
+      # pinentryFlavor = "gtk2"; no longer has any effect
     };
   };
 }

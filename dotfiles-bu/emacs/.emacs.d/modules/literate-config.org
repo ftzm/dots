@@ -1,0 +1,98 @@
+#+PROPERTY: header-args :tangle literate-config.el
+#+SETUPFILE: https://fniessen.github.io/org-html-themes/org/theme-readtheorg.setup
+#+TITLE: Literate Org Config
+#+AUTHOR: Matthew Fitzsimmons
+#+EMAIL: m (at) ftzm (dot) org
+
+* Org
+** Org mode package definition
+
+#+begin_src elisp
+(use-package org
+  :straight (:type built-in)
+  :mode (("\\.org$" . org-mode))
+#+end_src
+
+*** end definition
+#+begin_src elisp
+)
+#+end_src
+
+** HTML Export
+
+This file can be exported via the function ~org-html-export-to-html~
+
+*** Htmlize
+
+This packages is required in order for exported html to have syntax highlighting. The colors are taken directly from the current emacs theme.
+
+#+begin_src elisp
+(use-package htmlize
+  :straight t)
+#+end_src
+
+** Source code block styling
+
+- We don't want source blocks to be indented
+
+#+begin_src elisp
+(setq org-edit-src-content-indentation 0)
+#+end_src
+
+** Enhanced typographical systems
+
+This packages allows for the use of prettier “quotation ‘marks’” and proper em—dashes. one simply presses the same key to cycle between options.
+
+#+begin_src elisp
+(use-package typo
+  :straight t)
+#+end_src
+
+** column width
+
+A (currently disabled) alternative to olivetti mode, which aligns the text to the left rather than centering.
+
+#+begin_src elisp
+(use-package visual-fill-column
+  :disabled
+  :straight t)
+#+end_src
+
+** poly-org
+
+Disabled, as it's impossible to turn on selectively in buffers. Causes problems with faces of org blocks. When enabled it allows to use full language facilities in source blocks.
+
+#+begin_src elisp
+(use-package poly-org
+  :disabled t
+  :straight t
+  )
+#+end_src
+
+* project
+
+Conveniences for working within and switching between various projects—mainly git repositories.
+
+** joint project + persp selection command
+
+#+begin_src elisp
+(use-package project
+  :config
+  (project--read-project-list)
+  (defun switch-persp-project ()
+    (interactive "")
+    (let ((projects project--list))
+      (if projects (let* ((project
+			   (completing-read "Project: " projects))
+			  (persp-name
+			   (file-name-nondirectory (substring project 0 -1))))
+		     (persp-switch persp-name)
+		     (project-switch-project project))
+	(user-error "There are no known projects")))))
+#+end_src
+
+* Provide footer
+
+#+begin_src elisp
+(provide 'literate-config)
+#+end_src
