@@ -16,6 +16,13 @@
   # This was enable to allow deploying via deploy-rs as non-root.
   nix.settings.trusted-users = ["@wheel"];
 
+  nix = {
+    # package = pkgs.nixFlakes;
+    extraOptions = ''
+      experimental-features = nix-command flakes
+    '';
+  };
+
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -840,6 +847,15 @@
           auth_basic "Restricted";
           auth_basic_user_file /.htpasswd;
 
+        '';
+      };
+    };
+    virtualHosts."muscleup.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
+      root = "/muscleup/";
+      locations."/" = {
+        extraConfig = ''
         '';
       };
     };
