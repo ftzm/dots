@@ -14,8 +14,7 @@ let ios =
       });
 in 
  {
-  fonts.packages = with pkgs; [
-    jetbrains-mono
-    iosevka
+  home.packages = with pkgs; [
+    ios
   ];
 }

@@ -6,3 +6,6 @@ nuc:
 
 switch:
 	sudo nixos-rebuild --flake . switch
+
+home:
+	home-manager --flake . switch

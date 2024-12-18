@@ -58,7 +58,7 @@
 
 ;; ----------------------------------------------------------------------------
 
-(set-frame-font "Iosevka ftzm Medium 18")
+(set-frame-font "Iosevka ftzm Medium 14")
 					;(set-frame-font "Jetbrains Mono Medium 17")
 
 ;; no blink
@@ -143,6 +143,11 @@ See `eval-after-load' for the possible formats of FORM."
   (setq evil-undo-system 'undo-fu)
   :config
   (evil-mode 1)
+  ;; this makes these commands not count as "edits" so that I can jump
+  ;; to the next error without overwriting the last edit in
+  ;; `evil-repeat`
+  (evil-declare-motion 'flymake-goto-next-error)
+  (evil-declare-motion 'flymake-goto-prev-error)
   )
 
 (use-package general
