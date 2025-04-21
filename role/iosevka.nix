@@ -4,6 +4,8 @@
   ...
 }: {
   fonts.packages = with pkgs; [
+    noto-fonts-cjk-sans
+    unifont
     jetbrains-mono
     (let
       iosevkaPkgs = inputs.nixpkgs-iosevka.legacyPackages.x86_64-linux;

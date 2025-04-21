@@ -143,6 +143,7 @@ See `eval-after-load' for the possible formats of FORM."
   (setq evil-undo-system 'undo-fu)
   :config
   (evil-mode 1)
+  (evil-define-key 'normal 'global (kbd "C-u") 'evil-scroll)
   )
 
 (use-package general
@@ -176,7 +177,11 @@ See `eval-after-load' for the possible formats of FORM."
     :states '(normal visual motion)
     :keymaps 'override
     "SPC" '(execute-extended-command :which-key "command")
-    "'" '((lambda () (interactive) (switch-to-buffer (other-buffer))) :which-key "other buffer")
+    ;; the default behavior of `other buffer' is to ignore buffers
+    ;; open in other windows, which can be annoying when you have two
+    ;; views of the same buffer going. This invocation considers all
+    ;; buffers except for the current one.
+    "'" '((lambda () (interactive) (switch-to-buffer (other-buffer (current-buffer) t))) :which-key "other buffer")
     "," '(ftzm/flip-window :which-key "previous window")
     "d" '(dired-jump :which-key "dired here")
     "D" '(dired :which-key "dired")
@@ -422,6 +427,7 @@ See `eval-after-load' for the possible formats of FORM."
   (completion-styles '(orderless basic))
   (completion-category-overrides '(
 				   (file (styles orderless basic partial-completion))
+				   (buffer (styles orderless basic partial-completion))
 				   (project-file (styles orderless))))
   (setq orderless-smart-case t)
   )
@@ -681,7 +687,8 @@ See `eval-after-load' for the possible formats of FORM."
 
   ;; Enable indentation+completion using the TAB key.
   ;; `completion-at-point' is often bound to M-TAB.
-  (tab-always-indent 'complete)
+					;(tab-always-indent 'complete)
+  (tab-always-indent t)
 
   ;; Emacs 30 and newer: Disable Ispell completion function. As an alternative,
   ;; try `cape-dict'.
@@ -993,6 +1000,12 @@ in which case does avy-goto-char with the first char."
     :program "pg_format"
     :args `("-" "-s2" "-g")
     :lighter " pgform"
+    )
+  (reformatter-define cog
+    :program "cog"
+    :args `("-")
+    :lighter " cog"
+    :stdin t
     )
   )
 
