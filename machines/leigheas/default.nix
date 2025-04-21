@@ -1,4 +1,13 @@
-{ self, system, nixpkgs, pkgs, config, lib, inputs, ... }: {
+{
+  self,
+  system,
+  nixpkgs,
+  pkgs,
+  config,
+  lib,
+  inputs,
+  ...
+}: {
   imports = [
     # System specific
     ./hardware.nix
@@ -34,7 +43,7 @@
   nixpkgs = {
     config = {
       allowUnfree = true;
-      permittedInsecurePackages = [ "p7zip-16.02" "openssl-1.0.2u" ];
+      permittedInsecurePackages = ["p7zip-16.02" "openssl-1.0.2u"];
       allowBroken = true;
     };
     overlays = [
@@ -52,19 +61,21 @@
       keep-derivations = true
       builders-use-substitutes = true
     '';
-    buildMachines = [{
-      hostName = "wg-nuc";
-      sshUser = "admin";
-      sshKey = "/home/ftzm/.ssh/id_rsa";
-      system = "x86_64-linux";
-      # if the builder supports building for multiple architectures,
-      # replace the previous line by, e.g.,
-      # systems = ["x86_64-linux" "aarch64-linux"];
-      maxJobs = 4;
-      speedFactor = 1;
-      supportedFeatures = [ "nixos-test" "benchmark" "big-parallel" "kvm" ];
-      mandatoryFeatures = [ ];
-    }];
+    buildMachines = [
+      {
+        hostName = "wg-nuc";
+        sshUser = "admin";
+        sshKey = "/home/ftzm/.ssh/id_rsa";
+        system = "x86_64-linux";
+        # if the builder supports building for multiple architectures,
+        # replace the previous line by, e.g.,
+        # systems = ["x86_64-linux" "aarch64-linux"];
+        maxJobs = 4;
+        speedFactor = 1;
+        supportedFeatures = ["nixos-test" "benchmark" "big-parallel" "kvm"];
+        mandatoryFeatures = [];
+      }
+    ];
     distributedBuilds = true;
   };
 
@@ -77,11 +88,10 @@
   };
   home-manager.users.ftzm.home.stateVersion = "21.05";
   home-manager.users.ftzm.home.activation = {
-    myActivationAction =
-      inputs.home-manager.lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
-          -f ${builtins.toPath ./../../dotfiles/MODULES}
-      '';
+    myActivationAction = inputs.home-manager.lib.hm.dag.entryAfter ["writeBoundary"] ''
+      $DRY_RUN_CMD /home/ftzm/.dots/dotfiles/install.sh -y \
+        -f ${builtins.toPath ./../../dotfiles/MODULES}
+    '';
   };
 
   # System
@@ -90,7 +100,7 @@
   system.activationScripts = {
     # This is required to run third-party dynamically linked binaries
     # which expect their interpreter to be in the standard Linux FSH.
-    ldso = lib.stringAfter [ "usrbinenv" ] ''
+    ldso = lib.stringAfter ["usrbinenv"] ''
       mkdir -m 0755 -p /lib64
       ln -sfn ${pkgs.glibc.out}/lib64/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2.tmp
       mv -f /lib64/ld-linux-x86-64.so.2.tmp /lib64/ld-linux-x86-64.so.2 # atomically replace
@@ -137,7 +147,7 @@
 
   # Allows building for arch64
   # Current use-case is building system images for raspberrypi
-  boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
+  boot.binfmt.emulatedSystems = ["aarch64-linux"];
 
   networking = {
     hostName = "leigheas"; # Define your hostname.
@@ -152,7 +162,7 @@
   #   name_servers="10.2.35.177 10.2.34.189"
   # '';
   # networking.resolvconf.enable = false;
-  networking.nameservers = [ "1.1.1.1" ];
+  networking.nameservers = ["1.1.1.1"];
 
   services.syncthing = {
     enable = true;
@@ -167,10 +177,9 @@
   services.xserver.dpi = 192;
 
   virtualisation.virtualbox.host.enable = true;
-  users.extraGroups.vboxusers.members = [ "ftzm" ];
+  users.extraGroups.vboxusers.members = ["ftzm"];
 
-  programs.steam = { enable = true; };
+  # programs.steam = { enable = true; };
 
   system.stateVersion = "20.09";
-
 }

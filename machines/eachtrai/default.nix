@@ -21,8 +21,8 @@
 
     # Generic
     ../../role/home-setup.nix
-    ../../role/network.nix
-    ../../role/mpd.nix
+    # ../../role/network.nix
+    # ../../role/mpd.nix
     ../../role/sleep.nix
     ../../role/shell.nix
     ../../role/comms.nix
@@ -60,19 +60,35 @@
     };
   };
 
-  boot.resumeDevice = "/dev/mapper/crypted";
   boot.initrd.enable = true;
   boot.initrd.supportedFilesystems = ["btrfs"];
   boot.initrd.systemd.enable = true;
+  swapDevices = [
+    {
+      device = "/.swapvol/swapfile";
+      size = 32 * 1024;
+    }
+  ];
+  # inspo: https://discourse.nixos.org/t/impermanence-and-hibernation/39955/13
   boot.initrd.systemd.services.rollback = {
     description = "Reset BTRFS root subvolume to empty snapshot";
     # initrd target: root filesystem device is available but not yet mounted. So ensure that this happens in that window.
     wantedBy = ["initrd.target"];
     # ensure the btrfs device is available
-    requires = ["dev-mapper-crypted.device"];
-    after = ["dev-mapper-crypted.device"];
+    requires = [
+      "dev-mapper-crypted.device"
+      "initrd-root-device.target"
+    ];
+    after = [
+      "initrd-root-device.target"
+      "dev-mapper-crypted.device"
+      "local-fs-pre.target"
+    ];
     # ensure this happens before mounting root
-    before = ["sysroot.mount"];
+    before = [
+      "sysroot.mount"
+      "create-needed-for-boot-dirs.service"
+    ];
     # Don't establish any dependencies not defined here
     unitConfig.DefaultDependencies = "no";
     # run once and wait for completion before running subsequent systemd units
@@ -162,7 +178,7 @@
   services.udisks2.enable = true;
 
   hardware.enableAllFirmware = true;
-  hardware.pulseaudio.enable = false;
+  services.pulseaudio.enable = false;
   hardware.pulseaudio.package = pkgs.pulseaudioFull;
   security.rtkit.enable = true;
   services.pipewire = {
@@ -180,7 +196,7 @@
   users.users.root.hashedPasswordFile = "/persist/passwords/root";
   users.users.ftzm = {
     isNormalUser = true;
-    extraGroups = ["wheel" "video" "audio" "disk" "networkmanager" "docker"]; # Enable ‘sudo’ for the user.
+    extraGroups = ["wheel" "video" "audio" "disk" "networkmanager" "docker" "libvirtd"]; # Enable ‘sudo’ for the user.
     packages = with pkgs; [
       inputs.agenix.packages.x86_64-linux.agenix
       firefox
@@ -214,12 +230,21 @@
       #gimp
       #libreoffice
       nil
-      steam
       wine
-      lutris
+      (let
+        lutrisPkgs = import inputs.nixpkgs-lutris {
+          system = "x86_64-linux"; # whatever your system name is
+          config = {
+            allowUnfree = true;
+            allowUnfreePredicate = _: true;
+          };
+        };
+      in
+        lutrisPkgs.lutris)
       zip
       unzip
       chromium
+      pgformatter
     ];
     hashedPasswordFile = "/persist/passwords/ftzm";
   };
@@ -287,23 +312,31 @@
   hardware.enableRedistributableFirmware = true;
   hardware.cpu.intel.updateMicrocode = true;
 
+  system.activationScripts = {
+    # This un-breaks hibernate.
+    # See: https://github.com/intel/ipu6-drivers/pull/116
+    fixHibernate = lib.stringAfter ["usrbinenv"] ''
+      echo 0 > /sys/power/pm_async
+    '';
+  };
+
   # ----------------------------------------------------------------------
 
-  services.syncthing = {
-    enable = true;
-    #guiAddress = "localhost:8384";
-    openDefaultPorts = true;
-    user = "ftzm";
-    configDir = "/home/ftzm/.config/syncthing";
-    dataDir = "/home/ftzm";
-    # I think these mean it doesn't try to merge the configs, and the merging is error prone.
-    overrideFolders = true;
-    overrideDevices = true;
-    settings.devices = {
-      nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
-      saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
-    };
-  };
+  # services.syncthing = {
+  #   enable = true;
+  #   #guiAddress = "localhost:8384";
+  #   openDefaultPorts = true;
+  #   user = "ftzm";
+  #   configDir = "/home/ftzm/.config/syncthing";
+  #   dataDir = "/home/ftzm";
+  #   # I think these mean it doesn't try to merge the configs, and the merging is error prone.
+  #   overrideFolders = true;
+  #   overrideDevices = true;
+  #   settings.devices = {
+  #     nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+  #     saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
+  #   };
+  # };
 
   # ----------------------------------------------------------------------
   # Atuin
@@ -346,4 +379,29 @@
   # services.xserver.enable = true;
   # services.xserver.displayManager.gdm.enable = true;
   # services.xserver.desktopManager.gnome.enable = true;
+
+  # ----------------------------------------------------------------------
+  networking.firewall.enable = false;
+
+  # ----------------------------------------------------------------------
+  virtualisation.libvirtd = {
+    enable = true;
+    qemu = {
+      package = pkgs.qemu_kvm;
+      runAsRoot = true;
+      swtpm.enable = true;
+      ovmf = {
+        enable = true;
+        packages = [
+          (pkgs.OVMF.override {
+            secureBoot = true;
+            tpmSupport = true;
+          })
+          .fd
+        ];
+      };
+    };
+  };
+  programs.virt-manager.enable = true;
+  hardware.keyboard.qmk.enable = true;
 }

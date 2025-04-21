@@ -12,6 +12,7 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
+  boot.binfmt.emulatedSystems = ["aarch64-linux"];
   boot.initrd.availableKernelModules = ["xhci_pci" "thunderbolt" "vmd" "nvme" "usb_storage" "sd_mod"];
   boot.initrd.kernelModules = [];
   boot.extraModprobeConfig = ''
@@ -19,12 +20,12 @@
   '';
   boot.kernelModules = ["kvm-intel"];
   # enable_psr=0 fixes an issue where the tty doesn't refresh properly (stutters, don't update until there is a keypress, etc.)
-  boot.kernelParams = ["i915.enable_psr=0" "resume_offset=4203776"];
+  boot.kernelParams = ["i915.enable_psr=0"];
   boot.extraModulePackages = [];
   boot.kernelPackages = pkgs.linuxPackages_latest;
-  # boot.kernelPackages = pkgs.linuxPackages_6_8;
+
   # no audio < this version < (hang on shutdown boot | frozen on wake from hibernate)
-  # boot.kernelPackages = pkgs.linuxPackagesFor (pkgs.linux_6_7.override {
+  # boot.kernelPackages = pkgs.linuxPackagesFor (pkgs.linux_6_6.override {
   #   argsOverride = rec {
   #     src = pkgs.fetchurl {
   #       url = "mirror://kernel/linux/kernel/v6.x/linux-${version}.tar.xz";

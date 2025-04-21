@@ -13,7 +13,8 @@
   };
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/2d2a9ddbe3f2c00747398f3dc9b05f7f2ebb0f53";
+    nixpkgs.url = "github:NixOS/nixpkgs/3a05eebede89661660945da1f151959900903b6a";
+    nixpkgs-lutris.url = "github:NixOS/nixpkgs/1a7de5d740a244b99c53e6bff8c60b621637f687";
     nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixos-24.05";
     nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
@@ -65,10 +66,10 @@
       };
       nuc = mkLabSystem {host = "nuc";};
       nas = mkLabSystem {host = "nas";};
-      # pi = mkLabSystem {
-      #   host = "pi";
-      #   system = "aarch64-linux";
-      # };
+      pi = mkLabSystem {
+        host = "pi";
+        system = "aarch64-linux";
+      };
     };
     f = import ./config.nix {
       self = inputs.self;

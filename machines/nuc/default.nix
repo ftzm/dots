@@ -16,6 +16,13 @@
   # This was enable to allow deploying via deploy-rs as non-root.
   nix.settings.trusted-users = ["@wheel"];
 
+  nix = {
+    # package = pkgs.nixFlakes;
+    extraOptions = ''
+      experimental-features = nix-command flakes
+    '';
+  };
+
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -495,94 +502,94 @@
   # users.users.nextcloud.isSystemUser = true;
 
   # ----------------------------------------------------------------------
-  # Librephotos
+  # # Librephotos
 
-  # we create a systemd service so that we can create a single "pod"
-  # for our containers to live inside of. This will mimic how docKER compose
-  # creates one network for the containers to live inside of
-  systemd.services.create-librephotos-network = with config.virtualisation.oci-containers; {
-    serviceConfig.Type = "oneshot";
-    wantedBy = [
-      "${backend}-librephotos-backend.service"
-      "${backend}-librephotos-db.service"
-    ];
-    script = ''
-      ${pkgs.podman}/bin/podman network exists lp-net || \
-      ${pkgs.podman}/bin/podman network create lp-net
-    '';
-  };
+  # # we create a systemd service so that we can create a single "pod"
+  # # for our containers to live inside of. This will mimic how docKER compose
+  # # creates one network for the containers to live inside of
+  # systemd.services.create-librephotos-network = with config.virtualisation.oci-containers; {
+  #   serviceConfig.Type = "oneshot";
+  #   wantedBy = [
+  #     "${backend}-librephotos-backend.service"
+  #     "${backend}-librephotos-db.service"
+  #   ];
+  #   script = ''
+  #     ${pkgs.podman}/bin/podman network exists lp-net || \
+  #     ${pkgs.podman}/bin/podman network create lp-net
+  #   '';
+  # };
 
-  virtualisation.oci-containers.containers.librephotos-proxy = {
-    image = "reallibrephotos/librephotos-proxy:latest";
-    volumes = [
-      "/mnt/nas/cloud/photos:/data"
-      "/librephotos/protected_media:/protected_media"
-    ];
-    ports = ["0.0.0.0:780:80"];
-    extraOptions = ["--network=lp-net"];
-    dependsOn = ["librephotos-backend" "librephotos-frontend"];
-  };
+  # virtualisation.oci-containers.containers.librephotos-proxy = {
+  #   image = "reallibrephotos/librephotos-proxy:latest";
+  #   volumes = [
+  #     "/mnt/nas/cloud/photos:/data"
+  #     "/librephotos/protected_media:/protected_media"
+  #   ];
+  #   ports = ["0.0.0.0:780:80"];
+  #   extraOptions = ["--network=lp-net"];
+  #   dependsOn = ["librephotos-backend" "librephotos-frontend"];
+  # };
 
-  virtualisation.oci-containers.containers.librephotos-db = {
-    image = "postgres:13";
-    environment = {
-      POSTGRES_USER = "docker";
-      POSTGRES_PASSWORD = "AaAa1234";
-      POSTGRES_DB = "librephotos";
-    };
-    volumes = ["/librephotos/data/db:/var/lib/postgresql/data"];
-    entrypoint = "docker-entrypoint.sh";
-    cmd = [
-      "-c"
-      "fsync=off"
-      "-c"
-      "synchronous_commit=off"
-      "-c"
-      "full_page_writes=off"
-      "-c"
-      "random_page_cost=1.0"
-    ];
-    extraOptions = ["--network=lp-net"];
-  };
+  # virtualisation.oci-containers.containers.librephotos-db = {
+  #   image = "postgres:13";
+  #   environment = {
+  #     POSTGRES_USER = "docker";
+  #     POSTGRES_PASSWORD = "AaAa1234";
+  #     POSTGRES_DB = "librephotos";
+  #   };
+  #   volumes = ["/librephotos/data/db:/var/lib/postgresql/data"];
+  #   entrypoint = "docker-entrypoint.sh";
+  #   cmd = [
+  #     "-c"
+  #     "fsync=off"
+  #     "-c"
+  #     "synchronous_commit=off"
+  #     "-c"
+  #     "full_page_writes=off"
+  #     "-c"
+  #     "random_page_cost=1.0"
+  #   ];
+  #   extraOptions = ["--network=lp-net"];
+  # };
 
-  virtualisation.oci-containers.containers.librephotos-frontend = {
-    image = "reallibrephotos/librephotos-frontend:latest";
-    extraOptions = ["--network=lp-net"];
-    hostname = "frontend";
-  };
+  # virtualisation.oci-containers.containers.librephotos-frontend = {
+  #   image = "reallibrephotos/librephotos-frontend:latest";
+  #   extraOptions = ["--network=lp-net"];
+  #   hostname = "frontend";
+  # };
 
-  virtualisation.oci-containers.containers.librephotos-backend = {
-    image = "reallibrephotos/librephotos:latest";
-    volumes = [
-      "/mnt/nas/cloud/photos:/data"
-      "/librephotos/protected_media:/protected_media"
-      "/librephotos/logs:/logs"
-      "/librephotos/cache:/root/.cache"
-    ];
-    extraOptions = ["--network=lp-net"];
-    hostname = "backend";
-    environment = {
-      SECRET_KEY = "shhhhKey";
-      BACKEND_HOST = "backend";
-      ADMIN_EMAIL = "";
-      ADMIN_USERNAME = "admin";
-      ADMIN_PASSWORD = "admin";
-      DB_BACKEND = "postgresql";
-      DB_NAME = "librephotos";
-      DB_USER = "docker";
-      DB_PASS = "AaAa1234";
-      DB_HOST = "librephotos-db";
-      DB_PORT = "5432";
-      MAPBOX_API_KEY = "";
-      WEB_CONCURRENCY = "2";
-      SKIP_PATTERNS = "";
-      ALLOW_UPLOAD = "false";
-      CSRF_TRUSTED_ORIGINS = "";
-      DEBUG = "0";
-      HEAVYWEIGHT_PROCESS = "";
-    };
-    dependsOn = ["librephotos-db"];
-  };
+  # virtualisation.oci-containers.containers.librephotos-backend = {
+  #   image = "reallibrephotos/librephotos:latest";
+  #   volumes = [
+  #     "/mnt/nas/cloud/photos:/data"
+  #     "/librephotos/protected_media:/protected_media"
+  #     "/librephotos/logs:/logs"
+  #     "/librephotos/cache:/root/.cache"
+  #   ];
+  #   extraOptions = ["--network=lp-net"];
+  #   hostname = "backend";
+  #   environment = {
+  #     SECRET_KEY = "shhhhKey";
+  #     BACKEND_HOST = "backend";
+  #     ADMIN_EMAIL = "";
+  #     ADMIN_USERNAME = "admin";
+  #     ADMIN_PASSWORD = "admin";
+  #     DB_BACKEND = "postgresql";
+  #     DB_NAME = "librephotos";
+  #     DB_USER = "docker";
+  #     DB_PASS = "AaAa1234";
+  #     DB_HOST = "librephotos-db";
+  #     DB_PORT = "5432";
+  #     MAPBOX_API_KEY = "";
+  #     WEB_CONCURRENCY = "2";
+  #     SKIP_PATTERNS = "";
+  #     ALLOW_UPLOAD = "false";
+  #     CSRF_TRUSTED_ORIGINS = "";
+  #     DEBUG = "0";
+  #     HEAVYWEIGHT_PROCESS = "";
+  #   };
+  #   dependsOn = ["librephotos-db"];
+  # };
 
   # ----------------------------------------------------------------------
 
@@ -603,51 +610,51 @@
     environment = {};
   };
 
-  virtualisation.oci-containers.containers.lychee = {
-    image = "lycheeorg/lychee";
-    ports = ["0.0.0.0:90:80"];
-    volumes = ["/mnt/nas/cloud/photos:/srv"];
-    environment = {};
-  };
+  # virtualisation.oci-containers.containers.lychee = {
+  #   image = "lycheeorg/lychee";
+  #   ports = ["0.0.0.0:90:80"];
+  #   volumes = ["/mnt/nas/cloud/photos:/srv"];
+  #   environment = {};
+  # };
 
-  # we create a systemd service so that we can create a single "pod"
-  # for our containers to live inside of. This will mimic how docker compose
-  # creates one network for the containers to live inside of
-  systemd.services.create-photoview-network = with config.virtualisation.oci-containers; {
-    serviceConfig.Type = "oneshot";
-    wantedBy = ["${backend}-photoview.service" "${backend}-photoview-db.service"];
-    script = ''
-      ${pkgs.podman}/bin/podman network exists pv-net || \
-      ${pkgs.podman}/bin/podman network create pv-net
-    '';
-  };
+  # # we create a systemd service so that we can create a single "pod"
+  # # for our containers to live inside of. This will mimic how docker compose
+  # # creates one network for the containers to live inside of
+  # systemd.services.create-photoview-network = with config.virtualisation.oci-containers; {
+  #   serviceConfig.Type = "oneshot";
+  #   wantedBy = ["${backend}-photoview.service" "${backend}-photoview-db.service"];
+  #   script = ''
+  #     ${pkgs.podman}/bin/podman network exists pv-net || \
+  #     ${pkgs.podman}/bin/podman network create pv-net
+  #   '';
+  # };
 
-  virtualisation.oci-containers.containers.photoview-db = {
-    image = "mysql:latest";
-    volumes = ["db:/var/lib/mysql"];
-    autoStart = true;
-    environment = {
-      MYSQL_DATABASE = "photoview";
-      MYSQL_USER = "photoview";
-      MYSQL_PASSWORD = "photosecret";
-      MYSQL_RANDOM_ROOT_PASSWORD = "1";
-    };
-    extraOptions = ["--network=pv-net"];
-  };
+  # virtualisation.oci-containers.containers.photoview-db = {
+  #   image = "mysql:latest";
+  #   volumes = ["db:/var/lib/mysql"];
+  #   autoStart = true;
+  #   environment = {
+  #     MYSQL_DATABASE = "photoview";
+  #     MYSQL_USER = "photoview";
+  #     MYSQL_PASSWORD = "photosecret";
+  #     MYSQL_RANDOM_ROOT_PASSWORD = "1";
+  #   };
+  #   extraOptions = ["--network=pv-net"];
+  # };
 
-  virtualisation.oci-containers.containers.photoview = {
-    image = "viktorstrate/photoview:2";
-    ports = ["0.0.0.0:8888:80"];
-    volumes = ["/photoview:/app/cache" "/mnt/nas/cloud/photos:/photos:ro"];
-    extraOptions = ["--network=pv-net"];
-    environment = {
-      PHOTOVIEW_DATABASE_DRIVER = "mysql";
-      PHOTOVIEW_MYSQL_URL = "photoview:photosecret@tcp(photoview-db)/photoview";
-      PHOTOVIEW_LISTEN_IP = "photoview";
-      PHOTOVIEW_LISTEN_PORT = "80";
-      PHOTOVIEW_MEDIA_CACHE = "/app/cache";
-    };
-  };
+  # virtualisation.oci-containers.containers.photoview = {
+  #   image = "viktorstrate/photoview:2";
+  #   ports = ["0.0.0.0:8888:80"];
+  #   volumes = ["/photoview:/app/cache" "/mnt/nas/cloud/photos:/photos:ro"];
+  #   extraOptions = ["--network=pv-net"];
+  #   environment = {
+  #     PHOTOVIEW_DATABASE_DRIVER = "mysql";
+  #     PHOTOVIEW_MYSQL_URL = "photoview:photosecret@tcp(photoview-db)/photoview";
+  #     PHOTOVIEW_LISTEN_IP = "photoview";
+  #     PHOTOVIEW_LISTEN_PORT = "80";
+  #     PHOTOVIEW_MEDIA_CACHE = "/app/cache";
+  #   };
+  # };
 
   # ----------------------------------------------------------------------
 
@@ -742,8 +749,8 @@
         '"body_bytes_sent":$body_bytes_sent,'
         '"http_referer":"$http_referer",'
         '"http_user_agent":"$http_user_agent",'
-        '"http_x_forwarded_for":"$http_x_forwarded_for"'
-        '"request_time":"$request_time"'
+        '"http_x_forwarded_for":"$http_x_forwarded_for",'
+        '"request_time":$request_time'
       '}';
     '';
 
@@ -840,6 +847,17 @@
           auth_basic "Restricted";
           auth_basic_user_file /.htpasswd;
 
+        '';
+      };
+    };
+    virtualHosts."muscleup.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
+      root = "/muscleup/";
+      locations."/" = {
+        extraConfig = ''
+          add_header Cross-Origin-Embedder-Policy "credentialless";
+          add_header Cross-Origin-Opener-Policy "same-origin";
         '';
       };
     };

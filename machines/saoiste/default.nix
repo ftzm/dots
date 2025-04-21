@@ -74,7 +74,7 @@
 
   nix = {
     settings.trusted-users = ["@wheel"];
-    package = pkgs.nixFlakes;
+    # package = pkgs.nixFlakes;
     extraOptions = ''
       experimental-features = nix-command flakes
       keep-outputs = true
@@ -166,7 +166,7 @@
   # };
   hardware.opengl = {
     enable = true;
-    driSupport = true;
+    # driSupport = true;
     extraPackages = with pkgs; [
       intel-media-driver
       vaapiIntel
@@ -175,7 +175,7 @@
     ];
   };
 
-  programs.steam.enable = true;
+  # programs.steam.enable = true;
 
   services = {
     blueman.enable = true;

@@ -1,4 +1,4 @@
-{
+{pkgs, ...}: {
   home-manager.users.ftzm = {
     services.udiskie.enable = true;
 
@@ -9,7 +9,8 @@
     services.gpg-agent = {
       enable = true;
       enableSshSupport = true;
-      # pinentryFlavor = "gtk2"; no longer has any effect
+      pinentryPackage = pkgs.pinentry-gnome3;
     };
   };
+  services.dbus.packages = [pkgs.gcr];
 }

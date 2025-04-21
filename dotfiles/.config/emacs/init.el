@@ -142,6 +142,7 @@ See `eval-after-load' for the possible formats of FORM."
   (setq evil-undo-system 'undo-fu)
   :config
   (evil-mode 1)
+  (evil-define-key 'normal 'global (kbd "C-u") 'evil-scroll)
   )
 
 (use-package general
@@ -175,7 +176,11 @@ See `eval-after-load' for the possible formats of FORM."
     :states '(normal visual motion)
     :keymaps 'override
     "SPC" '(execute-extended-command :which-key "command")
-    "'" '((lambda () (interactive) (switch-to-buffer (other-buffer))) :which-key "other buffer")
+    ;; the default behavior of `other buffer' is to ignore buffers
+    ;; open in other windows, which can be annoying when you have two
+    ;; views of the same buffer going. This invocation considers all
+    ;; buffers except for the current one.
+    "'" '((lambda () (interactive) (switch-to-buffer (other-buffer (current-buffer) t))) :which-key "other buffer")
     "," '(ftzm/flip-window :which-key "previous window")
     "d" '(dired-jump :which-key "dired here")
     "D" '(dired :which-key "dired")
@@ -421,6 +426,7 @@ See `eval-after-load' for the possible formats of FORM."
   (completion-styles '(orderless basic))
   (completion-category-overrides '(
 				   (file (styles orderless basic partial-completion))
+				   (buffer (styles orderless basic partial-completion))
 				   (project-file (styles orderless))))
   (setq orderless-smart-case t)
   )
@@ -680,7 +686,8 @@ See `eval-after-load' for the possible formats of FORM."
 
   ;; Enable indentation+completion using the TAB key.
   ;; `completion-at-point' is often bound to M-TAB.
-  (tab-always-indent 'complete)
+					;(tab-always-indent 'complete)
+  (tab-always-indent t)
 
   ;; Emacs 30 and newer: Disable Ispell completion function. As an alternative,
   ;; try `cape-dict'.
@@ -977,8 +984,8 @@ in which case does avy-goto-char with the first char."
 ;; ==============================================================================
 
 (use-package reformatter
-  :init
   ;; for nix
+  :init
   (reformatter-define alejandra
     :program "alejandra"
     :lighter " alej"
@@ -987,6 +994,17 @@ in which case does avy-goto-char with the first char."
     :program "fourmolu"
     :args `("--stdin-input-file" ,buffer-file-name)
     :lighter " four"
+    )
+  (reformatter-define pgformatter
+    :program "pg_format"
+    :args `("-" "-s2" "-g")
+    :lighter " pgform"
+    )
+  (reformatter-define cog
+    :program "cog"
+    :args `("-")
+    :lighter " cog"
+    :stdin t
     )
   )
 
@@ -1045,9 +1063,9 @@ in which case does avy-goto-char with the first char."
   :after pretty-hydra
   :hook (
   	 (org-mode . auto-revert-mode)
-  	 ;(org-mode . yas-minor-mode)
-  	 ;(org-mode . olivetti-mode)
-  	 ;(org-mode . typo-mode)
+					;(org-mode . yas-minor-mode)
+					;(org-mode . olivetti-mode)
+					;(org-mode . typo-mode)
    	 )
   :init
   (pretty-hydra-define org-global-hydra
@@ -1060,7 +1078,7 @@ in which case does avy-goto-char with the first char."
       ("d" (org-capture nil "d") "Diary")
       ("wt" (org-capture nil "w") "Work Task")
       ("wd" (org-capture nil "u") "Work Diary"))
-      ))
+     ))
   :config
   
   (setq org-todo-keywords '((sequence "NEXT(n)" "TODO(t)" "|" "DONE(d/!)" "CANCELLED(c@/!)")))
@@ -1069,6 +1087,8 @@ in which case does avy-goto-char with the first char."
 
   ;; apply CLOSED property on done
   (setq org-log-done 'time)
+
+  (setq org-startup-folded 'content)
   
   ;; ==============================================================================
   ;; Agenda 
@@ -1122,53 +1142,53 @@ in which case does avy-goto-char with the first char."
   (defun ftzm/daily-agenda()
     (interactive)
     (org-agenda nil " "))
-   
+  
   ;; Save org buffers when quitting agenda buffer
   (advice-add 'org-agenda-quit :before (lambda () (let ((inhibit-message t)) (org-save-all-org-buffers))))
 
   ;; ==============================================================================
   ;; capture
 
-    ;; start capture in insert mode
-    (add-hook 'org-capture-mode-hook 'evil-insert-state)
+  ;; start capture in insert mode
+  (add-hook 'org-capture-mode-hook 'evil-insert-state)
 
-    (setq org-capture-templates
-	  (quote (("t" "todo" entry (file "~/org/personal/inbox.org")
-		   "* NEXT %?")
-		  ("d" "diary entry" entry (file+datetree "~/org/personal/diary.org")
-		   "* %?")
-		  ("u" "work diary entry" entry (file+datetree "~/org/work/diary.org")
-		   "* %?")
-		  ("w" "work todo" entry (file "~/org/work/work-inbox.org")
-		   "* NEXT %?")
-		  )))
+  (setq org-capture-templates
+	(quote (("t" "todo" entry (file "~/org/personal/inbox.org")
+		 "* NEXT %?")
+		("d" "diary entry" entry (file+datetree "~/org/personal/diary.org")
+		 "* %?")
+		("u" "work diary entry" entry (file+datetree "~/org/work/diary.org")
+		 "* %?")
+		("w" "work todo" entry (file "~/org/work/work-inbox.org")
+		 "* NEXT %?")
+		)))
 
-    (defun add-property-with-created-date ()
-      "Add DATE_CAPTURED property to the current item."
-      (interactive)
-      (org-set-property "CREATED" (format-time-string "%F")))
-    
-    (add-hook 'org-capture-before-finalize-hook 'add-property-with-created-date)
+  (defun add-property-with-created-date ()
+    "Add DATE_CAPTURED property to the current item."
+    (interactive)
+    (org-set-property "CREATED" (format-time-string "%F")))
+  
+  (add-hook 'org-capture-before-finalize-hook 'add-property-with-created-date)
 
   ;; ==============================================================================
   ;; refile
 
-    ;; Exclude DONE state tasks from refile targets
-    (defun bh/verify-refile-target ()
-      "Exclude todo keywords with a done state from refile targets"
-      (not (member (nth 2 (org-heading-components)) org-done-keywords)))
+  ;; Exclude DONE state tasks from refile targets
+  (defun bh/verify-refile-target ()
+    "Exclude todo keywords with a done state from refile targets"
+    (not (member (nth 2 (org-heading-components)) org-done-keywords)))
 
-    (setq org-refile-target-verify-function 'bh/verify-refile-target)
+  (setq org-refile-target-verify-function 'bh/verify-refile-target)
 
-    ;; allow refiling 9 levels deep
-    (setq org-refile-targets '((nil :maxlevel . 9)
-			       (org-agenda-files :maxlevel . 9)))
+  ;; allow refiling 9 levels deep
+  (setq org-refile-targets '((nil :maxlevel . 9)
+			     (org-agenda-files :maxlevel . 9)))
 
-    ;; Refile in a single go
-    (setq org-outline-path-complete-in-steps nil)
+  ;; Refile in a single go
+  (setq org-outline-path-complete-in-steps nil)
 
-    ;; show full path for refiling, preceeded by the filename.
-    (setq org-refile-use-outline-path 'file)
+  ;; show full path for refiling, preceeded by the filename.
+  (setq org-refile-use-outline-path 'file)
 
   ;; ==============================================================================
   ;; Keys
@@ -1183,13 +1203,13 @@ in which case does avy-goto-char with the first char."
       ("d" (org-capture nil "d") "Diary")
       ("wt" (org-capture nil "w") "Work Task")
       ("wd" (org-capture nil "u") "Work Diary"))
-      ))
+     ))
 
   (my-leader-def
-   :states '(normal)
-   :states 'override
-   "o" 'org-global-hydra
-  )
+    :states '(normal)
+    :states 'override
+    "o" 'org-global-hydra
+    )
 
   )
 
@@ -1756,12 +1776,12 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 
 ;; Enable nice rendering of diagnostics like compile errors.
 (use-package flycheck
-  :init (global-flycheck-mode))
+  :hook (scala-mode . flycheck-mode))
 
 (use-package lsp-mode
   ;; Optional - enable lsp-mode automatically in scala files
   ;; You could also swap out lsp for lsp-deffered in order to defer loading
-  :hook  (scala-mode . lsp)
+  :hook (scala-mode . lsp)
 					;(lsp-mode . lsp-lens-mode)
   :config
   ;; Uncomment following section if you would like to tune lsp-mode performance according to
@@ -1778,3 +1798,15 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 
 ;; Add metals backend for lsp-mode
 (use-package lsp-metals)
+
+;; ==============================================================================
+;; SQL
+;; ==============================================================================
+
+(use-package sql-indent
+  :ensure (:host github :repo "alex-hhh/emacs-sql-indent")
+  :hook ((sql-mode . sqlind-minor-mode)))
+
+(use-package sql-mode
+  :ensure nil
+  :hook ((sql-mode . pgformatter-on-save-mode)))
