@@ -29,15 +29,11 @@
   outputs = inputs @ {
     nixpkgs,
     nixpkgs-ftzmlab,
+    home-manager,
+    emacs-overlay,
     ...
   }: let
     defaultSystem = "x86_64-linux";
-    mkUserSystem = host-config:
-      nixpkgs.lib.nixosSystem {
-        system = defaultSystem;
-        specialArgs = {inherit inputs;};
-        modules = [./configuration host-config];
-      };
     mkLabSystem = {
       host,
       system ? defaultSystem,
@@ -71,9 +67,16 @@
         system = "aarch64-linux";
       };
     };
-    f = import ./config.nix {
-      self = inputs.self;
-      lib = nixpkgs.lib;
+    homeConfigurations.ftzm = home-manager.lib.homeManagerConfiguration {
+      pkgs = (nixpkgs.legacyPackages."x86_64-linux").extend emacs-overlay.overlay;
+
+      # Specify your home configuration modules here, for example,
+      # the path to your home.nix.
+      modules = [./machines/ftm-P14s/home.nix];
+
+      # Optionally use extraSpecialArgs
+      # to pass through arguments to home.nix
+      extraSpecialArgs = {inherit inputs;};
     };
   };
 }

@@ -11,4 +11,7 @@ saoiste:
 	sudo NIX_SSHOPTS="-i $$HOME/.ssh/id_rsa" nixos-rebuild -v switch --fast --accept-flake-config --flake .#saoiste --target-host ftzm@saoiste --use-remote-sudo
 
 switch:
-	sudo nixos-rebuild --verbose --flake . switch
+	sudo nixos-rebuild --flake . switch
+
+home:
+	home-manager --flake . switch
