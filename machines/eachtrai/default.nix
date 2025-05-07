@@ -245,6 +245,7 @@
       unzip
       chromium
       pgformatter
+      wakeonlan
     ];
     hashedPasswordFile = "/persist/passwords/ftzm";
   };

@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  lib,
   inputs,
   ...
 }: {
@@ -9,6 +10,7 @@
     inputs.agenix.nixosModules.age
     ./hardware.nix
     ../../role/network.nix
+    ./mqtt2prometheus-service.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
@@ -133,6 +135,7 @@
             targets = [
               "127.0.0.1:${toString config.services.prometheus.exporters.node.port}"
               "nas:9002"
+              "127.0.0.1:9641" # mqtt2prometheus
             ];
           }
         ];
@@ -407,10 +410,13 @@
   # ----------------------------------------------------------------------
   services.samba = {
     enable = true;
-    extraConfig = ''
-      browseable = yes
-      smb encrypt = required
-    '';
+
+    settings = {
+      global = {
+        browseable = "yes";
+        "smb encrypt" = "required";
+      };
+    };
     shares = {
       public = {
         path = "/mnt/nas/cloud";
@@ -617,44 +623,53 @@
   #   environment = {};
   # };
 
-  # # we create a systemd service so that we can create a single "pod"
-  # # for our containers to live inside of. This will mimic how docker compose
-  # # creates one network for the containers to live inside of
-  # systemd.services.create-photoview-network = with config.virtualisation.oci-containers; {
-  #   serviceConfig.Type = "oneshot";
-  #   wantedBy = ["${backend}-photoview.service" "${backend}-photoview-db.service"];
-  #   script = ''
-  #     ${pkgs.podman}/bin/podman network exists pv-net || \
-  #     ${pkgs.podman}/bin/podman network create pv-net
-  #   '';
-  # };
+  # we create a systemd service so that we can create a single "pod"
+  # for our containers to live inside of. This will mimic how docker compose
+  # creates one network for the containers to live inside of
+  systemd.services.create-photoview-network = with config.virtualisation.oci-containers; {
+    serviceConfig.Type = "oneshot";
+    wantedBy = ["${backend}-photoview.service" "${backend}-photoview-db.service"];
+    script = ''
+      ${pkgs.podman}/bin/podman network exists pv-net || \
+      ${pkgs.podman}/bin/podman network create pv-net
+    '';
+  };
 
-  # virtualisation.oci-containers.containers.photoview-db = {
-  #   image = "mysql:latest";
-  #   volumes = ["db:/var/lib/mysql"];
-  #   autoStart = true;
-  #   environment = {
-  #     MYSQL_DATABASE = "photoview";
-  #     MYSQL_USER = "photoview";
-  #     MYSQL_PASSWORD = "photosecret";
-  #     MYSQL_RANDOM_ROOT_PASSWORD = "1";
-  #   };
-  #   extraOptions = ["--network=pv-net"];
-  # };
+  virtualisation.oci-containers.containers.photoview-db = {
+    image = "mysql:latest";
+    volumes = ["db:/var/lib/mysql"];
+    autoStart = true;
+    environment = {
+      MYSQL_DATABASE = "photoview";
+      MYSQL_USER = "photoview";
+      MYSQL_PASSWORD = "photosecret";
+      MYSQL_RANDOM_ROOT_PASSWORD = "1";
+    };
+    extraOptions = ["--network=pv-net"];
+  };
 
-  # virtualisation.oci-containers.containers.photoview = {
-  #   image = "viktorstrate/photoview:2";
-  #   ports = ["0.0.0.0:8888:80"];
-  #   volumes = ["/photoview:/app/cache" "/mnt/nas/cloud/photos:/photos:ro"];
-  #   extraOptions = ["--network=pv-net"];
-  #   environment = {
-  #     PHOTOVIEW_DATABASE_DRIVER = "mysql";
-  #     PHOTOVIEW_MYSQL_URL = "photoview:photosecret@tcp(photoview-db)/photoview";
-  #     PHOTOVIEW_LISTEN_IP = "photoview";
-  #     PHOTOVIEW_LISTEN_PORT = "80";
-  #     PHOTOVIEW_MEDIA_CACHE = "/app/cache";
-  #   };
-  # };
+  virtualisation.oci-containers.containers.photoview = {
+    image = "viktorstrate/photoview:2";
+    ports = ["0.0.0.0:8888:80"];
+    volumes = ["/photoview:/app/cache" "/mnt/nas/cloud/photos:/photos:ro"];
+    extraOptions = ["--network=pv-net"];
+    environment = {
+      PHOTOVIEW_DATABASE_DRIVER = "mysql";
+      PHOTOVIEW_MYSQL_URL = "photoview:photosecret@tcp(photoview-db)/photoview";
+      PHOTOVIEW_LISTEN_IP = "photoview";
+      PHOTOVIEW_LISTEN_PORT = "80";
+      PHOTOVIEW_MEDIA_CACHE = "/app/cache";
+    };
+  };
+
+  # ----------------------------------------------------------------------
+  # Immich
+
+  services.immich = {
+    enable = true;
+    host = "0.0.0.0";
+  };
+  users.users.immich.extraGroups = ["users" "storage"];
 
   # ----------------------------------------------------------------------
 
@@ -677,7 +692,7 @@
 
   services.postgresql = {
     enable = true;
-    package = pkgs.postgresql_15;
+    package = pkgs.postgresql_16;
   };
 
   services.atuin = {
@@ -689,42 +704,26 @@
 
   # ----------------------------------------------------------------------
   # Photoprism
-  services.photoprism = {
-    enable = true;
-    port = 2343;
-    originalsPath = "/mnt/nas/cloud/photos";
-    address = "0.0.0.0";
-    settings = {
-      PHOTOPRISM_ADMIN_USER = "admin";
-      PHOTOPRISM_ADMIN_PASSWORD = "admin";
-      PHOTOPRISM_DEFAULT_LOCALE = "en";
-      PHOTOPRISM_DATABASE_DRIVER = "mysql";
-      PHOTOPRISM_DATABASE_NAME = "photoprism";
-      PHOTOPRISM_DATABASE_SERVER = "/run/mysqld/mysqld.sock";
-      PHOTOPRISM_DATABASE_USER = "photoprism";
-      PHOTOPRISM_SITE_URL = "https://img.ftzmlab.xyz";
-      PHOTOPRISM_SITE_TITLE = "My PhotoPrism";
-    };
-  };
 
-  services.mysql = {
-    enable = true;
-    dataDir = "/data/mysql";
-    package = pkgs.mariadb;
-    ensureDatabases = ["photoprism"];
-    ensureUsers = [
-      {
-        name = "photoprism";
-        ensurePermissions = {"photoprism.*" = "ALL PRIVILEGES";};
-      }
-    ];
-  };
+  # start over
 
   # ----------------------------------------------------------------------
   # The Lounge
 
   services.thelounge = {
     enable = true;
+  };
+
+  # ----------------------------------------------------------------------
+  services.mosquitto = {
+    enable = true;
+    listeners = [
+      {
+        acl = ["pattern readwrite #"];
+        omitPasswordAuth = true;
+        settings.allow_anonymous = true;
+      }
+    ];
   };
 
   # ----------------------------------------------------------------------

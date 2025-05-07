@@ -40,7 +40,7 @@
   networking.useDHCP = lib.mkDefault true;
   # networking.interfaces.enp58s0.useDHCP = lib.mkDefault true;
   # networking.interfaces.wlp59s0.useDHCP = lib.mkDefault true;
-  networking.interfaces.wlp59s0.wakeOnLan.enable = true;
+  networking.interfaces.enp58s0.wakeOnLan.enable = true;
 
   powerManagement.cpuFreqGovernor = lib.mkDefault "powersave";
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
