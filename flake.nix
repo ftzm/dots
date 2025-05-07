@@ -71,11 +71,11 @@
 
       # Specify your home configuration modules here, for example,
       # the path to your home.nix.
-      modules = [ ./machines/ftm-P14s/home.nix ];
+      modules = [./machines/ftm-P14s/home.nix];
 
       # Optionally use extraSpecialArgs
       # to pass through arguments to home.nix
-        extraSpecialArgs = {inherit inputs;};
+      extraSpecialArgs = {inherit inputs;};
     };
   };
 }

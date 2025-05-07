@@ -58,8 +58,14 @@
 
 ;; ----------------------------------------------------------------------------
 
-(set-frame-font "Iosevka ftzm Medium 14")
+(set-frame-font "Iosevka ftzm Medium 12")
 					;(set-frame-font "Jetbrains Mono Medium 17")
+
+;; automatically balances windows when  splitting.
+(setq window-combination-resize t)
+
+;; don't highlight bookmarks orange
+(setq bookmark-fontify nil)
 
 ;; no blink
 (blink-cursor-mode 0)
@@ -73,13 +79,13 @@
 See `eval-after-load' for the possible formats of FORM."
   (if (null my-features)
       (if (functionp form)
-      (funcall form)
-    (eval form))
+	  (funcall form)
+	(eval form))
     (eval-after-load (car my-features)
       `(lambda ()
-     (eval-after-load-all
-      (quote ,(cdr my-features))
-      (quote ,form))))))
+	 (eval-after-load-all
+	  (quote ,(cdr my-features))
+	  (quote ,form))))))
 
 (fringe-mode '(0 . 0))
 
@@ -100,7 +106,7 @@ See `eval-after-load' for the possible formats of FORM."
   ;; disable electric indent mode by default (too many annoying conflicts with other formatters)
   (electric-indent-mode -1)
   ;; a more nuclear option to disable it if necessary, might make it hard to selectively enable though
-  ; (add-hook 'after-change-major-mode-hook (lambda() (electric-indent-mode -1)))
+					; (add-hook 'after-change-major-mode-hook (lambda() (electric-indent-mode -1)))
   )
 
 ;; ----------------------------------------------------------------------------
@@ -109,11 +115,11 @@ See `eval-after-load' for the possible formats of FORM."
   :config
   (load-theme 'doom-gruvbox t)
   ;; Must be used *after* the theme is loaded
-  (custom-set-faces
-   `(font-lock-type-face ((t (:foreground ,(doom-color 'violet)))))
-   `(font-lock-doc-face ((t (:foreground ,(doom-color 'base6)))))
-   `(font-lock-function-name-face ((t (:foreground ,(doom-color 'yellow)))))
-   `(font-lock-preprocessor-face ((t (:foreground ,(doom-color 'orange))))))
+  ;; (custom-set-faces
+  ;;  `(font-lock-type-face ((t (:foreground ,(doom-color 'violet)))))
+  ;;  `(font-lock-doc-face ((t (:foreground ,(doom-color 'base6)))))
+  ;;  `(font-lock-function-name-face ((t (:foreground ,(doom-color 'yellow)))))
+  ;;  `(font-lock-preprocessor-face ((t (:foreground ,(doom-color 'orange))))))
   )
 
 ;; stop emacs from scattering temporary and app files everywhere
@@ -284,7 +290,7 @@ See `eval-after-load' for the possible formats of FORM."
   (setq which-key-idle-delay 0.3))
 
 
-  (defun ftzm/flip-window ()
+(defun ftzm/flip-window ()
   (interactive)
   (let ((win  (get-mru-window nil nil t)))
     (when win (select-window win))))
@@ -295,24 +301,42 @@ See `eval-after-load' for the possible formats of FORM."
   (setq window-numbering-scope            'frame
         winum-reverse-frame-list          nil
         winum-auto-assign-0-to-minibuffer t
-        ;winum-assign-func                 'my-winum-assign-func
-        ;winum-auto-setup-mode-line        t
+					;winum-assign-func                 'my-winum-assign-func
+					;winum-auto-setup-mode-line        t
         winum-format                      nil
         winum-mode-line-position          nil
-        ;winum-ignored-buffers             '(" *which-key*")
-        ;winum-ignored-buffers-regexp      '(" \\*Treemacs-.*")
+					;winum-ignored-buffers             '(" *which-key*")
+					;winum-ignored-buffers-regexp      '(" \\*Treemacs-.*")
         winum-ignored-buffers-regexp      '()
 	)
   (winum-mode)
   )
 
 (use-package doom-modeline
-  :init (doom-modeline-mode 1)
   :config
+  (doom-modeline-def-modeline 'trimmed
+    '(eldoc bar workspace-name matches follow buffer-info remote-host buffer-position word-count parrot selection-info)
+    '(compilation objed-state misc-info project-name persp-name battery grip irc mu4e gnus github debug repl lsp minor-modes input-method indent-info buffer-encoding major-mode process check time))
+
+  ;; Set default mode-line
+  (add-hook 'doom-modeline-mode-hook
+            (lambda ()
+              (doom-modeline-set-modeline 'trimmed 'default)))
+
+  (doom-modeline-mode 1)
+
+  ;; must be set after mode enabled apparently
+  (add-to-list
+   'mode-line-misc-info
+   `(eglot--managed-mode (" [" eglot--mode-line-format "] "))
+   )
+  (setq doom-modeline-lsp nil)
+
+  (setq doom-modeline-percent-position '(-3 ""))
   (setq column-number-mode t
 	line-number-mode t)
   (setq doom-modeline-bar-width 0
-	doom-modeline-buffer-file-name-style 'truncate-upto-root
+	doom-modeline-buffer-file-name-style 'file-name
 	doom-modeline-icon nil
 	doom-modeline-position-column-line-format '("%l:%c")
 	doom-modeline-buffer-encoding nil
@@ -382,14 +406,14 @@ See `eval-after-load' for the possible formats of FORM."
   :config
   (vertico-multiform-mode 1)
 
-  (setq vertico-multiform-commands
-	'((consult-imenu buffer)
-          (project-find-file buffer)
-          ;;("persp-.*" flat)
-          ))
+  ;; (setq vertico-multiform-commands
+  ;; 	'((consult-imenu buffer)
+  ;;         (project-find-file buffer)
+  ;;         ;;("persp-.*" flat)
+  ;;         ))
 
-  (setq vertico-multiform-categories
-	'((consult-grep buffer)))
+  ;; (setq vertico-multiform-categories
+  ;; 	'((consult-grep buffer)))
   )
 
 ;; Persist history over Emacs restarts. Vertico sorts by history position.
@@ -576,6 +600,7 @@ See `eval-after-load' for the possible formats of FORM."
   ;; (setq consult-project-function (lambda (_) (projectile-project-root)))
    ;;;; 5. No project support
   ;; (setq consult-project-function nil)
+  (load "~/.config/emacs/consult-atuin.el")
   )
 
 
@@ -661,7 +686,7 @@ See `eval-after-load' for the possible formats of FORM."
   ;; (corfu-separator ?\s)          ;; Orderless field separator
   ;; (corfu-quit-at-boundary nil)   ;; Never quit at completion boundary
   ;; (corfu-quit-no-match nil)      ;; Never quit, even if there is no match
-  ;; (corfu-preview-current nil)    ;; Disable current candidate preview
+  (corfu-preview-current nil)    ;; Disable current candidate preview. When using insert, eglot also inserts type info we don't want.
   (corfu-preselect 'prompt)      ;; Preselect the prompt
   ;; (corfu-on-exact-match nil)     ;; Configure handling of exact matches
   ;; (corfu-scroll-margin 5)        ;; Use scroll margin
@@ -674,8 +699,29 @@ See `eval-after-load' for the possible formats of FORM."
   ;; Recommended: Enable Corfu globally.  This is recommended since Dabbrev can
   ;; be used globally (M-/).  See also the customization variable
   ;; `global-corfu-modes' to exclude certain modes.
+  :bind
+  ;; Use TAB for cycling, default is `corfu-complete'.
+  :bind
+  (:map corfu-map
+        ("TAB" . corfu-next)
+        ([tab] . corfu-next)
+        ("S-TAB" . corfu-previous)
+        ([backtab] . corfu-previous)) 
   :init
-  (global-corfu-mode))
+  (global-corfu-mode)
+  :config
+  (dolist (c (list (cons "SPC" " ")
+		   (cons "." ".")
+		   (cons "," ",")
+		   (cons ":" ":")
+		   (cons ")" ")")
+		   (cons "}" "}")
+		   (cons "]" "]")))
+    (define-key corfu-map (kbd (car c)) `(lambda ()
+					   (interactive)
+					   (corfu-insert)
+					   (insert ,(cdr c)))))
+  )
 
 ;; A few more useful configurations...
 (use-package emacs
@@ -795,23 +841,23 @@ See `eval-after-load' for the possible formats of FORM."
 (use-package avy
   :config
   (defun avy-goto-char-flex (char1 char2 &optional arg beg end)
-  "Behaves like avy-goto-char-2 unless the second character is RET,
+    "Behaves like avy-goto-char-2 unless the second character is RET,
 in which case does avy-goto-char with the first char."
-  (interactive (list (read-char "char 1: " t)
-                     (read-char "char 2: " t)
-                     current-prefix-arg
-                     nil nil))
-  (when (eq char1 ?)
-    (setq char1 ?\n))
-  (if (not (eq char2 ?))
-      (avy-with avy-goto-char-2
-      (avy-jump
-       (regexp-quote (string char1 char2))
-       :beg beg
-       :end end))
+    (interactive (list (read-char "char 1: " t)
+                       (read-char "char 2: " t)
+                       current-prefix-arg
+                       nil nil))
+    (when (eq char1 ?)
+      (setq char1 ?\n))
+    (if (not (eq char2 ?))
+	(avy-with avy-goto-char-2
+	  (avy-jump
+	   (regexp-quote (string char1 char2))
+	   :beg beg
+	   :end end))
       (avy-with avy-goto-char
-      (avy-jump
-       (regexp-quote (string char1))))))
+	(avy-jump
+	 (regexp-quote (string char1))))))
 
   (setq avy-timeout-seconds 0.15)
   (setq avy-all-windows nil)
@@ -819,14 +865,14 @@ in which case does avy-goto-char with the first char."
 		      ?k ?w ?j ?b ?x ?v ?q ?z ?\; ?n ?o))
 
   (set-face-attribute 'avy-lead-face nil
-  :background 'unspecified
-  :foreground "#ff0000"
-  )
+		      :background 'unspecified
+		      :foreground "#ff0000"
+		      )
 
   (set-face-attribute 'avy-lead-face-0 nil
-  :background 'unspecified
-  :foreground "#ff0000"
-  )
+		      :background 'unspecified
+		      :foreground "#ff0000"
+		      )
 
   (setq avy-background t)
   (setq avy-all-windows t)
@@ -898,7 +944,7 @@ in which case does avy-goto-char with the first char."
       ("8" (persp-switch-command 8) nil)
       ("7" (persp-switch-command 7) nil))))
 
-)
+  )
 
 (use-package project
   :ensure nil
@@ -919,12 +965,12 @@ in which case does avy-goto-char with the first char."
   (general-define-key
    :prefix-command 'project-keys
    "f" 'project-find-file
-   ;"F" 'projectile-find-file-other-window
+					;"F" 'projectile-find-file-other-window
    "b" 'project-switch-to-buffer
    "p" 'switch-persp-project
    "P" 'project-switch-project
    "g" 'consult-git-grep
-   ;"t" 'projectile-run-vterm
+					;"t" 'projectile-run-vterm
    )
   )
 
@@ -945,7 +991,7 @@ in which case does avy-goto-char with the first char."
 (use-package eglot
   :ensure nil
   :after general
-  :hook (((js-ts-mode json-ts-mode yaml-ts-mode typescript-ts-mode java-ts-mode mhtml-mode css-ts-mode vue-ts-mode haskell-mode) . eglot-ensure))
+  :hook (((js-ts-mode json-ts-mode yaml-ts-mode typescript-ts-mode java-ts-mode mhtml-mode css-ts-mode vue-ts-mode haskell-mode nix-ts-mode scala-mode php-mode phps-mode) . eglot-ensure))
   :preface
   (defun vue-eglot-init-options ()
     (let ((tsdk-path (expand-file-name
@@ -965,17 +1011,23 @@ in which case does avy-goto-char with the first char."
                                               :documentSymbol t
                                               :documentColor t)))))
   :config
-  ; disable snippets in completion
+					; disable snippets in completion
   (fset #'eglot--snippet-expansion-fn #'ignore)
 
   (add-to-list 'eglot-server-programs
                `(vue-ts-mode . ("vue-language-server" "--stdio" :initializationOptions ,(vue-eglot-init-options))))
 
+  (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nil")))
+  (add-to-list 'eglot-server-programs
+               '((php-mode phps-mode) . ("intelephense" "--stdio")))
+
   (my-leader-def
-   :states '(normal)
-   :keymaps 'eglot-mode-map
-   "en" 'flymake-goto-next-error
-   "ep" 'flymake-goto-prev-error)
+    :states '(normal)
+    :keymaps 'eglot-mode-map
+    "en" 'flymake-goto-next-error
+    "ep" 'flymake-goto-prev-error
+    "eb" 'consult-flymake)
+  (evil-define-key 'normal 'global (kbd "gi") 'eglot-find-implementation)
   )
 
 ;; ==============================================================================
@@ -998,6 +1050,11 @@ in which case does avy-goto-char with the first char."
     :program "pg_format"
     :args `("-" "-s2" "-g")
     :lighter " pgform"
+    )
+  (reformatter-define scalafmt
+    :program "scalafmt-native"
+    :args `("--stdin")
+    :lighter " sfmt"
     )
   )
 
@@ -1022,15 +1079,6 @@ in which case does avy-goto-char with the first char."
  '(org-safe-remote-resources
    '("\\`https://fniessen\\.github\\.io/org-html-themes/org/theme-readtheorg\\.setup\\'"))
  '(safe-local-variable-values '((dante-methods new-flake))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(font-lock-doc-face ((t (:foreground "#928374"))))
- '(font-lock-function-name-face ((t (:foreground "#fabd2f"))))
- '(font-lock-preprocessor-face ((t (:foreground "#fe8019"))))
- '(font-lock-type-face ((t (:foreground "#d3869b")))))
 
 (use-package c-mode
   :hook (c-mode . eglot-ensure)
@@ -1247,21 +1295,21 @@ in which case does avy-goto-char with the first char."
   ;;; Override Playlist appearance
 
   (defun mpdel-tablist--song-format ()
-  "Return `tabulated-list-format' value for songs."
-  (vector (list "Title" 50 t)
-          (list "#" 3 nil)
-          (list "Album" 40 t)
-          (list "Artist" 0 t)))
+    "Return `tabulated-list-format' value for songs."
+    (vector (list "Title" 50 t)
+            (list "#" 3 nil)
+            (list "Album" 40 t)
+            (list "Artist" 0 t)))
 
   (navigel-method mpdel navigel-entity-to-columns ((song libmpdel-song))
-    (vector
-     (propertize (or (libmpdel-entity-name song) "") 'face 'mpdel-tablist-song-name-face)
-     (propertize (or (libmpdel-song-track song) "") 'face 'mpdel-tablist-track-face)
-     (propertize (or (libmpdel-album-name song) "") 'face 'mpdel-tablist-album-face)
-     (propertize (or (libmpdel-artist-name song) "") 'face 'mpdel-tablist-artist-face)))
+		  (vector
+		   (propertize (or (libmpdel-entity-name song) "") 'face 'mpdel-tablist-song-name-face)
+		   (propertize (or (libmpdel-song-track song) "") 'face 'mpdel-tablist-track-face)
+		   (propertize (or (libmpdel-album-name song) "") 'face 'mpdel-tablist-album-face)
+		   (propertize (or (libmpdel-artist-name song) "") 'face 'mpdel-tablist-artist-face)))
 
-  ; (use-package ivy-mpdel
-  ; :straight t)
+					; (use-package ivy-mpdel
+					; :straight t)
 
   (defun ftzm-mpd-composer-search (name)
     (mpdel-core-search-by-filter (format "(composer == '%s')" name)))
@@ -1296,7 +1344,7 @@ in which case does avy-goto-char with the first char."
   (defun ftzm-embark-artist-search ()
     (interactive)
     (libmpdel-send-command
-     ;"list artist  \"(Genre == \\\"Classical\\\")\""
+					;"list artist  \"(Genre == \\\"Classical\\\")\""
      "list artist"
      (lambda (data)
        (with-local-quit
@@ -1314,8 +1362,8 @@ in which case does avy-goto-char with the first char."
     ;; `with-local-quit` is necessary to avoid getting an error when quitting
     ;; the completion in a callback
     (consult--read (prepare-candidates candidates)
-				    :prompt prompt
-				    :category 'category))
+		   :prompt prompt
+		   :category 'category))
 
   (defun list-non-classical-artists (fun)
     (with-local-quit
@@ -1342,20 +1390,20 @@ in which case does avy-goto-char with the first char."
 		      (album (libmpdel--album-create :name album-name :artist artist))
 		      )
 		 (libmpdel-playlist-add album 'current-playlist)
-				;	;(mpdel-core-search-by-album)
+					;	;(mpdel-core-search-by-album)
 		 ))))))))
 
   (defun climb-entries (f)
     (catch 'exit
-    (save-excursion
-      (while t
-	(funcall f)
-        ;; if we are at top level, return nil
-        (when (= (org-outline-level) 1)
-          (throw 'exit nil))
-        ;; if we cannot go up any further, return nil
-        (when (not (outline-up-heading 1))
-          (throw 'exit nil))))))
+      (save-excursion
+	(while t
+	  (funcall f)
+          ;; if we are at top level, return nil
+          (when (= (org-outline-level) 1)
+            (throw 'exit nil))
+          ;; if we cannot go up any further, return nil
+          (when (not (outline-up-heading 1))
+            (throw 'exit nil))))))
 
   (defun entries-from-top ()
     (let ((acc (list)))
@@ -1365,10 +1413,10 @@ in which case does avy-goto-char with the first char."
   (defun assoc-to-query-string (key val)
     (format
      (pcase key
-	   ("album" "(album == '%s')")
-	   ("artist" "(artist contains '%s')")
-	   ("composer" "(composer == '%s')")
-	   ("work" "(title contains '%s')"))
+       ("album" "(album == '%s')")
+       ("artist" "(artist contains '%s')")
+       ("composer" "(composer == '%s')")
+       ("work" "(title contains '%s')"))
      val))
 
   (defun construct-request ()
@@ -1410,8 +1458,8 @@ in which case does avy-goto-char with the first char."
 	  (setq output "~"))
       (remove-variable-watcher 'output watch-func) output))
 
-  ;(remove-variable-watcher 'output (lambda (&rest args) (setq was-set t)))
-  ;(get-variable-watchers 'output)
+					;(remove-variable-watcher 'output (lambda (&rest args) (setq was-set t)))
+					;(get-variable-watchers 'output)
 
   (defun ftzm-mpd-status ()
     (if libmpdel--current-song
@@ -1450,8 +1498,8 @@ in which case does avy-goto-char with the first char."
 
   (pretty-hydra-define mpd-hydra
     (:color blue
-     :quit-key "q"
-     :title (ftzm-mpd-status))
+	    :quit-key "q"
+	    :title (ftzm-mpd-status))
     ("Playback" (( "p" libmpdel-playback-play-pause "play-pause")
 	         ( "<" mpdel-song-normal-decrement "skip backward" :exit nil)
 	         ( ">" mpdel-song-normal-increment "skip forward" :exit nil)
@@ -1461,11 +1509,11 @@ in which case does avy-goto-char with the first char."
 		  ( "C" ftzm-mpd-clear-playlist "clear playlist")
 		  ( "a" ftzm-embark-artist-search "search artists")
 		  ( "c" ftzm-embark-composer-search "search composers")
-		  ;( "a" ivy-mpdel-artists "search artists")
+					;( "a" ivy-mpdel-artists "search artists")
 		  )
      "Toggles" (( "r" ftzm-mpd-repeat "repeat" :toggle (symbol-value 'libmpdel--repeat))
-	         ( "S" ftzm-mpd-single "single" :toggle (eq 'forever libmpdel--single))
-	         ( "R" ftzm-mpd-random "random" :toggle (symbol-value 'libmpdel--random)))))
+	        ( "S" ftzm-mpd-single "single" :toggle (eq 'forever libmpdel--single))
+	        ( "R" ftzm-mpd-random "random" :toggle (symbol-value 'libmpdel--random)))))
 
 
   (evil-collection-define-key 'normal 'mpdel-core-map
@@ -1496,64 +1544,21 @@ in which case does avy-goto-char with the first char."
   )
 
 
-;; ==============================================================================
-;; Frontend
-;; ==============================================================================
-
-(use-package treesit-auto
-  :ensure t
-  :config
-  (setq treesit-auto-install t)
-  (treesit-auto-add-to-auto-mode-alist 'all)
-  (global-treesit-auto-mode))
-
-(use-package vue-ts-mode
-    :ensure (:host github :repo "8uff3r/vue-ts-mode"))
-
-(use-package eglot
-  :ensure t
-  ;; these are all my modes that i launch eglot for but you vue-ts-mdoe is most important for this post's topic
-  :hook (((js-ts-mode json-ts-mode yaml-ts-mode typescript-ts-mode java-ts-mode mhtml-mode css-ts-mode vue-ts-mode nix-ts-mode) . eglot-ensure))
-  :preface
-  (defun vue-eglot-init-options ()
-    (let ((tsdk-path (expand-file-name
-                      "lib"
-                      (string-trim-right (shell-command-to-string "npm list --global --parseable typescript | head -n1")))))
-      `(:typescript (:tsdk ,tsdk-path
-                           :languageFeatures (:completion
-                                              (:defaultTagNameCase "both"
-    								   :defaultAttrNameCase "kebabCase"
-    								   :getDocumentNameCasesRequest nil
-    								   :getDocumentSelectionRequest nil)
-                                              :diagnostics
-                                              (:getDocumentVersionRequest nil))
-                           :documentFeatures (:documentFormatting
-                                              (:defaultPrintWidth 100
-    								  :getDocumentPrintWidthRequest nil)
-                                              :documentSymbol t
-                                              :documentColor t)))))
-  :config
-  (add-to-list 'eglot-server-programs
-               `(vue-ts-mode . ("vue-language-server" "--stdio" :initializationOptions ,(vue-eglot-init-options))))
-  ;; Ensure `nil` is in your PATH.
-  (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nil")))
-  )
-
 
 ;; ==============================================================================
 ;; Vterm
 ;; ==============================================================================
 
-(use-package vterm
-  :config
-
-  (add-hook 'vterm-mode-hook (lambda ()
-  			       (setq-local global-hl-line-mode nil)))
-
-  (setq vterm-max-scrollback 50000)
-
-  (load "~/.config/emacs/consult-atuin.el")
-  )
+;; (use-package vterm
+;;   :config
+;; 
+;;   (add-hook 'vterm-mode-hook (lambda ()
+;;   			       (setq-local global-hl-line-mode nil)))
+;; 
+;;   (setq vterm-max-scrollback 50000)
+;; 
+;;   (load "~/.config/emacs/consult-atuin.el")
+;;   )
 
 ;; ==============================================================================
 ;; Gerbil
@@ -1749,9 +1754,31 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 ;; Scala
 ;; ==============================================================================
 
+(defun insert-unix-timestamp ()
+  (interactive)
+  (insert (replace-regexp-in-string "\n\\'" "" (shell-command-to-string "date +%s"))))
+
+(defun insert-uuid ()
+  (interactive)
+  (insert (replace-regexp-in-string "\n\\'" "" (shell-command-to-string "cat /proc/sys/kernel/random/uuid"))))
+
+(defun insert-ulid ()
+  (interactive)
+  (insert (replace-regexp-in-string "\n\\'" "" (shell-command-to-string "ulid"))))
+
 ;; Enable scala-mode and sbt-mode
 (use-package scala-mode
-  :interpreter ("scala" . scala-mode))
+  ;;:hook (scala-mode . scalafmt-on-save-mode)
+  :interpreter ("scala" . scala-mode)
+  :config
+  (add-hook 'before-save-hook 'eglot-format)
+  (evil-define-key 'normal scala-mode-map (kbd ",a") 'eglot-code-actions)
+  (defun my-eglot-organize-imports ()
+    (interactive)
+    (eglot-code-actions nil nil "source.organizeImports" t))
+  (add-hook 'before-save-hook 'my-eglot-organize-imports)
+  )
+
 
 ;; Enable sbt mode for executing sbt commands
 (use-package sbt-mode
@@ -1774,7 +1801,7 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 (use-package lsp-mode
   ;; Optional - enable lsp-mode automatically in scala files
   ;; You could also swap out lsp for lsp-deffered in order to defer loading
-  :hook (scala-mode . lsp)
+  ;; :hook (scala-mode . lsp)
 					;(lsp-mode . lsp-lens-mode)
   :config
   ;; Uncomment following section if you would like to tune lsp-mode performance according to
@@ -1803,3 +1830,81 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 (use-package sql-mode
   :ensure nil
   :hook ((sql-mode . pgformatter-on-save-mode)))
+
+
+
+;; ==============================================================================
+;; YAML
+;; ==============================================================================
+
+(use-package yaml-mode
+  )
+
+;; ==============================================================================
+;; PHP
+;; ==============================================================================
+
+(use-package php-mode
+  )
+
+;; ==============================================================================
+;; GUI
+;; ==============================================================================
+
+(use-package popper
+  :bind (("C-`"   . popper-toggle-latest)
+         ("M-`"   . popper-cycle)
+         ("C-M-`" . popper-toggle-type))
+  :init
+  (setq popper-reference-buffers
+        '("\\*Messages\\*"
+          "Output\\*$"
+          "\\*Async Shell Command\\*"
+	  "*Embark Actions*"
+	  "Errors List"
+	  "*eldoc*"
+          help-mode
+          compilation-mode
+	  flymake-diagnostics-buffer-mode
+	  flymake-project-diagnostics-mode))
+  (popper-mode +1)
+  (popper-echo-mode +1); For echo area hints
+  )
+
+
+;; ==============================================================================
+;; Dired
+;; ==============================================================================
+
+(use-package dired
+  :ensure nil
+  :config
+  (setq dired-kill-when-opening-new-dired-buffer t)
+  )
+
+
+;; ==============================================================================
+;; Rest client
+;; ==============================================================================
+
+
+(use-package restclient
+  :ensure (
+	   :host github
+	   :repo "casouri/restclient.el"
+	   :files ( "gql-builder.el" "restclient-jq.el" "restclient.el" )
+	   :branch "master"))
+
+;; ==============================================================================
+;; Window management
+;; ==============================================================================
+
+;; (use-package shackle
+;;   :config
+;;   (setq popper-display-control nil)
+;;   ;; (setq split-width-threshold 1)
+;;   (setq shackle-default-rule '(:select t))
+;;   (setq shackle-rules
+;; 	'((help-mode :select t :align right)
+;;           (compilation-mode :select t :size 0.3 :align below)))
+;;   (shackle-mode 1))
