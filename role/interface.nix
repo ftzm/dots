@@ -4,6 +4,9 @@
   config,
   ...
 }: {
+  # So we have basic fonts setup
+  fonts.enableDefaultPackages = lib.mkDefault true;
+
   hm.wayland.windowManager.sway = {
     enable = true;
     wrapperFeatures.gtk = true;
@@ -42,7 +45,7 @@
         lib.mkOptionDefault {
           "${modifier}+Shift+r" = "reload";
           #"${modifier}+Shift+c" = "kill";
-          "${modifier}+space" = "exec tofi-drun --drun-launch=true -c ~/.config/tofi/dmenu";
+          "${modifier}+space" = "exec ${pkgs.tofi}/bin/tofi-drun --drun-launch=true -c ~/.config/tofi/dmenu";
           # "${modifier}+Shift+b" = "exec splitv";
           "${modifier}+v" = "exec volumectl -p -u up";
           "${modifier}+Shift+v" = "exec volumectl -p -u down";
@@ -215,7 +218,7 @@
     };
   };
 
-  #needed for sway
+  #needed for sway to work
   services.dbus.enable = true;
   security.polkit.enable = true;
 

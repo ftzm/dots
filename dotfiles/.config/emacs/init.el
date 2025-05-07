@@ -1,11 +1,10 @@
 ;; ----------------------------------------------------------------------------
 ;; Elpaca
 
-;not part of the install recipe, a workaround for a warning
+;;not part of the install recipe, a workaround for a warning
 (setq elpaca-core-date '(20231211))
 
-;; recipe
-(defvar elpaca-installer-version 0.7)
+(defvar elpaca-installer-version 0.8)
 (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
 (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
@@ -22,18 +21,18 @@
     (make-directory repo t)
     (when (< emacs-major-version 28) (require 'subr-x))
     (condition-case-unless-debug err
-        (if-let ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
-                 ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
-                                                 ,@(when-let ((depth (plist-get order :depth)))
-                                                     (list (format "--depth=%d" depth) "--no-single-branch"))
-                                                 ,(plist-get order :repo) ,repo))))
-                 ((zerop (call-process "git" nil buffer t "checkout"
-                                       (or (plist-get order :ref) "--"))))
-                 (emacs (concat invocation-directory invocation-name))
-                 ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
-                                       "--eval" "(byte-recompile-directory \".\" 0 'force)")))
-                 ((require 'elpaca))
-                 ((elpaca-generate-autoloads "elpaca" repo)))
+        (if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+                  ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
+                                                  ,@(when-let* ((depth (plist-get order :depth)))
+                                                      (list (format "--depth=%d" depth) "--no-single-branch"))
+                                                  ,(plist-get order :repo) ,repo))))
+                  ((zerop (call-process "git" nil buffer t "checkout"
+                                        (or (plist-get order :ref) "--"))))
+                  (emacs (concat invocation-directory invocation-name))
+                  ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+                                        "--eval" "(byte-recompile-directory \".\" 0 'force)")))
+                  ((require 'elpaca))
+                  ((elpaca-generate-autoloads "elpaca" repo)))
             (progn (message "%s" (buffer-string)) (kill-buffer buffer))
           (error "%s" (with-current-buffer buffer (buffer-string))))
       ((error) (warn "%s" err) (delete-directory repo 'recursive))))
@@ -154,6 +153,7 @@ See `eval-after-load' for the possible formats of FORM."
   ;; `evil-repeat`
   (evil-declare-motion 'flymake-goto-next-error)
   (evil-declare-motion 'flymake-goto-prev-error)
+  (evil-define-key 'normal 'global (kbd "C-u") 'evil-scroll)
   )
 
 (use-package general
@@ -187,7 +187,11 @@ See `eval-after-load' for the possible formats of FORM."
     :states '(normal visual motion)
     :keymaps 'override
     "SPC" '(execute-extended-command :which-key "command")
-    "'" '((lambda () (interactive) (switch-to-buffer (other-buffer))) :which-key "other buffer")
+    ;; the default behavior of `other buffer' is to ignore buffers
+    ;; open in other windows, which can be annoying when you have two
+    ;; views of the same buffer going. This invocation considers all
+    ;; buffers except for the current one.
+    "'" '((lambda () (interactive) (switch-to-buffer (other-buffer (current-buffer) t))) :which-key "other buffer")
     "," '(ftzm/flip-window :which-key "previous window")
     "d" '(dired-jump :which-key "dired here")
     "D" '(dired :which-key "dired")
@@ -451,6 +455,7 @@ See `eval-after-load' for the possible formats of FORM."
   (completion-styles '(orderless basic))
   (completion-category-overrides '(
 				   (file (styles orderless basic partial-completion))
+				   (buffer (styles orderless basic partial-completion))
 				   (project-file (styles orderless))))
   (setq orderless-smart-case t)
   )
@@ -732,7 +737,8 @@ See `eval-after-load' for the possible formats of FORM."
 
   ;; Enable indentation+completion using the TAB key.
   ;; `completion-at-point' is often bound to M-TAB.
-  (tab-always-indent 'complete)
+					;(tab-always-indent 'complete)
+  (tab-always-indent t)
 
   ;; Emacs 30 and newer: Disable Ispell completion function. As an alternative,
   ;; try `cape-dict'.
@@ -1055,6 +1061,12 @@ in which case does avy-goto-char with the first char."
     :program "scalafmt-native"
     :args `("--stdin")
     :lighter " sfmt"
+    )
+  (reformatter-define cog
+    :program "cog"
+    :args `("-")
+    :lighter " cog"
+    :stdin t
     )
   )
 
@@ -1543,6 +1555,49 @@ in which case does avy-goto-char with the first char."
   :hook ((racket-mode emacs-lisp-mode) . aggressive-indent-mode)
   )
 
+
+;; ==============================================================================
+;; Frontend
+;; ==============================================================================
+
+(use-package treesit-auto
+  :ensure t
+  :config
+  (setq treesit-auto-install t)
+  (treesit-auto-add-to-auto-mode-alist 'all)
+  (global-treesit-auto-mode))
+
+(use-package vue-ts-mode
+    :ensure (:host github :repo "8uff3r/vue-ts-mode"))
+
+(use-package eglot
+  :ensure nil
+  ;; these are all my modes that i launch eglot for but you vue-ts-mdoe is most important for this post's topic
+  :hook (((js-ts-mode json-ts-mode yaml-ts-mode typescript-ts-mode java-ts-mode mhtml-mode css-ts-mode vue-ts-mode nix-ts-mode) . eglot-ensure))
+  :preface
+  (defun vue-eglot-init-options ()
+    (let ((tsdk-path (expand-file-name
+                      "lib"
+                      (string-trim-right (shell-command-to-string "npm list --global --parseable typescript | head -n1")))))
+      `(:typescript (:tsdk ,tsdk-path
+                           :languageFeatures (:completion
+                                              (:defaultTagNameCase "both"
+    								   :defaultAttrNameCase "kebabCase"
+    								   :getDocumentNameCasesRequest nil
+    								   :getDocumentSelectionRequest nil)
+                                              :diagnostics
+                                              (:getDocumentVersionRequest nil))
+                           :documentFeatures (:documentFormatting
+                                              (:defaultPrintWidth 100
+    								  :getDocumentPrintWidthRequest nil)
+                                              :documentSymbol t
+                                              :documentColor t)))))
+  :config
+  (add-to-list 'eglot-server-programs
+               `(vue-ts-mode . ("vue-language-server" "--stdio" :initializationOptions ,(vue-eglot-init-options))))
+  ;; Ensure `nil` is in your PATH.
+  (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nil")))
+  )
 
 
 ;; ==============================================================================

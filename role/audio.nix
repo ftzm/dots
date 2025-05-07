@@ -1,11 +1,9 @@
-{ pkgs, ... }:
-
-{
+{pkgs, ...}: {
   # rtkit is optional but recommended
   security.rtkit.enable = true;
 
   environment.systemPackages = with pkgs; [
-    alsaUtils
+    alsa-utils
   ];
 
   hardware.pulseaudio.enable = false;

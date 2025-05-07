@@ -200,7 +200,6 @@
       #gimp
       #libreoffice
       nil
-      steam
       wine
       lutris
     ];

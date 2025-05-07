@@ -100,7 +100,7 @@ in {
     # system
     binutils
     file
-    (dmenu.override {patches = [dmenuFuzzyPatch];})
+    # (dmenu.override {patches = [dmenuFuzzyPatch];})
     htop
     arandr
     pass
@@ -133,10 +133,10 @@ in {
     inkscape
     slack
     vlc
-    (wrapMpv mpv-unwrapped {scripts = [mpvScripts.mpris];})
+    # (wrapMpv mpv-unwrapped {scripts = [mpvScripts.mpris];})
     keybase-gui
     nomacs
-    gnome.cheese
+    # gnome.cheese
     qutebrowser
     wget
     openvpn
@@ -148,7 +148,7 @@ in {
     lxappearance
     arc-theme
     xorg.xcursorthemes
-    gnome3.adwaita-icon-theme
+    adwaita-icon-theme
     vanilla-dmz
 
     # programming
@@ -199,9 +199,9 @@ in {
     # system management
     niv
 
-    dbeaver
+    dbeaver-bin
     kitty
-    xdg_utils
+    xdg-utils
 
     # hw
     neofetch
@@ -226,9 +226,9 @@ in {
 
     # code
     sqlfluff
-    tablePlus
+    # tablePlus
 
-    gnome.nautilus
+    nautilus
 
     teams-for-linux
     # redpanda

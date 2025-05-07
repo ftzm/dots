@@ -1,7 +1,9 @@
-{ config, pkgs, ... }:
-
-let
-  package = pkgs.emacs-pgtk.override { };
+{
+  config,
+  pkgs,
+  ...
+}: let
+  package = pkgs.emacs-pgtk.override {};
   emacsWithPackages = (pkgs.emacsPackagesFor package).emacsWithPackages;
   emms-taglib = pkgs.stdenv.mkDerivation {
     name = "emms-taglib";
@@ -10,7 +12,7 @@ let
       sha256 = "1nd7sb6pva7qb1ki6w0zhd6zvqzd7742kaqi0f3v4as5jh09l6nr";
     };
 
-    buildInputs = [ pkgs.zlib pkgs.taglib ];
+    buildInputs = [pkgs.zlib pkgs.taglib];
     buildPhase = "make emms-print-metadata";
     installPhase = ''
       mkdir -p $out/bin
@@ -25,12 +27,12 @@ let
       platforms = platforms.linux ++ platforms.darwin;
     };
   };
-
 in {
   environment.systemPackages = [
     (emacsWithPackages (epkgs: [
-      epkgs.tree-sitter
-      epkgs.tree-sitter-langs
+      epkgs.treesit-grammars.with-all-grammars
+      #epkgs.tree-sitter
+      #epkgs.tree-sitter-langs
       #epkgs.telega
       epkgs.vterm
       #epkgs.emms
