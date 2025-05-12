@@ -122,16 +122,16 @@
     PROMPT is the prompt.
     INITIAL is initial input."
   (consult--read
-   (consult--async-command builder
+   (consult--process-collection builder
      ;;TODO verify that map is the right thing, as we can't reject non-compliant lines
-     (consult--async-map #'consult-atuin--format-line)
+     :transform (consult--async-map #'consult-atuin--format-line)
 					;(consult--async-transform consult-atuin-format)
      (consult--async-highlight builder))
    :prompt prompt
    :sort nil
    :annotate 'consult-atuin-result-annotator 
 					;:require-match t
-   :initial (consult--async-split-initial initial)
+   :initial initial
 					;:add-history (consult--async-split-thingatpt 'filename)
 					;:category 'file
 					;:history '(:input consult--find-history)
