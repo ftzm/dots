@@ -1,15 +1,17 @@
-;; ----------------------------------------------------------------------------
+;; -*- lexical-binding: t; -*-
+
+;; ---------------------------------------------------------------------------- 
 ;; Elpaca
 
-;;not part of the install recipe, a workaround for a warning
-(setq elpaca-core-date '(20231211))
+;; silence error about this begin unset
+(setq elpaca-core-date '(20240101))
 
-(defvar elpaca-installer-version 0.8)
+(defvar elpaca-installer-version 0.11)
 (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
 (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
 (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-                              :ref nil :depth 1
+                              :ref nil :depth 1 :inherit ignore
                               :files (:defaults "elpaca-test.el" (:exclude "extensions"))
                               :build (:not elpaca--activate-package)))
 (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
@@ -19,7 +21,7 @@
   (add-to-list 'load-path (if (file-exists-p build) build repo))
   (unless (file-exists-p repo)
     (make-directory repo t)
-    (when (< emacs-major-version 28) (require 'subr-x))
+    (when (<= emacs-major-version 28) (require 'subr-x))
     (condition-case-unless-debug err
         (if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
                   ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
@@ -39,25 +41,26 @@
   (unless (require 'elpaca-autoloads nil t)
     (require 'elpaca)
     (elpaca-generate-autoloads "elpaca" repo)
-    (load "./elpaca-autoloads")))
+    (let ((load-source-file-function nil)) (load "./elpaca-autoloads"))))
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
 
 ;; post recipe setup
 (setq package-enable-at-startup nil)
 
+;; Block until current queue processed.
+(elpaca-wait)
+
 (elpaca elpaca-use-package
   ;; Enable :elpaca use-package keyword.
   (elpaca-use-package-mode)
   ;; Assume :elpaca t unless otherwise specified.
-  (setq elpaca-use-package-by-default t)
+  (setq use-package-always-ensure t)
   )
-
-(elpaca-wait)
 
 ;; ----------------------------------------------------------------------------
 
-(set-frame-font "Iosevka ftzm Medium 12")
+(set-frame-font "Iosevka ftzm Medium 18")
 					;(set-frame-font "Jetbrains Mono Medium 17")
 
 ;; automatically balances windows when  splitting.
@@ -153,7 +156,7 @@ See `eval-after-load' for the possible formats of FORM."
   ;; `evil-repeat`
   (evil-declare-motion 'flymake-goto-next-error)
   (evil-declare-motion 'flymake-goto-prev-error)
-  (evil-define-key 'normal 'global (kbd "C-u") 'evil-scroll)
+  (evil-define-key 'normal 'global (kbd "C-u") 'evil-scroll-up)
   )
 
 (use-package general
@@ -222,7 +225,7 @@ See `eval-after-load' for the possible formats of FORM."
 
   (general-define-key
    :prefix-command 'buffer-keys
-   "d" 'kill-this-buffer
+   "d" 'kill-current-buffer
    "e" 'eval-buffer
 					;"k" 'evil-prev-buffer
 					;"j" 'evil-next-buffer
@@ -1314,11 +1317,11 @@ in which case does avy-goto-char with the first char."
             (list "Artist" 0 t)))
 
   (navigel-method mpdel navigel-entity-to-columns ((song libmpdel-song))
-		  (vector
-		   (propertize (or (libmpdel-entity-name song) "") 'face 'mpdel-tablist-song-name-face)
-		   (propertize (or (libmpdel-song-track song) "") 'face 'mpdel-tablist-track-face)
-		   (propertize (or (libmpdel-album-name song) "") 'face 'mpdel-tablist-album-face)
-		   (propertize (or (libmpdel-artist-name song) "") 'face 'mpdel-tablist-artist-face)))
+    (vector
+     (propertize (or (libmpdel-entity-name song) "") 'face 'mpdel-tablist-song-name-face)
+     (propertize (or (libmpdel-song-track song) "") 'face 'mpdel-tablist-track-face)
+     (propertize (or (libmpdel-album-name song) "") 'face 'mpdel-tablist-album-face)
+     (propertize (or (libmpdel-artist-name song) "") 'face 'mpdel-tablist-artist-face)))
 
 					; (use-package ivy-mpdel
 					; :straight t)
@@ -1480,9 +1483,9 @@ in which case does avy-goto-char with the first char."
 	      (current-song (if libmpdel--current-song (libmpdel--song-name
 						        libmpdel--current-song) ""))
 	      (artist (if libmpdel--current-song  (libmpdel--artist-name
-						   (libmpdel--album-artist
-						    (libmpdel--song-album
-						     libmpdel--current-song))) "")))
+						   (car (libmpdel--album-artists
+							 (libmpdel--song-album
+							  libmpdel--current-song)))) "")))
 	  (format "[%s] %s \n %s\n %s" playing play-time current-song artist))
       "No song selected."))
 
@@ -1943,12 +1946,12 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 ;; ==============================================================================
 
 
-(use-package restclient
-  :ensure (
-	   :host github
-	   :repo "casouri/restclient.el"
-	   :files ( "gql-builder.el" "restclient-jq.el" "restclient.el" )
-	   :branch "master"))
+					;(use-package restclient
+					;:ensure (
+					;:host github
+					;:repo "casouri/restclient.el"
+					;:files ( "gql-builder.el" "restclient-jq.el" "restclient.el" )
+					;:branch "master"))
 
 ;; ==============================================================================
 ;; Window management
@@ -1963,3 +1966,5 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 ;; 	'((help-mode :select t :align right)
 ;;           (compilation-mode :select t :size 0.3 :align below)))
 ;;   (shackle-mode 1))
+
+(setq paragraph-start "\f\\|\\s*-\\|[ \t]*$")

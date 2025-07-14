@@ -1,3 +1,5 @@
+;; -*- lexical-binding: t; -*-
+
 (require 'consult)
 
 (defface consult-atuin-datetime

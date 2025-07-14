@@ -21,8 +21,8 @@
 
     # Generic
     ../../role/home-setup.nix
-    # ../../role/network.nix
-    # ../../role/mpd.nix
+    ../../role/network.nix
+    ../../role/mpd.nix
     ../../role/sleep.nix
     ../../role/shell.nix
     ../../role/comms.nix
@@ -246,6 +246,7 @@
       chromium
       pgformatter
       wakeonlan
+      nodejs_20
     ];
     hashedPasswordFile = "/persist/passwords/ftzm";
   };
@@ -405,4 +406,9 @@
   };
   programs.virt-manager.enable = true;
   hardware.keyboard.qmk.enable = true;
+
+  # ----
+  fonts.packages = with pkgs; [
+    mononoki
+  ];
 }

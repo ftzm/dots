@@ -1,3 +1,5 @@
+;; -*- lexical-binding: t; -*-
+
 ;;;;; Startup optimizations
 
 ;;;;;; Set garbage collection threshold
