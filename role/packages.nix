@@ -235,6 +235,7 @@ in {
 
     waypaper
     waybar
+    mosh
   ];
 
   programs.thunar.enable = true;
