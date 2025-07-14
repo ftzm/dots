@@ -236,6 +236,7 @@ in {
     waypaper
     waybar
     mosh
+    nodejs_20
   ];
 
   programs.thunar.enable = true;
