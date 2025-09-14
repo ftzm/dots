@@ -281,6 +281,16 @@ See `eval-after-load' for the possible formats of FORM."
   :config
   (evil-collection-init))
 
+;; Automatic tablist marking on visual selection
+(use-package tablist)
+
+(use-package evil-tablist-visual-mark
+  :ensure nil
+  :load-path "~/.config/emacs/lisp/"
+  :after (evil tablist)
+  :config
+  (evil-tablist-visual-mark-mode 1))
+
 (use-package evil-org
   :ensure t
   :after org
@@ -608,9 +618,12 @@ See `eval-after-load' for the possible formats of FORM."
   ;; (setq consult-project-function (lambda (_) (projectile-project-root)))
    ;;;; 5. No project support
   ;; (setq consult-project-function nil)
-  (load "~/.config/emacs/consult-atuin.el")
   )
 
+(use-package consult-atuin
+  :ensure nil
+  :load-path "~/.config/emacs/lisp/"
+  :after consult)
 
 (use-package embark
   :demand t

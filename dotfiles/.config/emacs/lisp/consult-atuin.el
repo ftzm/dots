@@ -1,4 +1,19 @@
-;; -*- lexical-binding: t; -*-
+;;; consult-atuin.el --- Consult integration for atuin -*- lexical-binding: t -*-
+
+;; Copyright (C) 2024
+
+;; Author: 
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "27.1") (consult "0.34"))
+;; Keywords: convenience, history
+;; URL: 
+
+;;; Commentary:
+;;
+;; This package provides consult integration for atuin shell history.
+;;
+
+;;; Code:
 
 (require 'consult)
 
@@ -34,12 +49,18 @@
   "Face used to highlight the datetime in 'consult-atuin'."
   :group 'consult-atuin)
 
+(defgroup consult-atuin nil
+  "Consult integration for atuin."
+  :group 'convenience
+  :prefix "consult-atuin-")
+
 (defcustom consult-atuin-args
-  "atuin search --search-mode full-text -r --format \"{time}@@@{host}@@@{directory}@@@{duration}@@@{exit}@@@{command}\"" ;; --existing not supported by Debian plocate
-  "Command line arguments for locate, see `consult-locate'.
+  "atuin search --search-mode full-text -r --format \"{time}@@@{host}@@@{directory}@@@{duration}@@@{exit}@@@{command}\""
+  "Command line arguments for atuin search.
     The dynamically computed arguments are appended.
     Can be either a string, or a list of strings or expressions."
-  :type '(choice string (repeat (choice string sexp))))
+  :type '(choice string (repeat (choice string sexp)))
+  :group 'consult-atuin)
 
 (defun atuin-builder (input)
   "Build command line from INPUT."
@@ -149,4 +170,7 @@
 	(consult-async-min-input 1))
     (goto-char (point-max))
     (insert (consult--atuin "Atuin: " #'atuin-builder "* "))))
+
+(provide 'consult-atuin)
+;;; consult-atuin.el ends here
 

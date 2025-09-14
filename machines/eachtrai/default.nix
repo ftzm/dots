@@ -324,21 +324,21 @@
 
   # ----------------------------------------------------------------------
 
-  # services.syncthing = {
-  #   enable = true;
-  #   #guiAddress = "localhost:8384";
-  #   openDefaultPorts = true;
-  #   user = "ftzm";
-  #   configDir = "/home/ftzm/.config/syncthing";
-  #   dataDir = "/home/ftzm";
-  #   # I think these mean it doesn't try to merge the configs, and the merging is error prone.
-  #   overrideFolders = true;
-  #   overrideDevices = true;
-  #   settings.devices = {
-  #     nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
-  #     saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
-  #   };
-  # };
+  services.syncthing = {
+    enable = true;
+    #guiAddress = "localhost:8384";
+    openDefaultPorts = true;
+    user = "ftzm";
+    configDir = "/home/ftzm/.config/syncthing";
+    dataDir = "/home/ftzm";
+    # I think these mean it doesn't try to merge the configs, and the merging is error prone.
+    overrideFolders = true;
+    overrideDevices = true;
+    settings.devices = {
+      nas.id = "FWRAMNZ-PZVPLHQ-HHY3E5G-I7LRHGN-PXTVHMJ-QRL67QH-EBZY3II-UD4IKQM";
+      saoiste.id = "72USTHU-DTF5LZP-TPF5URJ-NNYSJW5-JFVNQQW-KKQHJHY-KL7ZCAZ-NC26SQP";
+    };
+  };
 
   # ----------------------------------------------------------------------
   # Atuin
