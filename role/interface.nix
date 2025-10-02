@@ -59,7 +59,6 @@
           "${modifier}+m" = "exec '[ \"$(swaymsg -t get_bar_config bar-0 | jq -r \".mode\")\" = \"dock\" ] && swaymsg bar mode invisible || swaymsg bar mode dock'";
         };
       modes.system = let
-        md = "swaymsg mode default;";
         brightness = let
           toKey = n: {
             name = toString n;

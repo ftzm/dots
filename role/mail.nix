@@ -1,6 +1,8 @@
-{ config, pkgs, ... }:
-
 {
+  config,
+  pkgs,
+  ...
+}: {
   age.secrets = {
     fitzmattd-email = {
       file = ../secrets/fitzmattd-email.age;
@@ -42,12 +44,11 @@
         create = "both";
         expunge = "both";
         remove = "both";
-        extraConfig.channel = { "CopyArrivalDate" = "yes"; };
+        extraConfig.channel = {"CopyArrivalDate" = "yes";};
       };
       mu.enable = true;
-      imap = { host = "imap.gmail.com"; };
-      passwordCommand =
-        "${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}";
+      imap = {host = "imap.gmail.com";};
+      passwordCommand = "${pkgs.coreutils}/bin/cat ${config.age.secrets.fitzmattd-email.path}";
     };
 
     accounts.email.accounts.ftzm = {
@@ -59,7 +60,7 @@
         create = "both";
         expunge = "both";
         remove = "both";
-        extraConfig.channel = { "CopyArrivalDate" = "yes"; };
+        extraConfig.channel = {"CopyArrivalDate" = "yes";};
       };
       mu.enable = true;
       # msmtp = {
@@ -79,8 +80,7 @@
           useStartTls = false;
         };
       };
-      passwordCommand =
-        "${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}";
+      passwordCommand = "${pkgs.coreutils}/bin/cat ${config.age.secrets.ftzm-org-email.path}";
     };
   };
 }

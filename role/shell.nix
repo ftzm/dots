@@ -1,7 +1,6 @@
 {
   pkgs,
   lib,
-  config,
   ...
 }: let
   emacs-vterm-bash = builtins.readFile ./emacs-vterm-bash.sh;

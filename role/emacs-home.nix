@@ -1,7 +1,5 @@
-{ config, pkgs, ... }:
-
-let
-  package = pkgs.emacs-pgtk.override { };
+{pkgs, ...}: let
+  package = pkgs.emacs-pgtk.override {};
   emacsWithPackages = (pkgs.emacsPackagesFor package).emacsWithPackages;
 in {
   home.packages = [

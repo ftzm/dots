@@ -12,7 +12,7 @@ in {
     # Include the results of the hardware scan.
     inputs.agenix.nixosModules.age
     ./hardware.nix
-    ../../configuration/network.nix
+    ../../role/network.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when

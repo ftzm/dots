@@ -1,7 +1,6 @@
 {
   config,
   pkgs,
-  lib,
   inputs,
   ...
 }: {
@@ -721,6 +720,18 @@
       "/pigallery2/tmp:/app/data/tmp" # CHANGE ME
     ];
     ports = ["0.0.0.0:8875:80"];
+  };
+
+  # ----------------------------------------------------------------------
+  # Vaultwarden
+
+  services.vaultwarden = {
+    enable = true;
+    config = {
+      ROCKET_ADDRESS = "127.0.0.1";
+      ROCKET_PORT = 8222;
+      DOMAIN = "https://vault.ftzmlab.xyz";
+    };
   };
 
   # ----------------------------------------------------------------------

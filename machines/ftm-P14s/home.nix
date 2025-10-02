@@ -222,16 +222,6 @@
           "${modifier}+m" = "exec '[ \"$(swaymsg -t get_bar_config bar-0 | jq -r \".mode\")\" = \"dock\" ] && swaymsg bar mode invisible || swaymsg bar mode dock'";
         };
       modes.system = let
-        swaylockCmd = ''
-          swaylock -S \
-            --effect-pixelate 10 \
-            --effect-greyscale \
-            --indicator \
-            --clock \
-            --ring-color \#000000 \
-            --key-hl-color \#FFFFFF \
-            --text-color \#FFFFFF \
-        '';
         md = "swaymsg mode default;";
         brightness = let
           toKey = n: {

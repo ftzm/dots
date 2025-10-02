@@ -24,6 +24,7 @@
     agenix.url = "github:ryantm/agenix";
     impermanence.url = "github:nix-community/impermanence";
     disko.url = "github:nix-community/disko";
+    git-hooks.url = "github:cachix/git-hooks.nix";
   };
 
   outputs = inputs @ {
@@ -31,6 +32,7 @@
     nixpkgs-ftzmlab,
     home-manager,
     emacs-overlay,
+    git-hooks,
     ...
   }: let
     defaultSystem = "x86_64-linux";
@@ -44,6 +46,25 @@
         modules = [(./machines/. + "/${host}")];
       };
   in {
+    checks.${defaultSystem}.pre-commit-check = git-hooks.lib.${defaultSystem}.run {
+      src = ./.;
+      hooks = {
+        deadnix.enable = true;
+        alejandra.enable = true;
+      };
+    };
+
+    devShells.${defaultSystem}.default = nixpkgs.legacyPackages.${defaultSystem}.mkShell {
+      inherit (inputs.self.checks.${defaultSystem}.pre-commit-check) shellHook;
+      buildInputs =
+        inputs.self.checks.${defaultSystem}.pre-commit-check.enabledPackages
+        ++ [
+          nixpkgs.legacyPackages.${defaultSystem}.alejandra
+        ];
+    };
+
+    formatter.${defaultSystem} = nixpkgs.legacyPackages.${defaultSystem}.alejandra;
+
     nixosConfigurations = {
       saoiste = nixpkgs.lib.nixosSystem {
         system = defaultSystem;
@@ -54,11 +75,6 @@
         system = defaultSystem;
         specialArgs = {inherit inputs;};
         modules = [./machines/eachtrai];
-      };
-      eibhlis = nixpkgs.lib.nixosSystem {
-        system = defaultSystem;
-        specialArgs = {inherit inputs;};
-        modules = [./machines/eibhlis];
       };
       nuc = mkLabSystem {host = "nuc";};
       nas = mkLabSystem {host = "nas";};

@@ -127,7 +127,6 @@
   boot.initrd.luks.devices."luks-80ee3586-78e6-4101-b35d-6c0bd7c3f26a".keyFile = "/crypto_keyfile.bin";
 
   networking.hostName = "saoiste"; # Define your hostname.
-  networking.firewall.enable = false;
   networking.networkmanager.enable = true;
 
   system.stateVersion = "22.05";
@@ -227,6 +226,56 @@
   users.users.ftzm.openssh.authorizedKeys.keys = [
     "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
   ];
+
+  programs.mosh.enable = true;
+
+  # ----------------------------------------------------------------------
+  # Forward pihole over wireguard
+
+  boot.kernel.sysctl = {
+    "net.ipv4.conf.all.forwarding" = 1;
+  };
+
+  networking.firewall = {
+    enable = true;
+    allowedTCPPorts = [53];
+    allowedUDPPorts = [53];
+    extraCommands = ''
+      # Forward DNS traffic (port 53) from wg0 to 192.168.1.12
+      iptables -t nat -A PREROUTING -i wg0 -p udp --dport 53 -j DNAT --to-destination 192.168.1.12:53
+      iptables -t nat -A PREROUTING -i wg0 -p tcp --dport 53 -j DNAT --to-destination 192.168.1.12:53
+
+      # Allow forwarding between interfaces
+      iptables -A FORWARD -i wg0 -o enp58s0 -p udp --dport 53 -j ACCEPT
+      iptables -A FORWARD -i wg0 -o enp58s0 -p tcp --dport 53 -j ACCEPT
+      iptables -A FORWARD -i enp58s0 -o wg0 -p udp --sport 53 -j ACCEPT
+      iptables -A FORWARD -i enp58s0 -o wg0 -p tcp --sport 53 -j ACCEPT
+
+      # SNAT for return traffic
+      iptables -t nat -A POSTROUTING -o enp58s0 -p udp --dport 53 -j MASQUERADE
+      iptables -t nat -A POSTROUTING -o enp58s0 -p tcp --dport 53 -j MASQUERADE
+    '';
+  };
+
+  /*
+  networking.nat = {
+    enable = true;
+    internalInterfaces = ["wlp59s0" "enp58s0"];
+    externalInterface = "wg0";
+    forwardPorts = [
+      {
+        destination = "192.168.1.12:53";
+        proto = "tcp";
+        sourcePort = 53;
+      }
+      {
+        destination = "192.168.1.12:53";
+        proto = "udp";
+        sourcePort = 53;
+      }
+    ];
+  };
+  */
 
   # ----------------------------------------------------------------------
   # Atuin

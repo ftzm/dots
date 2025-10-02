@@ -1,9 +1,7 @@
 {
   inputs,
-  config,
   lib,
   pkgs,
-  iosevka-pkgs,
   ...
 }: {
   imports = [
@@ -17,7 +15,6 @@
     # System specific
     ./hardware-configuration.nix
     ./disks.nix
-    # ./patched-alsa-ucm-conf.nix # can probably be removed after updating nixpkgs, my patch was merged
 
     # Generic
     ../../role/home-setup.nix

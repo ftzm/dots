@@ -109,6 +109,8 @@ See `eval-after-load' for the possible formats of FORM."
   (electric-indent-mode -1)
   ;; a more nuclear option to disable it if necessary, might make it hard to selectively enable though
 					; (add-hook 'after-change-major-mode-hook (lambda() (electric-indent-mode -1)))
+  ;; enable visual line mode everywhere
+  (global-visual-line-mode 1)
   )
 
 ;; ----------------------------------------------------------------------------
@@ -150,6 +152,7 @@ See `eval-after-load' for the possible formats of FORM."
   (setq evil-want-keybinding nil)
   (setq evil-undo-system 'undo-fu)
   :config
+  
   (evil-mode 1)
   ;; this makes these commands not count as "edits" so that I can jump
   ;; to the next error without overwriting the last edit in
@@ -157,6 +160,128 @@ See `eval-after-load' for the possible formats of FORM."
   (evil-declare-motion 'flymake-goto-next-error)
   (evil-declare-motion 'flymake-goto-prev-error)
   (evil-define-key 'normal 'global (kbd "C-u") 'evil-scroll-up)
+
+	   ;(when (not (display-graphic-p))
+	   ;(setq evil-insert-state-cursor '(box "red")))
+
+  )
+
+(use-package meow
+  :demand t
+  :init
+  (defun meow-setup ()
+    (setq meow-cheatsheet-layout meow-cheatsheet-layout-dvorak)
+    (meow-leader-define-key
+     '("1" . meow-digit-argument)
+     '("2" . meow-digit-argument)
+     '("3" . meow-digit-argument)
+     '("4" . meow-digit-argument)
+     '("5" . meow-digit-argument)
+     '("6" . meow-digit-argument)
+     '("7" . meow-digit-argument)
+     '("8" . meow-digit-argument)
+     '("9" . meow-digit-argument)
+     '("0" . meow-digit-argument)
+     '("/" . meow-keypad-describe-key)
+     '("?" . meow-cheatsheet))
+    (meow-motion-define-key
+     ;; custom keybinding for motion state
+     '("<escape>" . ignore))
+    (meow-normal-define-key
+     '("0" . meow-expand-0)
+     '("9" . meow-expand-9)
+     '("8" . meow-expand-8)
+     '("7" . meow-expand-7)
+     '("6" . meow-expand-6)
+     '("5" . meow-expand-5)
+     '("4" . meow-expand-4)
+     '("3" . meow-expand-3)
+     '("2" . meow-expand-2)
+     '("1" . meow-expand-1)
+     '("-" . negative-argument)
+     '(";" . meow-reverse)
+     '("," . meow-inner-of-thing)
+     '("." . meow-bounds-of-thing)
+     '("<" . meow-beginning-of-thing)
+     '(">" . meow-end-of-thing)
+     '("a" . meow-append)
+     '("A" . meow-open-below)
+     '("b" . meow-back-word)
+     '("B" . meow-back-symbol)
+     '("c" . meow-change)
+     '("d" . meow-delete)
+     '("D" . meow-backward-delete)
+     '("e" . meow-line)
+     '("E" . meow-goto-line)
+     '("f" . meow-find)
+     '("g" . meow-cancel-selection)
+     '("G" . meow-grab)
+     '("h" . meow-left)
+     '("H" . meow-left-expand)
+     '("i" . meow-insert)
+     '("I" . meow-open-above)
+     '("j" . meow-join)
+     '("k" . meow-kill)
+     '("l" . meow-till)
+     '("m" . meow-mark-word)
+     '("M" . meow-mark-symbol)
+     '("n" . meow-next)
+     '("N" . meow-next-expand)
+     '("o" . meow-block)
+     '("O" . meow-to-block)
+     '("p" . meow-prev)
+     '("P" . meow-prev-expand)
+     '("q" . meow-quit)
+     '("Q" . meow-goto-line)
+     '("r" . meow-replace)
+     '("R" . meow-swap-grab)
+     '("s" . meow-search)
+     '("t" . meow-right)
+     '("T" . meow-right-expand)
+     '("u" . meow-undo)
+     '("U" . meow-undo-in-selection)
+     '("v" . meow-visit)
+     '("w" . meow-next-word)
+     '("W" . meow-next-symbol)
+     '("x" . meow-save)
+     '("X" . meow-sync-grab)
+     '("y" . meow-yank)
+     '("z" . meow-pop-selection)
+     '("'" . repeat)
+     '("<escape>" . ignore)))
+  :config
+  ;; this doesn't work with subword mode
+  (defun forward-vimlike-word (&optional arg)
+    "Alternate `forward-word'. Essentially the same idea as Vim's 'e'."
+    (interactive "^p")
+    (setq arg (or arg 1))
+    (cl-destructuring-bind (sign move-func char-func)
+	(if (>= arg 0)
+            '(1 skip-syntax-forward char-after)
+          '(-1 skip-syntax-backward char-before))
+      (with-syntax-table (standard-syntax-table)
+	(let ((distance sign))
+          (while (and distance (> (abs distance) 0) (> (* arg sign) 0))
+            (setq distance
+                  (when-let ((next-char (funcall char-func))
+                             (next-syntax (char-syntax next-char)))
+                    (cond ((eq next-syntax ?w)
+                           (funcall move-func "w"))
+                          ((eq next-syntax ?\ )
+                           (prog1
+                               (funcall move-func " ")
+                             (forward-vimlike-word sign)))
+                          (t
+                           (funcall move-func "^w ")))))
+            (setq arg (- arg sign)))
+          (and distance (> (abs distance) 0))))))
+
+	   ;(put 'vimlike-word 'forward-op #'forward-vimlike-word)
+
+	   ;(setq meow-word-thing 'vimlike-word) 
+
+  ;; (meow-setup)
+  ;; (meow-global-mode 1)
   )
 
 (use-package general
@@ -198,19 +323,19 @@ See `eval-after-load' for the possible formats of FORM."
     "," '(ftzm/flip-window :which-key "previous window")
     "d" '(dired-jump :which-key "dired here")
     "D" '(dired :which-key "dired")
-					;"a" '(app-keys :which-key "apps")
+	   ;"a" '(app-keys :which-key "apps")
     "b" '(buffer-keys :which-key "buffer")
-					;"e" '(flycheck-keys :which-key "error")
-					;"i" '(ivy-keys :which-key "ivy")
+	   ;"e" '(flycheck-keys :which-key "error")
+	   ;"i" '(ivy-keys :which-key "ivy")
     "g" '(magit-keys :which-key "git")
     "o" '(org-global-hydra/body :which-key "org")
     "t" '(term-hydra/body :which-key "terminal")
     "p" '(project-keys :which-key "project")
     "w" '(persp-hydra/body :which-key "workspace")
-					;"t" '(toggle-keys :which-key "toggle")
-					;"w" '(window-keys :which-key "window")
+	   ;"t" '(toggle-keys :which-key "toggle")
+	   ;"w" '(window-keys :which-key "window")
     "m" '(mpd-hydra/body :which-key "mpd")
-					;"M" '(mail-hydra/body :which-key "mail")
+	   ;"M" '(mail-hydra/body :which-key "mail")
     "0" 'winum-select-window-0
     "1" 'winum-select-window-1
     "2" 'winum-select-window-2
@@ -227,16 +352,16 @@ See `eval-after-load' for the possible formats of FORM."
    :prefix-command 'buffer-keys
    "d" 'kill-current-buffer
    "e" 'eval-buffer
-					;"k" 'evil-prev-buffer
-					;"j" 'evil-next-buffer
+	   ;"k" 'evil-prev-buffer
+	   ;"j" 'evil-next-buffer
    "b" 'switch-to-buffer
    "B" 'switch-to-buffer-other-window
    "s" 'save-buffer
    "f" 'find-file
    "w" 'write-file
-					;"r" 'consult-recent-file
-					;"u" 'sudo-find-file
-					;"U" 'sudo-this-file
+	   ;"r" 'consult-recent-file
+	   ;"u" 'sudo-find-file
+	   ;"U" 'sudo-this-file
    )
 
   (general-define-key
@@ -270,7 +395,13 @@ See `eval-after-load' for the possible formats of FORM."
    "d" 'delete-window
    "w" 'evil-window-next)
 
+  (general-define-key
+   :states '(normal insert)
+   :keymaps 'override
+   "C-n" 'completion-at-point)
   )
+
+
 
 ;; necessary to wait for the :general keyword
 (elpaca-wait)
@@ -469,8 +600,16 @@ See `eval-after-load' for the possible formats of FORM."
   (completion-category-overrides '(
 				   (file (styles orderless basic partial-completion))
 				   (buffer (styles orderless basic partial-completion))
-				   (project-file (styles orderless))))
+				   (project-file (styles orderless))
+				   (symbol (styles orderless-case-insensitive))
+				   (function (styles orderless-case-insensitive))))
+  :config
+  (setq completion-ignore-case t)
   (setq orderless-smart-case t)
+  (orderless-define-completion-style orderless-case-insensitive
+    (orderless-matching-styles '(orderless-literal orderless-regexp))
+    (orderless-smart-case nil)
+    )
   )
 
 (use-package marginalia
@@ -729,7 +868,7 @@ See `eval-after-load' for the possible formats of FORM."
         ("S-TAB" . corfu-previous)
         ([backtab] . corfu-previous)) 
   :init
-  (global-corfu-mode)
+					;(global-corfu-mode)
   :config
   (dolist (c (list (cons "SPC" " ")
 		   (cons "." ".")
@@ -834,6 +973,8 @@ See `eval-after-load' for the possible formats of FORM."
    "s" 'magit-status
    "b" 'magit-blame
    "B" 'magit-blame-quit)
+
+  (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
   )
 
 (use-package autorevert
@@ -1031,7 +1172,8 @@ in which case does avy-goto-char with the first char."
                                               (:defaultPrintWidth 100
     								  :getDocumentPrintWidthRequest nil)
                                               :documentSymbol t
-                                              :documentColor t)))))
+                                              :documentColor t)))
+      `(:haskell (:formattingProvider "fourmolu"))))
   :config
 					; disable snippets in completion
   (fset #'eglot--snippet-expansion-fn #'ignore)
@@ -1108,9 +1250,15 @@ in which case does avy-goto-char with the first char."
    '("\\`https://fniessen\\.github\\.io/org-html-themes/org/theme-readtheorg\\.setup\\'"))
  '(safe-local-variable-values '((dante-methods new-flake))))
 
-(use-package c-mode
-  :hook (c-mode . eglot-ensure)
+(use-package c-ts-mode
+  :mode (("\\.h$". c-ts-mode)("\\.c$". c-ts-mode)
+	 )
+  :hook (c-ts-mode . eglot-ensure)
   :ensure nil
+  :config
+  (add-hook 'before-save-hook 'eglot-format)
+  (evil-define-key 'normal c-mode-map (kbd ",a") 'eglot-code-actions)
+  (evil-define-key 'normal c-ts-mode-map (kbd ",a") 'eglot-code-actions)
   )
 
 (use-package rust-mode
@@ -1717,8 +1865,8 @@ in which case does avy-goto-char with the first char."
 		   ("integration" "integration/*")
 		   (:exclude ".dir-locals.el" "*-tests.el"))
 	   :branch "master")
-  :hook
-  (eat-exec . (lambda (&rest _) (eat-line-mode) (evil-insert 1)))
+  ;:hook
+  ;(eat-exec . (lambda (&rest _) (eat-line-mode) (evil-insert 1)))
 
   :init
   (pretty-hydra-define term-hydra
@@ -1981,3 +2129,42 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 ;;   (shackle-mode 1))
 
 (setq paragraph-start "\f\\|\\s*-\\|[ \t]*$")
+
+
+(defun my-change-window-divider ()
+  (let ((display-table (or buffer-display-table standard-display-table)))
+    (set-display-table-slot display-table 5 ?│)
+    (set-window-display-table (selected-window) display-table)))
+
+(add-hook 'window-configuration-change-hook 'my-change-window-divider)
+
+(set-face-background 'vertical-border nil)
+(set-face-foreground 'vertical-border (face-foreground 'mode-line-inactive))
+
+(defun scroll-by-percent (percent)
+  "Scroll by PERCENT of the window height.
+Positive values scroll down, negative values scroll up."
+  (interactive "nScroll by percent: ")
+  (let ((lines (ceiling (* (/ percent 100.0) (window-height)))))
+    (scroll-up lines)))
+
+(defun scroll-down-25-percent ()
+  "Scroll down by 25% of the window height."
+  (interactive)
+  (scroll-by-percent 25))
+
+(general-nmap "C-y" (lambda () (interactive) (scroll-by-percent -20)))
+(general-nmap "C-e" (lambda () (interactive) (scroll-by-percent 20)))
+
+(use-package claude-code-ide
+  :ensure (:host github :repo "manzaltu/claude-code-ide.el")
+  :bind ("C-c C-'" . claude-code-ide-menu) ; Set your favorite keybinding
+  :config
+  (claude-code-ide-emacs-tools-setup)
+  (setq claude-code-ide--cli-available t)
+  (setq claude-code-ide-terminal-backend 'eat)
+  (setq claude-code-ide-cli-path "npx claude --"))
+
+(setq split-height-threshold nil)
+
+(setq fill-column 80)

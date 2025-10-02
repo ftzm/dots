@@ -1,5 +1,4 @@
-{ config, pkgs, ... }:
-let
+{pkgs, ...}: let
   homeWifiSsid = "waifu";
   onHomeWifi = pkgs.writeShellScriptBin "onHomeWifi" ''
     ssid=$(nmcli -t -f name,device connection show --active \
@@ -7,7 +6,6 @@ let
     | cut -d\: -f1)
     [ "$ssid" = "${homeWifiSsid}" ]
   '';
-in
-{
+in {
   environment.systemPackages = [onHomeWifi];
 }

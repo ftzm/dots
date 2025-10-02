@@ -49,10 +49,18 @@
         clientOnly = true;
       };
     };
+    android = {
+      wg = {
+        ip = "10.0.100.8";
+        listenPort = 51880;
+        publicKey = "3ra4RaTagqIosSentEOhTcONlUWeSPL+z8Zz8O4O4TE=";
+        clientOnly = true;
+      };
+    };
   };
   host = config.networking.hostName;
   this = hosts."${host}";
-  others = lib.attrsets.filterAttrs (k: v: k != host) hosts;
+  others = lib.attrsets.filterAttrs (k: _v: k != host) hosts;
 in {
   # Secret for this device
   age.secrets."wireguard-private-key-${host}".file =
@@ -60,6 +68,9 @@ in {
 
   networking = {
     # Set up wireguard connections
+
+    firewall.allowedTCPPorts = [this.wg.listenPort];
+    firewall.allowedUDPPorts = [this.wg.listenPort];
     wireguard.interfaces = {
       wg0 = {
         ips =

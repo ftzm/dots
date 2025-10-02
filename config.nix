@@ -16,18 +16,17 @@ with lib; let
     (builtins.readDir dir);
 
   # Collects all files of a directory as a list of strings of paths
-  files = dir: collect isString (mapAttrsRecursive (path: type: concatStringsSep "/" path) (getDir dir));
-
+  files = dir: collect isString (mapAttrsRecursive (path: _type: concatStringsSep "/" path) (getDir dir));
   # Filters out directories that don't end with .nix or are this file, also makes the strings absolute
-  validFiles = dir:
-    map
-    (file: ./. + "/${file}")
-    (filter
-      (file:
-        hasSuffix ".nix" file
-        && file != "default.nix"
-        && ! lib.hasPrefix "x/taffybar/" file
-        && ! lib.hasSuffix "-hm.nix" file)
-      (files dir));
+  # validFiles = dir:
+  #   map
+  #   (file: ./. + "/${file}")
+  #   (filter
+  #     (file:
+  #       hasSuffix ".nix" file
+  #       && file != "default.nix"
+  #       && ! lib.hasPrefix "x/taffybar/" file
+  #       && ! lib.hasSuffix "-hm.nix" file)
+  #     (files dir));
 in
   map (file: self.inPath + "/${file}") (files ./config)
