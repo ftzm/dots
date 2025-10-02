@@ -202,8 +202,7 @@
         border = 3;
       };
       keybindings = let
-        modifier =
-          config.wayland.windowManager.sway.config.modifier;
+        inherit (config.wayland.windowManager.sway.config) modifier;
       in
         lib.mkOptionDefault {
           "${modifier}+Shift+r" = "reload";

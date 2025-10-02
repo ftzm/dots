@@ -200,7 +200,7 @@
       zathura
       tree
       git
-      (((emacsPackagesFor emacs-pgtk).emacsWithPackages) (epkgs: [
+      ((emacsPackagesFor emacs-pgtk).emacsWithPackages (epkgs: [
         epkgs.treesit-grammars.with-all-grammars
         epkgs.vterm
         pkgs.python3

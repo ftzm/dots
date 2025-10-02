@@ -51,6 +51,7 @@
       hooks = {
         deadnix.enable = true;
         alejandra.enable = true;
+        #statix.enable = true;
       };
     };
 
@@ -84,7 +85,7 @@
       };
     };
     homeConfigurations.ftzm = home-manager.lib.homeManagerConfiguration {
-      pkgs = (nixpkgs.legacyPackages."x86_64-linux").extend emacs-overlay.overlay;
+      pkgs = nixpkgs.legacyPackages."x86_64-linux".extend emacs-overlay.overlay;
 
       # Specify your home configuration modules here, for example,
       # the path to your home.nix.

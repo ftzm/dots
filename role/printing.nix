@@ -1,4 +1,4 @@
-{...}: {
+_: {
   services.printing.enable = true;
   services.avahi.enable = true;
   # Important to resolve .local domains of printers, otherwise you get an error
