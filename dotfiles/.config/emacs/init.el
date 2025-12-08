@@ -161,8 +161,8 @@ See `eval-after-load' for the possible formats of FORM."
   (evil-declare-motion 'flymake-goto-prev-error)
   (evil-define-key 'normal 'global (kbd "C-u") 'evil-scroll-up)
 
-	   ;(when (not (display-graphic-p))
-	   ;(setq evil-insert-state-cursor '(box "red")))
+					;(when (not (display-graphic-p))
+					;(setq evil-insert-state-cursor '(box "red")))
 
   )
 
@@ -276,9 +276,9 @@ See `eval-after-load' for the possible formats of FORM."
             (setq arg (- arg sign)))
           (and distance (> (abs distance) 0))))))
 
-	   ;(put 'vimlike-word 'forward-op #'forward-vimlike-word)
+					;(put 'vimlike-word 'forward-op #'forward-vimlike-word)
 
-	   ;(setq meow-word-thing 'vimlike-word) 
+					;(setq meow-word-thing 'vimlike-word) 
 
   ;; (meow-setup)
   ;; (meow-global-mode 1)
@@ -323,19 +323,19 @@ See `eval-after-load' for the possible formats of FORM."
     "," '(ftzm/flip-window :which-key "previous window")
     "d" '(dired-jump :which-key "dired here")
     "D" '(dired :which-key "dired")
-	   ;"a" '(app-keys :which-key "apps")
+					;"a" '(app-keys :which-key "apps")
     "b" '(buffer-keys :which-key "buffer")
-	   ;"e" '(flycheck-keys :which-key "error")
-	   ;"i" '(ivy-keys :which-key "ivy")
+					;"e" '(flycheck-keys :which-key "error")
+					;"i" '(ivy-keys :which-key "ivy")
     "g" '(magit-keys :which-key "git")
     "o" '(org-global-hydra/body :which-key "org")
     "t" '(term-hydra/body :which-key "terminal")
     "p" '(project-keys :which-key "project")
     "w" '(persp-hydra/body :which-key "workspace")
-	   ;"t" '(toggle-keys :which-key "toggle")
-	   ;"w" '(window-keys :which-key "window")
+					;"t" '(toggle-keys :which-key "toggle")
+					;"w" '(window-keys :which-key "window")
     "m" '(mpd-hydra/body :which-key "mpd")
-	   ;"M" '(mail-hydra/body :which-key "mail")
+					;"M" '(mail-hydra/body :which-key "mail")
     "0" 'winum-select-window-0
     "1" 'winum-select-window-1
     "2" 'winum-select-window-2
@@ -352,16 +352,16 @@ See `eval-after-load' for the possible formats of FORM."
    :prefix-command 'buffer-keys
    "d" 'kill-current-buffer
    "e" 'eval-buffer
-	   ;"k" 'evil-prev-buffer
-	   ;"j" 'evil-next-buffer
+					;"k" 'evil-prev-buffer
+					;"j" 'evil-next-buffer
    "b" 'switch-to-buffer
    "B" 'switch-to-buffer-other-window
    "s" 'save-buffer
    "f" 'find-file
    "w" 'write-file
-	   ;"r" 'consult-recent-file
-	   ;"u" 'sudo-find-file
-	   ;"U" 'sudo-this-file
+					;"r" 'consult-recent-file
+					;"u" 'sudo-find-file
+					;"U" 'sudo-this-file
    )
 
   (general-define-key
@@ -975,6 +975,14 @@ See `eval-after-load' for the possible formats of FORM."
    "B" 'magit-blame-quit)
 
   (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
+
+  (defun auto-display-magit-process-buffer (&rest args)
+    "Automatically display the process buffer when it is updated."
+    (let ((magit-display-buffer-noselect t))
+      (magit-process-buffer)))
+
+  (advice-add 'magit-process-set-mode-line-error-status :before 
+	      #'auto-display-magit-process-buffer)  
   )
 
 (use-package autorevert
@@ -1172,18 +1180,25 @@ in which case does avy-goto-char with the first char."
                                               (:defaultPrintWidth 100
     								  :getDocumentPrintWidthRequest nil)
                                               :documentSymbol t
-                                              :documentColor t)))
-      `(:haskell (:formattingProvider "fourmolu"))))
+                                              :documentColor t)))))
   :config
 					; disable snippets in completion
   (fset #'eglot--snippet-expansion-fn #'ignore)
 
+  ;; disable inlay hints by default
+  (add-hook 'eglot-managed-mode-hook (lambda () (eglot-inlay-hints-mode -1)))
+
   (add-to-list 'eglot-server-programs
                `(vue-ts-mode . ("vue-language-server" "--stdio" :initializationOptions ,(vue-eglot-init-options))))
 
-  (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nil")))
+  (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nil" :initializationOptions (:formatting (:command ["alejandra"])))))
+
   (add-to-list 'eglot-server-programs
                '((php-mode phps-mode) . ("intelephense" "--stdio")))
+  (add-to-list 'eglot-server-programs 
+               '(haskell-mode . ("haskell-language-server-wrapper" "--lsp" 
+                                 :initializationOptions 
+                                 (:haskell (:formattingProvider "fourmolu")))))
 
   (my-leader-def
     :states '(normal)
@@ -1236,6 +1251,24 @@ in which case does avy-goto-char with the first char."
 (use-package haskell-mode
   :mode "\\.hs\\'"
   :hook (haskell-mode . fourmolu-on-save-mode)
+  :config
+  ;; Use haskell-indentation-mode and configure evil integration
+  (add-hook 'haskell-mode-hook #'haskell-indentation-mode)
+  (add-hook 'haskell-mode-hook (lambda () (haskell-indent-mode -1)))
+  ;; Make evil-open-below use proper Haskell indentation
+  (evil-define-key 'normal haskell-mode-map
+    "o" (lambda ()
+          (interactive)
+          (end-of-line)
+          (haskell-indentation-newline-and-indent)
+          (evil-insert-state)))
+  (evil-define-key 'normal haskell-mode-map
+    "O" (lambda ()
+          (interactive)
+          (beginning-of-line)
+          (open-line 1)
+          (indent-according-to-mode)
+          (evil-insert-state)))
   )
 
 (use-package aggressive-indent
@@ -1478,11 +1511,11 @@ in which case does avy-goto-char with the first char."
             (list "Artist" 0 t)))
 
   (navigel-method mpdel navigel-entity-to-columns ((song libmpdel-song))
-    (vector
-     (propertize (or (libmpdel-entity-name song) "") 'face 'mpdel-tablist-song-name-face)
-     (propertize (or (libmpdel-song-track song) "") 'face 'mpdel-tablist-track-face)
-     (propertize (or (libmpdel-album-name song) "") 'face 'mpdel-tablist-album-face)
-     (propertize (or (libmpdel-artist-name song) "") 'face 'mpdel-tablist-artist-face)))
+		  (vector
+		   (propertize (or (libmpdel-entity-name song) "") 'face 'mpdel-tablist-song-name-face)
+		   (propertize (or (libmpdel-song-track song) "") 'face 'mpdel-tablist-track-face)
+		   (propertize (or (libmpdel-album-name song) "") 'face 'mpdel-tablist-album-face)
+		   (propertize (or (libmpdel-artist-name song) "") 'face 'mpdel-tablist-artist-face)))
 
 					; (use-package ivy-mpdel
 					; :straight t)
@@ -1732,36 +1765,8 @@ in which case does avy-goto-char with the first char."
   (global-treesit-auto-mode))
 
 (use-package vue-ts-mode
-    :ensure (:host github :repo "8uff3r/vue-ts-mode"))
+  :ensure (:host github :repo "8uff3r/vue-ts-mode"))
 
-(use-package eglot
-  :ensure nil
-  ;; these are all my modes that i launch eglot for but you vue-ts-mdoe is most important for this post's topic
-  :hook (((js-ts-mode json-ts-mode yaml-ts-mode typescript-ts-mode java-ts-mode mhtml-mode css-ts-mode vue-ts-mode nix-ts-mode) . eglot-ensure))
-  :preface
-  (defun vue-eglot-init-options ()
-    (let ((tsdk-path (expand-file-name
-                      "lib"
-                      (string-trim-right (shell-command-to-string "npm list --global --parseable typescript | head -n1")))))
-      `(:typescript (:tsdk ,tsdk-path
-                           :languageFeatures (:completion
-                                              (:defaultTagNameCase "both"
-    								   :defaultAttrNameCase "kebabCase"
-    								   :getDocumentNameCasesRequest nil
-    								   :getDocumentSelectionRequest nil)
-                                              :diagnostics
-                                              (:getDocumentVersionRequest nil))
-                           :documentFeatures (:documentFormatting
-                                              (:defaultPrintWidth 100
-    								  :getDocumentPrintWidthRequest nil)
-                                              :documentSymbol t
-                                              :documentColor t)))))
-  :config
-  (add-to-list 'eglot-server-programs
-               `(vue-ts-mode . ("vue-language-server" "--stdio" :initializationOptions ,(vue-eglot-init-options))))
-  ;; Ensure `nil` is in your PATH.
-  (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nil")))
-  )
 
 
 ;; ==============================================================================
@@ -1865,8 +1870,8 @@ in which case does avy-goto-char with the first char."
 		   ("integration" "integration/*")
 		   (:exclude ".dir-locals.el" "*-tests.el"))
 	   :branch "master")
-  ;:hook
-  ;(eat-exec . (lambda (&rest _) (eat-line-mode) (evil-insert 1)))
+					;:hook
+					;(eat-exec . (lambda (&rest _) (eat-line-mode) (evil-insert 1)))
 
   :init
   (pretty-hydra-define term-hydra
@@ -2168,3 +2173,31 @@ Positive values scroll down, negative values scroll up."
 (setq split-height-threshold nil)
 
 (setq fill-column 80)
+
+;; Auto-run hpack when saving package.yaml
+(defun auto-hpack ()
+  "Run hpack if package.yaml is saved and a .cabal file exists in the same directory."
+  (when (and (string-equal (file-name-nondirectory buffer-file-name) "package.yaml")
+             (directory-files default-directory nil "\\.cabal$"))
+    (let ((default-directory (file-name-directory buffer-file-name)))
+      (shell-command "hpack"))))
+
+(add-hook 'yaml-ts-mode-hook 
+          (lambda () (add-hook 'after-save-hook 'auto-hpack nil t)))
+
+;; ------------------------------------------------
+;; acp shell thingie
+
+(use-package shell-maker
+  :ensure (:host github :repo "xenodium/shell-maker.el"))
+
+(use-package acp
+  :ensure (:host github :repo "xenodium/acp.el"))
+
+(use-package agent-shell
+  :ensure (:host github :repo "xenodium/agent-shell")
+  :config
+  (require 'acp)
+  (require 'shell-maker)
+  (setq agent-shell-anthropic-claude-command '("npx" "claude-code-acp"))
+  )

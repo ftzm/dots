@@ -1,8 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   environment.systemPackages = with pkgs; [
     ps
     cacert # nothing else works without these
@@ -82,6 +78,7 @@
     neovim
     git
     git-crypt
+    git-filter-repo
     silver-searcher
     stack
     gnumake
@@ -148,23 +145,17 @@
     playonlinux
     wine
 
-    river
-    rivercarro
-
     # code
     sqlfluff
     # tablePlus
 
     nautilus
 
-    teams-for-linux
-    # redpanda
-
     waypaper
     waybar
     nodejs_20
-    rustdesk
-    config.boot.kernelPackages.perf
+    perf
+    nil
   ];
 
   programs.thunar.enable = true;
@@ -204,7 +195,9 @@
       enable = true;
       package = pkgs.wrapFirefox pkgs.firefox-unwrapped {
         # forceWayland = true;
-        extraPolicies = {LocalFileLinks = ["http://localhost:8080"];};
+        extraPolicies = {
+          LocalFileLinks = ["http://localhost:8080"];
+        };
       };
       profiles.main = {
         settings = {

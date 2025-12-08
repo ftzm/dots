@@ -15,9 +15,11 @@
       # Nix
       "result"
     ];
-    userEmail = "m@ftzm.org";
-    userName = "ftzm";
-    extraConfig = {
+    settings = {
+      user = {
+        email = "m@ftzm.org";
+        name = "ftzm";
+      };
       status = {
         showUntrackedFiles = "all"; # allows magit to show dir contents
       };

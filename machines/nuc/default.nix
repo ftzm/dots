@@ -383,18 +383,6 @@
 
   services.ombi = {enable = true;};
 
-  services.vaultwarden = {
-    enable = true;
-    backupDir = "/vaultwarden-backup";
-    environmentFile = config.age.secrets.vaultwarden-env.path;
-    config = {
-      DOMAIN = "https://vaultwarden.ftzmlab.xyz";
-      ROCKET_ADDRESS = "127.0.0.1";
-      ROCKET_PORT = 8222;
-      DATA_FOLDER = "/var/lib/vaultwarden";
-    };
-  };
-
   age.secrets.deluge = {
     file = ../../secrets/deluge.age;
     owner = "deluge";
@@ -727,10 +715,13 @@
 
   services.vaultwarden = {
     enable = true;
+    backupDir = "/vaultwarden-backup";
+    environmentFile = config.age.secrets.vaultwarden-env.path;
     config = {
+      DOMAIN = "https://vaultwarden.ftzmlab.xyz";
       ROCKET_ADDRESS = "127.0.0.1";
       ROCKET_PORT = 8222;
-      DOMAIN = "https://vault.ftzmlab.xyz";
+      DATA_FOLDER = "/var/lib/vaultwarden";
     };
   };
 

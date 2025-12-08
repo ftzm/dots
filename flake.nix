@@ -13,7 +13,7 @@
   };
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/3a05eebede89661660945da1f151959900903b6a";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixpkgs-lutris.url = "github:NixOS/nixpkgs/1a7de5d740a244b99c53e6bff8c60b621637f687";
     nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -52,6 +52,8 @@
         deadnix.enable = true;
         alejandra.enable = true;
         #statix.enable = true;
+        trufflehog.enable = true;
+        nil.enable = true;
       };
     };
 

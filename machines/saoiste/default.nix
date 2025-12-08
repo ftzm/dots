@@ -80,6 +80,7 @@
       keep-outputs = true
       keep-derivations = true
       builders-use-substitutes = true
+      allow-import-from-derivation = true
     '';
     buildMachines = [
       {
@@ -128,6 +129,7 @@
 
   networking.hostName = "saoiste"; # Define your hostname.
   networking.networkmanager.enable = true;
+  networking.nameservers = ["192.168.1.12"];
 
   system.stateVersion = "22.05";
 
@@ -163,7 +165,7 @@
   # nixpkgs.config.packageOverrides = pkgs: {
   #   vaapiIntel = pkgs.vaapiIntel.override { enableHybridCodec = true; };
   # };
-  hardware.opengl = {
+  hardware.graphics = {
     enable = true;
     # driSupport = true;
     extraPackages = with pkgs; [
