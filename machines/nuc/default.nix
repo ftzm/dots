@@ -31,13 +31,13 @@
 
   time.timeZone = "Europe/Copenhagen";
   i18n.defaultLocale = "en_US.UTF-8";
-  services.xserver.layout = "us"; # probably unnecessary on server
+  services.xserver.xkb.layout = "us"; # probably unnecessary on server
 
   # The global useDHCP flag is deprecated, therefore explicitly set to false here.
   # Per-interface useDHCP will be mandatory in the future, so this generated config
   # replicates the default behaviour.
   networking.hostName = "nuc";
-  networking.useDHCP = false;
+  networking.useDHCP = true;
   networking.interfaces.eno1.useDHCP = true;
   networking.interfaces.wlp0s20f3.useDHCP = true;
   networking.firewall.enable = false;
@@ -52,7 +52,7 @@
   environment.systemPackages = with pkgs; [
     wget
     vim
-    mpc_cli
+    mpc
     ncmpcpp
     # error building
     # (beets.override {
@@ -70,6 +70,9 @@
     direnv
     nix-direnv
     foot.terminfo
+    jellyfin
+    jellyfin-web
+    jellyfin-ffmpeg
   ];
 
   services = {
@@ -86,20 +89,23 @@
   };
 
   nixpkgs.config.packageOverrides = pkgs: {
-    vaapiIntel = pkgs.vaapiIntel.override {enableHybridCodec = true;};
+    intel-vaapi-driver = pkgs.intel-vaapi-driver.override {enableHybridCodec = true;};
   };
-  hardware.opengl = {
+  hardware.graphics = {
     enable = true;
     extraPackages = with pkgs; [
       intel-media-driver
-      vaapiIntel
-      vaapiVdpau
-      libvdpau-va-gl
-      intel-compute-runtime # OpenCL filter support (hardware tonemapping and subtitle burn-in)
+      # intel-vaapi-driver
+      # libva-vdpau-driver
+      # libvdpau-va-gl
+      intel-compute-runtime-legacy1
     ];
   };
 
   users.users.jellyfin.extraGroups = ["users" "storage"];
+
+  systemd.services.jellyfin.environment.LIBVA_DRIVER_NAME = "iHD"; # or i965 for older GPUs
+  environment.sessionVariables = {LIBVA_DRIVER_NAME = "iHD";};
   # --------------------------
 
   services.nfs.server.enable = true;
@@ -338,25 +344,36 @@
   services.radarr = {
     enable = true;
     group = "storage";
+    settings.update.automatically = true;
   };
   users.users.radarr.extraGroups = ["users" "storage"];
 
   services.sonarr = {
     enable = true;
     group = "storage";
+    settings.update.automatically = true;
   };
   users.users.sonarr.extraGroups = ["users" "storage"];
 
   services.lidarr = {
     enable = true;
     group = "storage";
+    settings.update.automatically = true;
   };
 
-  services.prowlarr = {enable = true;};
+  services.flaresolverr = {
+    enable = true;
+  };
+
+  services.prowlarr = {
+    enable = true;
+    settings.update.automatically = true;
+  };
 
   services.readarr = {
     enable = true;
     group = "storage";
+    settings.update.automatically = true;
   };
 
   services.audiobookshelf = {
@@ -369,6 +386,7 @@
 
   services.vaultwarden = {
     enable = true;
+    backupDir = "/vaultwarden-backup";
     environmentFile = config.age.secrets.vaultwarden-env.path;
     config = {
       DOMAIN = "https://vaultwarden.ftzmlab.xyz";
@@ -434,8 +452,6 @@
         browseable = "yes";
         "smb encrypt" = "required";
       };
-    };
-    shares = {
       public = {
         path = "/mnt/nas/cloud";
         browseable = "yes";
@@ -479,9 +495,11 @@
     # Set what time makes sense for you
     autoUpdateApps.startAt = "05:00:00";
 
+    settings = {
+      overwriteProtocol = "https";
+    };
     config = {
       # Further forces Nextcloud to use HTTPS
-      overwriteProtocol = "https";
 
       # Nextcloud PostegreSQL database configuration, recommended over using SQLite
       # dbtype = "pgsql";
@@ -795,6 +813,14 @@
         proxyWebsockets = true;
       };
     };
+    virtualHosts."vaultwarden.ftzmlab.xyz" = {
+      enableACME = true;
+      forceSSL = true;
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:${toString config.services.vaultwarden.config.ROCKET_PORT}";
+        proxyWebsockets = true;
+      };
+    };
     virtualHosts."deluge.ftzmlab.xyz" = {
       enableACME = true;
       forceSSL = true;
@@ -903,5 +929,5 @@
     "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
   ];
 
-  system.stateVersion = "20.09";
+  system.stateVersion = "24.11";
 }

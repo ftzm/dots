@@ -177,7 +177,7 @@ in {
     k9s
 
     # mpd
-    mpc_cli
+    mpc
     ncmpcpp
 
     # email
