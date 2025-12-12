@@ -35,7 +35,7 @@
                                         "--eval" "(byte-recompile-directory \".\" 0 'force)")))
                   ((require 'elpaca))
                   ((elpaca-generate-autoloads "elpaca" repo)))
-            (progn (message "%s" (buffer-string)) (kill-buffer buffer))
+            (progn (message "%s" (buffer-string)) (kill-current-buffer))
           (error "%s" (with-current-buffer buffer (buffer-string))))
       ((error) (warn "%s" err) (delete-directory repo 'recursive))))
   (unless (require 'elpaca-autoloads nil t)
@@ -960,7 +960,14 @@ See `eval-after-load' for the possible formats of FORM."
 
 (use-package transient)
 
+(use-package cond-let
+    :ensure (:host github :repo "tarsius/cond-let")
+    :config
+    (require 'cond-let)
+    )
+
 (use-package magit
+  :after (transient compat cond-let)
   :commands (magit-status magit-keys)
   :custom (magit-bury-buffer-function #'magit-restore-window-configuration)
   :config
@@ -984,6 +991,40 @@ See `eval-after-load' for the possible formats of FORM."
   (advice-add 'magit-process-set-mode-line-error-status :before 
 	      #'auto-display-magit-process-buffer)  
   )
+
+(use-package difftastic
+  :ensure t
+  :config
+  (defcustom difftastic-custom-args nil
+    "Additional arguments to append to difftastic commands."
+    :type '(repeat string)
+    :group 'difftastic)
+
+  (setq difftastic-custom-args '())
+
+  (defun difftastic--append-custom-args (orig-fun buffer file-buf-a file-buf-b &optional difftastic-args)
+    "Advice to append custom arguments to difftastic--files-internal calls.
+ORIG-FUN is the original function, other arguments match the original signature."
+    (let ((combined-args (if difftastic-args
+                             (append difftastic-args difftastic-custom-args)
+                           difftastic-custom-args)))
+      (funcall orig-fun buffer file-buf-a file-buf-b combined-args)))
+
+  (advice-add 'difftastic--files-internal :around #'difftastic--append-custom-args)
+
+  (defun difftastic--git-append-custom-args (orig-fun buffer command rev-or-range &optional difftastic-args action)
+    "Advice to append custom arguments to difftastic--git-with-difftastic calls.
+ORIG-FUN is the original function, other arguments match the original signature."
+    (let ((combined-args (if difftastic-args
+                             (append difftastic-args difftastic-custom-args)
+                           difftastic-custom-args)))
+      (funcall orig-fun buffer command rev-or-range combined-args action)))
+
+  (advice-add 'difftastic--git-with-difftastic :around #'difftastic--git-append-custom-args))
+
+(use-package difftastic-bindings
+  :ensure difftastic
+  :config (difftastic-bindings-mode))
 
 (use-package autorevert
   :diminish auto-revert-mode
@@ -1018,9 +1059,11 @@ in which case does avy-goto-char with the first char."
                        (read-char "char 2: " t)
                        current-prefix-arg
                        nil nil))
-    (when (eq char1 ?)
+    (when (eq char1 ?
+)
       (setq char1 ?\n))
-    (if (not (eq char2 ?))
+    (if (not (eq char2 ?
+))
 	(avy-with avy-goto-char-2
 	  (avy-jump
 	   (regexp-quote (string char1 char2))
@@ -1193,6 +1236,12 @@ in which case does avy-goto-char with the first char."
 
   (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nil" :initializationOptions (:formatting (:command ["alejandra"])))))
 
+  (add-to-list 'eglot-server-programs '(scala-mode . ("metals" :initializationOptions (:metals (:startMcpServer t)))))
+
+  (setq-default eglot-workspace-configuration
+		'(:metals (:startMcpServer t)))
+
+
   (add-to-list 'eglot-server-programs
                '((php-mode phps-mode) . ("intelephense" "--stdio")))
   (add-to-list 'eglot-server-programs
@@ -1247,6 +1296,11 @@ in which case does avy-goto-char with the first char."
     :args `("-")
     :lighter " cog"
     :stdin t
+    )
+  (reformatter-define prettier
+    :program "npx"
+    :args `("prettier" "--stdin-filepath" ,buffer-file-name)
+    :lighter " prettier"
     )
   )
 
@@ -2001,12 +2055,14 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
   ;;:hook (scala-mode . scalafmt-on-save-mode)
   :interpreter ("scala" . scala-mode)
   :config
-  (add-hook 'before-save-hook 'eglot-format)
+  (add-hook 'scala-mode-hook
+    (lambda () (add-hook 'before-save-hook 'eglot-format nil t)))
   (evil-define-key 'normal scala-mode-map (kbd ",a") 'eglot-code-actions)
   (defun my-eglot-organize-imports ()
-    (interactive)
+					;(interactive)
     (eglot-code-actions nil nil "source.organizeImports" t))
-  (add-hook 'before-save-hook 'my-eglot-organize-imports)
+  ;there seems to be a fucky race condition with this and eglot format
+					;(add-hook 'before-save-hook 'my-eglot-organize-imports)
   )
 
 
@@ -2060,6 +2116,14 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 (use-package sql-mode
   :ensure nil
   :hook ((sql-mode . pgformatter-on-save-mode)))
+
+(use-package js-ts-mode
+  :ensure nil
+  :hook ((js-ts-mode . prettier-on-save-mode)))
+
+(use-package typescript-ts-mode
+  :ensure nil
+  :hook ((typescript-ts-mode . prettier-on-save-mode)))
 
 
 
@@ -2212,3 +2276,14 @@ Positive values scroll down, negative values scroll up."
   (setq agent-shell-anthropic-claude-command '("npx" "claude-code-acp"))
   )
 
+(use-package zoom
+  :config
+  (defun size-callback ()
+    (cond ((eq major-mode 'scala-mode) '(120 . 0.5))
+          (t                            '(nil . nil))))
+
+  (setq zoom-size 'size-callback)
+
+  (setq zoom-mode t)
+
+  )

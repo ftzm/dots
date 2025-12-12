@@ -14,4 +14,4 @@ switch:
 	sudo nixos-rebuild --flake . switch
 
 home:
-	home-manager --flake . switch
+	home-manager --flake . switch --option fallback true

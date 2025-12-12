@@ -5,7 +5,12 @@
   lib,
   ...
 }: {
-  nixpkgs.config.allowUnfree = true;
+  nixpkgs = {
+    config.allowUnfree = true;
+    overlays = [
+      inputs.nixgl.overlay
+    ];
+  };
 
   imports = [
     ../../role/iosevka-home.nix
@@ -31,6 +36,13 @@
     shellcheck
     ulid
     insomnia
+    wdisplays
+    htop
+    xdg-desktop-portal
+    xdg-desktop-portal-wlr
+
+    nixgl.nixGLIntel
+    nixgl.nixVulkanIntel
 
     # core
     php83
@@ -42,6 +54,23 @@
     php83Extensions.dom
     php83Extensions.mbstring
     intelephense
+
+    # ai
+    (python3.withPackages
+      (ps:
+        with ps; [
+          numpy
+          pandas
+          matplotlib
+          seaborn
+        ]))
+    uv
+    aider-chat
+    rustdesk
+    jetbrains-mono
+    nodejs
+    yarn
+    crowdin-cli
   ];
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
@@ -110,8 +139,44 @@
       status = {
         showUntrackedFiles = "all"; # allows magit to show dir contents
       };
+      tag.sort = "version:refname";
+      push = {
+        default = "simple";
+        autoSetupRemote = "true";
+        followTags = "true";
+      };
+      fetch = {
+        prune = "true";
+        pruneTags = "true";
+        all = "true";
+      };
+      commit = {
+        verbose = "true";
+      };
+      rerere = {
+        enable = "true";
+        autoupdate = "true";
+      };
+      rebase = {
+        autoSquash = "true";
+        autoStash = "true";
+        updateRefs = "true";
+      };
+      merge = {
+        conflictstyle = "zdiff3";
+      };
+      core = {
+        fsmonitor = "true";
+        untrackedCache = "true";
+      };
+    };
+    difftastic = {
+      enable = true;
+      enableAsDifftool = true;
     };
   };
+
+  programs.mergiraf.enable = true;
 
   home.activation = {
     myActivationAction = inputs.home-manager.lib.hm.dag.entryAfter ["writeBoundary"] ''
@@ -122,18 +187,17 @@
 
   programs.bash = {
     enable = true;
-    profileExtra = ''
+    profileExtra = let
+      jdk = "/home/ftzm/.cache/coursier/arc/https/github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.7%252B6/OpenJDK21U-jdk_x64_linux_hotspot_21.0.7_6.tar.gz/jdk-21.0.7+6";
+    in ''
       # >>> JVM installed by coursier >>>
-      export JAVA_HOME="/home/ftzm/.cache/coursier/arc/https/github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%252B11/OpenJDK21U-jdk_x64_linux_hotspot_21.0.5_11.tar.gz/jdk-21.0.5+11"
-      export PATH="$PATH:/home/ftzm/.cache/coursier/arc/https/github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%252B11/OpenJDK21U-jdk_x64_linux_hotspot_21.0.5_11.tar.gz/jdk-21.0.5+11/bin"
+      export JAVA_HOME="${jdk}"
+      export PATH="$PATH:${jdk}/bin"
       # <<< JVM installed by coursier <<<
 
       # >>> coursier install directory >>>
       export PATH="$PATH:/home/ftzm/.local/share/coursier/bin"
       # <<< coursier install directory <<<
-
-      #workaround for running sway on mft-P14s
-      export WLR_RENDERER=vulkan
     '';
   };
   programs.atuin = {
@@ -169,6 +233,20 @@
     };
   };
 
+  xdg.portal = {
+    enable = true;
+    extraPortals = [
+      pkgs.xdg-desktop-portal-wlr
+      pkgs.xdg-desktop-portal-gtk
+    ];
+    config = {
+      sway = {
+        default = ["gtk"];
+        "org.freedesktop.impl.portal.Screenshot" = ["wlr"];
+        "org.freedesktop.impl.portal.ScreenCast" = ["wlr"];
+      };
+    };
+  };
   wayland.windowManager.sway = {
     enable = true;
     systemd.enable = true;
@@ -207,7 +285,7 @@
         lib.mkOptionDefault {
           "${modifier}+Shift+r" = "reload";
           #"${modifier}+Shift+c" = "kill";
-          "${modifier}+space" = "exec tofi-drun --drun-launch=true -c ~/.config/tofi/dmenu";
+          "${modifier}+space" = "exec 'tofi-run -c ~/.config/tofi/dmenu | xargs swaymsg exec --'";
           # "${modifier}+Shift+b" = "exec splitv";
           "${modifier}+v" = "exec volumectl -p -u up";
           "${modifier}+Shift+v" = "exec volumectl -p -u down";
@@ -373,6 +451,18 @@
     };
   };
 
+  services.mako = {
+    enable = true;
+    settings = {
+      background-color = "#282828";
+      border-color = "#fabd2f";
+      border-size = 3;
+      text-color = "#ebdbb2";
+      margin = "15";
+      padding = "10";
+    };
+  };
+
   # workaround for systemd units not being loaded by ubuntu
   home.activation.linkSystemd = let
     inherit (lib) hm;
@@ -393,6 +483,10 @@
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 
+  programs.vscode = {
+    enable = true;
+    # package = pkgs.vscode.fhs;
+  };
   # This value determines the Home Manager release that your configuration is
   # compatible with. This helps avoid breakage when a new Home Manager release
   # introduces backwards incompatible changes.
