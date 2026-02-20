@@ -76,6 +76,7 @@
 
     # programming
     neovim
+    jsonnet-language-server
     git
     git-crypt
     git-filter-repo
@@ -108,7 +109,7 @@
     mu
     isync
 
-    tdesktop
+    # telegram-desktop # I don't really use this
 
     # fonts
     source-sans-pro
@@ -131,7 +132,7 @@
     neofetch
     hwinfo
     inxi
-    glxinfo
+    mesa-demos
     xorg.xdpyinfo
     dmidecode
 

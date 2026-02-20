@@ -13,7 +13,8 @@ in {
       #emms-taglib
       #epkgs.org
       #epkgs.pdf-tools
-      pkgs.python3
     ]))
+    pkgs.python3
+    pkgs.emacs-lsp-booster
   ];
 }

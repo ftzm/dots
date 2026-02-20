@@ -1162,7 +1162,7 @@ in which case does avy-goto-char with the first char."
 (use-package eglot
   :ensure nil
   :after general
-  :hook (((js-ts-mode json-ts-mode yaml-ts-mode typescript-ts-mode java-ts-mode mhtml-mode css-ts-mode vue-ts-mode haskell-mode nix-ts-mode scala-mode php-mode phps-mode) . eglot-ensure))
+  :hook (((js-ts-mode json-ts-mode yaml-ts-mode typescript-ts-mode java-ts-mode mhtml-mode css-ts-mode vue-ts-mode haskell-mode nix-ts-mode scala-mode php-mode phps-mode jsonnet-mode) . eglot-ensure))
   :preface
   (defun vue-eglot-init-options ()
     (let ((tsdk-path (expand-file-name
@@ -1195,10 +1195,11 @@ in which case does avy-goto-char with the first char."
 
   (add-to-list 'eglot-server-programs
                '((php-mode phps-mode) . ("intelephense" "--stdio")))
-  (add-to-list 'eglot-server-programs 
-               '(haskell-mode . ("haskell-language-server-wrapper" "--lsp" 
-                                 :initializationOptions 
+  (add-to-list 'eglot-server-programs
+               '(haskell-mode . ("haskell-language-server-wrapper" "--lsp"
+                                 :initializationOptions
                                  (:haskell (:formattingProvider "fourmolu")))))
+  (add-to-list 'eglot-server-programs '(jsonnet-mode . ("jsonnet-language-server")))
 
   (my-leader-def
     :states '(normal)
@@ -1208,6 +1209,12 @@ in which case does avy-goto-char with the first char."
     "eb" 'consult-flymake)
   (evil-define-key 'normal 'global (kbd "gi") 'eglot-find-implementation)
   )
+
+(use-package eglot-booster
+  :ensure (:host github :repo "jdtsmith/eglot-booster")
+  :after eglot
+  :config
+  (eglot-booster-mode))
 
 ;; ==============================================================================
 ;; Language config
@@ -1773,16 +1780,15 @@ in which case does avy-goto-char with the first char."
 ;; Vterm
 ;; ==============================================================================
 
-;; (use-package vterm
-;;   :config
-;; 
-;;   (add-hook 'vterm-mode-hook (lambda ()
-;;   			       (setq-local global-hl-line-mode nil)))
-;; 
-;;   (setq vterm-max-scrollback 50000)
-;; 
-;;   (load "~/.config/emacs/consult-atuin.el")
-;;   )
+(use-package vterm
+  :config
+
+  (add-hook 'vterm-mode-hook (lambda ()
+  			       (setq-local global-hl-line-mode nil)))
+
+  (setq vterm-max-scrollback 50000)
+
+  )
 
 ;; ==============================================================================
 ;; Gerbil
@@ -2064,6 +2070,9 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 (use-package yaml-mode
   )
 
+(use-package jsonnet-mode
+  )
+
 ;; ==============================================================================
 ;; PHP
 ;; ==============================================================================
@@ -2104,6 +2113,7 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
   :ensure nil
   :config
   (setq dired-kill-when-opening-new-dired-buffer t)
+  (setq dired-listing-switches "-alFh")
   )
 
 
@@ -2201,3 +2211,4 @@ Positive values scroll down, negative values scroll up."
   (require 'shell-maker)
   (setq agent-shell-anthropic-claude-command '("npx" "claude-code-acp"))
   )
+

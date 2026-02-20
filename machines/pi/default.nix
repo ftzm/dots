@@ -94,6 +94,9 @@
     };
   };
 
+  # ---------------------------------------------------------------------------
+  # ddclient
+
   age.secrets.ddclient = {
     file = ../../secrets/ddclient.age;
   };
@@ -149,7 +152,11 @@
     recommendedTlsSettings = true;
     virtualHosts."headscale.ftzmlab.xyz" = {
       listen = [
-        {addr = "0.0.0.0"; port = 8443; ssl = true;}
+        {
+          addr = "0.0.0.0";
+          port = 8443;
+          ssl = true;
+        }
       ];
       useACMEHost = "headscale.ftzmlab.xyz";
       forceSSL = true;
