@@ -10,6 +10,7 @@
     ./hardware.nix
     ../../role/network.nix
     ./mqtt2prometheus-service.nix
+    ./k3s.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
@@ -72,6 +73,9 @@
     jellyfin
     jellyfin-web
     jellyfin-ffmpeg
+
+    #for nzbget
+    python3
   ];
 
   services = {
@@ -94,17 +98,19 @@
     enable = true;
     extraPackages = with pkgs; [
       intel-media-driver
-      # intel-vaapi-driver
-      # libva-vdpau-driver
-      # libvdpau-va-gl
+      intel-vaapi-driver
+      libva-vdpau-driver
+      libvdpau-va-gl
       intel-compute-runtime-legacy1
+      vpl-gpu-rt
+      intel-ocl
     ];
   };
 
   users.users.jellyfin.extraGroups = ["users" "storage"];
 
-  systemd.services.jellyfin.environment.LIBVA_DRIVER_NAME = "iHD"; # or i965 for older GPUs
-  environment.sessionVariables = {LIBVA_DRIVER_NAME = "iHD";};
+  # systemd.services.jellyfin.environment.LIBVA_DRIVER_NAME = "iHD"; # or i965 for older GPUs
+  # environment.sessionVariables = {LIBVA_DRIVER_NAME = "iHD";};
   # --------------------------
 
   services.nfs.server.enable = true;
@@ -120,8 +126,18 @@
     network = {listenAddress = "any";};
   };
 
-  services.prometheus = {
+  services.navidrome = {
     enable = true;
+    settings = {
+      MusicFolder = "/mnt/nas/music";
+      Address = "0.0.0.0";
+      Port = 4533;
+      EnableSharing = true;
+    };
+  };
+
+  services.prometheus = {
+    enable = false; # disable temporarily while trialling k3s
     port = 9001;
     exporters = {
       node = {
@@ -381,6 +397,12 @@
     host = "0.0.0.0";
   };
 
+  services.nzbget = {
+    enable = true;
+    group = "storage";
+  };
+  users.users.nzbget.extraGroups = ["users" "storage"];
+
   services.ombi = {enable = true;};
 
   age.secrets.deluge = {
@@ -414,6 +436,21 @@
       text = ''
         chmod 775 -R /var/lib/deluge
         chgrp -R storage /var/lib/deluge
+      '';
+      deps = [];
+    };
+    nginxSelfSignedCert = {
+      text = ''
+        if [ ! -f /var/lib/nginx/selfsigned.crt ]; then
+          mkdir -p /var/lib/nginx
+          ${pkgs.openssl}/bin/openssl req -x509 -nodes -days 3650 \
+            -newkey rsa:2048 \
+            -keyout /var/lib/nginx/selfsigned.key \
+            -out /var/lib/nginx/selfsigned.crt \
+            -subj "/CN=wg-default"
+          chown nginx:nginx /var/lib/nginx/selfsigned.*
+          chmod 600 /var/lib/nginx/selfsigned.key
+        fi
       '';
       deps = [];
     };
@@ -466,6 +503,7 @@
   # nextcloud
 
   nixpkgs.config.permittedInsecurePackages = ["openssl-1.1.1u"];
+  nixpkgs.config.allowUnfree = true;
 
   services.nextcloud = {
     enable = false;
@@ -805,16 +843,16 @@
     sslCiphers = "AES256+EECDH:AES256+EDH:!aNULL";
 
     enable = true;
-    virtualHosts.${config.services.grafana.settings.server.domain} = {
-      enableACME = true;
-      forceSSL = true;
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:${
-          toString config.services.grafana.settings.server.http_port
-        }";
-        proxyWebsockets = true;
-      };
-    };
+    # virtualHosts.${config.services.grafana.settings.server.domain} = {
+    #   enableACME = true;
+    #   forceSSL = true;
+    #   locations."/" = {
+    #     proxyPass = "http://127.0.0.1:${
+    #       toString config.services.grafana.settings.server.http_port
+    #     }";
+    #     proxyWebsockets = true;
+    #   };
+    # };
     virtualHosts."vaultwarden.ftzmlab.xyz" = {
       enableACME = true;
       forceSSL = true;
@@ -904,6 +942,40 @@
           add_header Cross-Origin-Embedder-Policy "credentialless";
           add_header Cross-Origin-Opener-Policy "same-origin";
         '';
+      };
+    };
+
+    # Default catch-all for wireguard traffic - proxy to k3s ingress
+    virtualHosts."wg-default-http" = {
+      listen = [
+        {
+          addr = "10.0.100.4";
+          port = 80;
+        }
+      ];
+      default = true;
+      serverName = "_";
+      locations."/" = {
+        proxyPass = "http://10.0.100.4:9080";
+        proxyWebsockets = true;
+      };
+    };
+    virtualHosts."wg-default-https" = {
+      listen = [
+        {
+          addr = "10.0.100.4";
+          port = 443;
+          ssl = true;
+        }
+      ];
+      default = true;
+      serverName = "_";
+      onlySSL = true;
+      sslCertificate = "/var/lib/nginx/selfsigned.crt";
+      sslCertificateKey = "/var/lib/nginx/selfsigned.key";
+      locations."/" = {
+        proxyPass = "http://10.0.100.4:9443";
+        proxyWebsockets = true;
       };
     };
   };

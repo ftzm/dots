@@ -7,7 +7,7 @@
     glibcLocales # for non-broken locales in non-nixos
 
     nzbhydra2
-    unrar
+    # unrar
 
     nyxt
     scrot

@@ -105,11 +105,63 @@
   systemd.services.ddclient.serviceConfig.LoadCredential = "config:${config.age.secrets.ddclient.path}";
   systemd.services.ddclient.serviceConfig.ExecStartPre = lib.mkForce ''${lib.getBin pkgs.bash}/bin/bash -c "${lib.getBin pkgs.coreutils}/bin/ln -s $CREDENTIALS_DIRECTORY/config /run/ddclient/ddclient.conf"'';
 
+  # ----------------------------------------------------------------------
+  # Headscale - self-hosted Tailscale control server
+
+  services.headscale = {
+    enable = true;
+    address = "127.0.0.1";
+    port = 8080;
+    settings = {
+      server_url = "https://headscale.ftzmlab.xyz:8443";
+      dns = {
+        base_domain = "tail.ftzmlab.xyz";
+        magic_dns = true;
+        nameservers.global = [
+          "1.1.1.1"
+          "1.0.0.1"
+        ];
+      };
+      logtail.enabled = false;
+    };
+  };
+
+  # Cloudflare API credentials for ACME DNS-01 challenge
+  age.secrets.cloudflare-api = {
+    file = ../../secrets/cloudflare-api.age;
+  };
+
+  # ACME with DNS-01 challenge via Cloudflare
+  security.acme = {
+    acceptTerms = true;
+    defaults.email = "fitz.matt.d@gmail.com";
+    certs."headscale.ftzmlab.xyz" = {
+      dnsProvider = "cloudflare";
+      environmentFile = config.age.secrets.cloudflare-api.path;
+      group = "nginx";
+    };
+  };
+
+  # Nginx reverse proxy with SSL on port 8443
+  services.nginx = {
+    enable = true;
+    recommendedProxySettings = true;
+    recommendedTlsSettings = true;
+    virtualHosts."headscale.ftzmlab.xyz" = {
+      listen = [
+        {addr = "0.0.0.0"; port = 8443; ssl = true;}
+      ];
+      useACMEHost = "headscale.ftzmlab.xyz";
+      forceSSL = true;
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:8080";
+        proxyWebsockets = true;
+      };
+    };
+  };
+
   # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
-  # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  # networking.firewall.enable = false;
+  networking.firewall.allowedTCPPorts = [8443];
 
   system.stateVersion = "21.05"; # Did you read the comment?
 }

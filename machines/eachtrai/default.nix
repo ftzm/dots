@@ -410,4 +410,18 @@
   ];
   # ----
   programs.steam.enable = true;
+
+  services.dnsmasq = {
+    enable = true;
+    settings = {
+      address = "/.ftzmlab.xyz/10.0.100.4";
+      server = [
+        "192.168.1.1"
+        # Exclude WireGuard endpoints from the override so they resolve to public IPs
+        "/nuc.ftzmlab.xyz/#"
+        "/nas.ftzmlab.xyz/#"
+        "/saoiste.ftzmlab.xyz/#"
+      ];
+    };
+  };
 }
