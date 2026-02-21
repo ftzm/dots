@@ -6,18 +6,27 @@
   pkgs,
   inputs,
   lib,
+  modulesPath,
   ...
 }: {
   imports = [
     # Include the results of the hardware scan.
     inputs.agenix.nixosModules.age
     ./hardware.nix
+    (modulesPath + "/installer/sd-card/sd-image-aarch64.nix")
+    inputs.nixos-hardware.nixosModules.raspberry-pi."3"
   ];
+
+  # Ensure firmware partition is large enough for kernel + initrd
+  sdImage.firmwareSize = 256;
+
+  # Disable ZFS (broken with latest kernel)
+  boot.supportedFilesystems.zfs = lib.mkForce false;
 
   # make members of wheel group trusted users, allowing them additional rights when
   # connection to nix daemon.
   # This was enable to allow deploying via deploy-rs as non-root.
-  nix.trustedUsers = ["@wheel"];
+  nix.settings.trustedUsers = ["@wheel"];
 
   # Use the extlinux boot loader. (NixOS wants to enable GRUB by default)
   boot.loader.grub.enable = false;
