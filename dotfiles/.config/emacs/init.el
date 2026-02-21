@@ -60,7 +60,7 @@
 
 ;; ----------------------------------------------------------------------------
 
-(set-frame-font "Iosevka ftzm Medium 18")
+(set-frame-font "Iosevka ftzm Medium 12")
 					;(set-frame-font "Jetbrains Mono Medium 17")
 
 ;; automatically balances windows when  splitting.
@@ -305,7 +305,7 @@ See `eval-after-load' for the possible formats of FORM."
       "c" (general-simulate-key ('evil-change "e"))
       ))
   (general-vmap "c" 'evil-change)
-  (general-nmap "s" 'avy-goto-char-flex)
+  (general-nmap "s" 'flash-jump)
 
 
   (general-create-definer my-leader-def
@@ -417,7 +417,7 @@ See `eval-after-load' for the possible formats of FORM."
 
 (use-package evil-tablist-visual-mark
   :ensure nil
-  :load-path "~/.config/emacs/lisp/"
+  :load-path "lisp/"
   :after (evil tablist)
   :config
   (evil-tablist-visual-mark-mode 1))
@@ -761,7 +761,7 @@ See `eval-after-load' for the possible formats of FORM."
 
 (use-package consult-atuin
   :ensure nil
-  :load-path "~/.config/emacs/lisp/"
+  :load-path "lisp/"
   :after consult)
 
 (use-package embark
@@ -992,39 +992,39 @@ See `eval-after-load' for the possible formats of FORM."
 	      #'auto-display-magit-process-buffer)  
   )
 
-(use-package difftastic
-  :ensure t
-  :config
-  (defcustom difftastic-custom-args nil
-    "Additional arguments to append to difftastic commands."
-    :type '(repeat string)
-    :group 'difftastic)
-
-  (setq difftastic-custom-args '())
-
-  (defun difftastic--append-custom-args (orig-fun buffer file-buf-a file-buf-b &optional difftastic-args)
-    "Advice to append custom arguments to difftastic--files-internal calls.
-ORIG-FUN is the original function, other arguments match the original signature."
-    (let ((combined-args (if difftastic-args
-                             (append difftastic-args difftastic-custom-args)
-                           difftastic-custom-args)))
-      (funcall orig-fun buffer file-buf-a file-buf-b combined-args)))
-
-  (advice-add 'difftastic--files-internal :around #'difftastic--append-custom-args)
-
-  (defun difftastic--git-append-custom-args (orig-fun buffer command rev-or-range &optional difftastic-args action)
-    "Advice to append custom arguments to difftastic--git-with-difftastic calls.
-ORIG-FUN is the original function, other arguments match the original signature."
-    (let ((combined-args (if difftastic-args
-                             (append difftastic-args difftastic-custom-args)
-                           difftastic-custom-args)))
-      (funcall orig-fun buffer command rev-or-range combined-args action)))
-
-  (advice-add 'difftastic--git-with-difftastic :around #'difftastic--git-append-custom-args))
-
-(use-package difftastic-bindings
-  :ensure difftastic
-  :config (difftastic-bindings-mode))
+;; (use-package difftastic
+;;   :ensure t
+;;   :config
+;;   (defcustom difftastic-custom-args nil
+;;     "Additional arguments to append to difftastic commands."
+;;     :type '(repeat string)
+;;     :group 'difftastic)
+;; 
+;;   (setq difftastic-custom-args '())
+;; 
+;;   (defun difftastic--append-custom-args (orig-fun buffer file-buf-a file-buf-b &optional difftastic-args)
+;;     "Advice to append custom arguments to difftastic--files-internal calls.
+;; ORIG-FUN is the original function, other arguments match the original signature."
+;;     (let ((combined-args (if difftastic-args
+;;                              (append difftastic-args difftastic-custom-args)
+;;                            difftastic-custom-args)))
+;;       (funcall orig-fun buffer file-buf-a file-buf-b combined-args)))
+;; 
+;;   (advice-add 'difftastic--files-internal :around #'difftastic--append-custom-args)
+;; 
+;;   (defun difftastic--git-append-custom-args (orig-fun buffer command rev-or-range &optional difftastic-args action)
+;;     "Advice to append custom arguments to difftastic--git-with-difftastic calls.
+;; ORIG-FUN is the original function, other arguments match the original signature."
+;;     (let ((combined-args (if difftastic-args
+;;                              (append difftastic-args difftastic-custom-args)
+;;                            difftastic-custom-args)))
+;;       (funcall orig-fun buffer command rev-or-range combined-args action)))
+;; 
+;;   (advice-add 'difftastic--git-with-difftastic :around #'difftastic--git-append-custom-args))
+;; 
+;; (use-package difftastic-bindings
+;;   :ensure difftastic
+;;   :config (difftastic-bindings-mode))
 
 (use-package autorevert
   :diminish auto-revert-mode
@@ -1060,10 +1060,10 @@ in which case does avy-goto-char with the first char."
                        current-prefix-arg
                        nil nil))
     (when (eq char1 ?
-)
+	      )
       (setq char1 ?\n))
     (if (not (eq char2 ?
-))
+		 ))
 	(avy-with avy-goto-char-2
 	  (avy-jump
 	   (regexp-quote (string char1 char2))
@@ -1077,6 +1077,7 @@ in which case does avy-goto-char with the first char."
   (setq avy-all-windows nil)
   (setq avy-keys '(?h ?u ?t ?e ?d ?i ?s ?a ?g ?p ?c ?. ?f ?y ?r ?, ?l ?' ?m
 		      ?k ?w ?j ?b ?x ?v ?q ?z ?\; ?n ?o))
+					; (setq avy-keys '("hutedisagpc.fyr,l'mkwjbxvqz\;no"))
 
   (set-face-attribute 'avy-lead-face nil
 		      :background 'unspecified
@@ -1092,6 +1093,17 @@ in which case does avy-goto-char with the first char."
   (setq avy-all-windows t)
 
   )
+
+(use-package flash
+  :commands (flash-jump flash-treesitter)
+  :bind ("s-j" . flash-jump)
+  :init
+  (with-eval-after-load 'evil
+    (require 'flash-evil)
+    (flash-evil-setup t))
+  :config
+  (require 'flash-isearch)
+  (flash-isearch-mode 1))
 
 ;; ==============================================================================
 ;; Project and Perspective
@@ -1533,17 +1545,18 @@ in which case does avy-goto-char with the first char."
   
   ;; group by both category (usually file name) and path
   (org-super-agenda--def-auto-group category-and-outline-path "category and outline paths"
-    :key-form (org-super-agenda--when-with-marker-buffer (org-super-agenda--get-marker item)
-		(format "%s: %s" (org-get-category) (s-join "/" (org-get-outline-path)))))
+				    :key-form (org-super-agenda--when-with-marker-buffer
+					       (org-super-agenda--get-marker item)
+  					       (format "%s: %s" (org-get-category) (s-join "/" (org-get-outline-path)))))
   
   (defun org-sep-header (text)
     "insert a header containing `text` into an org agenda buffer"
     (let ((buffer-read-only nil))
       (insert
        (propertize
-	text
-	'face (list :foreground (face-attribute
-				 'font-lock-function-name-face :foreground) :weight 'bold)))))
+  	text
+  	'face (list :foreground (face-attribute
+  				 'font-lock-function-name-face :foreground) :weight 'bold)))))
   
   (setq org-super-agenda-header-separator "\n")
   
@@ -2262,19 +2275,21 @@ Positive values scroll down, negative values scroll up."
 ;; ------------------------------------------------
 ;; acp shell thingie
 
-(use-package shell-maker
-  :ensure (:host github :repo "xenodium/shell-maker.el"))
+; (use-package shell-maker
+;   :ensure (:host github :repo "xenodium/shell-maker.el"))
+; 
+; (use-package acp
+;   :ensure (:host github :repo "xenodium/acp.el"))
+; 
+; (use-package agent-shell
+;   :ensure (:host github :repo "xenodium/agent-shell")
+;   :config
+;   (require 'acp)
+;   (require 'shell-maker)
+;   (setq agent-shell-anthropic-claude-command '("npx" "claude-code-acp"))
+;   )
 
-(use-package acp
-  :ensure (:host github :repo "xenodium/acp.el"))
-
-(use-package agent-shell
-  :ensure (:host github :repo "xenodium/agent-shell")
-  :config
-  (require 'acp)
-  (require 'shell-maker)
-  (setq agent-shell-anthropic-claude-command '("npx" "claude-code-acp"))
-  )
+;; ------------------------------------------------
 
 (use-package zoom
   :config

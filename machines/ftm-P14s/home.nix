@@ -66,11 +66,11 @@
         ]))
     uv
     aider-chat
-    rustdesk
     jetbrains-mono
     nodejs
     yarn
     crowdin-cli
+    claude-code
   ];
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
@@ -133,9 +133,10 @@
       # Nix
       "result"
     ];
-    userEmail = "mft@famly.co";
-    userName = "ftzm";
-    extraConfig = {
+    settings.user.email = "mft@famly.co";
+    settings.user.name = "ftzm";
+    settings = {
+      credential.helper = "!gh auth git-credential";
       status = {
         showUntrackedFiles = "all"; # allows magit to show dir contents
       };
@@ -169,10 +170,6 @@
         fsmonitor = "true";
         untrackedCache = "true";
       };
-    };
-    difftastic = {
-      enable = true;
-      enableAsDifftool = true;
     };
   };
 

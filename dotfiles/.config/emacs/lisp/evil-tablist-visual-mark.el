@@ -70,8 +70,8 @@
 
 (defun evil-tablist--region-to-lines ()
   "Convert region to list of line numbers. Return a list of integers or nil."
-  (when-let ((region (cons (marker-position evil-visual-beginning)
-                           (marker-position evil-visual-end))))
+  (when-let* ((region (cons (marker-position evil-visual-beginning)
+                            (marker-position evil-visual-end))))
     (let* ((beg-line (line-number-at-pos (car region)))
            (end-line (line-number-at-pos (cdr region)))
            (actual-end (save-excursion 

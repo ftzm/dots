@@ -93,19 +93,18 @@
 
 (defun consult-atuin-result-annotator (cand)
   "Annotate the current candidate CAND using its text-properties."
-  (when-let (metadata (get-text-property 0 'consult-atuin--metadata cand))
-    (let ((datetime (cdr (assoc 'datetime metadata)))
-	  (exit (cdr (assoc 'exit metadata)))
-          (host (cdr (assoc 'host metadata)))
-          (directory (cdr (assoc 'directory metadata))))
-      (format "%s %s  %s  %s"
-	      (if (string= exit "0")
-		  ""
-		(format " %s " (propertize "x" 'face 'consult-atuin-exit-error))
-		)
-              (propertize datetime 'face 'consult-atuin-datetime)
-              (propertize host 'face 'consult-atuin-host)
-              (propertize directory 'face 'consult-atuin-directory)))))
+  (when-let* ((metadata (get-text-property 0 'consult-atuin--metadata cand))
+              (datetime (cdr (assoc 'datetime metadata)))
+              (exit (cdr (assoc 'exit metadata)))
+              (host (cdr (assoc 'host metadata)))
+              (directory (cdr (assoc 'directory metadata))))
+    (format "%s %s  %s  %s"
+            (if (string= exit "0")
+                ""
+              (format " %s " (propertize "x" 'face 'consult-atuin-exit-error)))
+            (propertize datetime 'face 'consult-atuin-datetime)
+            (propertize host 'face 'consult-atuin-host)
+            (propertize directory 'face 'consult-atuin-directory))))
 
 
 (defun consult-atuin-format (lines)
