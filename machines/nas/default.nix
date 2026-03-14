@@ -13,6 +13,7 @@ in {
     inputs.agenix.nixosModules.age
     ./hardware.nix
     ../../role/network.nix
+    ../../role/comin.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when

@@ -1,5 +1,6 @@
 {
   nixConfig = {
+    tarball-ttl = 2592000;
     extra-substituters = [
       #   "https://nix-community.cachix.org"
       #   "https://cache.iog.io"
@@ -29,6 +30,10 @@
     git-hooks.url = "github:cachix/git-hooks.nix";
     nixgl.url = "github:nix-community/nixGL";
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
+    comin = {
+      url = "github:nlewo/comin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs @ {

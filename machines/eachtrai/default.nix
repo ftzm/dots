@@ -26,6 +26,7 @@
     ../../role/git.nix
     ../../role/interface.nix
     ../../role/iosevka.nix
+    ../../role/comin.nix
   ];
 
   nix = {

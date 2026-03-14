@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Build saoiste
+        run: nix build .#nixosConfigurations.saoiste.config.system.build.toplevel
+      - name: Build eachtrai
+        run: nix build .#nixosConfigurations.eachtrai.config.system.build.toplevel
+      - name: Build nuc
+        run: nix build .#nixosConfigurations.nuc.config.system.build.toplevel
+      - name: Build nas
+        run: nix build .#nixosConfigurations.nas.config.system.build.toplevel
+      # pi is aarch64-linux, skipped in CI (would require QEMU/cross-compilation)

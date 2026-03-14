@@ -73,6 +73,7 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
       # $ nix search wget
       environment.systemPackages = with pkgs; [
         vim
+        wget
         foot.terminfo
       ];
 
@@ -127,6 +128,9 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
               "1.1.1.1"
               "1.0.0.1"
             ];
+            restricted_nameservers = {
+              "localdomain" = ["192.168.1.1"];
+            };
           };
           logtail.enabled = false;
         };
@@ -177,5 +181,19 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
     })
 
     inputs.agenix.nixosModules.age
+
+    inputs.comin.nixosModules.comin
+    {
+      services.comin = {
+        enable = true;
+        remotes = [
+          {
+            name = "origin";
+            url = "https://github.com/ftzm/dots.git";
+            branches.main.name = "master";
+          }
+        ];
+      };
+    }
   ];
 }

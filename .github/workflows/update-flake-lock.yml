@@ -1,0 +1,26 @@
+name: Update flake inputs
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 */3 * *"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/update-flake-lock@main
+        id: update
+        with:
+          pr-title: "flake.lock: update inputs"
+          pr-labels: automated
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ steps.update.outputs.pull-request-url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

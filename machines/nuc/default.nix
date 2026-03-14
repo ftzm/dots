@@ -11,6 +11,7 @@
     ../../role/network.nix
     ./mqtt2prometheus-service.nix
     ./k3s.nix
+    ../../role/comin.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when

@@ -28,6 +28,7 @@
     ../../role/comms.nix
     ../../role/emacs.nix
     ../../role/wifi.nix
+    ../../role/comin.nix
     ../../role/packages.nix
     ../../role/iosevka.nix
   ];
