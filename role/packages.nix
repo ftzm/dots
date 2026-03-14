@@ -85,6 +85,7 @@
     gnumake
     jq
     ripgrep
+    fd
     s-tui
     stress
     linuxPackages.turbostat
@@ -129,7 +130,7 @@
     xdg-utils
 
     # hw
-    neofetch
+    fastfetch
     hwinfo
     inxi
     mesa-demos
