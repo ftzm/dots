@@ -4,7 +4,34 @@
   inputs,
   lib,
   ...
-}: {
+}:
+let
+  # Wrap xdg-desktop-portal-wlr with nixGLIntel so it can find Mesa/DRI
+  # drivers on non-NixOS. Without this, the portal segfaults because the
+  # Nix-built binary looks for drivers at /run/opengl-driver/ (NixOS-only).
+  xdg-desktop-portal-wlr-gl = pkgs.stdenv.mkDerivation {
+    name = "xdg-desktop-portal-wlr-gl";
+    dontUnpack = true;
+    installPhase = ''
+      mkdir -p $out/libexec
+      cat > $out/libexec/xdg-desktop-portal-wlr <<EOF
+#!/bin/sh
+exec ${pkgs.nixgl.nixGLIntel}/bin/nixGLIntel ${pkgs.xdg-desktop-portal-wlr}/libexec/xdg-desktop-portal-wlr "\$@"
+EOF
+      chmod +x $out/libexec/xdg-desktop-portal-wlr
+
+      cp -r --no-preserve=mode ${pkgs.xdg-desktop-portal-wlr}/share $out/share
+
+      substituteInPlace $out/share/systemd/user/xdg-desktop-portal-wlr.service \
+        --replace-fail "${pkgs.xdg-desktop-portal-wlr}/libexec/xdg-desktop-portal-wlr" \
+          "$out/libexec/xdg-desktop-portal-wlr"
+      substituteInPlace $out/share/dbus-1/services/org.freedesktop.impl.portal.desktop.wlr.service \
+        --replace-fail "${pkgs.xdg-desktop-portal-wlr}/libexec/xdg-desktop-portal-wlr" \
+          "$out/libexec/xdg-desktop-portal-wlr"
+    '';
+  };
+in
+{
   nixpkgs = {
     config.allowUnfree = true;
     overlays = [
@@ -15,6 +42,7 @@
   imports = [
     ../../role/iosevka-home.nix
     ../../role/emacs-home.nix
+    ../../role/sway-home.nix
   ];
 
   home.username = "ftzm";
@@ -39,7 +67,6 @@
     wdisplays
     htop
     xdg-desktop-portal
-    xdg-desktop-portal-wlr
 
     nixgl.nixGLIntel
     nixgl.nixVulkanIntel
@@ -71,23 +98,12 @@
     yarn
     crowdin-cli
     claude-code
+    ripgrep
+    fd
   ];
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
   # plain files is through 'home.file'.
-  home.file = {
-    # # Building this configuration will create a copy of 'dotfiles/screenrc' in
-    # # the Nix store. Activating the configuration will then make '~/.screenrc' a
-    # # symlink to the Nix store copy.
-    # ".screenrc".source = dotfiles/screenrc;
-
-    # # You can also set the file content immediately.
-    # ".gradle/gradle.properties".text = ''
-    #   org.gradle.console=verbose
-    #   org.gradle.daemon.idletimeout=3600000
-    # '';
-  };
-
   # Home Manager can also manage your environment variables through
   # 'home.sessionVariables'. These will be explicitly sourced when using a
   # shell provided by Home Manager. If you don't want to manage your shell
@@ -104,6 +120,8 @@
   #
   #  /etc/profiles/per-user/ftzm/etc/profile.d/hm-session-vars.sh
   #
+  home.sessionPath = ["$HOME/dots/bin"];
+
   home.sessionVariables = {
     # EDITOR = "emacs";
   };
@@ -137,6 +155,9 @@
     settings.user.name = "ftzm";
     settings = {
       credential.helper = "!gh auth git-credential";
+      github = {
+        user = "ftzm";
+      };
       status = {
         showUntrackedFiles = "all"; # allows magit to show dir contents
       };
@@ -174,6 +195,7 @@
   };
 
   programs.mergiraf.enable = true;
+  programs.mergiraf.enableGitIntegration = true;
 
   home.activation = {
     myActivationAction = inputs.home-manager.lib.hm.dag.entryAfter ["writeBoundary"] ''
@@ -233,7 +255,7 @@
   xdg.portal = {
     enable = true;
     extraPortals = [
-      pkgs.xdg-desktop-portal-wlr
+      xdg-desktop-portal-wlr-gl
       pkgs.xdg-desktop-portal-gtk
     ];
     config = {
@@ -244,220 +266,60 @@
       };
     };
   };
+  # Auto-start the wlr portal with the sway session so we don't rely on
+  # D-Bus activation (D-Bus can't find the nix service files).
+  systemd.user.services.xdg-desktop-portal-wlr-autostart = {
+    Unit = {
+      Description = "Auto-start xdg-desktop-portal-wlr";
+      After = ["graphical-session.target"];
+      Wants = ["xdg-desktop-portal-wlr.service"];
+    };
+    Install = {
+      WantedBy = ["sway-session.target"];
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.coreutils}/bin/true";
+    };
+  };
+  # P14s-specific sway overrides
   wayland.windowManager.sway = {
-    enable = true;
     systemd.enable = true;
-    wrapperFeatures.gtk = true;
     config = {
-      bars = [
-        {
-          command = "waybar";
-          mode = "invisible";
-          # hiddenState = "hide";
-          # extraConfig = ''
-          #   modifier Mod4
-          # '';
-        }
-      ];
       startup = [
         {
           command = "swaymsg output eDP-1 scale 2";
           always = true;
         }
+        {command = "ci-watch";}
       ];
-      modifier = "Mod4";
-      terminal = "foot";
-      gaps = {
-        smartBorders = "on";
-        # smartGaps = true;
-        # inner = 10;
-      };
-      window = {
-        titlebar = false;
-        border = 3;
-      };
       keybindings = let
         inherit (config.wayland.windowManager.sway.config) modifier;
       in
         lib.mkOptionDefault {
-          "${modifier}+Shift+r" = "reload";
-          #"${modifier}+Shift+c" = "kill";
-          "${modifier}+space" = "exec 'tofi-run -c ~/.config/tofi/dmenu | xargs swaymsg exec --'";
-          # "${modifier}+Shift+b" = "exec splitv";
-          "${modifier}+v" = "exec volumectl -p -u up";
-          "${modifier}+Shift+v" = "exec volumectl -p -u down";
-          "${modifier}+F1" = "exec volumectl toggle-mute";
-          "${modifier}+p" = "exec mpc toggle";
-          # "${modifier}+Shift+z" = "exec fzf_key.sh";
-          "${modifier}+s" = ''mode "system"'';
-          # "${modifier}+o" = ''mode "org"'';
-          "${modifier}+f" = "exec dired.sh";
-          "${modifier}+Shift+z" = "exec clip_key";
-          "${modifier}+m" = "exec '[ \"$(swaymsg -t get_bar_config bar-0 | jq -r \".mode\")\" = \"dock\" ] && swaymsg bar mode invisible || swaymsg bar mode dock'";
+          "${modifier}+space" = "exec 'tofi-run --width 40% --height 30% | xargs swaymsg exec --'";
         };
       modes.system = let
         md = "swaymsg mode default;";
-        brightness = let
-          toKey = n: {
-            name = toString n;
-            value = "exec lightctl set ${toString (n + 1)}0%; mode default";
-          };
-        in
-          builtins.listToAttrs (map toKey (lib.lists.range 0 9));
-      in
-        {
-          #"l" = ''exec "${md}${swaylockCmd}"'';
-          "l" = ''exec "${md}swaylock -i ~/dots/stacks.jpg"'';
-          # "d" = ''exec "${md}echo '?' > /tmp/statuspipe.fifo"'';
-          "Escape" = "mode default";
-          "Return" = "mode default";
-        }
-        // brightness;
-      # modes.org = let
-      #   md = "swaymsg mode default;";
-      # in {
-      #   "t" = ''exec "${md}capture.sh t"'';
-      #   "w" = ''exec "${md}capture.sh w"'';
-      #   "Escape" = "mode default";
-      #   "Return" = "mode default";
-      # };
-      colors = {
-        focused = {
-          background = "#5f676a";
-          border = "#000000";
-          childBorder = "#458588";
-          indicator = "#484e50";
-          text = "#ffffff";
-        };
-        unfocused = {
-          background = "#5f676a";
-          border = "#000000";
-          childBorder = "#282828";
-          indicator = "#484e50";
-          text = "#ffffff";
-        };
-      };
-    };
-    extraConfig = ''
-      # for_window [title="capture"] floating enable, resize set 660 300
-      # for_window [title="capture"] border pixel 1
-      # for_window [app_id="foot-launcher"] floating enable, resize set 400 300
-      # for_window [app_id="foot-launcher"] border pixel 1
-
-      # default_border pixel 0
-
-      # smart_gaps on
-      # gaps inner 1
-      # gaps outer -1
-
-
-      # hide_edge_borders smart
-      seat seat0 xcursor_theme Vanilla-DMZ 64
-
-      set $TBALL1 1149:32792:Kensington_Expert_Wireless_TB_Mouse
-      input $TBALL1 {
-        scroll_method on_button_down
-        scroll_button 275
-        scroll_factor 0.3
-      }
-
-      set $TBALL2 1149:32793:ExpertBT5.0_Mouse
-      input $TBALL2 {
-        scroll_method on_button_down
-        scroll_button 275
-        scroll_factor 0.3
-      }
-
-      # exec systemctl --user import-environment XDG_SESSION_TYPE XDG_CURRENT_DESKTOP
-      # exec dbus-update-activation-environment WAYLAND_DISPLAY
-    '';
-  };
-
-  programs.waybar = {
-    enable = true;
-    settings = [
-      {
-        "bar_id" = "bar-0";
-        "ipc" = true;
-        "modules-left" = [
-          "sway/workspaces"
-          "sway/mode"
-          "sway/scratchpad"
-        ];
-        "modules-center" = ["sway/window"];
-        "modules-right" = [
-          "mpd"
-          "idle_inhibitor"
-          "pulseaudio"
-          "network"
-          "cpu"
-          "memory"
-          "temperature"
-          "backlight"
-          "keyboard-state"
-          "sway/language"
-          "battery"
-          "clock"
-          # "tray"
-        ];
-        "position" = "bottom";
-      }
-    ];
-  };
-
-  programs.foot = {
-    enable = true;
-    settings = {
-      main = {
-        font = "iosevka ftzm:medium:size=11";
-        # letter-spacing = "-0.2";
-      };
-      cursor = {color = "282828 ebdbb2";};
-      colors = {
-        background = "282828";
-        foreground = "ebdbb2";
-        regular0 = "282828";
-        regular1 = "cc241d";
-        regular2 = "98971a";
-        regular3 = "d79921";
-        regular4 = "458588";
-        regular5 = "b16286";
-        regular6 = "689d6a";
-        regular7 = "a89984";
-        bright0 = "928374";
-        bright1 = "fb4934";
-        bright2 = "b8bb26";
-        bright3 = "fabd2f";
-        bright4 = "83a598";
-        bright5 = "d3869b";
-        bright6 = "8ec07c";
-        bright7 = "ebdbb2";
+      in {
+        "l" = ''exec "${md}swaylock -i ~/dots/stacks.jpg"'';
       };
     };
   };
 
-  services.avizo = {
-    enable = true;
-    settings = {
-      default = {
-        time = 1.0;
-        y-offset = 0.5;
-        fade-in = 0.1;
-        fade-out = 0.2;
-      };
-    };
-  };
+  programs.foot.settings.main.font = "iosevka ftzm:medium:size=11";
 
   services.mako = {
     enable = true;
     settings = {
+      font = "Iosevka Ftzm 11";
       background-color = "#282828";
       border-color = "#fabd2f";
       border-size = 3;
       text-color = "#ebdbb2";
       margin = "15";
       padding = "10";
-    };
+};
   };
 
   # workaround for systemd units not being loaded by ubuntu

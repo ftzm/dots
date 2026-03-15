@@ -31,7 +31,7 @@
       };
       window = {
         titlebar = false;
-        border = 3;
+        border = 5;
       };
       keybindings = let
         inherit (config.wayland.windowManager.sway.config) modifier;
