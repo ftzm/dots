@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  inputs,
+  ...
+}: {
   environment.systemPackages = with pkgs; [
     ps
     cacert # nothing else works without these
@@ -158,6 +162,9 @@
     nodejs_20
     perf
     nil
+    inputs.agenix.packages.x86_64-linux.agenix
+
+    claude-code
   ];
 
   programs.thunar.enable = true;
