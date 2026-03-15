@@ -5,7 +5,9 @@ in {
   home.packages = [
     (emacsWithPackages (epkgs: [
       epkgs.treesit-grammars.with-all-grammars
-      pkgs.python3
+      epkgs.vterm
     ]))
+    # pkgs.python3
+    pkgs.emacs-lsp-booster
   ];
 }
