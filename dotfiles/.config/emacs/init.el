@@ -2272,25 +2272,6 @@ Positive values scroll down, negative values scroll up."
 (add-hook 'yaml-ts-mode-hook 
           (lambda () (add-hook 'after-save-hook 'auto-hpack nil t)))
 
-;; ------------------------------------------------
-;; acp shell thingie
-
-; (use-package shell-maker
-;   :ensure (:host github :repo "xenodium/shell-maker.el"))
-; 
-; (use-package acp
-;   :ensure (:host github :repo "xenodium/acp.el"))
-; 
-; (use-package agent-shell
-;   :ensure (:host github :repo "xenodium/agent-shell")
-;   :config
-;   (require 'acp)
-;   (require 'shell-maker)
-;   (setq agent-shell-anthropic-claude-command '("npx" "claude-code-acp"))
-;   )
-
-;; ------------------------------------------------
-
 (use-package zoom
   :config
   (defun size-callback ()
