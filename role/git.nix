@@ -20,6 +20,9 @@
         email = "m@ftzm.org";
         name = "ftzm";
       };
+      github = {
+        user = "ftzm";
+      };
       status = {
         showUntrackedFiles = "all"; # allows magit to show dir contents
       };
