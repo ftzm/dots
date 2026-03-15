@@ -6,7 +6,7 @@ let
   saoiste = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFwI/wXI5lQdgesvIfnenQxUrqbSwCNT3I/ESZ28eQoG";
   nas = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoyzVr7G3uC7YJI4vH8jhYI+sJcIlcckhwzeMVZOYqn";
   nuc = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP0ssURM8nW08YFCTUk4nCF7wQjvO9kLHJ66w7nwi6B/";
-  pi = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH2o+TmAP8oFE4BesbUG6mr+nkak6DmGWHEkkQrjRx4N";
+  pi = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP5AGQI3bJbKXwmDthPZH3J1yPz2weAUPDq+9L0N1XL5 root@pi";
 in {
   "wireguard-private-key-leigheas.age".publicKeys = [personal leigheas];
   "wireguard-private-key-eachtrai.age".publicKeys = [personal eachtrai];
