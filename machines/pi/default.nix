@@ -73,8 +73,8 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
       # $ nix search wget
       environment.systemPackages = with pkgs; [
         vim
-        wget
         foot.terminfo
+        wget
       ];
 
       # Enable the OpenSSH daemon.
@@ -124,12 +124,14 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
           dns = {
             base_domain = "tail.ftzmlab.xyz";
             magic_dns = true;
-            nameservers.global = [
-              "1.1.1.1"
-              "1.0.0.1"
-            ];
-            restricted_nameservers = {
-              "localdomain" = ["192.168.1.1"];
+            nameservers = {
+              global = [
+                "1.1.1.1"
+                "1.0.0.1"
+              ];
+              split = {
+                "localdomain" = ["192.168.1.1"];
+              };
             };
           };
           logtail.enabled = false;
