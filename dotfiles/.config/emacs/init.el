@@ -1095,6 +1095,7 @@ in which case does avy-goto-char with the first char."
   )
 
 (use-package flash
+  :ensure (:host github :repo "Prgebish/flash")
   :commands (flash-jump flash-treesitter)
   :bind ("s-j" . flash-jump)
   :init
@@ -1103,7 +1104,12 @@ in which case does avy-goto-char with the first char."
     (flash-evil-setup t))
   :config
   (require 'flash-isearch)
-  (flash-isearch-mode 1))
+  (flash-isearch-mode 1)
+  (set-face-attribute 'flash-label nil                                                                           
+                      :background 'unspecified                                                                   
+                      :foreground "#ff0000")                                                                     
+  (setq flash-labels "hutedisagpc.fyr,l'mkwjbxvqz;no")                                                           
+  )
 
 ;; ==============================================================================
 ;; Project and Perspective
@@ -2256,6 +2262,10 @@ Positive values scroll down, negative values scroll up."
   (setq claude-code-ide--cli-available t)
   (setq claude-code-ide-terminal-backend 'eat)
   (setq claude-code-ide-cli-path "npx claude --"))
+
+(use-package claudemacs
+  :ensure (:host github :repo "cpoile/claudemacs")
+  )
 
 (setq split-height-threshold nil)
 
