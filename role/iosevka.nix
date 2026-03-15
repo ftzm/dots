@@ -14,5 +14,6 @@
 in {
   fonts.packages = with pkgs; [
     ios
+    nerd-fonts.symbols-only
   ];
 }
