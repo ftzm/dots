@@ -1005,4 +1005,6 @@
   ];
 
   system.stateVersion = "24.11";
+
+  services.tailscale.enable = true;
 }
