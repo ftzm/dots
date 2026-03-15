@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+#
+# ci-watch — GitHub PR notifications daemon.
+# - Notifies when CI finishes on your open PRs.
+# - Notifies when a PR is assigned to you.
+# Usage: ci-watch [POLL_INTERVAL_SECONDS]
+#
+
+set -euo pipefail
+
+POLL_INTERVAL="${1:-120}"
+WATCHED_PIDS=()
+WATCHED_KEYS=()
+declare -A NOTIFIED_SHAS=()
+declare -A NOTIFIED_REVIEWS=()
+
+log() { echo "[$(date '+%H:%M:%S')] $*"; }
+
+notify() {
+  local title="$1" body="$2" url="$3"
+  log "$title: $body ($url)"
+  if command -v notify-send &>/dev/null; then
+    action=$(notify-send --app-name=ci-watch -A "default=Open PR" "$title" "$body")
+    [[ "$action" == "default" ]] && xdg-open "$url" && sleep 0.3 && swaymsg '[urgent=latest]' focus
+  fi
+}
+
+watch_pr() {
+  local repo="$1" number="$2" title="$3" url="$4"
+  local output
+  output=$(gh pr checks "$number" --repo "$repo" --watch 2>&1)
+  local rc=$?
+
+  if [[ $rc -eq 0 ]]; then
+    notify "CI Passed" "#$number $title" "$url"
+  elif echo "$output" | grep -qiE 'fail|error|✗|X'; then
+    notify "CI Failed" "#$number $title" "$url"
+  else
+    log "Watch for $repo#$number exited unexpectedly (rc=$rc), ignoring"
+  fi
+}
+
+is_watched() {
+  local key="$1"
+  for w in "${WATCHED_KEYS[@]}"; do
+    [[ "$w" == "$key" ]] && return 0
+  done
+  return 1
+}
+
+reap_finished() {
+  local new_pids=() new_keys=()
+  for i in "${!WATCHED_PIDS[@]}"; do
+    if kill -0 "${WATCHED_PIDS[$i]}" 2>/dev/null; then
+      new_pids+=("${WATCHED_PIDS[$i]}")
+      new_keys+=("${WATCHED_KEYS[$i]}")
+    fi
+  done
+  WATCHED_PIDS=("${new_pids[@]+"${new_pids[@]}"}")
+  WATCHED_KEYS=("${new_keys[@]+"${new_keys[@]}"}")
+}
+
+cleanup() {
+  log "Stopping ci-watch."
+  for pid in "${WATCHED_PIDS[@]}"; do
+    kill "$pid" 2>/dev/null || true
+  done
+  exit 0
+}
+trap cleanup SIGINT SIGTERM
+
+log "Watching CI for your PRs (checking for new PRs every ${POLL_INTERVAL}s)..."
+
+while true; do
+  reap_finished
+
+  cutoff=$(date -d '3 days ago' +%s)
+  prs=$(gh search prs --author=@me --state=open \
+    --json repository,number,title,url,updatedAt 2>/dev/null) || {
+    log "Failed to fetch PRs, retrying..."
+    sleep "$POLL_INTERVAL"
+    continue
+  }
+
+  count=$(echo "$prs" | jq 'length')
+
+  for i in $(seq 0 $((count - 1))); do
+    updated=$(echo "$prs" | jq -r ".[$i].updatedAt")
+    updated_epoch=$(date -d "$updated" +%s 2>/dev/null) || continue
+    [[ "$updated_epoch" -lt "$cutoff" ]] && continue
+
+    repo=$(echo "$prs" | jq -r ".[$i].repository.nameWithOwner")
+    number=$(echo "$prs" | jq -r ".[$i].number")
+    title=$(echo "$prs" | jq -r ".[$i].title")
+    url=$(echo "$prs" | jq -r ".[$i].url")
+    sha=$(gh pr view "$number" --repo "$repo" --json headRefOid -q .headRefOid 2>/dev/null) || continue
+    key="${repo}#${number}@${sha}"
+
+    if ! is_watched "$key" && [[ "${NOTIFIED_SHAS[$key]:-}" != "1" ]]; then
+      log "Watching $repo#$number ($sha): $title"
+      watch_pr "$repo" "$number" "$title" "$url" &
+      WATCHED_PIDS+=("$!")
+      WATCHED_KEYS+=("$key")
+      NOTIFIED_SHAS["$key"]=1
+    fi
+  done
+
+  # Check for PRs where my review is requested
+  reviews=$(gh search prs --review-requested=@me --state=open \
+    --json repository,number,title,url,updatedAt,author 2>/dev/null) || reviews="[]"
+
+  review_count=$(echo "$reviews" | jq 'length')
+
+  for i in $(seq 0 $((review_count - 1))); do
+    updated=$(echo "$reviews" | jq -r ".[$i].updatedAt")
+    updated_epoch=$(date -d "$updated" +%s 2>/dev/null) || continue
+    [[ "$updated_epoch" -lt "$cutoff" ]] && continue
+
+    repo=$(echo "$reviews" | jq -r ".[$i].repository.nameWithOwner")
+    number=$(echo "$reviews" | jq -r ".[$i].number")
+    title=$(echo "$reviews" | jq -r ".[$i].title")
+    url=$(echo "$reviews" | jq -r ".[$i].url")
+    key="${repo}#${number}"
+
+    author=$(echo "$reviews" | jq -r ".[$i].author.login")
+
+    if [[ "${NOTIFIED_REVIEWS[$key]:-}" != "1" ]]; then
+      log "Review requested by $author: $key: $title"
+      notify "Review Requested" "#$number $title (by $author)" "$url" &
+      NOTIFIED_REVIEWS["$key"]=1
+    fi
+  done
+
+  sleep "$POLL_INTERVAL"
+done

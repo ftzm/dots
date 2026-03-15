@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_LIST="$HOME/.config/emacs/var/project-list.el"
+
+if [[ ! -f "$PROJECT_LIST" ]]; then
+    notify-send "claude-launcher" "Project list not found: $PROJECT_LIST"
+    exit 1
+fi
+
+# Extract quoted paths from the s-expression file, strip trailing slashes
+dirs=$(grep -oP '"/\K[^"]+' "$PROJECT_LIST" | sed 's:/$::; s:^:/:')
+# Surface dirs ending in "dots" first
+dirs=$(echo "$dirs" | awk '/\/dots$/ {print; next} {rest = rest ? rest ORS $0 : $0} END {if (rest) print rest}')
+
+if [[ -z "$dirs" ]]; then
+    notify-send "claude-launcher" "No projects found"
+    exit 1
+fi
+
+selected=$(echo "$dirs" | fuzzel --dmenu --prompt "claude: " --width 50 --lines 15)
+
+[[ -z "$selected" ]] && exit 0
+
+project_name=$(basename "$selected")
+exec foot --app-id foot-claude --title "claude: $project_name" -D "$selected" env CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1 claude

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+#
+# pr-status — On-demand PR status notifications.
+# Shows status of all open PRs and PRs awaiting review as clickable notifications.
+#
+
+set -euo pipefail
+
+notify() {
+  local title="$1" body="$2" url="$3"
+  action=$(notify-send --app-name=pr-status -A "default=Open PR" "$title" "$body")
+  [[ "$action" == "default" ]] && xdg-open "$url" && sleep 0.3 && swaymsg '[urgent=latest]' focus
+}
+
+found_any=false
+
+# Fetch open PRs authored by me
+prs=$(gh search prs --author=@me --state=open \
+  --json repository,number,title,url 2>/dev/null) || prs="[]"
+
+count=$(echo "$prs" | jq 'length')
+
+for i in $(seq 0 $((count - 1))); do
+  found_any=true
+  repo=$(echo "$prs" | jq -r ".[$i].repository.nameWithOwner")
+  number=$(echo "$prs" | jq -r ".[$i].number")
+  title=$(echo "$prs" | jq -r ".[$i].title")
+  url=$(echo "$prs" | jq -r ".[$i].url")
+
+  # Get CI status
+  checks=$(gh pr checks "$number" --repo "$repo" --json bucket 2>/dev/null) || checks="[]"
+
+  if echo "$checks" | jq -e '.[] | select(.bucket == "fail")' &>/dev/null; then
+    status="CI Failed"
+  elif echo "$checks" | jq -e '.[] | select(.bucket == "pending")' &>/dev/null; then
+    status="CI Pending"
+  elif [[ $(echo "$checks" | jq 'length') -eq 0 ]]; then
+    status="No CI"
+  else
+    status="CI Passed"
+  fi
+
+  notify "$status" "#$number $title" "$url" &
+done
+
+# Fetch PRs where my review is requested
+reviews=$(gh search prs --review-requested=@me --state=open \
+  --json repository,number,title,url,author 2>/dev/null) || reviews="[]"
+
+review_count=$(echo "$reviews" | jq 'length')
+
+for i in $(seq 0 $((review_count - 1))); do
+  found_any=true
+  number=$(echo "$reviews" | jq -r ".[$i].number")
+  title=$(echo "$reviews" | jq -r ".[$i].title")
+  url=$(echo "$reviews" | jq -r ".[$i].url")
+  author=$(echo "$reviews" | jq -r ".[$i].author.login")
+
+  notify "Review Requested" "#$number $title (by $author)" "$url" &
+done
+
+if [[ "$found_any" == false ]]; then
+  notify-send --app-name=pr-status "No open PRs" "No PRs found for you"
+fi
+
+wait

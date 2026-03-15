@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Switch to scratch workspace
+swaymsg workspace scratch
+
+# Get windows on the scratch workspace
+declare -A id_map
+focused_title=""
+titles=()
+
+while IFS=$'\t' read -r id title is_focused; do
+    [[ -z "$id" ]] && continue
+    titles+=("$title")
+    id_map["$title"]="$id"
+    if [[ "$is_focused" == "true" ]]; then
+        focused_title="$title"
+    fi
+done < <(swaymsg -t get_tree | jq -r '
+  recurse(.nodes[]) | select(.type == "workspace" and .name == "scratch") |
+  recurse(.nodes[], .floating_nodes[]) | select(.pid > 0) |
+  "\(.id)\t\(.name)\t\(.focused)"
+')
+
+# 0 or 1 window: nothing to do
+if [[ ${#titles[@]} -le 1 ]]; then
+    exit 0
+fi
+
+# Build menu with focused window at top
+menu=""
+if [[ -n "$focused_title" ]]; then
+    menu="$focused_title"$'\n'
+fi
+for t in "${titles[@]}"; do
+    if [[ "$t" != "$focused_title" ]]; then
+        menu+="$t"$'\n'
+    fi
+done
+menu="${menu%$'\n'}"
+
+selected=$(echo "$menu" | tofi --prompt-text "scratch: " --fuzzy-match true --width 50% --height 40%)
+
+[[ -z "$selected" ]] && exit 0
+
+con_id="${id_map[$selected]}"
+swaymsg "[con_id=$con_id] focus"
