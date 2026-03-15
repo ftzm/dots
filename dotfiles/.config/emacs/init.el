@@ -111,6 +111,22 @@ See `eval-after-load' for the possible formats of FORM."
 					; (add-hook 'after-change-major-mode-hook (lambda() (electric-indent-mode -1)))
   ;; enable visual line mode everywhere
   (global-visual-line-mode 1)
+
+  (setq use-short-answers t)            ;; y/n instead of typing out yes/no
+  (setq help-window-select t)           ;; auto-focus help buffer when opened (q to dismiss)
+  (setq require-final-newline t)        ;; ensure files end with newline (POSIX, avoids git noise)
+
+  ;; Smooth pixel-level scrolling instead of line-by-line jumps (Emacs 29+)
+  (pixel-scroll-precision-mode 1)
+
+  ;; Track recently opened files for quick access via consult-recent-file
+  (recentf-mode 1)
+  (setq recentf-max-saved-items 200)
+
+  ;; Max semantic highlighting for tree-sitter modes (built-in, default is 3).
+  ;; Level 4 distinguishes function calls from definitions, highlights
+  ;; escape sequences in strings, bracket highlighting, etc.
+  (setq treesit-font-lock-level 4)
   )
 
 ;; ----------------------------------------------------------------------------
@@ -135,6 +151,17 @@ See `eval-after-load' for the possible formats of FORM."
     (make-directory dir t)
     (setq lock-file-name-transforms `((".*" ,dir t))))
   (setq custom-file (no-littering-expand-etc-file-name "custom.el")))
+
+;; Modern icon set for Emacs (replacement for all-the-icons).
+;; Powers icons in doom-modeline, corfu, etc.
+(use-package nerd-icons)
+
+;; Auto-applies project formatting rules from .editorconfig files:
+;; indent style (tabs/spaces), indent size, charset, trailing whitespace, final newline.
+;; Most open-source projects include one. Zero manual config needed.
+(use-package editorconfig
+  :config
+  (editorconfig-mode 1))
 
 (use-package undo-fu)
 
@@ -164,124 +191,6 @@ See `eval-after-load' for the possible formats of FORM."
 					;(when (not (display-graphic-p))
 					;(setq evil-insert-state-cursor '(box "red")))
 
-  )
-
-(use-package meow
-  :demand t
-  :init
-  (defun meow-setup ()
-    (setq meow-cheatsheet-layout meow-cheatsheet-layout-dvorak)
-    (meow-leader-define-key
-     '("1" . meow-digit-argument)
-     '("2" . meow-digit-argument)
-     '("3" . meow-digit-argument)
-     '("4" . meow-digit-argument)
-     '("5" . meow-digit-argument)
-     '("6" . meow-digit-argument)
-     '("7" . meow-digit-argument)
-     '("8" . meow-digit-argument)
-     '("9" . meow-digit-argument)
-     '("0" . meow-digit-argument)
-     '("/" . meow-keypad-describe-key)
-     '("?" . meow-cheatsheet))
-    (meow-motion-define-key
-     ;; custom keybinding for motion state
-     '("<escape>" . ignore))
-    (meow-normal-define-key
-     '("0" . meow-expand-0)
-     '("9" . meow-expand-9)
-     '("8" . meow-expand-8)
-     '("7" . meow-expand-7)
-     '("6" . meow-expand-6)
-     '("5" . meow-expand-5)
-     '("4" . meow-expand-4)
-     '("3" . meow-expand-3)
-     '("2" . meow-expand-2)
-     '("1" . meow-expand-1)
-     '("-" . negative-argument)
-     '(";" . meow-reverse)
-     '("," . meow-inner-of-thing)
-     '("." . meow-bounds-of-thing)
-     '("<" . meow-beginning-of-thing)
-     '(">" . meow-end-of-thing)
-     '("a" . meow-append)
-     '("A" . meow-open-below)
-     '("b" . meow-back-word)
-     '("B" . meow-back-symbol)
-     '("c" . meow-change)
-     '("d" . meow-delete)
-     '("D" . meow-backward-delete)
-     '("e" . meow-line)
-     '("E" . meow-goto-line)
-     '("f" . meow-find)
-     '("g" . meow-cancel-selection)
-     '("G" . meow-grab)
-     '("h" . meow-left)
-     '("H" . meow-left-expand)
-     '("i" . meow-insert)
-     '("I" . meow-open-above)
-     '("j" . meow-join)
-     '("k" . meow-kill)
-     '("l" . meow-till)
-     '("m" . meow-mark-word)
-     '("M" . meow-mark-symbol)
-     '("n" . meow-next)
-     '("N" . meow-next-expand)
-     '("o" . meow-block)
-     '("O" . meow-to-block)
-     '("p" . meow-prev)
-     '("P" . meow-prev-expand)
-     '("q" . meow-quit)
-     '("Q" . meow-goto-line)
-     '("r" . meow-replace)
-     '("R" . meow-swap-grab)
-     '("s" . meow-search)
-     '("t" . meow-right)
-     '("T" . meow-right-expand)
-     '("u" . meow-undo)
-     '("U" . meow-undo-in-selection)
-     '("v" . meow-visit)
-     '("w" . meow-next-word)
-     '("W" . meow-next-symbol)
-     '("x" . meow-save)
-     '("X" . meow-sync-grab)
-     '("y" . meow-yank)
-     '("z" . meow-pop-selection)
-     '("'" . repeat)
-     '("<escape>" . ignore)))
-  :config
-  ;; this doesn't work with subword mode
-  (defun forward-vimlike-word (&optional arg)
-    "Alternate `forward-word'. Essentially the same idea as Vim's 'e'."
-    (interactive "^p")
-    (setq arg (or arg 1))
-    (cl-destructuring-bind (sign move-func char-func)
-	(if (>= arg 0)
-            '(1 skip-syntax-forward char-after)
-          '(-1 skip-syntax-backward char-before))
-      (with-syntax-table (standard-syntax-table)
-	(let ((distance sign))
-          (while (and distance (> (abs distance) 0) (> (* arg sign) 0))
-            (setq distance
-                  (when-let ((next-char (funcall char-func))
-                             (next-syntax (char-syntax next-char)))
-                    (cond ((eq next-syntax ?w)
-                           (funcall move-func "w"))
-                          ((eq next-syntax ?\ )
-                           (prog1
-                               (funcall move-func " ")
-                             (forward-vimlike-word sign)))
-                          (t
-                           (funcall move-func "^w ")))))
-            (setq arg (- arg sign)))
-          (and distance (> (abs distance) 0))))))
-
-					;(put 'vimlike-word 'forward-op #'forward-vimlike-word)
-
-					;(setq meow-word-thing 'vimlike-word) 
-
-  ;; (meow-setup)
-  ;; (meow-global-mode 1)
   )
 
 (use-package general
@@ -316,10 +225,9 @@ See `eval-after-load' for the possible formats of FORM."
     :keymaps 'override
     "SPC" '(execute-extended-command :which-key "command")
     ;; the default behavior of `other buffer' is to ignore buffers
-    ;; open in other windows, which can be annoying when you have two
-    ;; views of the same buffer going. This invocation considers all
-    ;; buffers except for the current one.
-    "'" '((lambda () (interactive) (switch-to-buffer (other-buffer (current-buffer) t))) :which-key "other buffer")
+    ;; Toggle to the last buffer visited in this window.
+    ;; Per-window tracking avoids confusion with split layouts.
+    "'" '(evil-switch-to-windows-last-buffer :which-key "last buffer")
     "," '(ftzm/flip-window :which-key "previous window")
     "d" '(dired-jump :which-key "dired here")
     "D" '(dired :which-key "dired")
@@ -334,6 +242,9 @@ See `eval-after-load' for the possible formats of FORM."
     "w" '(persp-hydra/body :which-key "workspace")
 					;"t" '(toggle-keys :which-key "toggle")
 					;"w" '(window-keys :which-key "window")
+    "/" '(consult-ripgrep :which-key "search project")
+    "." '(vertico-repeat :which-key "repeat search")
+    "s" '(search-keys :which-key "search")
     "m" '(mpd-hydra/body :which-key "mpd")
 					;"M" '(mail-hydra/body :which-key "mail")
     "0" 'winum-select-window-0
@@ -354,15 +265,33 @@ See `eval-after-load' for the possible formats of FORM."
    "e" 'eval-buffer
 					;"k" 'evil-prev-buffer
 					;"j" 'evil-next-buffer
-   "b" 'switch-to-buffer
-   "B" 'switch-to-buffer-other-window
+   "b" 'consult-buffer
+   "B" 'consult-buffer-other-window
    "s" 'save-buffer
    "f" 'find-file
    "w" 'write-file
-					;"r" 'consult-recent-file
+   "r" 'consult-recent-file
+   "RET" 'consult-bookmark  ;; TODO: scope by project via custom consult source
+                            ;; that filters to current perspective's project root
+   "m" 'bookmark-set
+   "D" 'kill-buffer-and-window-if-split
 					;"u" 'sudo-find-file
 					;"U" 'sudo-this-file
    )
+
+  (defun kill-buffer-and-window-if-split ()
+    "Kill current buffer. Also delete the window if there are multiple."
+    (interactive)
+    (let ((buf (current-buffer)))
+      (if (> (count-windows) 1)
+          (progn (kill-buffer buf) (delete-window))
+        (kill-buffer buf))))
+
+  (general-define-key
+   :prefix-command 'search-keys
+   "s" 'consult-eglot-symbols
+   "o" 'consult-outline
+   "m" 'consult-mark)
 
   (general-define-key
    :keymaps '(override vertico-map)
@@ -412,6 +341,27 @@ See `eval-after-load' for the possible formats of FORM."
   :config
   (evil-collection-init))
 
+;; gc operator for commenting (like vim-commentary)
+;; gcc = comment/uncomment line, gc in visual = comment selection,
+;; gcap = comment paragraph, gc3j = comment 3 lines down
+(use-package evil-commentary
+  :after evil
+  :config
+  (evil-commentary-mode))
+
+;; Shows register/mark contents in a popup when you press " (registers)
+;; or '/ ` (marks). No more guessing what's stored where.
+(use-package evil-owl
+  :after evil
+  :config
+  (setq evil-owl-max-string-length 500)  ;; truncate long register contents
+  (add-to-list 'display-buffer-alist
+               '("*evil-owl*"
+                 (display-buffer-in-side-window)
+                 (side . bottom)
+                 (window-height . 0.3)))
+  (evil-owl-mode))
+
 ;; Automatic tablist marking on visual selection
 (use-package tablist)
 
@@ -435,7 +385,22 @@ See `eval-after-load' for the possible formats of FORM."
   :config
   (which-key-setup-side-window-bottom)
   (which-key-mode)
-  (setq which-key-idle-delay 0.3))
+  (setq which-key-idle-delay 0.3)
+  ;; Show transient keymaps (e.g. consult narrow map after pressing <).
+  (setq which-key-show-transient-maps t)
+
+  ;; Use near-zero which-key delay in the minibuffer so consult
+  ;; narrow options appear instantly after pressing <.
+  (defvar my/which-key-default-delay 0.3)
+  (add-hook 'minibuffer-setup-hook
+            (lambda ()
+              (setq my/which-key-default-delay which-key-idle-delay
+                    which-key-idle-delay 0.01)
+              (which-key--start-timer)))
+  (add-hook 'minibuffer-exit-hook
+            (lambda ()
+              (setq which-key-idle-delay my/which-key-default-delay)
+              (which-key--start-timer))))
 
 
 (defun ftzm/flip-window ()
@@ -485,11 +450,24 @@ See `eval-after-load' for the possible formats of FORM."
 	line-number-mode t)
   (setq doom-modeline-bar-width 0
 	doom-modeline-buffer-file-name-style 'file-name
-	doom-modeline-icon nil
+	doom-modeline-icon t
 	doom-modeline-position-column-line-format '("%l:%c")
 	doom-modeline-buffer-encoding nil
 					;doom-modeline-percent-position nil
 	)
+
+  ;; Prevent icons from rendering bold in the modeline.
+  ;; doom-modeline-propertize-icon sets :inherit, :family, :height on icons
+  ;; but inherits :weight from faces like doom-modeline-info (bold).
+  ;; This advice adds :weight normal so icon glyphs don't get synthetic bold.
+  (advice-add 'doom-modeline-propertize-icon :filter-return
+              (lambda (icon)
+                (when (stringp icon)
+                  (let ((face (get-text-property 0 'face icon)))
+                    (when face
+                      (put-text-property 0 (length icon) 'face
+                                         (append face '(:weight normal)) icon))))
+                icon))
   )
 
 ;; ==============================================================================
@@ -564,6 +542,12 @@ See `eval-after-load' for the possible formats of FORM."
   ;; 	'((consult-grep buffer)))
   )
 
+;; Reopen the last minibuffer session with all input and selection preserved.
+(use-package vertico-repeat
+  :ensure nil
+  :commands (vertico-repeat vertico-repeat-save)
+  :hook (minibuffer-setup . vertico-repeat-save))
+
 ;; Persist history over Emacs restarts. Vertico sorts by history position.
 (use-package savehist
   :ensure nil
@@ -608,9 +592,12 @@ See `eval-after-load' for the possible formats of FORM."
   (setq orderless-smart-case t)
   (orderless-define-completion-style orderless-case-insensitive
     (orderless-matching-styles '(orderless-literal orderless-regexp))
-    (orderless-smart-case nil)
-    )
-  )
+    (orderless-smart-case nil))
+  ;; Enable per-component style switching via prefix characters:
+  ;;   !term — exclude matches    =term — literal only
+  ;;   ~term — flex match         ,term — initialism
+  ;;   &term — match annotation (e.g. file path in marginalia)
+  (setq orderless-style-dispatchers '(orderless-affix-dispatch)))
 
 (use-package marginalia
   ;; Bind `marginalia-cycle' locally in the minibuffer.  To make the binding
@@ -673,7 +660,7 @@ See `eval-after-load' for the possible formats of FORM."
          ("M-g i" . consult-imenu)
          ("M-g I" . consult-imenu-multi)
          ;; M-s bindings in `search-map'
-         ("M-s d" . consult-find)                  ;; Alternative: consult-fd
+         ("M-s d" . consult-fd)
          ("M-s c" . consult-locate)
          ("M-s g" . consult-grep)
          ("M-s G" . consult-git-grep)
@@ -734,7 +721,29 @@ See `eval-after-load' for the possible formats of FORM."
    consult--source-bookmark consult--source-file-register
    consult--source-recent-file consult--source-project-recent-file
    ;; :preview-key "M-."
-   :preview-key '(:debounce 0.4 any))
+   :preview-key '(:debounce 0.4 any)
+   ;; Hint that narrowing is available when switching buffers.
+   consult-buffer :prompt "Buffer [< narrow, ! exclude, = literal, ~ flex, , initialism, & annotation]: "
+   ;; Hint about filtering options in ripgrep.
+   consult-ripgrep :prompt "Ripgrep [# filter, -- rg flags, ! exclude, = literal, ~ flex, , initialism, & annotation]: ")
+
+  ;; Remove the redundant "Buffer" group header in consult-buffer
+  ;; (it's the only group shown by default, so the label is noise).
+  (plist-put consult--source-buffer :name nil)
+  ;; Scope consult-buffer to the current perspective's buffers.
+  (plist-put consult--source-buffer :items
+             (lambda () (consult--buffer-query :sort 'visibility
+                                              :as #'buffer-name
+                                              :predicate #'persp-is-current-buffer)))
+  ;; Scope recent files to the current project root, rename for clarity,
+  ;; and use 'r' as the narrow key.
+  (plist-put consult--source-recent-file :name "Recent")
+  (plist-put consult--source-recent-file :narrow ?r)
+  (plist-put consult--source-recent-file :items
+             (lambda ()
+               (when-let ((root (and (project-current) (project-root (project-current)))))
+                 (cl-remove-if-not (lambda (f) (string-prefix-p root f))
+                                   recentf-list))))
 
   ;; Optionally configure the narrowing key.
   ;; Both < and C-+ work reasonably well.
@@ -768,6 +777,7 @@ See `eval-after-load' for the possible formats of FORM."
   :demand t
   :bind
   (("C-." . embark-act)         ;; pick some comfortable binding
+   ("C-S-." . embark-act-all)   ;; act on all filtered candidates
    ("C-;" . embark-dwim)        ;; good alternative: M-.
    ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
 
@@ -786,6 +796,9 @@ See `eval-after-load' for the possible formats of FORM."
   ;; (setq eldoc-documentation-strategy #'eldoc-documentation-compose-eagerly)
 
   :config
+
+  (evil-define-key 'normal 'global (kbd "C-.") #'embark-act)
+  (evil-define-key 'normal org-mode-map (kbd ",") #'embark-act)
 
   (defun embark-which-key-indicator ()
     "An embark indicator that displays keymaps using which-key.
@@ -824,6 +837,19 @@ See `eval-after-load' for the possible formats of FORM."
 
   (advice-add #'embark-completing-read-prompter
               :around #'embark-hide-which-key-indicator)
+
+  ;; Fix: which-key's idle timer fires during embark actions that open
+  ;; a minibuffer (e.g. org-schedule), clobbering it with a which-key
+  ;; popup. Stop the timer during action execution and restart after.
+  ;; Fix: which-key's idle timer fires during embark actions that open
+  ;; a minibuffer (e.g. org-schedule), clobbering it with a which-key
+  ;; popup. Stop the timer during action execution and restart after.
+  (advice-add #'embark--act :around
+              (lambda (fn &rest args)
+                (which-key--stop-timer)
+                (which-key--hide-popup-ignore-command)
+                (unwind-protect (apply fn args)
+                  (which-key--start-timer))))
 
   ;; Hide the mode line of the Embark live/completions buffers
   (add-to-list 'display-buffer-alist
@@ -868,7 +894,8 @@ See `eval-after-load' for the possible formats of FORM."
         ("S-TAB" . corfu-previous)
         ([backtab] . corfu-previous)) 
   :init
-					;(global-corfu-mode)
+  ;; Auto-popup completion candidates as you type in all buffers
+  (global-corfu-mode)
   :config
   (dolist (c (list (cons "SPC" " ")
 		   (cons "." ".")
@@ -881,7 +908,37 @@ See `eval-after-load' for the possible formats of FORM."
 					   (interactive)
 					   (corfu-insert)
 					   (insert ,(cdr c)))))
-  )
+
+  ;; Remember completion choices so frequently used candidates rank higher.
+  (corfu-history-mode 1)
+  (add-to-list 'savehist-additional-variables 'corfu-history)
+
+  ;; Show documentation popup for the selected candidate.
+  (corfu-popupinfo-mode 1)
+  (setq corfu-popupinfo-delay '(0.4 . 0.2)))
+
+;; Richer help buffers with source code, references, and callees.
+(use-package helpful
+  :commands (helpful-callable helpful-variable helpful-key helpful-command)
+  :init
+  (global-set-key [remap describe-function] #'helpful-callable)
+  (global-set-key [remap describe-variable] #'helpful-variable)
+  (global-set-key [remap describe-key] #'helpful-key)
+  (global-set-key [remap describe-command] #'helpful-command)
+  :config
+  ;; Evil's jump list ignores non-file buffers by default.
+  ;; Include helpful buffers so C-o returns to them.
+  (setq evil--jumps-buffer-targets "\\*\\(new\\|scratch\\|helpful .*\\)\\*")
+  ;; Skip the expensive Info manual lookup (saves ~90% of memory
+  ;; allocation). Only cost is losing the "View in manual" link.
+  (advice-add 'helpful--in-manual-p :override (lambda (&rest _) nil))
+  ;; Set evil jump points when entering and navigating helpful buffers.
+  (dolist (cmd '(helpful-callable helpful-variable helpful-key helpful-command))
+    (advice-add cmd :before (lambda (&rest _) (evil-set-jump))))
+  (advice-add 'push-button :before
+              (lambda (&rest _)
+                (when (derived-mode-p 'helpful-mode)
+                  (evil-set-jump)))))
 
 ;; A few more useful configurations...
 (use-package emacs
@@ -904,55 +961,22 @@ See `eval-after-load' for the possible formats of FORM."
   ;; setting is useful beyond Corfu.
   (read-extended-command-predicate #'command-completion-default-include-p))
 
-;; ==============================================================================
-;; Ligatures
-;; ==============================================================================
+;; Completion At Point Extensions - adds extra completion backends to corfu:
+;; cape-dabbrev: complete from words in open buffers (scoped to current perspective)
+;; cape-file: complete file paths anywhere
+(use-package cape
+  :init
+  (add-hook 'completion-at-point-functions #'cape-dabbrev)
+  (add-hook 'completion-at-point-functions #'cape-file)
+  :config
+  ;; Only search buffers in the current perspective workspace for dabbrev completions
+  (setq dabbrev-friend-buffer-function
+        (lambda (buf)
+          (memq buf (persp-buffers (persp-curr))))))
 
-;; (use-package composite
-;;   :ensure nil
-;;   :init
-;;   (defvar composition-ligature-table (make-char-table nil))
-;;   :hook
-;;   (((prog-mode conf-mode nxml-mode markdown-mode help-mode)
-;;     . (lambda () (setq-local composition-function-table composition-ligature-table))))
-;;   :config
-;;   ;; support ligatures, some toned down to prevent hang
-;;   (when (version<= "27.0" emacs-version)
-;;     (let ((alist
-;;            '((33 . ".\\(?:\\(==\\|[!=]\\)[!=]?\\)")
-;;              (35 . ".\\(?:\\(###?\\|_(\\|[(:=?[_{]\\)[#(:=?[_{]?\\)")
-;;              (36 . ".\\(?:\\(>\\)>?\\)")
-;;              (37 . ".\\(?:\\(%\\)%?\\)")
-;;              (38 . ".\\(?:\\(&\\)&?\\)")
-;;              (42 . ".\\(?:\\(\\*\\*\\|[*>]\\)[*>]?\\)")
-;;              ;; (42 . ".\\(?:\\(\\*\\*\\|[*/>]\\).?\\)")
-;;              (43 . ".\\(?:\\([>]\\)>?\\)")
-;;              ;; (43 . ".\\(?:\\(\\+\\+\\|[+>]\\).?\\)")
-;;              (45 . ".\\(?:\\(-[->]\\|<<\\|>>\\|[-<>|~]\\)[-<>|~]?\\)")
-;;              ;; (46 . ".\\(?:\\(\\.[.<]\\|[-.=]\\)[-.<=]?\\)")
-;;              (46 . ".\\(?:\\(\\.<\\|[-=]\\)[-<=]?\\)")
-;;              (47 . ".\\(?:\\(//\\|==\\|[=>]\\)[/=>]?\\)")
-;;              ;; (47 . ".\\(?:\\(//\\|==\\|[*/=>]\\).?\\)")
-;;              (48 . ".\\(?:\\(x[a-fA-F0-9]\\).?\\)")
-;;              (58 . ".\\(?:\\(::\\|[:<=>]\\)[:<=>]?\\)")
-;;              (59 . ".\\(?:\\(;\\);?\\)")
-;;              (60 . ".\\(?:\\(!--\\|\\$>\\|\\*>\\|\\+>\\|-[-<>|]\\|/>\\|<[-<=]\\|=[<>|]\\|==>?\\||>\\||||?\\|~[>~]\\|[$*+/:<=>|~-]\\)[$*+/:<=>|~-]?\\)")
-;;              (61 . ".\\(?:\\(!=\\|/=\\|:=\\|<<\\|=[=>]\\|>>\\|[=>]\\)[=<>]?\\)")
-;;              (62 . ".\\(?:\\(->\\|=>\\|>[-=>]\\|[-:=>]\\)[-:=>]?\\)")
-;;              (63 . ".\\(?:\\([.:=?]\\)[.:=?]?\\)")
-;;              (91 . ".\\(?:\\(|\\)[]|]?\\)")
-;;              ;; (92 . ".\\(?:\\([\\n]\\)[\\]?\\)")
-;;              (94 . ".\\(?:\\(=\\)=?\\)")
-;;              (95 . ".\\(?:\\(|_\\|[_]\\)_?\\)")
-;;              (119 . ".\\(?:\\(ww\\)w?\\)")
-;;              (123 . ".\\(?:\\(|\\)[|}]?\\)")
-;;              (124 . ".\\(?:\\(->\\|=>\\||[-=>]\\||||*>\\|[]=>|}-]\\).?\\)")
-;;              (126 . ".\\(?:\\(~>\\|[-=>@~]\\)[-=>@~]?\\)"))))
-;;       (dolist (char-regexp alist)
-;;         (set-char-table-range composition-ligature-table (car char-regexp)
-;;                               `([,(cdr char-regexp) 0 font-shape-gstring]))))
-;;     (set-char-table-parent composition-ligature-table composition-function-table))
-;;   )
+;; Edit grep/ripgrep results in-place and save back to files.
+;; Workflow: consult-ripgrep -> C-. E (embark-export) -> C-c C-p (wgrep) -> edit -> C-c C-c (save)
+(use-package wgrep)
 
 ;; ==============================================================================
 ;; Git
@@ -968,18 +992,21 @@ See `eval-after-load' for the possible formats of FORM."
 
 (use-package magit
   :after (transient compat cond-let)
-  :commands (magit-status magit-keys)
+  :commands (magit-status)
   :custom (magit-bury-buffer-function #'magit-restore-window-configuration)
-  :config
-  (define-key transient-map        (kbd "<escape>") 'transient-quit-one)
-  (define-key transient-edit-map   (kbd "<escape>") 'transient-quit-one)
-  (define-key transient-sticky-map (kbd "<escape>") 'transient-quit-seq)
-
+  :init
+  ;; Define the prefix keymap eagerly in :init so SPC g works before magit loads.
+  ;; magit-status/magit-blame are autoloaded by magit, so pressing SPC g s
+  ;; will trigger magit to load on first use.
   (general-define-key
    :prefix-command 'magit-keys
    "s" 'magit-status
    "b" 'magit-blame
    "B" 'magit-blame-quit)
+  :config
+  (define-key transient-map        (kbd "<escape>") 'transient-quit-one)
+  (define-key transient-edit-map   (kbd "<escape>") 'transient-quit-one)
+  (define-key transient-sticky-map (kbd "<escape>") 'transient-quit-seq)
 
   (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
 
@@ -992,39 +1019,6 @@ See `eval-after-load' for the possible formats of FORM."
 	      #'auto-display-magit-process-buffer)  
   )
 
-;; (use-package difftastic
-;;   :ensure t
-;;   :config
-;;   (defcustom difftastic-custom-args nil
-;;     "Additional arguments to append to difftastic commands."
-;;     :type '(repeat string)
-;;     :group 'difftastic)
-;; 
-;;   (setq difftastic-custom-args '())
-;; 
-;;   (defun difftastic--append-custom-args (orig-fun buffer file-buf-a file-buf-b &optional difftastic-args)
-;;     "Advice to append custom arguments to difftastic--files-internal calls.
-;; ORIG-FUN is the original function, other arguments match the original signature."
-;;     (let ((combined-args (if difftastic-args
-;;                              (append difftastic-args difftastic-custom-args)
-;;                            difftastic-custom-args)))
-;;       (funcall orig-fun buffer file-buf-a file-buf-b combined-args)))
-;; 
-;;   (advice-add 'difftastic--files-internal :around #'difftastic--append-custom-args)
-;; 
-;;   (defun difftastic--git-append-custom-args (orig-fun buffer command rev-or-range &optional difftastic-args action)
-;;     "Advice to append custom arguments to difftastic--git-with-difftastic calls.
-;; ORIG-FUN is the original function, other arguments match the original signature."
-;;     (let ((combined-args (if difftastic-args
-;;                              (append difftastic-args difftastic-custom-args)
-;;                            difftastic-custom-args)))
-;;       (funcall orig-fun buffer command rev-or-range combined-args action)))
-;; 
-;;   (advice-add 'difftastic--git-with-difftastic :around #'difftastic--git-append-custom-args))
-;; 
-;; (use-package difftastic-bindings
-;;   :ensure difftastic
-;;   :config (difftastic-bindings-mode))
 
 (use-package autorevert
   :diminish auto-revert-mode
@@ -1034,16 +1028,16 @@ See `eval-after-load' for the possible formats of FORM."
 (use-package git-link
   :commands git-link)
 
-(use-package emacs
-  :ensure nil
-  :after general
-  :init
-  (general-define-key
-   :prefix-command 'magit-keys
-   "s" 'magit-status
-   "b" 'magit-blame
-   "B" 'magit-blame-quit)
-  )
+;; Show git diff indicators in the margin (added/modified/deleted lines).
+;; Uses margin mode because fringes are disabled.
+;; Magit hooks ensure indicators update after staging/unstaging.
+(use-package diff-hl
+  :config
+  (global-diff-hl-mode)
+  (diff-hl-margin-mode)
+  (add-hook 'magit-pre-refresh-hook 'diff-hl-magit-pre-refresh)
+  (add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh))
+
 
 
 ;; ==============================================================================
@@ -1100,8 +1094,7 @@ in which case does avy-goto-char with the first char."
   :bind ("s-j" . flash-jump)
   :init
   (with-eval-after-load 'evil
-    (require 'flash-evil)
-    (flash-evil-setup t))
+    (require 'flash-evil))
   :config
   (require 'flash-isearch)
   (flash-isearch-mode 1)
@@ -1201,7 +1194,7 @@ in which case does avy-goto-char with the first char."
    "b" 'project-switch-to-buffer
    "p" 'switch-persp-project
    "P" 'project-switch-project
-   "g" 'consult-git-grep
+   "g" 'consult-ripgrep
 					;"t" 'projectile-run-vterm
    )
   )
@@ -1282,6 +1275,46 @@ in which case does avy-goto-char with the first char."
   :after eglot
   :config
   (eglot-booster-mode))
+
+;; Workspace-wide symbol search via LSP. Type a query, then # to
+;; switch to client-side orderless filtering of the results.
+(use-package consult-eglot
+  :after (consult eglot)
+  :commands (consult-eglot-symbols)
+  :config
+  (consult-customize consult-eglot-symbols
+                     :prompt "LSP Symbol [# to filter]: "))
+
+;; Debug Adapter Protocol client (same protocol as VS Code debuggers).
+;; M-x dape to start, M-x dape-breakpoint-toggle for breakpoints.
+;; Supports C/C++ (gdb/lldb), Rust, Python, JS/TS out of the box.
+(use-package dape
+  :config
+  (setq dape-buffer-window-arrangement 'right)  ;; debug panes on the right
+
+  ;; UNTESTED: Metals/Scala debug adapter integration.
+  ;; Asks Metals to start a debug session via LSP, then connects dape to the returned port.
+  ;; Usage: M-x dape, select "metals", fill in mainClass and buildTarget.
+  ;; If broken, evaluate (eglot-execute-command (eglot-current-server) "debug-adapter-start" ...)
+  ;; in *scratch* to inspect the return value — the :port extraction may need adjusting.
+  (add-to-list 'dape-configs
+    `(metals
+      modes (scala-mode)
+      fn (lambda (config)
+           (let* ((params `(:mainClass ,(plist-get config :mainClass)
+                            :buildTarget ,(plist-get config :buildTarget)
+                            :args ,(or (plist-get config :args) [])))
+                  (result (eglot-execute-command
+                           (eglot-current-server)
+                           "debug-adapter-start"
+                           (vector params)))
+                  (port (plist-get result :port)))
+             (plist-put config :port port)
+             (plist-put config :host "localhost")
+             config))
+      :mainClass ""
+      :buildTarget ""
+      :args [])))
 
 ;; ==============================================================================
 ;; Language config
@@ -1368,7 +1401,9 @@ in which case does avy-goto-char with the first char."
   :hook (c-ts-mode . eglot-ensure)
   :ensure nil
   :config
-  (add-hook 'before-save-hook 'eglot-format)
+  ;; Format on save, buffer-local so it only applies to C buffers
+  (add-hook 'c-ts-mode-hook
+    (lambda () (add-hook 'before-save-hook 'eglot-format nil t)))
   (evil-define-key 'normal c-mode-map (kbd ",a") 'eglot-code-actions)
   (evil-define-key 'normal c-ts-mode-map (kbd ",a") 'eglot-code-actions)
   )
@@ -1382,6 +1417,11 @@ in which case does avy-goto-char with the first char."
   )
 
 
+
+(use-package real-auto-save
+  :hook (org-mode . real-auto-save-mode)
+  :config
+  (setq real-auto-save-interval 5))
 
 ;; ==============================================================================
 ;; Org
@@ -1573,6 +1613,17 @@ in which case does avy-goto-char with the first char."
   )
 
 (use-package org-ql)
+
+;; Auto-toggle org markup visibility at cursor.
+;; Away from cursor: *bold* renders as bold. On cursor: raw markers appear for editing.
+;; Works for emphasis (*bold*, /italic/), links, and sub/superscripts.
+(use-package org-appear
+  :after org
+  :hook (org-mode . org-appear-mode)
+  :custom
+  (org-appear-autoemphasis t)
+  (org-appear-autolinks t)
+  (org-appear-autosubmarkers t))
 
 ;; ==============================================================================
 ;; MPD
@@ -2187,44 +2238,35 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
   (popper-echo-mode +1); For echo area hints
   )
 
-
 ;; ==============================================================================
 ;; Dired
 ;; ==============================================================================
 
 (use-package dired
   :ensure nil
-  :config
-  (setq dired-kill-when-opening-new-dired-buffer t)
-  (setq dired-listing-switches "-alFh")
-  )
-
-
-;; ==============================================================================
-;; Rest client
-;; ==============================================================================
-
-
-					;(use-package restclient
-					;:ensure (
-					;:host github
-					;:repo "casouri/restclient.el"
-					;:files ( "gql-builder.el" "restclient-jq.el" "restclient.el" )
-					;:branch "master"))
+  :custom
+  ;; Human-readable sizes, directories grouped at top, classify file types with suffixes.
+  (dired-listing-switches "-alFh --group-directories-first")
+  ;; Don't accumulate dired buffers when navigating directories.
+  (dired-kill-when-opening-new-dired-buffer t)
+  ;; With two dired windows, copy/rename targets the other directory.
+  (dired-dwim-target t)
+  ;; Allow recursive copy/delete without asking each time.
+  (dired-recursive-copies 'always)
+  (dired-recursive-deletes 'always)
+  ;; Offer to create parent directories when copying/moving.
+  (dired-create-destination-dirs 'ask)
+  ;; Auto-refresh dired buffers when revisiting.
+  (dired-auto-revert-buffer t)
+  :hook
+  ;; Hide file details (permissions, owner, size) by default for a cleaner view.
+  ;; Toggle with "(" to see full details.
+  (dired-mode . dired-hide-details-mode))
 
 ;; ==============================================================================
 ;; Window management
 ;; ==============================================================================
 
-;; (use-package shackle
-;;   :config
-;;   (setq popper-display-control nil)
-;;   ;; (setq split-width-threshold 1)
-;;   (setq shackle-default-rule '(:select t))
-;;   (setq shackle-rules
-;; 	'((help-mode :select t :align right)
-;;           (compilation-mode :select t :size 0.3 :align below)))
-;;   (shackle-mode 1))
 
 (setq paragraph-start "\f\\|\\s*-\\|[ \t]*$")
 
@@ -2261,7 +2303,7 @@ Positive values scroll down, negative values scroll up."
   (claude-code-ide-emacs-tools-setup)
   (setq claude-code-ide--cli-available t)
   (setq claude-code-ide-terminal-backend 'eat)
-  (setq claude-code-ide-cli-path "npx claude --"))
+  (setq claude-code-ide-cli-path "claude"))
 
 (use-package claudemacs
   :ensure (:host github :repo "cpoile/claudemacs")
