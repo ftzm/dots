@@ -116,9 +116,9 @@
 
   services.nfs.server.enable = true;
   fileSystems."/mnt/nas" = {
-    device = "nas:/pool-1";
+    device = "192.168.1.3:/pool-1";
     fsType = "nfs";
-    options = ["nfsvers=3" "noatime" "nodiratime" "rsize=32768" "async"];
+    options = ["nfsvers=3" "noatime" "nodiratime" "rsize=32768" "async" "nofail"];
   };
 
   services.mpd = {
@@ -156,7 +156,7 @@
           {
             targets = [
               "127.0.0.1:${toString config.services.prometheus.exporters.node.port}"
-              "nas:9002"
+              "nas.localdomain:9002"
               "127.0.0.1:9641" # mqtt2prometheus
             ];
           }
@@ -983,7 +983,7 @@
 
   fileSystems."/var/www/dav" = {
     device = "/mnt/nas/cloud";
-    options = ["bind"];
+    options = ["bind" "nofail"];
   };
   systemd.services.nginx.serviceConfig.ReadWritePaths = ["/tmp/" "/var/www/dav/"];
 
