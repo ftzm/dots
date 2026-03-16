@@ -245,6 +245,8 @@
       pgformatter
       wakeonlan
       nodejs_20
+      ripgrep
+      claude-code
     ];
     hashedPasswordFile = "/persist/passwords/ftzm";
   };

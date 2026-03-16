@@ -122,6 +122,233 @@
 
   programs.waybar = {
     enable = true;
+    style = ''
+      * {
+          /* `otf-font-awesome` is required to be installed for icons */
+          font-family: FontAwesome, iosevka ftzm;
+          font-weight: 500;
+          font-size: 20px;
+          min-height: 34px;
+      }
+
+      window#waybar {
+          background-color: #282828;
+          border-top: 2px solid #3c3836;
+          color: #665c54;
+          transition-property: background-color;
+          transition-duration: .5s;
+      }
+
+      window#waybar.hidden {
+          opacity: 0.2;
+      }
+
+      window#waybar.termite {
+      }
+
+      window#waybar.chromium {
+          border: none;
+      }
+
+      button {
+          box-shadow: inset 0 -3px transparent;
+          border: none;
+          border-radius: 0;
+      }
+
+      button:hover {
+          background: inherit;
+          box-shadow: inset 0 -3px #ffffff;
+      }
+
+      #workspaces button {
+          padding: 0 5px;
+          background-color: transparent;
+          color: #665c54;
+      }
+
+      #workspaces button:hover {
+          background: rgba(0, 0, 0, 0.2);
+      }
+
+      #workspaces button.focused {
+          background-color: #3c3836;
+          color: #7c6f64;
+      }
+
+      #workspaces button.urgent {
+          background-color: #eb4d4b;
+      }
+
+      #mode {
+          background-color: #64727D;
+          box-shadow: inset 0 -3px #ffffff;
+      }
+
+      #clock,
+      #battery,
+      #cpu,
+      #memory,
+      #disk,
+      #temperature,
+      #backlight,
+      #network,
+      #pulseaudio,
+      #wireplumber,
+      #custom-media,
+      #tray,
+      #mode,
+      #idle_inhibitor,
+      #scratchpad,
+      #mpd {
+          padding: 0 10px;
+      }
+
+      #window,
+      #workspaces {
+          margin: 0 4px;
+      }
+
+      .modules-left > widget:first-child > #workspaces {
+          margin-left: 0;
+      }
+
+      .modules-right > widget:last-child > #workspaces {
+          margin-right: 0;
+      }
+
+      #battery.charging, #battery.plugged {
+      }
+
+      @keyframes blink {
+          to {
+              background-color: #ffffff;
+              color: #000000;
+          }
+      }
+
+      #battery.critical:not(.charging) {
+          background-color: #f53c3c;
+          animation-name: blink;
+          animation-duration: 0.5s;
+          animation-timing-function: steps(12);
+          animation-iteration-count: infinite;
+          animation-direction: alternate;
+      }
+
+      label:focus {
+          background-color: #000000;
+      }
+
+      #pulseaudio.muted {
+          background-color: #90b1b1;
+          color: #2a5c45;
+      }
+
+      #wireplumber {
+          background-color: #fff0f5;
+          color: #000000;
+      }
+
+      #wireplumber.muted {
+          background-color: #f53c3c;
+      }
+
+      #custom-media {
+          background-color: #66cc99;
+          color: #2a5c45;
+          min-width: 100px;
+      }
+
+      #custom-media.custom-spotify {
+          background-color: #66cc99;
+      }
+
+      #custom-media.custom-vlc {
+          background-color: #ffa000;
+      }
+
+      #temperature.critical {
+          background-color: #eb4d4b;
+      }
+
+      #tray {
+          background-color: #2980b9;
+      }
+
+      #tray > .passive {
+          -gtk-icon-effect: dim;
+      }
+
+      #tray > .needs-attention {
+          -gtk-icon-effect: highlight;
+          background-color: #eb4d4b;
+      }
+
+      #mpd {
+          background-color: #66cc99;
+          color: #2a5c45;
+      }
+
+      #mpd.disconnected {
+          background-color: #f53c3c;
+      }
+
+      #mpd.stopped {
+          background-color: #90b1b1;
+      }
+
+      #language {
+          padding: 0 5px;
+          margin: 0 5px;
+          min-width: 16px;
+      }
+
+      #keyboard-state {
+          background: #97e1ad;
+          color: #000000;
+          padding: 0 0px;
+          margin: 0 5px;
+          min-width: 16px;
+      }
+
+      #keyboard-state > label {
+          padding: 0 5px;
+      }
+
+      #keyboard-state > label.locked {
+          background: rgba(0, 0, 0, 0.2);
+      }
+
+      #scratchpad {
+          background: rgba(0, 0, 0, 0.2);
+      }
+
+      #scratchpad.empty {
+          background-color: transparent;
+      }
+
+      #privacy {
+          padding: 0;
+      }
+
+      #privacy-item {
+          padding: 0 5px;
+          color: white;
+      }
+
+      #privacy-item.screenshare {
+          background-color: #cf5700;
+      }
+
+      #privacy-item.audio-in {
+          background-color: #1ca000;
+      }
+
+      #privacy-item.audio-out {
+          background-color: #0069d4;
+      }
+    '';
     settings = [
       {
         "bar_id" = "bar-0";
@@ -147,6 +374,74 @@
           "clock"
         ];
         "position" = "bottom";
+
+        "sway/scratchpad" = {
+          "format" = "{icon} {count}";
+          "format-icons" = ["" ""];
+        };
+        "mpd" = {
+          "format" = " {stateIcon} {title} - {artist}";
+          "format-disconnected" = " Disconnected";
+          "format-stopped" = " Stopped";
+          "format-paused" = " {stateIcon} {title} - {artist}";
+          "state-icons" = {
+            "paused" = "";
+            "playing" = "";
+          };
+        };
+        "idle_inhibitor" = {
+          "format" = "{icon}";
+          "format-icons" = {
+            "activated" = "";
+            "deactivated" = "";
+          };
+        };
+        "pulseaudio" = {
+          "format" = "{icon} {volume}%";
+          "format-bluetooth" = " {volume}%";
+          "format-muted" = " muted";
+          "format-icons" = {
+            "default" = ["" "" ""];
+          };
+        };
+        "network" = {
+          "format-wifi" = " {essid}";
+          "format-ethernet" = " {ipaddr}/{cidr}";
+          "format-disconnected" = " Disconnected";
+        };
+        "cpu" = {
+          "format" = " {usage}%";
+        };
+        "memory" = {
+          "format" = " {}%";
+        };
+        "temperature" = {
+          "critical-threshold" = 80;
+          "format" = " {temperatureC}°C";
+          "format-critical" = " {temperatureC}°C";
+        };
+        "backlight" = {
+          "format" = " {percent}%";
+        };
+        "keyboard-state" = {
+          "capslock" = true;
+          "format" = " {name} {icon}";
+          "format-icons" = {
+            "locked" = "";
+            "unlocked" = "";
+          };
+        };
+        "battery" = {
+          "format" = "{icon} {capacity}%";
+          "format-charging" = " {capacity}%";
+          "format-plugged" = " {capacity}%";
+          "format-icons" = ["" "" "" "" ""];
+        };
+        "clock" = {
+          "format" = " {:%H:%M}";
+          "format-alt" = " {:%Y-%m-%d}";
+          "tooltip-format" = "{:%Y-%m-%d | %H:%M}";
+        };
       }
     ];
   };

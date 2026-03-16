@@ -14,7 +14,7 @@
 
   # interface.nix-specific sway overrides
   hm.wayland.windowManager.sway.config.keybindings = let
-    inherit (config.hm.wayland.windowManager.sway.config) modifier;
+    modifier = "Mod4";
   in
     lib.mkOptionDefault {
       "${modifier}+space" = "exec ${pkgs.tofi}/bin/tofi-drun --drun-launch=true";
