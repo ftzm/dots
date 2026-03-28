@@ -38,7 +38,7 @@
   # with explicit per-interface declarations with `networking.interfaces.<interface>.useDHCP`.
   networking.useDHCP = lib.mkDefault true;
   networking.interfaces.enp58s0.useDHCP = lib.mkDefault true;
-  networking.interfaces.wlp59s0.useDHCP = lib.mkDefault true;
+  networking.interfaces.wlp59s0.useDHCP = lib.mkDefault false;
   networking.interfaces.enp58s0.wakeOnLan.enable = true;
 
   powerManagement.cpuFreqGovernor = lib.mkDefault "powersave";

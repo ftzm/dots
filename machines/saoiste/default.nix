@@ -27,7 +27,7 @@
     ../../role/shell.nix
     ../../role/comms.nix
     ../../role/emacs.nix
-    ../../role/wifi.nix
+
     ../../role/comin.nix
     ../../role/packages.nix
     ../../role/iosevka.nix
@@ -131,6 +131,10 @@
   networking.hostName = "saoiste"; # Define your hostname.
   networking.networkmanager.enable = true;
   networking.nameservers = ["192.168.1.12"];
+
+  # Disable wifi — causes connectivity problems when it takes priority over ethernet
+  networking.wireless.enable = false;
+  boot.blacklistedKernelModules = ["iwlwifi" "iwlmvm"];
 
   system.stateVersion = "22.05";
 
