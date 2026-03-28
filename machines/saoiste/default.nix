@@ -35,7 +35,7 @@
 
   users.extraUsers.ftzm = {
     createHome = true;
-    extraGroups = ["wheel" "video" "audio" "disk" "networkmanager" "docker"];
+    extraGroups = ["wheel" "video" "audio" "disk" "docker"];
     group = "users";
     home = "/home/ftzm";
     isNormalUser = true;
@@ -129,11 +129,10 @@
   boot.initrd.luks.devices."luks-80ee3586-78e6-4101-b35d-6c0bd7c3f26a".keyFile = "/crypto_keyfile.bin";
 
   networking.hostName = "saoiste"; # Define your hostname.
-  networking.networkmanager.enable = true;
+  networking.useDHCP = true;
   networking.nameservers = ["192.168.1.12"];
 
   # Disable wifi — causes connectivity problems when it takes priority over ethernet
-  networking.wireless.enable = false;
   boot.blacklistedKernelModules = ["iwlwifi" "iwlmvm"];
 
   system.stateVersion = "22.05";
