@@ -3,7 +3,20 @@
   pkgs,
   inputs,
   ...
-}: {
+}: let
+  # Bind nginx to LAN only, excluding Tailscale and wireguard
+  nginxListenAddrs = [
+    {
+      addr = "192.168.1.4";
+      port = 80;
+    }
+    {
+      addr = "192.168.1.4";
+      port = 443;
+      ssl = true;
+    }
+  ];
+in {
   imports = [
     # Include the results of the hardware scan.
     inputs.agenix.nixosModules.age
@@ -855,6 +868,7 @@
     #   };
     # };
     virtualHosts."vaultwarden.ftzmlab.xyz" = {
+      listen = nginxListenAddrs;
       enableACME = true;
       forceSSL = true;
       locations."/" = {
@@ -863,6 +877,7 @@
       };
     };
     virtualHosts."deluge.ftzmlab.xyz" = {
+      listen = nginxListenAddrs;
       enableACME = true;
       forceSSL = true;
       locations."/" = {
@@ -871,6 +886,7 @@
       };
     };
     virtualHosts."jellyfin.ftzmlab.xyz" = {
+      listen = nginxListenAddrs;
       enableACME = true;
       forceSSL = true;
       locations."/" = {
@@ -879,6 +895,7 @@
       };
     };
     virtualHosts."audiobookshelf.ftzmlab.xyz" = {
+      listen = nginxListenAddrs;
       enableACME = true;
       forceSSL = true;
       locations."/" = {
@@ -887,6 +904,7 @@
       };
     };
     virtualHosts."ombi.ftzmlab.xyz" = {
+      listen = nginxListenAddrs;
       forceSSL = true;
       enableACME = true;
       locations."/" = {
@@ -895,6 +913,7 @@
       };
     };
     virtualHosts."img.ftzmlab.xyz" = {
+      listen = nginxListenAddrs;
       enableACME = true;
       forceSSL = true;
       locations."/" = {
@@ -903,6 +922,7 @@
       };
     };
     virtualHosts."filestash.ftzmlab.xyz" = {
+      listen = nginxListenAddrs;
       enableACME = true;
       forceSSL = true;
       locations."/" = {
@@ -911,6 +931,7 @@
       };
     };
     virtualHosts."dav.ftzmlab.xyz" = {
+      listen = nginxListenAddrs;
       enableACME = true;
       forceSSL = true;
       root = "/var/www/dav/";
@@ -935,6 +956,7 @@
       };
     };
     virtualHosts."muscleup.ftzmlab.xyz" = {
+      listen = nginxListenAddrs;
       enableACME = true;
       forceSSL = true;
       root = "/muscleup/";
