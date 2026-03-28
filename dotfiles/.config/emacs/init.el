@@ -60,7 +60,12 @@
 
 ;; ----------------------------------------------------------------------------
 
-(set-frame-font "Iosevka ftzm Medium 12")
+(set-frame-font
+ (format "Iosevka ftzm Medium %d"
+  (pcase (system-name)
+    ("ftm-P14s" 12)
+    ("saoiste" 18)
+    ("eachtrai" 18))))
 					;(set-frame-font "Jetbrains Mono Medium 17")
 
 ;; automatically balances windows when  splitting.
