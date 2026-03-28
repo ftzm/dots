@@ -125,10 +125,10 @@
     style = ''
       * {
           /* `otf-font-awesome` is required to be installed for icons */
-          font-family: FontAwesome, iosevka ftzm;
+          font-family: "Symbols Nerd Font", iosevka ftzm;
           font-weight: 500;
-          font-size: 20px;
-          min-height: 34px;
+          font-size: 14px;
+          min-height: 24px;
       }
 
       window#waybar {
@@ -377,69 +377,72 @@
 
         "sway/scratchpad" = {
           "format" = "{icon} {count}";
-          "format-icons" = ["" ""];
+          "format-icons" = ["󰏃" "󰏃"];
         };
         "mpd" = {
-          "format" = " {stateIcon} {title} - {artist}";
-          "format-disconnected" = " Disconnected";
-          "format-stopped" = " Stopped";
-          "format-paused" = " {stateIcon} {title} - {artist}";
+          "format" = "󰎆 {stateIcon} {title} - {artist}";
+          "format-disconnected" = "󰎆 Disconnected";
+          "format-stopped" = "󰎆 Stopped";
+          "format-paused" = "󰎆 {stateIcon} {title} - {artist}";
           "state-icons" = {
-            "paused" = "";
-            "playing" = "";
+            "paused" = "󰏤";
+            "playing" = "󰐊";
           };
         };
         "idle_inhibitor" = {
           "format" = "{icon}";
           "format-icons" = {
-            "activated" = "";
-            "deactivated" = "";
+            "activated" = "󰈈";
+            "deactivated" = "󰈉";
           };
         };
         "pulseaudio" = {
           "format" = "{icon} {volume}%";
-          "format-bluetooth" = " {volume}%";
-          "format-muted" = " muted";
+          "format-bluetooth" = "󰂯 {volume}%";
+          "format-muted" = "󰖁 muted";
           "format-icons" = {
-            "default" = ["" "" ""];
+            "default" = ["" "" ""];
           };
         };
         "network" = {
-          "format-wifi" = " {essid}";
-          "format-ethernet" = " {ipaddr}/{cidr}";
-          "format-disconnected" = " Disconnected";
+          "format-wifi" = "󰤨 {essid}";
+          "format-ethernet" = "󰈀 {ipaddr}/{cidr}";
+          "format-disconnected" = "󰤭 Disconnected";
         };
         "cpu" = {
-          "format" = " {usage}%";
+          "format" = "󰘚 {usage}%";
         };
         "memory" = {
-          "format" = " {}%";
+          "format" = "󰍛 {}%";
         };
         "temperature" = {
           "critical-threshold" = 80;
-          "format" = " {temperatureC}°C";
-          "format-critical" = " {temperatureC}°C";
+          "format" = "󰔏 {temperatureC}°C";
+          "format-critical" = "󰔏 {temperatureC}°C";
         };
         "backlight" = {
-          "format" = " {percent}%";
+          "format" = "󰃠 {percent}%";
         };
         "keyboard-state" = {
           "capslock" = true;
-          "format" = " {name} {icon}";
+          "format" = "{icon}";
           "format-icons" = {
-            "locked" = "";
+            "locked" = "󰌾";
             "unlocked" = "";
           };
         };
+        "sway/language" = {
+          "format" = "󰌌 {short}";
+        };
         "battery" = {
           "format" = "{icon} {capacity}%";
-          "format-charging" = " {capacity}%";
-          "format-plugged" = " {capacity}%";
-          "format-icons" = ["" "" "" "" ""];
+          "format-charging" = "󰂄 {capacity}%";
+          "format-plugged" = "󰚥 {capacity}%";
+          "format-icons" = ["󰁺" "󰁻" "󰁼" "󰁽" "󰁾"];
         };
         "clock" = {
-          "format" = " {:%H:%M}";
-          "format-alt" = " {:%Y-%m-%d}";
+          "format" = "󰅐 {:%H:%M}";
+          "format-alt" = "󰃭 {:%Y-%m-%d}";
           "tooltip-format" = "{:%Y-%m-%d | %H:%M}";
         };
       }

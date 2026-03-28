@@ -43,6 +43,7 @@ in
     ../../role/iosevka-home.nix
     ../../role/emacs-home.nix
     ../../role/sway-home.nix
+    ../../role/battery-home.nix
   ];
 
   home.username = "ftzm";

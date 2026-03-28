@@ -1089,7 +1089,7 @@ in which case does avy-goto-char with the first char."
   )
 
 (use-package flash
-  :ensure (:host github :repo "Prgebish/flash")
+  :ensure (:host github :repo "ftzm/flash" :branch "overlay-expand")
   :commands (flash-jump flash-treesitter)
   :bind ("s-j" . flash-jump)
   :init
@@ -1101,8 +1101,9 @@ in which case does avy-goto-char with the first char."
   (set-face-attribute 'flash-label nil                                                                           
                       :background 'unspecified                                                                   
                       :foreground "#ff0000")                                                                     
-  (setq flash-labels "hutedisagpc.fyr,l'mkwjbxvqz;no")                                                           
-  )
+  (setq flash-labels "hutedisagpc.fyr,l'mkwjbxvqz;no")
+  (setq flash-multi-char-labels t)
+  (setq flash-label-position 'overlay-expand))
 
 ;; ==============================================================================
 ;; Project and Perspective
