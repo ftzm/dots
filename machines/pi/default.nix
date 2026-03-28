@@ -126,6 +126,7 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
             magic_dns = true;
             nameservers = {
               global = [
+                "100.64.0.2"
                 "1.1.1.1"
                 "1.0.0.1"
               ];

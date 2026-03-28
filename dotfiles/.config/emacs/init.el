@@ -2313,7 +2313,31 @@ Positive values scroll down, negative values scroll up."
 
 (use-package claudemacs
   :ensure (:host github :repo "cpoile/claudemacs")
-  )
+  :config
+  (defun my/claudemacs-handle-window-resize (frame)
+    "Propagate window size changes to eat terminals in claudemacs buffers.
+
+Claudemacs sets `window-adjust-process-window-size-function' to `ignore'
+once the buffer content exceeds the window height. This prevents an
+annoying scroll-reset-on-buffer-switch issue (similar to vterm #149),
+but it also means that eat never learns about *real* window resizes,
+so the terminal stays stuck at its original dimensions.
+
+This function is added to `window-size-change-functions' and runs
+whenever any window in FRAME changes size. For each claudemacs buffer
+whose auto-adjust has been disabled, we manually call
+`eat--adjust-process-window-size' to update the PTY dimensions, giving
+us the best of both worlds: no spurious redraws on buffer switch, but
+correct terminal size after a genuine resize."
+    (dolist (window (window-list frame))
+      (with-current-buffer (window-buffer window)
+        (when (and (claudemacs--is-claudemacs-buffer-p)
+                   (boundp 'eat-terminal) eat-terminal
+                   (eq window-adjust-process-window-size-function 'ignore))
+          (let ((process (eat-term-parameter eat-terminal 'eat--process)))
+            (when (and process (process-live-p process))
+              (eat--adjust-process-window-size process (list window))))))))
+  (add-hook 'window-size-change-functions #'my/claudemacs-handle-window-resize))
 
 (setq split-height-threshold nil)
 
