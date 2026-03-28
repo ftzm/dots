@@ -286,16 +286,12 @@
       }
 
       #mpd {
-          background-color: #66cc99;
-          color: #2a5c45;
       }
 
       #mpd.disconnected {
-          background-color: #f53c3c;
       }
 
       #mpd.stopped {
-          background-color: #90b1b1;
       }
 
       #language {
@@ -455,7 +451,7 @@
       main = {
         font = lib.mkDefault "iosevka ftzm:medium:size=17";
       };
-      colors = {
+      colors-dark = {
         cursor = "282828 ebdbb2";
         background = "282828";
         foreground = "ebdbb2";
