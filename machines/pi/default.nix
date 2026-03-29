@@ -188,7 +188,7 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
     inputs.comin.nixosModules.comin
     {
       services.comin = {
-        enable = true;
+        enable = false; # can't enable until we're positive caching works because pi can't build on its own.
         remotes = [
           {
             name = "origin";
