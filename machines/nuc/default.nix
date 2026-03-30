@@ -50,6 +50,8 @@ in {
   # The global useDHCP flag is deprecated, therefore explicitly set to false here.
   # Per-interface useDHCP will be mandatory in the future, so this generated config
   # replicates the default behaviour.
+  boot.kernel.sysctl."net.ipv4.ip_unprivileged_port_start" = 53;
+
   networking.hostName = "nuc";
   networking.useDHCP = true;
   networking.interfaces.eno1.useDHCP = true;
