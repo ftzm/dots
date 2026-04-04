@@ -63,7 +63,7 @@
 (set-frame-font
  (format "Iosevka ftzm Medium %d"
   (pcase (system-name)
-    ("ftm-P14s" 12)
+    ("ftzm-P14s" 12)
     ("saoiste" 18)
     ("eachtrai" 18))))
 					;(set-frame-font "Jetbrains Mono Medium 17")
@@ -723,8 +723,8 @@ See `eval-after-load' for the possible formats of FORM."
    consult-theme :preview-key '(:debounce 0.2 any)
    consult-ripgrep consult-git-grep consult-grep
    consult-bookmark consult-recent-file consult-xref
-   consult--source-bookmark consult--source-file-register
-   consult--source-recent-file consult--source-project-recent-file
+   consult-source-bookmark consult-source-file-register
+   consult-source-recent-file consult-source-project-recent-file
    ;; :preview-key "M-."
    :preview-key '(:debounce 0.4 any)
    ;; Hint that narrowing is available when switching buffers.
@@ -734,17 +734,17 @@ See `eval-after-load' for the possible formats of FORM."
 
   ;; Remove the redundant "Buffer" group header in consult-buffer
   ;; (it's the only group shown by default, so the label is noise).
-  (plist-put consult--source-buffer :name nil)
+  (plist-put consult-source-buffer :name nil)
   ;; Scope consult-buffer to the current perspective's buffers.
-  (plist-put consult--source-buffer :items
+  (plist-put consult-source-buffer :items
              (lambda () (consult--buffer-query :sort 'visibility
                                               :as #'buffer-name
                                               :predicate #'persp-is-current-buffer)))
   ;; Scope recent files to the current project root, rename for clarity,
   ;; and use 'r' as the narrow key.
-  (plist-put consult--source-recent-file :name "Recent")
-  (plist-put consult--source-recent-file :narrow ?r)
-  (plist-put consult--source-recent-file :items
+  (plist-put consult-source-recent-file :name "Recent")
+  (plist-put consult-source-recent-file :narrow ?r)
+  (plist-put consult-source-recent-file :items
              (lambda ()
                (when-let ((root (and (project-current) (project-root (project-current)))))
                  (cl-remove-if-not (lambda (f) (string-prefix-p root f))
@@ -1028,6 +1028,10 @@ See `eval-after-load' for the possible formats of FORM."
 (use-package autorevert
   :diminish auto-revert-mode
   :ensure nil
+  :config
+  (global-auto-revert-mode 1)
+  (setq auto-revert-check-vc-info nil)
+  (setq auto-revert-interval 1)
   )
 
 (use-package git-link
@@ -1247,6 +1251,27 @@ in which case does avy-goto-char with the first char."
 
   ;; disable inlay hints by default
   (add-hook 'eglot-managed-mode-hook (lambda () (eglot-inlay-hints-mode -1)))
+
+  ;; Always auto-reconnect when an LSP server crashes
+  (setq eglot-autoreconnect t)
+
+  ;; Auto-reconnect eglot after buffer reverts from external file changes.
+  ;; Debounced to avoid hammering the LSP server when multiple files change at once.
+  (defvar my/eglot-reconnect-timer nil)
+  (defun my/eglot-reconnect-after-revert ()
+    (when (and (bound-and-true-p eglot--managed-mode)
+               (eglot-current-server))
+      (when my/eglot-reconnect-timer
+        (cancel-timer my/eglot-reconnect-timer))
+      (setq my/eglot-reconnect-timer
+            (run-with-idle-timer
+             2 nil
+             (lambda ()
+               (let ((server (eglot-current-server)))
+                 (when server
+                   (ignore-errors (eglot-reconnect server))))
+               (setq my/eglot-reconnect-timer nil))))))
+  (add-hook 'after-revert-hook #'my/eglot-reconnect-after-revert)
 
   (add-to-list 'eglot-server-programs
                `(vue-ts-mode . ("vue-language-server" "--stdio" :initializationOptions ,(vue-eglot-init-options))))
