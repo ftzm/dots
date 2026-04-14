@@ -47,7 +47,6 @@
 
 ;; post recipe setup
 (setq package-enable-at-startup nil)
-
 ;; Block until current queue processed.
 (elpaca-wait)
 
@@ -2378,6 +2377,13 @@ correct terminal size after a genuine resize."
 
 (add-hook 'yaml-ts-mode-hook 
           (lambda () (add-hook 'after-save-hook 'auto-hpack nil t)))
+
+(use-package emacs-mcp
+  :demand t
+  :elpaca (emacs-mcp :host github :repo "mpontus/emacs-mcp"))
+
+(use-package eca
+  :elpaca (eca :host github :repo "editor-code-assistant/eca-emacs"))
 
 (use-package zoom
   :config
