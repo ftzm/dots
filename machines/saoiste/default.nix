@@ -244,7 +244,7 @@
 
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [53];
+    allowedTCPPorts = [53 3000 3001 8080];
     allowedUDPPorts = [53];
     extraCommands = ''
       # Forward DNS traffic (port 53) from wg0 to 192.168.1.12

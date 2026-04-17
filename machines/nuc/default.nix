@@ -70,15 +70,16 @@ in {
     vim
     mpc
     ncmpcpp
-    # error building
-    # (beets.override {
-    #   pluginOverrides = {
-    #     extrafiles = {
-    #       enable = true;
-    #       propagatedBuildInputs = [beetsPackages.extrafiles];
-    #     };
-    #   };
-    # })
+    (beets.overridePythonAttrs (old: {
+      dependencies =
+        old.dependencies
+        ++ [
+          (python3.pkgs.beets-filetote.overridePythonAttrs {
+            meta.broken = false;
+            pythonRelaxDeps = true;
+          })
+        ];
+    }))
     sqlite
     htop
     ffmpeg

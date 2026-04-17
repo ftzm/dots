@@ -379,10 +379,11 @@ See `eval-after-load' for the possible formats of FORM."
 (use-package evil-org
   :ensure t
   :after org
-  :hook (org-mode . (lambda () evil-org-mode))
+  :hook (org-mode . evil-org-mode)
   :config
   (require 'evil-org-agenda)
-  (evil-org-agenda-set-keys))
+  (evil-org-agenda-set-keys)
+  (evil-define-key 'normal org-mode-map (kbd "TAB") 'org-cycle))
 
 (use-package which-key
   :diminish which-key-mode
