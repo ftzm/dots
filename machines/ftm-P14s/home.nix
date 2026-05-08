@@ -219,6 +219,10 @@ in
       export PATH="$PATH:/home/ftzm/.local/share/coursier/bin"
       # <<< coursier install directory <<<
     '';
+    bashrcExtra = ''
+      # Eat shell integration
+      [ -n "$EAT_SHELL_INTEGRATION_DIR" ] && source "$EAT_SHELL_INTEGRATION_DIR/bash"
+    '';
   };
   programs.atuin = {
     enable = true;

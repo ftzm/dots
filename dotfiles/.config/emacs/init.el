@@ -2352,81 +2352,89 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
 					;(eat-exec . (lambda (&rest _) (eat-line-mode) (evil-insert 1)))
 
   :init
+  (defun eat-buffer-list ()
+    "Return eat-mode buffers ordered by recency (most recent first)."
+    (seq-filter (lambda (b) (with-current-buffer b (derived-mode-p 'eat-mode)))
+                (buffer-list)))
+
+  (defun eat-switch-to-most-recent ()
+    "Switch to the most recently visited eat buffer, or create one."
+    (interactive)
+    (if-let* ((buf (car (eat-buffer-list))))
+        (switch-to-buffer buf)
+      (eat)))
+
+  (defun eat-switch-to-nth (n)
+    "Switch to the Nth most recent eat buffer."
+    (interactive)
+    (when-let* ((buf (nth (1- n) (eat-buffer-list))))
+      (switch-to-buffer buf)))
+
+  (defun eat-switch-buffer ()
+    "Completing-read to switch to an eat buffer."
+    (interactive)
+    (let* ((bufs (eat-buffer-list))
+           (names (mapcar #'buffer-name bufs))
+           (choice (completing-read "Eat buffer: " names nil t)))
+      (switch-to-buffer choice)))
+
+  (defun eat-buffer-list-title ()
+    "Format eat buffer list for hydra title display."
+    (let ((bufs (eat-buffer-list))
+          (parts '())
+          (count 1))
+      (dolist (buf (seq-take bufs 9))
+        (let ((name (buffer-name buf)))
+          (push (if (eq buf (current-buffer))
+                    (propertize (format "%d %s" count name) 'face 'font-lock-warning-face)
+                  (format "%d %s" count name))
+                parts))
+        (cl-incf count))
+      (if parts
+          (string-join (nreverse parts) "\n ")
+        "No eat buffers")))
+
   (pretty-hydra-define term-hydra
-    (:color blue :quit-key "q" :title "Terminal")
+    (:color blue :quit-key "q" :title "%s(eat-buffer-list-title)")
     ("Terminal"
-     (( "t" (eat-persp #'pop-to-buffer) "Raise terminal")
-      ( "T" (eat-persp) "Raise terminal same window")
-      )
-     "Commands"
-     (( "p" (eat-run-previous-command) "re-run previous command"))
-     ))
+     (("t" eat-switch-to-most-recent "Most recent")
+      ("T" eat "New terminal")
+      ("b" eat-switch-buffer "Switch buffer"))
+     "Select"
+     (("1" (eat-switch-to-nth 1) nil)
+      ("2" (eat-switch-to-nth 2) nil)
+      ("3" (eat-switch-to-nth 3) nil)
+      ("4" (eat-switch-to-nth 4) nil)
+      ("5" (eat-switch-to-nth 5) nil)
+      ("6" (eat-switch-to-nth 6) nil)
+      ("7" (eat-switch-to-nth 7) nil)
+      ("8" (eat-switch-to-nth 8) nil)
+      ("9" (eat-switch-to-nth 9) nil))))
 
   :config
+
+  (defun eat--rename-buffer-to-cmd (cmd)
+    "Rename eat buffer to reflect the running command."
+    (when-let* ((command (ignore-errors
+                           (decode-coding-string
+                            (base64-decode-string cmd)
+                            locale-coding-system)))
+                (cmd-name (car (split-string (string-trim command)))))
+      (when (not (string-empty-p cmd-name))
+        (rename-buffer (format "*eat<%s>*" cmd-name) t))))
+
+  (advice-add 'eat--set-cmd :after #'eat--rename-buffer-to-cmd)
 
   (defun eat-line-send-history-search ()
     "Send `C-r' to the shell."
     (interactive)
-					;(delete-region (eat-term-end eat-terminal) (point-max))
     (goto-char (point-max))
     (insert "\C-r")
     (eat-line-send))
 
-
   (evil-define-key '(normal insert) eat-line-mode-map (kbd "C-r") #'consult-atuin)
   (evil-define-key 'normal eat-semi-char-mode-map (kbd "RET") (lambda () (interactive)(goto-char (point-max)) (eat-line-send)))
   (evil-define-key 'normal eat-line-mode-map (kbd "RET") (lambda () (interactive) (eat-line-send-input)))
-
-  (defun persp-eat-name ()
-    (format "%s<%s>" eat-buffer-name (persp-current-name)))
-
-  (defun eat-persp (&optional maybe-display-func)
-    (interactive)
-    "Start a new Eat terminal emulator in a buffer.
-
-PROGRAM and ARG is same as in `eat' and `eat-other-window'.
-DISPLAY-BUFFER-FN is the function to display the buffer."
-    (let ((program (funcall eat-default-shell-function))
-	  (display-func (or maybe-display-func #'pop-to-buffer-same-window))
-	  (buffer(get-buffer-create (persp-eat-name))))
-      (with-current-buffer buffer
-	(unless (eq major-mode #'eat-mode)
-          (eat-mode))
-	(funcall display-func buffer)
-	(unless (and eat-terminal
-                     (eat-term-parameter eat-terminal 'eat--process))
-          (eat-exec buffer (buffer-name) "/usr/bin/env" nil
-                    (list "sh" "-c" program)))
-	buffer)))
-
-
-  (defun eat-persp-display-latest ()
-    (interactive)
-    (let ((buf (get-buffer (persp-eat-name))))
-      (display-buffer buf)
-      (with-selected-window (get-buffer-window buf)
-	(goto-char (point-max)))))
-
-  (defun run-in-persp-eat (fun)
-    (let* ((buf (get-buffer (persp-eat-name)))
-	   (win (get-buffer-window buf)))
-      (if (window-live-p win)
-	  (with-selected-window win
-	    (funcall fun)) 
-	(with-current-buffer buf
-	  (funcall fun)))))
-
-  (defun eat-run-previous-command ()
-    "Send `!!' to the shell."
-    (interactive)
-    (run-in-persp-eat (lambda ()
-			(delete-region (eat-term-end eat-terminal) (point-max))
-			(goto-char (point-max))
-			(eat-term-send-string eat-terminal "!!\n"))))
-
-  (defun persp-eat-bell (_) (eat-persp-display-latest))
-  (advice-add 'eat--bell :override 'persp-eat-bell)
-
 
   )
 
@@ -2653,42 +2661,7 @@ Positive values scroll down, negative values scroll up."
 (use-package claudemacs
   :ensure (:host github :repo "cpoile/claudemacs")
   :config
-  (defun my/claudemacs-handle-window-resize (frame)
-    "Propagate window size changes to eat terminals in claudemacs buffers.
-
-Claudemacs sets `window-adjust-process-window-size-function' to `ignore'
-once the buffer content exceeds the window height. This prevents an
-annoying scroll-reset-on-buffer-switch issue (similar to vterm #149),
-but it also means that eat never learns about *real* window resizes,
-so the terminal stays stuck at its original dimensions.
-
-This function is added to `window-size-change-functions' and runs
-whenever any window in FRAME changes size. For each claudemacs buffer
-whose auto-adjust has been disabled, we manually resize eat's internal
-terminal and then update the PTY dimensions (sending SIGWINCH to the
-subprocess) so Claude Code redraws at the correct size."
-    (dolist (window (window-list frame))
-      (with-current-buffer (window-buffer window)
-        (when (and (claudemacs--is-claudemacs-buffer-p)
-                   (boundp 'eat-terminal) eat-terminal
-                   (eq window-adjust-process-window-size-function 'ignore))
-          (let* ((process (eat-term-parameter eat-terminal 'eat--process))
-                 (size (when (and process (process-live-p process))
-                         (window-adjust-process-window-size-smallest
-                          process (list window)))))
-            (when size
-              (let* ((width  (max (car size) 1))
-                     (height (max (cdr size) 1))
-                     (term-size (eat-term-size eat-terminal)))
-                (unless (and (= width  (car term-size))
-                             (= height (cdr term-size)))
-                  (let ((inhibit-read-only t))
-                    (eat-term-resize eat-terminal width height)
-                    (eat-term-redisplay eat-terminal)
-                    (set-process-window-size process height width)
-                    (set-window-start window (eat-term-display-beginning eat-terminal) t)
-                    (set-window-point window (eat-term-display-cursor eat-terminal)))))))))))
-  (add-hook 'window-size-change-functions #'my/claudemacs-handle-window-resize))
+  )
 
 (setq split-height-threshold nil)
 
@@ -2704,6 +2677,7 @@ subprocess) so Claude Code redraws at the correct size."
 
 (add-hook 'yaml-ts-mode-hook 
           (lambda () (add-hook 'after-save-hook 'auto-hpack nil t)))
+
 
 (use-package emacs-mcp
   :demand t
