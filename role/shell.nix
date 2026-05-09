@@ -94,6 +94,11 @@ in {
         export GUIPASS=${pkgs.lxqt.lxqt-openssh-askpass}/bin/lxqt-openssh-askpass
 
         # ${emacs-vterm-bash}
+
+        # Emacs daemon
+        alias e='emacsclient -c'
+        alias et='emacsclient -t'
+        alias er='systemctl --user restart emacs'
       '';
     };
     # programs.fzf = {

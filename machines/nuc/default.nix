@@ -4,6 +4,64 @@
   inputs,
   ...
 }: let
+  # Beets with filetote, built via uv2nix to avoid nixpkgs beets packaging issues
+  unstablePkgs = inputs.nixpkgs.legacyPackages.${pkgs.system};
+  beetsWorkspace = inputs.uv2nix.lib.workspace.loadWorkspace {workspaceRoot = ./beets;};
+  beetsOverlay = beetsWorkspace.mkPyprojectOverlay {sourcePreference = "wheel";};
+  beetsPythonBase = unstablePkgs.callPackage inputs.pyproject-nix.build.packages {
+    python = unstablePkgs.python3;
+  };
+  beetsPythonSet = beetsPythonBase.overrideScope (
+    unstablePkgs.lib.composeManyExtensions [
+      inputs.pyproject-build-systems.overlays.wheel
+      beetsOverlay
+      (final: prev: {
+        numba = prev.numba.overrideAttrs (old: {
+          buildInputs = (old.buildInputs or []) ++ [unstablePkgs.tbb_2022];
+        });
+      })
+    ]
+  );
+  beetsEnv = beetsPythonSet.mkVirtualEnv "beets-env" beetsWorkspace.deps.default;
+  beetsConfig = (pkgs.formats.yaml {}).generate "beets-config.yaml" {
+    directory = "/mnt/nas/music";
+    library = "/home/admin/.config/beets/musiclibrary.db";
+    import = {
+      move = true;
+      copy = false;
+      languages = ["en"];
+    };
+    plugins = [
+      "musicbrainz"
+      "fromfilename"
+      "badfiles"
+      "permissions"
+      "info"
+      "fetchart"
+      "discogs"
+      "filetote"
+      "scrub"
+      "edit"
+    ];
+    permissions = {
+      file = 664;
+      dir = 775;
+    };
+    filetote = {
+      patterns = {
+        all = ["*.*[!cue]"];
+      };
+    };
+    edit = {
+      itemfields = [
+        "track"
+        "title"
+        "album"
+        "artist"
+        "composer"
+      ];
+    };
+  };
   # Bind nginx to LAN only, excluding Tailscale and wireguard
   nginxListenAddrs = [
     {
@@ -63,6 +121,12 @@ in {
     extraGroups = ["wheel"]; # Enable ‘sudo’ for the user.
   };
 
+  system.activationScripts.beetsConfig = ''
+    mkdir -p /home/admin/.config/beets
+    ln -sf ${beetsConfig} /home/admin/.config/beets/config.yaml
+    chown -h admin:users /home/admin/.config/beets/config.yaml
+  '';
+
   virtualisation.oci-containers.backend = "podman";
 
   environment.systemPackages = with pkgs; [
@@ -70,16 +134,7 @@ in {
     vim
     mpc
     ncmpcpp
-    (beets.overridePythonAttrs (old: {
-      dependencies =
-        old.dependencies
-        ++ [
-          (python3.pkgs.beets-filetote.overridePythonAttrs {
-            meta.broken = false;
-            pythonRelaxDeps = true;
-          })
-        ];
-    }))
+    beetsEnv
     sqlite
     htop
     ffmpeg

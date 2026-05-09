@@ -1,7 +1,10 @@
 ;; -*- lexical-binding: t; -*-
 
-;; ---------------------------------------------------------------------------- 
+;; ----------------------------------------------------------------------------
 ;; Elpaca
+
+;; Suppress elpaca log display in daemon mode
+(add-hook 'elpaca-log-functions (lambda (&rest _) (and (daemonp) 'silent)))
 
 ;; silence error about this begin unset
 (setq elpaca-core-date '(20240101))
@@ -168,6 +171,15 @@ See `eval-after-load' for the possible formats of FORM."
   (editorconfig-mode 1))
 
 (use-package undo-fu)
+
+;; Kitty Keyboard Protocol support so terminals can transmit key combos
+;; that ASCII can't encode (C-RET, C-., C-,, S-RET, etc.). Negotiates with
+;; foot/kitty/wezterm/etc. Works through tmux when tmux has
+;; `extended-keys on` and `terminal-features ',*:extkeys'` set.
+;; Harmless in GUI Emacs (no-op).
+(use-package kkp
+  :config
+  (global-kkp-mode +1))
 
 ;; Camel Case recognition, works with evil mode movement
 (use-package subword
@@ -1489,9 +1501,19 @@ in which case does avy-goto-char with the first char."
   (setq org-log-done 'time)
 
   (setq org-startup-folded 'content)
-  
+
+  ;; Prevent org-todo from unfolding drawers.
+  ;; When CLOSED is inserted, org-fold's fragile check
+  ;; (org-fold--reveal-drawer-or-block-maybe) sees the planning line
+  ;; before the drawer instead of :PROPERTIES: and unfolds it.
+  (advice-add 'org-todo :around
+              (lambda (orig-fn &rest args)
+                (cl-letf (((symbol-function 'org-fold--reveal-drawer-or-block-maybe)
+                           (lambda (&rest _) nil)))
+                  (apply orig-fn args))))
+
   ;; ==============================================================================
-  ;; Agenda 
+  ;; Agenda
 
   (general-define-key
    :states '(normal motion)
@@ -1589,6 +1611,53 @@ in which case does avy-goto-char with the first char."
 
   ;; show full path for refiling, preceeded by the filename.
   (setq org-refile-use-outline-path 'file)
+
+  ;; ==============================================================================
+  ;; Archive
+
+  ;; Dynamic archive location: mirror source path under ~/org/archive/
+  ;; e.g. ~/org/personal/todo.org -> ~/org/archive/personal/todo.org_archive
+  (defun ftzm/org-archive-location ()
+    (let* ((source (buffer-file-name))
+           (org-root (expand-file-name "~/org/"))
+           (relative (file-relative-name source org-root))
+           (archive-file (expand-file-name (concat "archive/" relative "_archive") org-root))
+           (archive-dir (file-name-directory archive-file)))
+      (unless (file-directory-p archive-dir)
+        (make-directory archive-dir t))
+      (concat archive-file "::")))
+
+  (defun ftzm/set-org-archive-location (&rest _)
+    (when (buffer-file-name)
+      (setq-local org-archive-location (ftzm/org-archive-location))))
+
+  (advice-add 'org-archive-subtree :before #'ftzm/set-org-archive-location)
+
+  ;; Bulk archive: DONE/CANCELLED tasks closed more than 14 days ago
+  (defun ftzm/days-ago (n)
+    (time-subtract (current-time) (seconds-to-time (* n 86400))))
+
+  (defun ftzm/archive-if-old ()
+    (let* ((props (org-entry-properties (point)))
+           (closed-string (cdr (assoc "CLOSED" props)))
+           (closed (and closed-string (date-to-time closed-string)))
+           (cutoff (ftzm/days-ago 14)))
+      (when (and closed (time-less-p closed cutoff))
+        (org-archive-subtree)
+        (setq org-map-continue-from (outline-previous-heading))
+        t)))
+
+  (defun ftzm/org-archive-old-tasks ()
+    (interactive)
+    (let ((count 0))
+      (org-map-entries
+       (lambda ()
+         (when (ftzm/archive-if-old)
+           (setq count (1+ count))))
+       "/DONE|CANCELLED"
+       'agenda)
+      (org-save-all-org-buffers)
+      (format "org-archive: archived %d task(s)" count)))
 
   ;; ==============================================================================
   ;; Keys
@@ -2350,18 +2419,30 @@ so the terminal stays stuck at its original dimensions.
 
 This function is added to `window-size-change-functions' and runs
 whenever any window in FRAME changes size. For each claudemacs buffer
-whose auto-adjust has been disabled, we manually call
-`eat--adjust-process-window-size' to update the PTY dimensions, giving
-us the best of both worlds: no spurious redraws on buffer switch, but
-correct terminal size after a genuine resize."
+whose auto-adjust has been disabled, we manually resize eat's internal
+terminal and then update the PTY dimensions (sending SIGWINCH to the
+subprocess) so Claude Code redraws at the correct size."
     (dolist (window (window-list frame))
       (with-current-buffer (window-buffer window)
         (when (and (claudemacs--is-claudemacs-buffer-p)
                    (boundp 'eat-terminal) eat-terminal
                    (eq window-adjust-process-window-size-function 'ignore))
-          (let ((process (eat-term-parameter eat-terminal 'eat--process)))
-            (when (and process (process-live-p process))
-              (eat--adjust-process-window-size process (list window))))))))
+          (let* ((process (eat-term-parameter eat-terminal 'eat--process))
+                 (size (when (and process (process-live-p process))
+                         (window-adjust-process-window-size-smallest
+                          process (list window)))))
+            (when size
+              (let* ((width  (max (car size) 1))
+                     (height (max (cdr size) 1))
+                     (term-size (eat-term-size eat-terminal)))
+                (unless (and (= width  (car term-size))
+                             (= height (cdr term-size)))
+                  (let ((inhibit-read-only t))
+                    (eat-term-resize eat-terminal width height)
+                    (eat-term-redisplay eat-terminal)
+                    (set-process-window-size process height width)
+                    (set-window-start window (eat-term-display-beginning eat-terminal) t)
+                    (set-window-point window (eat-term-display-cursor eat-terminal)))))))))))
   (add-hook 'window-size-change-functions #'my/claudemacs-handle-window-resize))
 
 (setq split-height-threshold nil)

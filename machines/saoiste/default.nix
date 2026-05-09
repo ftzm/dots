@@ -75,6 +75,7 @@
 
   nix = {
     settings.trusted-users = ["@wheel"];
+    settings.accept-flake-config = true;
     # package = pkgs.nixFlakes;
     extraOptions = ''
       experimental-features = nix-command flakes
@@ -211,6 +212,8 @@
     # secureSocket = false;
     extraConfig = ''
       set -g xterm-keys on
+      set -s extended-keys on
+      set -as terminal-features ',*:extkeys'
       set -g default-terminal "xterm-256color"
       set -sg terminal-overrides ",*:RGB"
       set -g escape-time 0
@@ -244,7 +247,7 @@
 
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [53 3000 3001 8080];
+    allowedTCPPorts = [53 3000 3001 8080 8384];
     allowedUDPPorts = [53];
     extraCommands = ''
       # Forward DNS traffic (port 53) from wg0 to 192.168.1.12
