@@ -1,0 +1,109 @@
+{
+   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+   "customManagers": [
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "nfs-subdir-external-provisioner",
+         "managerFilePatterns": [
+            "/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: nfs-subdir-external-provisioner/nfs-subdir-external-provisioner\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "traefik",
+         "managerFilePatterns": [
+            "/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: traefik/traefik\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://traefik.github.io/charts"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "argo-cd",
+         "managerFilePatterns": [
+            "/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: argo/argo-cd\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://argoproj.github.io/argo-helm"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "kube-prometheus-stack",
+         "managerFilePatterns": [
+            "/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: prometheus-community/kube-prometheus-stack\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://prometheus-community.github.io/helm-charts"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "loki",
+         "managerFilePatterns": [
+            "/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: grafana/loki\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://grafana.github.io/helm-charts"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "tempo",
+         "managerFilePatterns": [
+            "/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: grafana/tempo\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://grafana.github.io/helm-charts"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "alloy",
+         "managerFilePatterns": [
+            "/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: grafana/alloy\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://grafana.github.io/helm-charts"
+      }
+   ],
+   "enabledManagers": [
+      "custom.regex",
+      "github-actions",
+      "jsonnet-bundler"
+   ],
+   "extends": [
+      "config:recommended"
+   ],
+   "postUpgradeTasks": {
+      "commands": [
+         "tk tool charts vendor --prune",
+         "just render-lab"
+      ],
+      "fileFilters": [
+         "charts/**",
+         "manifests/**"
+      ]
+   },
+   "prConcurrentLimit": 20,
+   "prHourlyLimit": 10
+}

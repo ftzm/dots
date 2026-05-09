@@ -1,0 +1,131 @@
+apiVersion: v1
+data:
+  config.alloy: |-
+    // Discover all pods
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    // Relabel to extract useful Kubernetes labels
+    discovery.relabel "pods" {
+      targets = discovery.kubernetes.pods.targets
+
+      // Keep only running pods
+      rule {
+        source_labels = ["__meta_kubernetes_pod_phase"]
+        regex         = "Pending|Succeeded|Failed|Completed"
+        action        = "drop"
+      }
+
+      // Set namespace label
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+
+      // Set pod label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+
+      // Set container label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+
+      // Set node label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        target_label  = "node"
+      }
+
+      // Set app label from pod labels (common conventions)
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label  = "app"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        target_label  = "app"
+      }
+    }
+
+    // Collect logs from pods
+    loki.source.kubernetes "pods" {
+      targets    = discovery.relabel.pods.output
+      forward_to = [loki.process.default.receiver]
+    }
+
+    // Process logs: parse JSON and extract labels
+    loki.process "default" {
+      forward_to = [loki.write.default.receiver]
+
+      // Extract JSON fields (silently ignored if not JSON)
+      stage.json {
+        expressions = {
+          level   = "level",
+          msg     = "msg",
+          message = "message",
+        }
+      }
+
+      // Normalize level to lowercase
+      stage.template {
+        source   = "level"
+        template = "{{ ToLower .Value }}"
+      }
+
+      // Only promote level to label if it's a standard value
+      // Selector requires a label match, so we use namespace which is always set
+      stage.match {
+        selector = "{namespace=~\".+\"} |~ \"\\\"level\\\"\\\\s*:\\\\s*\\\"(error|warn|info|debug|ERROR|WARN|INFO|DEBUG)\\\"\""
+        stage.labels {
+          values = { level = "" }
+        }
+      }
+    }
+
+    // Write logs to Loki
+    loki.write "default" {
+      endpoint {
+        url = "http://loki-gateway.monitoring.svc.cluster.local:80/loki/api/v1/push"
+      }
+    }
+
+    // OTLP receiver for traces from instrumented apps
+    otelcol.receiver.otlp "default" {
+      grpc { endpoint = "0.0.0.0:4317" }
+      http { endpoint = "0.0.0.0:4318" }
+      output {
+        traces = [otelcol.processor.batch.default.input]
+      }
+    }
+
+    // Batch processor for better performance
+    otelcol.processor.batch "default" {
+      output {
+        traces = [otelcol.exporter.otlp.tempo.input]
+      }
+    }
+
+    // Export traces to Tempo
+    otelcol.exporter.otlp "tempo" {
+      client {
+        endpoint = "tempo.monitoring.svc.cluster.local:4317"
+        tls { insecure = true }
+      }
+    }
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: config
+    app.kubernetes.io/instance: alloy
+    app.kubernetes.io/managed-by: Helmraiser
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/part-of: alloy
+    app.kubernetes.io/version: v1.13.0
+    helm.sh/chart: alloy-1.6.0
+  name: alloy
+  namespace: monitoring

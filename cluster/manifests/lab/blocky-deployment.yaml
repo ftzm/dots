@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blocky
+  namespace: blocky
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: blocky
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: blocky
+    spec:
+      containers:
+      - args:
+        - --config
+        - /config/config.yaml
+        image: spx01/blocky:latest
+        livenessProbe:
+          httpGet:
+            path: /api/blocking/status
+            port: 4000
+        name: blocky
+        ports:
+        - containerPort: 53
+          name: dns-udp
+          protocol: UDP
+        - containerPort: 53
+          name: dns-tcp
+          protocol: TCP
+        - containerPort: 4000
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /api/blocking/status
+            port: 4000
+        volumeMounts:
+        - mountPath: /config
+          name: config
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/hostname: nuc
+      volumes:
+      - configMap:
+          name: blocky-config
+        name: config

@@ -1,0 +1,18 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: nfs-subdir-external-provisioner
+    app.kubernetes.io/managed-by: Helmraiser
+    chart: nfs-subdir-external-provisioner-4.0.18
+    heritage: Helm
+    release: nfs-provisioner
+  name: run-nfs-provisioner-nfs-subdir-external-provisioner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: nfs-provisioner-nfs-subdir-external-provisioner-runner
+subjects:
+- kind: ServiceAccount
+  name: nfs-provisioner-nfs-subdir-external-provisioner
+  namespace: nfs-provisioner

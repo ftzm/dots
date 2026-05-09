@@ -1,0 +1,59 @@
+apiVersion: v1
+data:
+  config.yaml: |
+    # Upstream DNS servers
+    upstreams:
+      groups:
+        default:
+          - 1.1.1.1
+          - 8.8.8.8
+          - 9.9.9.9
+
+    bootstrapDns:
+      - tcp+udp:1.1.1.1
+
+    # Ad-blocking
+    blocking:
+      denylists:
+        ads:
+          - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+          - https://adaway.org/hosts.txt
+          - https://v.firebog.net/hosts/AdguardDNS.txt
+        malware:
+          - https://v.firebog.net/hosts/Prigent-Malware.txt
+      clientGroupsBlock:
+        default:
+          - ads
+          - malware
+      blockType: zeroIp
+      refreshPeriod: 24h
+
+    # Custom DNS mappings
+    customDNS:
+      mapping:
+        lan.ftzmlab.xyz: 100.64.0.2
+
+    # Forward cluster.local to CoreDNS
+    conditional:
+      mapping:
+        cluster.local: 10.96.0.10
+
+    caching:
+      minTime: 5m
+      maxTime: 30m
+      prefetching: true
+
+    ports:
+      dns: 100.64.0.2:53
+      http: 4000
+
+    log:
+      level: info
+
+    prometheus:
+      enable: true
+      path: /metrics
+kind: ConfigMap
+metadata:
+  name: blocky-config
+  namespace: blocky

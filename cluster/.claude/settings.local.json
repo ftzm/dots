@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "WebSearch",
+      "Bash(curl:*)",
+      "Bash(KUBECONFIG=~/.kube/config-k3s kubectl get pods -n traefik)",
+      "WebFetch(domain:gist.githubusercontent.com)",
+      "Bash(nix develop:*)"
+    ]
+  }
+}
