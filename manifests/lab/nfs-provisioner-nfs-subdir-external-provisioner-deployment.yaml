@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nfs-subdir-external-provisioner
+    app.kubernetes.io/managed-by: Helmraiser
+    chart: nfs-subdir-external-provisioner-4.0.18
+    heritage: Helm
+    release: nfs-provisioner
+  name: nfs-provisioner-nfs-subdir-external-provisioner
+  namespace: nfs-provisioner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-subdir-external-provisioner
+      release: nfs-provisioner
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations: null
+      labels:
+        app: nfs-subdir-external-provisioner
+        release: nfs-provisioner
+    spec:
+      containers:
+      - env:
+        - name: PROVISIONER_NAME
+          value: cluster.local/nfs-provisioner-nfs-subdir-external-provisioner
+        - name: NFS_SERVER
+          value: 192.168.1.3
+        - name: NFS_PATH
+          value: /pool-1/k8s
+        image: registry.k8s.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+        imagePullPolicy: IfNotPresent
+        name: nfs-subdir-external-provisioner
+        securityContext: {}
+        volumeMounts:
+        - mountPath: /persistentvolumes
+          name: nfs-subdir-external-provisioner-root
+      securityContext: {}
+      serviceAccountName: nfs-provisioner-nfs-subdir-external-provisioner
+      volumes:
+      - name: nfs-subdir-external-provisioner-root
+        nfs:
+          path: /pool-1/k8s
+          server: 192.168.1.3

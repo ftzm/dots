@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  # Upstream Helm chart CI test files
+  '''charts/.*/ci/.*\.yaml$''',
+  # Upstream Helm chart values with documentation examples
+  '''charts/argo-cd/values\.yaml$''',
+]

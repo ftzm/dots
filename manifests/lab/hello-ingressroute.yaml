@@ -1,0 +1,15 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hello
+  namespace: hello-world
+spec:
+  entryPoints:
+  - privateweb
+  - privatesecure
+  routes:
+  - kind: Rule
+    match: Host(`hello.lan.ftzmlab.xyz`)
+    services:
+    - name: hello
+      port: 80
