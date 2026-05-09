@@ -208,33 +208,6 @@ in {
     };
   };
 
-  services.prometheus = {
-    enable = false; # disable temporarily while trialling k3s
-    port = 9001;
-    exporters = {
-      node = {
-        enable = true;
-        enabledCollectors = ["processes" "systemd"];
-        port = 9002;
-      };
-      zfs = {enable = true;};
-      wireguard = {enable = true;};
-    };
-    scrapeConfigs = [
-      {
-        job_name = "node";
-        static_configs = [
-          {
-            targets = [
-              "127.0.0.1:${toString config.services.prometheus.exporters.node.port}"
-              "nas.localdomain:9002"
-              "127.0.0.1:9641" # mqtt2prometheus
-            ];
-          }
-        ];
-      }
-    ];
-  };
 
   services.loki = {
     enable = true;
@@ -475,7 +448,6 @@ in {
   };
   users.users.nzbget.extraGroups = ["users" "storage"];
 
-  services.ombi = {enable = true;};
 
   age.secrets.deluge = {
     file = ../../secrets/deluge.age;
@@ -741,13 +713,6 @@ in {
     environment = {};
   };
 
-  virtualisation.oci-containers.containers.filebrowser = {
-    image = "filebrowser/filebrowser";
-    ports = ["0.0.0.0:8899:80"];
-    # user = "admin";
-    volumes = ["/mnt/nas/cloud:/srv" "/filebrowser/filebrowser_db.db:/database.db"];
-    environment = {};
-  };
 
   # virtualisation.oci-containers.containers.lychee = {
   #   image = "lycheeorg/lychee";
@@ -756,44 +721,6 @@ in {
   #   environment = {};
   # };
 
-  # we create a systemd service so that we can create a single "pod"
-  # for our containers to live inside of. This will mimic how docker compose
-  # creates one network for the containers to live inside of
-  systemd.services.create-photoview-network = with config.virtualisation.oci-containers; {
-    serviceConfig.Type = "oneshot";
-    wantedBy = ["${backend}-photoview.service" "${backend}-photoview-db.service"];
-    script = ''
-      ${pkgs.podman}/bin/podman network exists pv-net || \
-      ${pkgs.podman}/bin/podman network create pv-net
-    '';
-  };
-
-  virtualisation.oci-containers.containers.photoview-db = {
-    image = "mysql:latest";
-    volumes = ["db:/var/lib/mysql"];
-    autoStart = true;
-    environment = {
-      MYSQL_DATABASE = "photoview";
-      MYSQL_USER = "photoview";
-      MYSQL_PASSWORD = "photosecret";
-      MYSQL_RANDOM_ROOT_PASSWORD = "1";
-    };
-    extraOptions = ["--network=pv-net"];
-  };
-
-  virtualisation.oci-containers.containers.photoview = {
-    image = "viktorstrate/photoview:2";
-    ports = ["0.0.0.0:8888:80"];
-    volumes = ["/photoview:/app/cache" "/mnt/nas/cloud/photos:/photos:ro"];
-    extraOptions = ["--network=pv-net"];
-    environment = {
-      PHOTOVIEW_DATABASE_DRIVER = "mysql";
-      PHOTOVIEW_MYSQL_URL = "photoview:photosecret@tcp(photoview-db)/photoview";
-      PHOTOVIEW_LISTEN_IP = "photoview";
-      PHOTOVIEW_LISTEN_PORT = "80";
-      PHOTOVIEW_MEDIA_CACHE = "/app/cache";
-    };
-  };
 
   # ----------------------------------------------------------------------
   # Immich
@@ -806,19 +733,6 @@ in {
 
   # ----------------------------------------------------------------------
 
-  virtualisation.oci-containers.containers.pigallery2 = {
-    image = "bpatrik/pigallery2:latest";
-    environment = {
-      NODE_ENV = "production"; # set to 'debug' for full debug logging
-    };
-    volumes = [
-      "/pigallery2/config:/app/data/config" # CHANGE ME
-      "db-data:/app/data/db"
-      "/mnt/nas/cloud/photos:/app/data/images:ro" # CHANGE ME, ':ro' means read-only
-      "/pigallery2/tmp:/app/data/tmp" # CHANGE ME
-    ];
-    ports = ["0.0.0.0:8875:80"];
-  };
 
   # ----------------------------------------------------------------------
   # Vaultwarden
@@ -961,15 +875,6 @@ in {
         proxyWebsockets = true;
       };
     };
-    virtualHosts."ombi.ftzmlab.xyz" = {
-      listen = nginxListenAddrs;
-      forceSSL = true;
-      enableACME = true;
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:${toString config.services.ombi.port}";
-        proxyWebsockets = true;
-      };
-    };
     virtualHosts."img.ftzmlab.xyz" = {
       listen = nginxListenAddrs;
       enableACME = true;
@@ -1010,18 +915,6 @@ in {
           auth_basic "Restricted";
           auth_basic_user_file /.htpasswd;
 
-        '';
-      };
-    };
-    virtualHosts."muscleup.ftzmlab.xyz" = {
-      listen = nginxListenAddrs;
-      enableACME = true;
-      forceSSL = true;
-      root = "/muscleup/";
-      locations."/" = {
-        extraConfig = ''
-          add_header Cross-Origin-Embedder-Policy "credentialless";
-          add_header Cross-Origin-Opener-Policy "same-origin";
         '';
       };
     };
