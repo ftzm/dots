@@ -24,6 +24,15 @@ spec:
         app.kubernetes.io/instance: alloy
         app.kubernetes.io/name: alloy
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                - friendlywrt
       containers:
       - args:
         - run

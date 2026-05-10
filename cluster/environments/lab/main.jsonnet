@@ -853,6 +853,19 @@ local withNamespace(resources, ns) = {
                 { name: 'machine-id', hostPath: { path: '/etc/machine-id', type: 'File' } },
               ],
             },
+            affinity: {
+              nodeAffinity: {
+                requiredDuringSchedulingIgnoredDuringExecution: {
+                  nodeSelectorTerms: [{
+                    matchExpressions: [{
+                      key: 'kubernetes.io/hostname',
+                      operator: 'NotIn',
+                      values: ['friendlywrt'],
+                    }],
+                  }],
+                },
+              },
+            },
           },
           serviceAccount: { create: true },
           rbac: { create: true },
