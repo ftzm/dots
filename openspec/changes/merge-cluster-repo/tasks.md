@@ -11,10 +11,10 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Verify ArgoCD syncs successfully from new path
-- [ ] 3.2 Verify `just render-lab` works from new location
-- [ ] 3.3 Verify nix develop shell has both NixOS and k8s tooling
+- [x] 3.1 Verify ArgoCD syncs successfully from new path
+- [x] 3.2 Verify `just render-lab` works from new location
+- [x] 3.3 Verify nix develop shell has both NixOS and k8s tooling
 
 ## 4. Clean up
 
-- [ ] 4.1 Delete standalone cluster repo (after verification)
+- [ ] 4.1 Delete standalone cluster repo (deferred to end of migration)
