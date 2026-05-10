@@ -653,7 +653,14 @@ local withNamespace(resources, ns) = {
           backend: { replicas: 0 },
           read: { replicas: 0 },
           write: { replicas: 0 },
-          gateway: { enabled: true, replicas: 1 },
+          gateway: {
+            enabled: true,
+            replicas: 1,
+            service: {
+              type: 'NodePort',
+              nodePort: 30100,
+            },
+          },
           minio: { enabled: false },
           test: { enabled: false },
           lokiCanary: { enabled: false },

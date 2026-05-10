@@ -14,12 +14,11 @@
     };
   };
 
-  # Services reachable via Traefik WG entrypoint
+  # Internal service endpoints — direct IP:port, no DNS needed
   services = {
-    loki = "http://${machines.nuc.wg}/loki/api/v1/push";
+    lokiPush = "http://${machines.nuc.wg}:30100/loki/api/v1/push";
   };
 in {
-  # Export for use in machine configs
   _module.args.lab = {
     inherit machines services;
   };

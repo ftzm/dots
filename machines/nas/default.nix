@@ -181,7 +181,7 @@ in {
       };
       clients = [
         {
-          url = lab.services.loki;
+          url = lab.services.lokiPush;
         }
       ];
       scrape_configs = [

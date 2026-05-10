@@ -14,6 +14,7 @@ metadata:
 spec:
   ports:
   - name: http-metrics
+    nodePort: 30100
     port: 80
     protocol: TCP
     targetPort: http-metrics
@@ -21,4 +22,4 @@ spec:
     app.kubernetes.io/component: gateway
     app.kubernetes.io/instance: loki
     app.kubernetes.io/name: loki
-  type: ClusterIP
+  type: NodePort
