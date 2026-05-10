@@ -9,8 +9,8 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    path: manifests/lab
-    repoURL: https://github.com/ftzm/cluster.git
+    path: cluster/manifests/lab
+    repoURL: https://github.com/ftzm/dots.git
     targetRevision: HEAD
   syncPolicy:
     automated:
