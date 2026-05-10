@@ -15,7 +15,7 @@
     unstablePkgs.lib.composeManyExtensions [
       inputs.pyproject-build-systems.overlays.wheel
       beetsOverlay
-      (final: prev: {
+      (_final: prev: {
         numba = prev.numba.overrideAttrs (old: {
           buildInputs = (old.buildInputs or []) ++ [unstablePkgs.tbb_2022];
         });
@@ -198,6 +198,12 @@ in {
     network = {listenAddress = "any";};
   };
 
+  services.prometheus.exporters.node = {
+    enable = true;
+    enabledCollectors = ["processes" "systemd"];
+    port = 9002;
+  };
+
   services.navidrome = {
     enable = true;
     settings = {
@@ -207,7 +213,6 @@ in {
       EnableSharing = true;
     };
   };
-
 
   services.loki = {
     enable = true;
@@ -447,7 +452,6 @@ in {
     group = "storage";
   };
   users.users.nzbget.extraGroups = ["users" "storage"];
-
 
   age.secrets.deluge = {
     file = ../../secrets/deluge.age;
@@ -713,14 +717,12 @@ in {
     environment = {};
   };
 
-
   # virtualisation.oci-containers.containers.lychee = {
   #   image = "lycheeorg/lychee";
   #   ports = ["0.0.0.0:90:80"];
   #   volumes = ["/mnt/nas/cloud/photos:/srv"];
   #   environment = {};
   # };
-
 
   # ----------------------------------------------------------------------
   # Immich
@@ -732,7 +734,6 @@ in {
   users.users.immich.extraGroups = ["users" "storage"];
 
   # ----------------------------------------------------------------------
-
 
   # ----------------------------------------------------------------------
   # Vaultwarden
