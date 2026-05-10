@@ -727,40 +727,6 @@ in {
         '';
       };
     };
-
-    # Default catch-all for wireguard traffic - proxy to k3s ingress
-    virtualHosts."wg-default-http" = {
-      listen = [
-        {
-          addr = "10.0.100.4";
-          port = 80;
-        }
-      ];
-      default = true;
-      serverName = "_";
-      locations."/" = {
-        proxyPass = "http://10.0.100.4:9080";
-        proxyWebsockets = true;
-      };
-    };
-    virtualHosts."wg-default-https" = {
-      listen = [
-        {
-          addr = "10.0.100.4";
-          port = 443;
-          ssl = true;
-        }
-      ];
-      default = true;
-      serverName = "_";
-      onlySSL = true;
-      sslCertificate = "/var/lib/nginx/selfsigned.crt";
-      sslCertificateKey = "/var/lib/nginx/selfsigned.key";
-      locations."/" = {
-        proxyPass = "http://10.0.100.4:9443";
-        proxyWebsockets = true;
-      };
-    };
   };
 
   fileSystems."/var/www/dav" = {
