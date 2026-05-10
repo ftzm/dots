@@ -6,6 +6,7 @@ metadata:
 spec:
   entryPoints:
   - privatesecure
+  - wgsecure
   routes:
   - match: HostSNI(`argo.lan.ftzmlab.xyz`)
     services:

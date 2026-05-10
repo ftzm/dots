@@ -107,7 +107,7 @@ local withNamespace(resources, ns) = {
         namespace: ns,
       },
       spec: {
-        entryPoints: ['privateweb', 'privatesecure'],
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
         routes: [
           {
             match: "Host(`hello.lan.ftzmlab.xyz`)",
@@ -126,7 +126,8 @@ local withNamespace(resources, ns) = {
 
   // Traefik ingress controller with dual entrypoints
   // - Public entrypoints (web, websecure) bind to LAN IP
-  // - Private entrypoints (privateweb, privatesecure) bind to WireGuard IP
+  // - Private entrypoints (privateweb, privatesecure) bind to Tailscale IP
+  // - WireGuard entrypoints (wgweb, wgsecure) bind to WireGuard IP
   traefik: {
     local ns = 'traefik',
 
@@ -193,6 +194,9 @@ local withNamespace(resources, ns) = {
             // Private entrypoints (bind to Tailscale IP on standard ports)
             '--entrypoints.privateweb.address=' + config.tailscaleIP + ':80',
             '--entrypoints.privatesecure.address=' + config.tailscaleIP + ':443',
+            // WireGuard entrypoints (bind to WG IP on standard ports)
+            '--entrypoints.wgweb.address=' + config.wgIP + ':80',
+            '--entrypoints.wgsecure.address=' + config.wgIP + ':443',
           ],
 
 
@@ -331,7 +335,7 @@ local withNamespace(resources, ns) = {
         namespace: ns,
       },
       spec: {
-        entryPoints: ['privatesecure'],
+        entryPoints: ['privatesecure', 'wgsecure'],
         routes: [{
           match: 'HostSNI(`argo.lan.ftzmlab.xyz`)',
           services: [{
@@ -905,7 +909,7 @@ local withNamespace(resources, ns) = {
         namespace: ns,
       },
       spec: {
-        entryPoints: ['privateweb', 'privatesecure'],
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
         routes: [{
           match: "Host(`loki.lan.ftzmlab.xyz`)",
           kind: 'Rule',
@@ -926,7 +930,7 @@ local withNamespace(resources, ns) = {
         namespace: ns,
       },
       spec: {
-        entryPoints: ['privateweb', 'privatesecure'],
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
         routes: [{
           match: "Host(`grafana.lan.ftzmlab.xyz`)",
           kind: 'Rule',
@@ -1115,7 +1119,7 @@ local withNamespace(resources, ns) = {
         namespace: ns,
       },
       spec: {
-        entryPoints: ['privateweb', 'privatesecure'],
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
         routes: [{
           match: "Host(`ntfy.lan.ftzmlab.xyz`)",
           kind: 'Rule',

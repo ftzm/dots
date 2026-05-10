@@ -3,6 +3,7 @@
   pkgs,
   inputs,
   lib,
+  lab,
   ...
 }:
 with lib; let
@@ -14,6 +15,7 @@ in {
     ./hardware.nix
     ../../role/network.nix
     ../../role/comin.nix
+    ../../role/lab.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
@@ -179,7 +181,7 @@ in {
       };
       clients = [
         {
-          url = "https://loki.lan.ftzmlab.xyz/loki/api/v1/push";
+          url = lab.services.loki;
         }
       ];
       scrape_configs = [

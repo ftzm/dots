@@ -54,6 +54,8 @@ spec:
         - --entrypoints.websecure.address=192.168.1.4:9443
         - --entrypoints.privateweb.address=100.64.0.2:80
         - --entrypoints.privatesecure.address=100.64.0.2:443
+        - --entrypoints.wgweb.address=10.0.100.4:80
+        - --entrypoints.wgsecure.address=10.0.100.4:443
         env:
         - name: POD_NAME
           valueFrom:
