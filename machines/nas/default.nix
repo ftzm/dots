@@ -167,6 +167,50 @@ in {
     };
   };
 
+  services.promtail = {
+    enable = true;
+    configuration = {
+      server = {
+        http_listen_port = 3031;
+        grpc_listen_port = 0;
+      };
+      positions = {
+        filename = "/tmp/positions.yaml";
+      };
+      clients = [
+        {
+          url = "https://loki.lan.ftzmlab.xyz/loki/api/v1/push";
+        }
+      ];
+      scrape_configs = [
+        {
+          job_name = "journal";
+          journal = {
+            max_age = "12h";
+            labels = {
+              job = "systemd-journal";
+              host = "nas";
+            };
+          };
+          relabel_configs = [
+            {
+              source_labels = ["__journal__systemd_unit"];
+              target_label = "unit";
+            }
+            {
+              source_labels = ["__journal_priority_keyword"];
+              target_label = "level";
+            }
+            {
+              source_labels = ["__journal_syslog_identifier"];
+              target_label = "syslog_identifier";
+            }
+          ];
+        }
+      ];
+    };
+  };
+
   services.syncthing = {
     enable = true;
     guiAddress = "http://0.0.0.0:8384";

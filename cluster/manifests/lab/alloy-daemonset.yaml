@@ -55,6 +55,12 @@ spec:
         volumeMounts:
         - mountPath: /etc/alloy
           name: config
+        - mountPath: /var/log/journal
+          name: journal
+          readOnly: true
+        - mountPath: /etc/machine-id
+          name: machine-id
+          readOnly: true
       - args:
         - --watched-dir=/etc/alloy
         - --reload-url=http://localhost:12345/-/reload
@@ -73,3 +79,11 @@ spec:
       - configMap:
           name: alloy
         name: config
+      - hostPath:
+          path: /var/log/journal
+          type: Directory
+        name: journal
+      - hostPath:
+          path: /etc/machine-id
+          type: File
+        name: machine-id

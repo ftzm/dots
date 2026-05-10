@@ -448,6 +448,26 @@ local withNamespace(resources, ns) = {
         values: {
           prometheus: {
             prometheusSpec: {
+              additionalScrapeConfigs: [
+                {
+                  job_name: 'host-node-exporter',
+                  static_configs: [{
+                    targets: ['192.168.1.4:9002', '192.168.1.3:9002'],
+                    labels: { job: 'node-exporter' },
+                  }],
+                  relabel_configs: [{
+                    source_labels: ['__address__'],
+                    regex: '192.168.1.4:.*',
+                    target_label: 'instance',
+                    replacement: 'nuc',
+                  }, {
+                    source_labels: ['__address__'],
+                    regex: '192.168.1.3:.*',
+                    target_label: 'instance',
+                    replacement: 'nas',
+                  }],
+                },
+              ],
               storageSpec: {
                 volumeClaimTemplate: {
                   spec: {
@@ -670,6 +690,12 @@ local withNamespace(resources, ns) = {
         namespace: ns,
         values: {
           alloy: {
+            mounts: {
+              extra: [
+                { name: 'journal', mountPath: '/var/log/journal', readOnly: true },
+                { name: 'machine-id', mountPath: '/etc/machine-id', readOnly: true },
+              ],
+            },
             configMap: {
               content: |||
                 // Discover all pods
@@ -758,6 +784,34 @@ local withNamespace(resources, ns) = {
                   }
                 }
 
+                // Collect host journal logs
+                loki.source.journal "host" {
+                  path          = "/var/log/journal"
+                  relabel_rules = discovery.relabel.journal.rules
+                  forward_to    = [loki.write.default.receiver]
+                  labels        = { job = "systemd-journal" }
+                }
+
+                discovery.relabel "journal" {
+                  targets = []
+                  rule {
+                    source_labels = ["__journal__systemd_unit"]
+                    target_label  = "unit"
+                  }
+                  rule {
+                    source_labels = ["__journal_priority_keyword"]
+                    target_label  = "level"
+                  }
+                  rule {
+                    source_labels = ["__journal__hostname"]
+                    target_label  = "host"
+                  }
+                  rule {
+                    source_labels = ["__journal_syslog_identifier"]
+                    target_label  = "syslog_identifier"
+                  }
+                }
+
                 // Write logs to Loki
                 loki.write "default" {
                   endpoint {
@@ -791,7 +845,15 @@ local withNamespace(resources, ns) = {
               |||,
             },
           },
-          controller: { type: 'daemonset' },
+          controller: {
+            type: 'daemonset',
+            volumes: {
+              extra: [
+                { name: 'journal', hostPath: { path: '/var/log/journal', type: 'Directory' } },
+                { name: 'machine-id', hostPath: { path: '/etc/machine-id', type: 'File' } },
+              ],
+            },
+          },
           serviceAccount: { create: true },
           rbac: { create: true },
         },
@@ -818,6 +880,27 @@ local withNamespace(resources, ns) = {
             namespace: ns,
           },
         },
+      },
+    },
+
+    // Traefik IngressRoute for Loki (private only, for NAS Promtail)
+    lokiIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: {
+        name: 'loki',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure'],
+        routes: [{
+          match: "Host(`loki.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{
+            name: 'loki-gateway',
+            port: 80,
+          }],
+        }],
       },
     },
 

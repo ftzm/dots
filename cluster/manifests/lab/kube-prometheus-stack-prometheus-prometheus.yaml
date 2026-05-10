@@ -13,6 +13,9 @@ metadata:
   name: kube-prometheus-stack-prometheus
   namespace: monitoring
 spec:
+  additionalScrapeConfigs:
+    key: additional-scrape-configs.yaml
+    name: kube-prometheus-stack-prometheus-scrape-confg
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
