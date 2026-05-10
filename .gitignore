@@ -42,4 +42,4 @@ xmonad-x86_64-linux
 
 .stack-work
 
-eln-cache
+eln-cache.pre-commit-config.yaml
