@@ -197,6 +197,8 @@ local withNamespace(resources, ns) = {
             // WireGuard entrypoints (bind to WG IP on standard ports)
             '--entrypoints.wgweb.address=' + config.wgIP + ':80',
             '--entrypoints.wgsecure.address=' + config.wgIP + ':443',
+            // Torrent peer traffic (Deluge)
+            '--entrypoints.torrent.address=:6881',
           ],
 
 
@@ -1134,6 +1136,285 @@ local withNamespace(resources, ns) = {
             name: 'ntfy',
             port: 80,
           }],
+        }],
+        tls: {},
+      },
+    },
+  },
+
+  // Services running on NixOS that need Traefik ingress.
+  // Static Endpoints point to the nuc host IP since these aren't k8s pods.
+  nixosServices: {
+    local ns = 'default',
+    local hostIP = config.publicIP,  // 192.168.1.4
+
+    // --- Jellyfin (public, GPU transcoding) ---
+    jellyfinService: {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: { name: 'jellyfin', namespace: ns },
+      spec: {
+        clusterIP: 'None',
+        ports: [{ port: 8096, targetPort: 8096, protocol: 'TCP' }],
+      },
+    },
+    jellyfinEndpoints: {
+      apiVersion: 'v1',
+      kind: 'Endpoints',
+      metadata: { name: 'jellyfin', namespace: ns },
+      subsets: [{
+        addresses: [{ ip: hostIP }],
+        ports: [{ port: 8096 }],
+      }],
+    },
+    jellyfinIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'jellyfin', namespace: ns },
+      spec: {
+        entryPoints: ['web', 'websecure'],
+        routes: [{
+          match: "Host(`jellyfin.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{ name: 'jellyfin', port: 8096 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // --- Vaultwarden ---
+    vaultwardenService: {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: { name: 'vaultwarden', namespace: ns },
+      spec: {
+        clusterIP: 'None',
+        ports: [{ port: 8222, targetPort: 8222, protocol: 'TCP' }],
+      },
+    },
+    vaultwardenEndpoints: {
+      apiVersion: 'v1',
+      kind: 'Endpoints',
+      metadata: { name: 'vaultwarden', namespace: ns },
+      subsets: [{
+        addresses: [{ ip: hostIP }],
+        ports: [{ port: 8222 }],
+      }],
+    },
+    vaultwardenIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'vaultwarden', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`vaultwarden.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{ name: 'vaultwarden', port: 8222 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // --- Deluge ---
+    delugeService: {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: { name: 'deluge', namespace: ns },
+      spec: {
+        clusterIP: 'None',
+        ports: [{ port: 8112, targetPort: 8112, protocol: 'TCP' }],
+      },
+    },
+    delugeEndpoints: {
+      apiVersion: 'v1',
+      kind: 'Endpoints',
+      metadata: { name: 'deluge', namespace: ns },
+      subsets: [{
+        addresses: [{ ip: hostIP }],
+        ports: [{ port: 8112 }],
+      }],
+    },
+    delugeIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'deluge', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`deluge.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{ name: 'deluge', port: 8112 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // --- Audiobookshelf ---
+    audiobookshelfService: {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: { name: 'audiobookshelf', namespace: ns },
+      spec: {
+        clusterIP: 'None',
+        ports: [{ port: 8000, targetPort: 8000, protocol: 'TCP' }],
+      },
+    },
+    audiobookshelfEndpoints: {
+      apiVersion: 'v1',
+      kind: 'Endpoints',
+      metadata: { name: 'audiobookshelf', namespace: ns },
+      subsets: [{
+        addresses: [{ ip: hostIP }],
+        ports: [{ port: 8000 }],
+      }],
+    },
+    audiobookshelfIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'audiobookshelf', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`audiobookshelf.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{ name: 'audiobookshelf', port: 8000 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // --- Immich ---
+    immichService: {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: { name: 'immich', namespace: ns },
+      spec: {
+        clusterIP: 'None',
+        ports: [{ port: 2343, targetPort: 2343, protocol: 'TCP' }],
+      },
+    },
+    immichEndpoints: {
+      apiVersion: 'v1',
+      kind: 'Endpoints',
+      metadata: { name: 'immich', namespace: ns },
+      subsets: [{
+        addresses: [{ ip: hostIP }],
+        ports: [{ port: 2343 }],
+      }],
+    },
+    immichIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'immich', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`img.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{ name: 'immich', port: 2343 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // --- Filestash ---
+    filestashService: {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: { name: 'filestash', namespace: ns },
+      spec: {
+        clusterIP: 'None',
+        ports: [{ port: 8334, targetPort: 8334, protocol: 'TCP' }],
+      },
+    },
+    filestashEndpoints: {
+      apiVersion: 'v1',
+      kind: 'Endpoints',
+      metadata: { name: 'filestash', namespace: ns },
+      subsets: [{
+        addresses: [{ ip: hostIP }],
+        ports: [{ port: 8334 }],
+      }],
+    },
+    filestashIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'filestash', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`filestash.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{ name: 'filestash', port: 8334 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // --- Navidrome ---
+    navidromeService: {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: { name: 'navidrome', namespace: ns },
+      spec: {
+        clusterIP: 'None',
+        ports: [{ port: 4533, targetPort: 4533, protocol: 'TCP' }],
+      },
+    },
+    navidromeEndpoints: {
+      apiVersion: 'v1',
+      kind: 'Endpoints',
+      metadata: { name: 'navidrome', namespace: ns },
+      subsets: [{
+        addresses: [{ ip: hostIP }],
+        ports: [{ port: 4533 }],
+      }],
+    },
+    navidromeIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'navidrome', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`navidrome.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{ name: 'navidrome', port: 4533 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // --- WebDAV (nginx backend on localhost) ---
+    webdavService: {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: { name: 'webdav', namespace: ns },
+      spec: {
+        clusterIP: 'None',
+        ports: [{ port: 8080, targetPort: 8080, protocol: 'TCP' }],
+      },
+    },
+    webdavEndpoints: {
+      apiVersion: 'v1',
+      kind: 'Endpoints',
+      metadata: { name: 'webdav', namespace: ns },
+      subsets: [{
+        addresses: [{ ip: hostIP }],
+        ports: [{ port: 8080 }],
+      }],
+    },
+    webdavIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'webdav', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`dav.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{ name: 'webdav', port: 8080 }],
         }],
         tls: {},
       },
