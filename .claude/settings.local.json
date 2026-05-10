@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nix search:*)",
+      "Bash(cat /home/ftzm/dots/machines/nuc/*.nix)",
+      "Bash(gh search:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Read(//home/ftzm/**)",
+      "Bash(emacs --batch --eval \"\\(progn \\(load \"\"~/.config/emacs/init.el\"\"\\) \\(elpaca-sync-lock-file\\)\\)\")",
+      "Bash(grep:*)",
+      "Bash(nix eval:*)",
+      "WebSearch",
+      "Bash(find:*)",
+      "Bash(git -C /home/ftzm/dots log --all --oneline --grep=\"claudemacs\\\\|width\\\\|scroll\\\\|reflow\")",
+      "Bash(git -C /home/ftzm/dots log --all --oneline -- \"*emacs*\")",
+      "Bash(git -C /home/ftzm/dots show e1785f3:dotfiles/.config/emacs/init.el)",
+      "Bash(git -C /home/ftzm/dots log --all --pretty=format:\"%h %s\" -- dotfiles/.config/emacs/init.el)",
+      "Bash(git:*)",
+      "Bash(nix-shell:*)",
+      "Bash(openspec new:*)"
+    ]
+  }
+}

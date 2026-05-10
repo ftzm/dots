@@ -302,9 +302,9 @@ local withNamespace(resources, ns) = {
       spec: {
         project: 'default',
         source: {
-          repoURL: 'https://github.com/ftzm/cluster.git',
+          repoURL: 'https://github.com/ftzm/dots.git',
           targetRevision: 'HEAD',
-          path: 'manifests/lab',
+          path: 'cluster/manifests/lab',
         },
         destination: {
           server: 'https://kubernetes.default.svc',

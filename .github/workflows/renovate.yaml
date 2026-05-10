@@ -19,9 +19,9 @@ jobs:
         env:
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
           RENOVATE_GIT_AUTHOR: 'Renovate Bot <renovate@example.com>'
-          RENOVATE_ALLOWED_COMMANDS: '["^tk ", "^just "]'
+          RENOVATE_ALLOWED_COMMANDS: '["^cd cluster && tk ", "^cd cluster && just "]'
           LOG_LEVEL: info
         run: |
-          nix develop --command renovate \
+          nix develop ./cluster --command renovate \
             --platform=github \
             ${{ github.repository }}

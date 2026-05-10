@@ -10,7 +10,7 @@ local repoUrls = {
 local managers = [
   {
     customType: 'regex',
-    managerFilePatterns: ['/chartfile\\.yaml$/'],
+    managerFilePatterns: ['/cluster/chartfile\\.yaml$/'],
     matchStrings: [
       '- chart: %s\\s+version: "?(?<currentValue>[^"\\s]+)"?' % req.chart,
     ],
@@ -29,7 +29,7 @@ local managers = [
   prHourlyLimit: 10,
   prConcurrentLimit: 20,
   postUpgradeTasks: {
-    commands: ['tk tool charts vendor --prune', 'just render-lab'],
-    fileFilters: ['charts/**', 'manifests/**'],
+    commands: ['cd cluster && tk tool charts vendor --prune', 'cd cluster && just render-lab'],
+    fileFilters: ['cluster/charts/**', 'cluster/manifests/**'],
   },
 }

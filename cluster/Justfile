@@ -19,10 +19,10 @@ jb-update:
 diff-lab:
     tk diff environments/lab
 
-# Generate renovate.json from chartfile.yaml
+# Generate renovate.json from chartfile.yaml (outputs to repo root)
 generate-renovate:
-    jsonnet renovate.jsonnet > renovate.json
-    renovate-config-validator
+    jsonnet renovate.jsonnet > ../renovate.json
+    renovate-config-validator ../renovate.json
 
 # Test renovate config locally (dry-run)
 test-renovate:

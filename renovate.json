@@ -6,7 +6,7 @@
          "datasourceTemplate": "helm",
          "depNameTemplate": "nfs-subdir-external-provisioner",
          "managerFilePatterns": [
-            "/chartfile\\.yaml$/"
+            "/cluster/chartfile\\.yaml$/"
          ],
          "matchStrings": [
             "- chart: nfs-subdir-external-provisioner/nfs-subdir-external-provisioner\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
@@ -18,7 +18,7 @@
          "datasourceTemplate": "helm",
          "depNameTemplate": "traefik",
          "managerFilePatterns": [
-            "/chartfile\\.yaml$/"
+            "/cluster/chartfile\\.yaml$/"
          ],
          "matchStrings": [
             "- chart: traefik/traefik\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
@@ -30,7 +30,7 @@
          "datasourceTemplate": "helm",
          "depNameTemplate": "argo-cd",
          "managerFilePatterns": [
-            "/chartfile\\.yaml$/"
+            "/cluster/chartfile\\.yaml$/"
          ],
          "matchStrings": [
             "- chart: argo/argo-cd\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
@@ -42,7 +42,7 @@
          "datasourceTemplate": "helm",
          "depNameTemplate": "kube-prometheus-stack",
          "managerFilePatterns": [
-            "/chartfile\\.yaml$/"
+            "/cluster/chartfile\\.yaml$/"
          ],
          "matchStrings": [
             "- chart: prometheus-community/kube-prometheus-stack\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
@@ -54,7 +54,7 @@
          "datasourceTemplate": "helm",
          "depNameTemplate": "loki",
          "managerFilePatterns": [
-            "/chartfile\\.yaml$/"
+            "/cluster/chartfile\\.yaml$/"
          ],
          "matchStrings": [
             "- chart: grafana/loki\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
@@ -66,24 +66,60 @@
          "datasourceTemplate": "helm",
          "depNameTemplate": "tempo",
          "managerFilePatterns": [
-            "/chartfile\\.yaml$/"
+            "/cluster/chartfile\\.yaml$/"
          ],
          "matchStrings": [
-            "- chart: grafana/tempo\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+            "- chart: grafana-community/tempo\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
          ],
-         "registryUrlTemplate": "https://grafana.github.io/helm-charts"
+         "registryUrlTemplate": "https://grafana-community.github.io/helm-charts"
       },
       {
          "customType": "regex",
          "datasourceTemplate": "helm",
          "depNameTemplate": "alloy",
          "managerFilePatterns": [
-            "/chartfile\\.yaml$/"
+            "/cluster/chartfile\\.yaml$/"
          ],
          "matchStrings": [
             "- chart: grafana/alloy\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
          ],
          "registryUrlTemplate": "https://grafana.github.io/helm-charts"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "sealed-secrets",
+         "managerFilePatterns": [
+            "/cluster/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: sealed-secrets/sealed-secrets\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://bitnami-labs.github.io/sealed-secrets"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "cert-manager",
+         "managerFilePatterns": [
+            "/cluster/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: jetstack/cert-manager\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://charts.jetstack.io"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "sops-secrets-operator",
+         "managerFilePatterns": [
+            "/cluster/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: sops-secrets-operator/sops-secrets-operator\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://isindir.github.io/sops-secrets-operator/"
       }
    ],
    "enabledManagers": [
@@ -96,12 +132,12 @@
    ],
    "postUpgradeTasks": {
       "commands": [
-         "tk tool charts vendor --prune",
-         "just render-lab"
+         "cd cluster && tk tool charts vendor --prune",
+         "cd cluster && just render-lab"
       ],
       "fileFilters": [
-         "charts/**",
-         "manifests/**"
+         "cluster/charts/**",
+         "cluster/manifests/**"
       ]
    },
    "prConcurrentLimit": 20,
