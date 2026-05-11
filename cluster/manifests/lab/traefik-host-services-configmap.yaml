@@ -108,10 +108,5 @@ data:
             - "url": "http://192.168.1.4:8080"
 kind: ConfigMap
 metadata:
-  labels:
-    app.kubernetes.io/instance: traefik-traefik
-    app.kubernetes.io/managed-by: Helmraiser
-    app.kubernetes.io/name: traefik
-    helm.sh/chart: traefik-39.0.0
-  name: traefik-file-provider
+  name: traefik-host-services
   namespace: traefik

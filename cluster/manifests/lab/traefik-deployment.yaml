@@ -44,14 +44,14 @@ spec:
         - --providers.kubernetescrd.allowEmptyServices=true
         - --providers.kubernetesingress
         - --providers.kubernetesingress.allowEmptyServices=true
-        - --providers.file.directory=/etc/traefik/dynamic
-        - --providers.file.watch=true
         - --entryPoints.websecure.http.tls=true
         - --log.level=INFO
         - --accesslog=true
         - --accesslog.format=json
         - --accesslog.fields.defaultmode=keep
         - --accesslog.fields.headers.defaultmode=drop
+        - --providers.file.filename=/etc/traefik/host-services.yml
+        - --providers.file.watch=true
         - --entrypoints.web.address=192.168.1.4:9080
         - --entrypoints.websecure.address=192.168.1.4:9443
         - --entrypoints.privateweb.address=100.64.0.2:80
@@ -119,8 +119,10 @@ spec:
           name: data
         - mountPath: /tmp
           name: tmp
-        - mountPath: /etc/traefik/dynamic
-          name: traefik-extra-config
+        - mountPath: /etc/traefik/host-services.yml
+          name: host-services
+          readOnly: true
+          subPath: config.yml
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       nodeSelector:
@@ -139,5 +141,5 @@ spec:
       - emptyDir: {}
         name: tmp
       - configMap:
-          name: traefik-file-provider
-        name: traefik-extra-config
+          name: traefik-host-services
+        name: host-services
