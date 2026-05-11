@@ -164,19 +164,49 @@ local withNamespace(resources, ns) = {
             enabled: false,
           },
 
-          // Disable default ports exposure (we use hostNetwork)
+          // Entrypoint port definitions. With hostNetwork, port IS the listen port.
+          // hostIP binds to a specific interface. The chart generates
+          // --entryPoints.<name>.address=<hostIP>:<port>/<protocol> from these.
           ports: {
             web: {
+              port: 9080,
+              hostIP: config.publicIP,
               expose: { default: false },
             },
             websecure: {
+              port: 9443,
+              hostIP: config.publicIP,
+              expose: { default: false },
+            },
+            privateweb: {
+              port: 80,
+              hostIP: config.tailscaleIP,
+              expose: { default: false },
+            },
+            privatesecure: {
+              port: 443,
+              hostIP: config.tailscaleIP,
+              expose: { default: false },
+            },
+            wgweb: {
+              port: 80,
+              hostIP: config.wgIP,
+              expose: { default: false },
+            },
+            wgsecure: {
+              port: 443,
+              hostIP: config.wgIP,
+              expose: { default: false },
+            },
+            torrent: {
+              port: 6881,
               expose: { default: false },
             },
             traefik: {
               expose: { default: false },
             },
             metrics: {
-              port: 9091,  // Changed from 9100 to avoid conflict with node-exporter
+              port: 9091,
               expose: { default: false },
             },
           },
@@ -203,22 +233,10 @@ local withNamespace(resources, ns) = {
             readOnly: true,
           }],
 
-          // Define entrypoints with specific IP bindings
           additionalArguments: [
             // File provider for NixOS host services (filename mode avoids directory double-read)
             '--providers.file.filename=/etc/traefik/host-services.yml',
             '--providers.file.watch=true',
-            // Public entrypoints (bind to LAN IP)
-            '--entrypoints.web.address=' + config.publicIP + ':9080',
-            '--entrypoints.websecure.address=' + config.publicIP + ':9443',
-            // Private entrypoints (bind to Tailscale IP on standard ports)
-            '--entrypoints.privateweb.address=' + config.tailscaleIP + ':80',
-            '--entrypoints.privatesecure.address=' + config.tailscaleIP + ':443',
-            // WireGuard entrypoints (bind to WG IP on standard ports)
-            '--entrypoints.wgweb.address=' + config.wgIP + ':80',
-            '--entrypoints.wgsecure.address=' + config.wgIP + ':443',
-            // Torrent peer traffic (Deluge)
-            '--entrypoints.torrent.address=:6881',
           ],
 
 
