@@ -212,9 +212,11 @@ local withNamespace(resources, ns) = {
                   service: name,
                   entryPoints: entryPoints,
                 },
+                // Traefik uses hostNetwork, so 127.0.0.1 reaches host services
+                // regardless of which interface they bind to.
                 local hostSvc(port) = {
                   loadBalancer: {
-                    servers: [{ url: 'http://' + config.publicIP + ':' + port }],
+                    servers: [{ url: 'http://127.0.0.1:' + port }],
                   },
                 },
                 http: {

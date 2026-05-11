@@ -69,35 +69,35 @@ data:
         "audiobookshelf":
           "loadBalancer":
             "servers":
-            - "url": "http://192.168.1.4:8000"
+            - "url": "http://127.0.0.1:8000"
         "deluge":
           "loadBalancer":
             "servers":
-            - "url": "http://192.168.1.4:8112"
+            - "url": "http://127.0.0.1:8112"
         "filestash":
           "loadBalancer":
             "servers":
-            - "url": "http://192.168.1.4:8334"
+            - "url": "http://127.0.0.1:8334"
         "immich":
           "loadBalancer":
             "servers":
-            - "url": "http://192.168.1.4:2343"
+            - "url": "http://127.0.0.1:2343"
         "jellyfin":
           "loadBalancer":
             "servers":
-            - "url": "http://192.168.1.4:8096"
+            - "url": "http://127.0.0.1:8096"
         "navidrome":
           "loadBalancer":
             "servers":
-            - "url": "http://192.168.1.4:4533"
+            - "url": "http://127.0.0.1:4533"
         "vaultwarden":
           "loadBalancer":
             "servers":
-            - "url": "http://192.168.1.4:8222"
+            - "url": "http://127.0.0.1:8222"
         "webdav":
           "loadBalancer":
             "servers":
-            - "url": "http://192.168.1.4:8080"
+            - "url": "http://127.0.0.1:8080"
 kind: ConfigMap
 metadata:
   labels:
