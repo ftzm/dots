@@ -1045,7 +1045,7 @@ local withNamespace(resources, ns) = {
           # Custom DNS mappings
           customDNS:
             mapping:
-              lan.ftzmlab.xyz: %(wireguardIP)s
+              lan.ftzmlab.xyz: %(tailscaleIP)s
 
           # Forward cluster.local to CoreDNS
           conditional:
@@ -1058,7 +1058,10 @@ local withNamespace(resources, ns) = {
             prefetching: true
 
           ports:
-            dns: %(wireguardIP)s:53
+            dns:
+              - %(publicIP)s:53
+              - %(tailscaleIP)s:53
+              - %(wgIP)s:53
             http: 4000
 
           log:
@@ -1067,7 +1070,11 @@ local withNamespace(resources, ns) = {
           prometheus:
             enable: true
             path: /metrics
-        ||| % { wireguardIP: config.tailscaleIP },
+        ||| % {
+          tailscaleIP: config.tailscaleIP,
+          publicIP: config.publicIP,
+          wgIP: config.wgIP,
+        },
       }),
 
     deployment: k.apps.v1.deployment.new('blocky')

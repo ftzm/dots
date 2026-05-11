@@ -357,9 +357,10 @@ separate IPs, creating isolated public and private ingress paths:
 
 ### DNS
 
-**Blocky** runs as a DNS proxy on the Tailscale IP (`100.64.0.2:53`):
+**Blocky** runs as a DNS proxy on all three network interfaces (`192.168.1.4:53`, `100.64.0.2:53`, `10.0.100.4:53`):
 
-- Maps `lan.ftzmlab.xyz` → `100.64.0.2` (Tailscale IP) so all `*.lan.ftzmlab.xyz` subdomains resolve correctly for VPN clients.
+- Maps `lan.ftzmlab.xyz` → `100.64.0.2` (Tailscale IP) so all `*.lan.ftzmlab.xyz` subdomains resolve to the private Traefik entrypoints.
+- Reachable from LAN, Tailscale, and WireGuard clients.
 - Forwards `cluster.local` → `10.96.0.10` (CoreDNS) for in-cluster resolution.
 - Provides ad-blocking via deny lists (StevenBlack, AdguardDNS, Firebog).
 

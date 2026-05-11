@@ -81,23 +81,6 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
       services.openssh.enable = true;
       # services.openssh.permitRootLogin = "yes";
 
-      virtualisation.oci-containers.containers = {
-        pihole = {
-          image = "pihole/pihole:latest";
-          ports = ["53:53/tcp" "53:53/udp" "80:80" "443:443"];
-          volumes = [
-            "/var/lib/pihole/:/etc/pihole/"
-            "/var/lib/dnsmasq.d:/etc/dnsmasq.d/"
-          ];
-          environment = {
-            TZ = "Europe/Copenhagen";
-            WEBPASSWORD = "admin";
-          };
-          extraOptions = ["--cap-add=NET_ADMIN" "--dns=127.0.0.1" "--dns=1.1.1.1"];
-          workdir = "/var/lib/pihole/";
-        };
-      };
-
       # ---------------------------------------------------------------------------
       # ddclient
 
@@ -132,6 +115,7 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
               ];
               split = {
                 "localdomain" = ["192.168.1.1"];
+                "lan.ftzmlab.xyz" = ["100.64.0.2"];
               };
             };
           };

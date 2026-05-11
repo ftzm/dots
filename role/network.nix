@@ -27,6 +27,9 @@
         # LAN IP: 192.168.1.4
         ip = "10.0.100.4";
         subnet = "10.0.0.248/29";
+        # Allow WG clients to route to nuc's Tailscale IP (100.64.0.2)
+        # so they can reach Traefik's private entrypoints for *.lan.ftzmlab.xyz
+        peerOnlyRoutes = ["100.64.0.2/32"];
         listenPort = 51840;
         publicKey = "hkBdJ/i5Aei5RXNcoYluvJcScIoDz+Na8iVhiHQv6TA=";
         clientOnly = false;
@@ -91,6 +94,11 @@ in {
               ++ (
                 if v.wg ? "subnet"
                 then [v.wg.subnet]
+                else []
+              )
+              ++ (
+                if v.wg ? "peerOnlyRoutes"
+                then v.wg.peerOnlyRoutes
                 else []
               );
             endpoint =
