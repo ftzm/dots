@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    checksum/traefik-dynamic-conf: bbc04e53f946e6a3a80042ea501d12480014945fe3081dd86df9a7b786dad096
+    checksum/traefik-dynamic-conf: 80381b8bc40fbad1ed0c3d25fcc678f58ca7835b58823aeb42a121cb9d64c30b
   labels:
     app.kubernetes.io/instance: traefik-traefik
     app.kubernetes.io/managed-by: Helmraiser

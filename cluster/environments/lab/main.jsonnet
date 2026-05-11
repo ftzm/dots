@@ -211,7 +211,6 @@ local withNamespace(resources, ns) = {
                   rule: 'Host(`' + domain + '`)',
                   service: name,
                   entryPoints: entryPoints,
-                  tls: {},
                 },
                 local hostSvc(port) = {
                   loadBalancer: {
