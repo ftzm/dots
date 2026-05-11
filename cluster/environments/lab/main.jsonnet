@@ -235,7 +235,7 @@ local withNamespace(resources, ns) = {
                     vaultwarden: hostSvc('8222'),
                     deluge: hostSvc('8112'),
                     audiobookshelf: hostSvc('8000'),
-                    immich: hostSvc('2343'),
+                    immich: hostSvc('2283'),
                     filestash: hostSvc('8334'),
                     navidrome: hostSvc('4533'),
                     webdav: hostSvc('8080'),
