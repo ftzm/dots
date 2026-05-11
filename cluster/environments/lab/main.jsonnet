@@ -2,52 +2,6 @@ local config = import '../../lib/config.libsonnet';
 local helm = (import 'tanka-util/helm.libsonnet').new(std.thisFile);
 local k = import 'k8s-libsonnet/main.libsonnet';
 
-local privateEntryPoints = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'];
-
-// Helper: creates Service + EndpointSlice + IngressRoute for a NixOS host service.
-// Used to route Traefik to services running on the host, not in k8s.
-local hostService(name, port, domain, ns='default', entryPoints=privateEntryPoints) = {
-  [name + '-service']: {
-    apiVersion: 'v1',
-    kind: 'Service',
-    metadata: {
-      name: name,
-      namespace: ns,
-      labels: { 'app.kubernetes.io/name': name },
-    },
-    spec: {
-      clusterIP: 'None',
-      ports: [{ port: port, targetPort: port, protocol: 'TCP', name: 'http' }],
-    },
-  },
-  [name + '-endpointslice']: {
-    apiVersion: 'discovery.k8s.io/v1',
-    kind: 'EndpointSlice',
-    metadata: {
-      name: name,
-      namespace: ns,
-      labels: { 'kubernetes.io/service-name': name },
-    },
-    addressType: 'IPv4',
-    endpoints: [{ addresses: [config.publicIP] }],
-    ports: [{ port: port, protocol: 'TCP', name: 'http' }],
-  },
-  [name + '-ingress']: {
-    apiVersion: 'traefik.io/v1alpha1',
-    kind: 'IngressRoute',
-    metadata: { name: name, namespace: ns },
-    spec: {
-      entryPoints: entryPoints,
-      routes: [{
-        match: "Host(`" + domain + "`)",
-        kind: 'Rule',
-        services: [{ name: name, port: port }],
-      }],
-      tls: {},
-    },
-  },
-};
-
 // Cluster-scoped kinds that should not have namespace set
 local clusterScoped = [
   'ClusterRole',
@@ -229,6 +183,52 @@ local withNamespace(resources, ns) = {
             metrics: {
               port: 9091,  // Changed from 9100 to avoid conflict with node-exporter
               expose: { default: false },
+            },
+          },
+
+          // File provider: routes for NixOS host services.
+          // These run on the host, not in k8s, so we route directly to IP:port
+          // instead of using k8s Service + EndpointSlice (which ArgoCD excludes).
+          providers: {
+            file: {
+              enabled: true,
+              content: std.manifestYamlDoc({
+                http: {
+                  routers: {
+                    local privateEP = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+                    local publicEP = ['web', 'websecure'],
+                    local hostRouter(name, domain, entryPoints=privateEP) = {
+                      rule: 'Host(`' + domain + '`)',
+                      service: name,
+                      entryPoints: entryPoints,
+                      tls: {},
+                    },
+                    jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
+                    vaultwarden: hostRouter('vaultwarden', 'vaultwarden.lan.ftzmlab.xyz'),
+                    deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
+                    audiobookshelf: hostRouter('audiobookshelf', 'audiobookshelf.lan.ftzmlab.xyz'),
+                    immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
+                    filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
+                    navidrome: hostRouter('navidrome', 'navidrome.lan.ftzmlab.xyz'),
+                    webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
+                  },
+                  services: {
+                    local hostSvc(port) = {
+                      loadBalancer: {
+                        servers: [{ url: 'http://' + config.publicIP + ':' + port }],
+                      },
+                    },
+                    jellyfin: hostSvc('8096'),
+                    vaultwarden: hostSvc('8222'),
+                    deluge: hostSvc('8112'),
+                    audiobookshelf: hostSvc('8000'),
+                    immich: hostSvc('2343'),
+                    filestash: hostSvc('8334'),
+                    navidrome: hostSvc('4533'),
+                    webdav: hostSvc('8080'),
+                  },
+                },
+              }),
             },
           },
 
@@ -1188,16 +1188,4 @@ local withNamespace(resources, ns) = {
     },
   },
 
-  // Services running on NixOS that need Traefik ingress.
-  // Uses hostService helper (defined at top of file) to create
-  // Service + EndpointSlice + IngressRoute for each.
-  nixosServices:
-    hostService('jellyfin', 8096, 'jellyfin.ftzmlab.xyz', entryPoints=['web', 'websecure'])
-    + hostService('vaultwarden', 8222, 'vaultwarden.lan.ftzmlab.xyz')
-    + hostService('deluge', 8112, 'deluge.lan.ftzmlab.xyz')
-    + hostService('audiobookshelf', 8000, 'audiobookshelf.lan.ftzmlab.xyz')
-    + hostService('immich', 2343, 'img.lan.ftzmlab.xyz')
-    + hostService('filestash', 8334, 'filestash.lan.ftzmlab.xyz')
-    + hostService('navidrome', 4533, 'navidrome.lan.ftzmlab.xyz')
-    + hostService('webdav', 8080, 'dav.lan.ftzmlab.xyz'),
 }

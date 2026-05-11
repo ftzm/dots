@@ -1,0 +1,117 @@
+apiVersion: v1
+data:
+  config.yml: |-
+    "http":
+      "routers":
+        "audiobookshelf":
+          "entryPoints":
+          - "privateweb"
+          - "privatesecure"
+          - "wgweb"
+          - "wgsecure"
+          "rule": "Host(`audiobookshelf.lan.ftzmlab.xyz`)"
+          "service": "audiobookshelf"
+          "tls": {}
+        "deluge":
+          "entryPoints":
+          - "privateweb"
+          - "privatesecure"
+          - "wgweb"
+          - "wgsecure"
+          "rule": "Host(`deluge.lan.ftzmlab.xyz`)"
+          "service": "deluge"
+          "tls": {}
+        "filestash":
+          "entryPoints":
+          - "privateweb"
+          - "privatesecure"
+          - "wgweb"
+          - "wgsecure"
+          "rule": "Host(`filestash.lan.ftzmlab.xyz`)"
+          "service": "filestash"
+          "tls": {}
+        "immich":
+          "entryPoints":
+          - "privateweb"
+          - "privatesecure"
+          - "wgweb"
+          - "wgsecure"
+          "rule": "Host(`img.lan.ftzmlab.xyz`)"
+          "service": "immich"
+          "tls": {}
+        "jellyfin":
+          "entryPoints":
+          - "web"
+          - "websecure"
+          "rule": "Host(`jellyfin.ftzmlab.xyz`)"
+          "service": "jellyfin"
+          "tls": {}
+        "navidrome":
+          "entryPoints":
+          - "privateweb"
+          - "privatesecure"
+          - "wgweb"
+          - "wgsecure"
+          "rule": "Host(`navidrome.lan.ftzmlab.xyz`)"
+          "service": "navidrome"
+          "tls": {}
+        "vaultwarden":
+          "entryPoints":
+          - "privateweb"
+          - "privatesecure"
+          - "wgweb"
+          - "wgsecure"
+          "rule": "Host(`vaultwarden.lan.ftzmlab.xyz`)"
+          "service": "vaultwarden"
+          "tls": {}
+        "webdav":
+          "entryPoints":
+          - "privateweb"
+          - "privatesecure"
+          - "wgweb"
+          - "wgsecure"
+          "rule": "Host(`dav.lan.ftzmlab.xyz`)"
+          "service": "webdav"
+          "tls": {}
+      "services":
+        "audiobookshelf":
+          "loadBalancer":
+            "servers":
+            - "url": "http://192.168.1.4:8000"
+        "deluge":
+          "loadBalancer":
+            "servers":
+            - "url": "http://192.168.1.4:8112"
+        "filestash":
+          "loadBalancer":
+            "servers":
+            - "url": "http://192.168.1.4:8334"
+        "immich":
+          "loadBalancer":
+            "servers":
+            - "url": "http://192.168.1.4:2343"
+        "jellyfin":
+          "loadBalancer":
+            "servers":
+            - "url": "http://192.168.1.4:8096"
+        "navidrome":
+          "loadBalancer":
+            "servers":
+            - "url": "http://192.168.1.4:4533"
+        "vaultwarden":
+          "loadBalancer":
+            "servers":
+            - "url": "http://192.168.1.4:8222"
+        "webdav":
+          "loadBalancer":
+            "servers":
+            - "url": "http://192.168.1.4:8080"
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: traefik-traefik
+    app.kubernetes.io/managed-by: Helmraiser
+    app.kubernetes.io/name: traefik
+    helm.sh/chart: traefik-39.0.0
+  name: traefik-file-provider
+  namespace: traefik
