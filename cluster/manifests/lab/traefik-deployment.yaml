@@ -1,6 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    checksum/traefik-dynamic-conf: bbc04e53f946e6a3a80042ea501d12480014945fe3081dd86df9a7b786dad096
   labels:
     app.kubernetes.io/instance: traefik-traefik
     app.kubernetes.io/managed-by: Helmraiser
@@ -49,14 +51,13 @@ spec:
         - --providers.kubernetescrd.allowEmptyServices=true
         - --providers.kubernetesingress
         - --providers.kubernetesingress.allowEmptyServices=true
+        - --providers.file.directory=/etc/traefik/dynamic
         - --entryPoints.websecure.http.tls=true
         - --log.level=INFO
         - --accesslog=true
         - --accesslog.format=json
         - --accesslog.fields.defaultmode=keep
         - --accesslog.fields.headers.defaultmode=drop
-        - --providers.file.filename=/etc/traefik/host-services.yml
-        - --providers.file.watch=true
         env:
         - name: POD_NAME
           valueFrom:
@@ -138,10 +139,8 @@ spec:
           name: data
         - mountPath: /tmp
           name: tmp
-        - mountPath: /etc/traefik/host-services.yml
-          name: host-services
-          readOnly: true
-          subPath: config.yml
+        - mountPath: /etc/traefik/dynamic
+          name: traefik-extra-config
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       nodeSelector:
@@ -160,5 +159,5 @@ spec:
       - emptyDir: {}
         name: tmp
       - configMap:
-          name: traefik-host-services
-        name: host-services
+          name: traefik-file-provider
+        name: traefik-extra-config

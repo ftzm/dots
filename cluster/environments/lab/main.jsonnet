@@ -211,34 +211,57 @@ local withNamespace(resources, ns) = {
             },
           },
 
-          // Disable the chart's built-in file provider (uses directory mode, which
-          // double-reads ConfigMap symlinks causing all routes to be skipped).
-          // We use filename mode instead via additionalArguments + additionalVolumeMounts.
-          providers: {
-            file: { enabled: false },
-          },
-
           deployment: {
             dnsPolicy: 'ClusterFirstWithHostNet',
-            additionalVolumes: [{
-              name: 'host-services',
-              configMap: { name: 'traefik-host-services' },
-            }],
           },
 
-          additionalVolumeMounts: [{
-            name: 'host-services',
-            mountPath: '/etc/traefik/host-services.yml',
-            subPath: 'config.yml',
-            readOnly: true,
-          }],
-
-          additionalArguments: [
-            // File provider for NixOS host services (filename mode avoids directory double-read)
-            '--providers.file.filename=/etc/traefik/host-services.yml',
-            '--providers.file.watch=true',
-          ],
-
+          // File provider for NixOS host services: routes directly to host IP:port,
+          // bypassing k8s Service/EndpointSlice (which ArgoCD excludes).
+          // watch: false = single directory read at startup (no inotify symlink double-read).
+          // ConfigMap changes trigger pod restart via the chart's checksum annotation.
+          providers: {
+            file: {
+              enabled: true,
+              watch: false,
+              content: std.manifestYamlDoc({
+                local privateEP = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+                local publicEP = ['web', 'websecure'],
+                local hostRouter(name, domain, entryPoints=privateEP) = {
+                  rule: 'Host(`' + domain + '`)',
+                  service: name,
+                  entryPoints: entryPoints,
+                  tls: {},
+                },
+                local hostSvc(port) = {
+                  loadBalancer: {
+                    servers: [{ url: 'http://' + config.publicIP + ':' + port }],
+                  },
+                },
+                http: {
+                  routers: {
+                    jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
+                    vaultwarden: hostRouter('vaultwarden', 'vaultwarden.lan.ftzmlab.xyz'),
+                    deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
+                    audiobookshelf: hostRouter('audiobookshelf', 'audiobookshelf.lan.ftzmlab.xyz'),
+                    immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
+                    filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
+                    navidrome: hostRouter('navidrome', 'navidrome.lan.ftzmlab.xyz'),
+                    webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
+                  },
+                  services: {
+                    jellyfin: hostSvc('8096'),
+                    vaultwarden: hostSvc('8222'),
+                    deluge: hostSvc('8112'),
+                    audiobookshelf: hostSvc('8000'),
+                    immich: hostSvc('2343'),
+                    filestash: hostSvc('8334'),
+                    navidrome: hostSvc('4533'),
+                    webdav: hostSvc('8080'),
+                  },
+                },
+              }),
+            },
+          },
 
           // Single IngressClass for standard Ingress resources
           // Note: Standard Ingress resources will be available on ALL entrypoints.
@@ -251,55 +274,6 @@ local withNamespace(resources, ns) = {
       }),
       ns
     ),
-
-    // File provider config: routes for NixOS host services.
-    // Uses Traefik's file provider to route directly to host IP:port,
-    // bypassing k8s Service/EndpointSlice (which ArgoCD excludes).
-    hostServicesConfig: {
-      local privateEP = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
-      local publicEP = ['web', 'websecure'],
-      local hostRouter(name, domain, entryPoints=privateEP) = {
-        rule: 'Host(`' + domain + '`)',
-        service: name,
-        entryPoints: entryPoints,
-        tls: {},
-      },
-      local hostSvc(port) = {
-        loadBalancer: {
-          servers: [{ url: 'http://' + config.publicIP + ':' + port }],
-        },
-      },
-
-      apiVersion: 'v1',
-      kind: 'ConfigMap',
-      metadata: { name: 'traefik-host-services', namespace: ns },
-      data: {
-        'config.yml': std.manifestYamlDoc({
-          http: {
-            routers: {
-              jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
-              vaultwarden: hostRouter('vaultwarden', 'vaultwarden.lan.ftzmlab.xyz'),
-              deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
-              audiobookshelf: hostRouter('audiobookshelf', 'audiobookshelf.lan.ftzmlab.xyz'),
-              immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
-              filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
-              navidrome: hostRouter('navidrome', 'navidrome.lan.ftzmlab.xyz'),
-              webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
-            },
-            services: {
-              jellyfin: hostSvc('8096'),
-              vaultwarden: hostSvc('8222'),
-              deluge: hostSvc('8112'),
-              audiobookshelf: hostSvc('8000'),
-              immich: hostSvc('2343'),
-              filestash: hostSvc('8334'),
-              navidrome: hostSvc('4533'),
-              webdav: hostSvc('8080'),
-            },
-          },
-        }),
-      },
-    },
 
     // PodMonitor for Prometheus to scrape Traefik metrics
     podMonitor: {
