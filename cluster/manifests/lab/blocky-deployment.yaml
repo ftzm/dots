@@ -12,6 +12,8 @@ spec:
     type: Recreate
   template:
     metadata:
+      annotations:
+        checksum/config: bd7ab877848e3ba0d93f57af58df1718
       labels:
         app.kubernetes.io/name: blocky
     spec:

@@ -1011,9 +1011,7 @@ local withNamespace(resources, ns) = {
 
     namespace: k.core.v1.namespace.new(ns),
 
-    configmap: k.core.v1.configMap.new('blocky-config')
-      + k.core.v1.configMap.metadata.withNamespace(ns)
-      + k.core.v1.configMap.withData({
+    local configData = {
         'config.yaml': |||
           # Upstream DNS servers
           upstreams:
@@ -1075,7 +1073,11 @@ local withNamespace(resources, ns) = {
           publicIP: config.publicIP,
           wgIP: config.wgIP,
         },
-      }),
+    },
+
+    configmap: k.core.v1.configMap.new('blocky-config')
+      + k.core.v1.configMap.metadata.withNamespace(ns)
+      + k.core.v1.configMap.withData(configData),
 
     deployment: k.apps.v1.deployment.new('blocky')
       + k.apps.v1.deployment.metadata.withNamespace(ns)
@@ -1083,6 +1085,9 @@ local withNamespace(resources, ns) = {
       + k.apps.v1.deployment.spec.selector.withMatchLabels(labels)
       + k.apps.v1.deployment.spec.strategy.withType('Recreate')
       + k.apps.v1.deployment.spec.template.metadata.withLabels(labels)
+      + k.apps.v1.deployment.spec.template.metadata.withAnnotations({
+        'checksum/config': std.md5(std.toString(configData)),
+      })
       + k.apps.v1.deployment.spec.template.spec.withHostNetwork(true)
       + k.apps.v1.deployment.spec.template.spec.withDnsPolicy('ClusterFirstWithHostNet')
       + k.apps.v1.deployment.spec.template.spec.withNodeSelector({
@@ -1134,9 +1139,7 @@ local withNamespace(resources, ns) = {
 
     namespace: k.core.v1.namespace.new(ns),
 
-    configmap: k.core.v1.configMap.new('ntfy-config')
-      + k.core.v1.configMap.metadata.withNamespace(ns)
-      + k.core.v1.configMap.withData({
+    local configData = {
         'server.yml': |||
           base-url: "https://ntfy.lan.ftzmlab.xyz"
           listen-http: ":80"
@@ -1144,7 +1147,11 @@ local withNamespace(resources, ns) = {
           cache-duration: "12h"
           auth-default-access: "read-write"
         |||,
-      }),
+    },
+
+    configmap: k.core.v1.configMap.new('ntfy-config')
+      + k.core.v1.configMap.metadata.withNamespace(ns)
+      + k.core.v1.configMap.withData(configData),
 
     pvc: k.core.v1.persistentVolumeClaim.new('ntfy-cache')
       + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
@@ -1158,6 +1165,9 @@ local withNamespace(resources, ns) = {
       + k.apps.v1.deployment.spec.selector.withMatchLabels(labels)
       + k.apps.v1.deployment.spec.strategy.withType('Recreate')
       + k.apps.v1.deployment.spec.template.metadata.withLabels(labels)
+      + k.apps.v1.deployment.spec.template.metadata.withAnnotations({
+        'checksum/config': std.md5(std.toString(configData)),
+      })
       + k.apps.v1.deployment.spec.template.spec.withContainers([
         k.core.v1.container.new('ntfy', 'binwiederhier/ntfy')
         + k.core.v1.container.withArgs(['serve'])

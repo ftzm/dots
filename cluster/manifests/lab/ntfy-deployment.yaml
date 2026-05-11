@@ -12,6 +12,8 @@ spec:
     type: Recreate
   template:
     metadata:
+      annotations:
+        checksum/config: fd8a045140fd2b4240809addef8b9af8
       labels:
         app.kubernetes.io/name: ntfy
     spec:
