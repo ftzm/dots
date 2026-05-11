@@ -151,11 +151,6 @@ local withNamespace(resources, ns) = {
           deployment: {
             // Required when using hostNetwork to resolve cluster DNS
             dnsPolicy: 'ClusterFirstWithHostNet',
-            // Mount the host-services ConfigMap for the file provider
-            additionalVolumes: [{
-              name: 'host-services',
-              configMap: { name: 'traefik-host-services' },
-            }],
           },
 
           updateStrategy: {
@@ -194,26 +189,54 @@ local withNamespace(resources, ns) = {
           // File provider: routes for NixOS host services.
           // These run on the host, not in k8s, so we route directly to IP:port
           // instead of using k8s Service + EndpointSlice (which ArgoCD excludes).
+          // Directory mode double-reads ConfigMap symlinks, causing harmless
+          // "already configured" warnings on startup. Routes work from the first read.
           providers: {
             file: {
-              enabled: false,
+              enabled: true,
+              watch: true,
+              content: std.manifestYamlDoc({
+                local privateEP = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+                local publicEP = ['web', 'websecure'],
+                local hostRouter(name, domain, entryPoints=privateEP) = {
+                  rule: 'Host(`' + domain + '`)',
+                  service: name,
+                  entryPoints: entryPoints,
+                  tls: {},
+                },
+                local hostSvc(port) = {
+                  loadBalancer: {
+                    servers: [{ url: 'http://' + config.publicIP + ':' + port }],
+                  },
+                },
+                http: {
+                  routers: {
+                    jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
+                    vaultwarden: hostRouter('vaultwarden', 'vaultwarden.lan.ftzmlab.xyz'),
+                    deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
+                    audiobookshelf: hostRouter('audiobookshelf', 'audiobookshelf.lan.ftzmlab.xyz'),
+                    immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
+                    filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
+                    navidrome: hostRouter('navidrome', 'navidrome.lan.ftzmlab.xyz'),
+                    webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
+                  },
+                  services: {
+                    jellyfin: hostSvc('8096'),
+                    vaultwarden: hostSvc('8222'),
+                    deluge: hostSvc('8112'),
+                    audiobookshelf: hostSvc('8000'),
+                    immich: hostSvc('2343'),
+                    filestash: hostSvc('8334'),
+                    navidrome: hostSvc('4533'),
+                    webdav: hostSvc('8080'),
+                  },
+                },
+              }),
             },
           },
 
-          // Mount host-services config as a single file (subPath avoids
-          // directory symlinks that cause Traefik to double-read the config).
-          additionalVolumeMounts: [{
-            name: 'host-services',
-            mountPath: '/etc/traefik/host-services.yml',
-            subPath: 'config.yml',
-            readOnly: true,
-          }],
-
           // Define entrypoints with specific IP bindings
           additionalArguments: [
-            // File provider for NixOS host services (subPath mount, watch for live reload)
-            '--providers.file.filename=/etc/traefik/host-services.yml',
-            '--providers.file.watch=true',
             // Public entrypoints (bind to LAN IP)
             '--entrypoints.web.address=' + config.publicIP + ':9080',
             '--entrypoints.websecure.address=' + config.publicIP + ':9443',
@@ -239,58 +262,6 @@ local withNamespace(resources, ns) = {
       }),
       ns
     ),
-
-    // File provider config: routes for NixOS host services.
-    // These run on the host, not in k8s, so we route directly to IP:port
-    // instead of using k8s Service/EndpointSlice (which ArgoCD excludes).
-    hostServicesConfig: {
-      local privateEP = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
-      local publicEP = ['web', 'websecure'],
-      local hostRouter(name, domain, entryPoints=privateEP) = {
-        rule: 'Host(`' + domain + '`)',
-        service: name,
-        entryPoints: entryPoints,
-        tls: {},
-      },
-      local hostSvc(port) = {
-        loadBalancer: {
-          servers: [{ url: 'http://' + config.publicIP + ':' + port }],
-        },
-      },
-
-      apiVersion: 'v1',
-      kind: 'ConfigMap',
-      metadata: {
-        name: 'traefik-host-services',
-        namespace: ns,
-      },
-      data: {
-        'config.yml': std.manifestYamlDoc({
-          http: {
-            routers: {
-              jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
-              vaultwarden: hostRouter('vaultwarden', 'vaultwarden.lan.ftzmlab.xyz'),
-              deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
-              audiobookshelf: hostRouter('audiobookshelf', 'audiobookshelf.lan.ftzmlab.xyz'),
-              immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
-              filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
-              navidrome: hostRouter('navidrome', 'navidrome.lan.ftzmlab.xyz'),
-              webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
-            },
-            services: {
-              jellyfin: hostSvc('8096'),
-              vaultwarden: hostSvc('8222'),
-              deluge: hostSvc('8112'),
-              audiobookshelf: hostSvc('8000'),
-              immich: hostSvc('2343'),
-              filestash: hostSvc('8334'),
-              navidrome: hostSvc('4533'),
-              webdav: hostSvc('8080'),
-            },
-          },
-        }),
-      },
-    },
 
     // PodMonitor for Prometheus to scrape Traefik metrics
     podMonitor: {
@@ -396,7 +367,7 @@ local withNamespace(resources, ns) = {
         },
         syncPolicy: {
           automated: {
-            prune: false,  // Don't auto-delete resources not in Git (safer)
+            prune: true,
             selfHeal: true,  // Auto-sync when cluster state drifts
           },
           syncOptions: [
