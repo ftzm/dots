@@ -35,14 +35,10 @@ spec:
       containers:
       - args:
         - --entryPoints.metrics.address=:9091/tcp
-        - --entryPoints.privatesecure.address=100.64.0.2:443/tcp
-        - --entryPoints.privateweb.address=100.64.0.2:80/tcp
         - --entryPoints.torrent.address=:6881/tcp
         - --entryPoints.traefik.address=:8080/tcp
         - --entryPoints.web.address=192.168.1.4:9080/tcp
         - --entryPoints.websecure.address=192.168.1.4:9443/tcp
-        - --entryPoints.wgsecure.address=10.0.100.4:443/tcp
-        - --entryPoints.wgweb.address=10.0.100.4:80/tcp
         - --api.dashboard=true
         - --ping=true
         - --metrics.prometheus=true
@@ -58,6 +54,10 @@ spec:
         - --accesslog.format=json
         - --accesslog.fields.defaultmode=keep
         - --accesslog.fields.headers.defaultmode=drop
+        - --entrypoints.privateweb.address=100.64.0.2:80
+        - --entrypoints.privatesecure.address=100.64.0.2:443
+        - --entrypoints.wgweb.address=10.0.100.4:80
+        - --entrypoints.wgsecure.address=10.0.100.4:443
         env:
         - name: POD_NAME
           valueFrom:
@@ -87,14 +87,6 @@ spec:
         - containerPort: 9091
           name: metrics
           protocol: TCP
-        - containerPort: 443
-          hostIP: 100.64.0.2
-          name: privatesecure
-          protocol: TCP
-        - containerPort: 80
-          hostIP: 100.64.0.2
-          name: privateweb
-          protocol: TCP
         - containerPort: 6881
           name: torrent
           protocol: TCP
@@ -108,14 +100,6 @@ spec:
         - containerPort: 9443
           hostIP: 192.168.1.4
           name: websecure
-          protocol: TCP
-        - containerPort: 443
-          hostIP: 10.0.100.4
-          name: wgsecure
-          protocol: TCP
-        - containerPort: 80
-          hostIP: 10.0.100.4
-          name: wgweb
           protocol: TCP
         readinessProbe:
           failureThreshold: 1

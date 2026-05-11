@@ -164,9 +164,10 @@ local withNamespace(resources, ns) = {
             enabled: false,
           },
 
-          // Entrypoint port definitions. With hostNetwork, port IS the listen port.
-          // hostIP binds to a specific interface. The chart generates
-          // --entryPoints.<name>.address=<hostIP>:<port>/<protocol> from these.
+          // Entrypoints with unique ports go in the chart's ports section.
+          // Entrypoints sharing a port across different IPs (private/WG) must
+          // use additionalArguments — k8s container spec forbids duplicate
+          // containerPort values even with different hostIPs.
           ports: {
             web: {
               port: 9080,
@@ -176,26 +177,6 @@ local withNamespace(resources, ns) = {
             websecure: {
               port: 9443,
               hostIP: config.publicIP,
-              expose: { default: false },
-            },
-            privateweb: {
-              port: 80,
-              hostIP: config.tailscaleIP,
-              expose: { default: false },
-            },
-            privatesecure: {
-              port: 443,
-              hostIP: config.tailscaleIP,
-              expose: { default: false },
-            },
-            wgweb: {
-              port: 80,
-              hostIP: config.wgIP,
-              expose: { default: false },
-            },
-            wgsecure: {
-              port: 443,
-              hostIP: config.wgIP,
               expose: { default: false },
             },
             torrent: {
@@ -262,6 +243,15 @@ local withNamespace(resources, ns) = {
               }),
             },
           },
+
+          // Private/WG entrypoints via additionalArguments (share port 80/443
+          // across different IPs, which k8s containerPort spec can't express).
+          additionalArguments: [
+            '--entrypoints.privateweb.address=' + config.tailscaleIP + ':80',
+            '--entrypoints.privatesecure.address=' + config.tailscaleIP + ':443',
+            '--entrypoints.wgweb.address=' + config.wgIP + ':80',
+            '--entrypoints.wgsecure.address=' + config.wgIP + ':443',
+          ],
 
           // Single IngressClass for standard Ingress resources
           // Note: Standard Ingress resources will be available on ALL entrypoints.
