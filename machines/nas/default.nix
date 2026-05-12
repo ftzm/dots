@@ -154,6 +154,24 @@ in {
 
   #############################################################################
 
+  # Mediastack directory tree (arr stack + media services mount via NFS)
+  systemd.tmpfiles.rules = [
+    "d /pool-1/mediastack 0775 root storage -"
+    "d /pool-1/mediastack/downloads 0775 root storage -"
+    "d /pool-1/mediastack/downloads/torrents 0775 root storage -"
+    "d /pool-1/mediastack/downloads/usenet 0775 root storage -"
+    "d /pool-1/mediastack/media 0775 root storage -"
+    "d /pool-1/mediastack/media/movies 0775 root storage -"
+    "d /pool-1/mediastack/media/tv 0775 root storage -"
+    "d /pool-1/mediastack/media/music 0775 root storage -"
+    "d /pool-1/mediastack/media/books 0775 root storage -"
+    "d /pool-1/mediastack/media/audiobooks 0775 root storage -"
+    "d /pool-1/media/photos 0775 root storage -"
+    "d /pool-1/cloud 0775 root storage -"
+    # Recursive permission fix on download dirs (files arrive with varying perms)
+    "Z /pool-1/mediastack/downloads 0775 root storage -"
+  ];
+
   networking.firewall.enable = false;
 
   services.prometheus = {

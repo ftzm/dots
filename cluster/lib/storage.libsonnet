@@ -43,13 +43,13 @@ local k = import 'k8s-libsonnet/main.libsonnet';
   //   local media = storage.mediastack('radarr');
   //   { mediaPv: media.pv, mediaPvc: media.pvc }
   //
-  mediastack(ns):: self.nfsMount('mediastack', ns, '/pool-1/k8s/mediastack', '100Gi'),
+  mediastack(ns):: self.nfsMount('mediastack', ns, '/pool-1/mediastack', '100Gi'),
 
   // Pipeline contract: which apps access which mediastack paths.
   // Readable top-to-bottom for verification.
   appAccess: {
-    deluge: { paths: ['/downloads'], mode: 'rw' },
-    nzbget: { paths: ['/downloads'], mode: 'rw' },
+    deluge: { paths: ['/downloads/torrents'], mode: 'rw' },
+    nzbget: { paths: ['/downloads/usenet'], mode: 'rw' },
     radarr: { paths: ['/downloads', '/media/movies'], mode: 'rw' },
     sonarr: { paths: ['/downloads', '/media/tv'], mode: 'rw' },
     lidarr: { paths: ['/downloads', '/media/music'], mode: 'rw' },
