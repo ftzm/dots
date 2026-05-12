@@ -170,12 +170,13 @@ in {
     "d /pool-1/cloud 0775 root storage -"
     # Recursive permission fix on download dirs (files arrive with varying perms)
     "Z /pool-1/mediastack/downloads 0775 root storage -"
-    # Legacy symlinks — nuc services still reference old paths via /mnt/nas
-    "L /pool-1/music - - - - /pool-1/mediastack/media/music"
-    "L /pool-1/media/Movies - - - - /pool-1/mediastack/media/movies"
-    "L /pool-1/media/TV - - - - /pool-1/mediastack/media/tv"
-    "L /pool-1/media/audiobooks - - - - /pool-1/mediastack/media/audiobooks"
-    "L /pool-1/media/books - - - - /pool-1/mediastack/media/books"
+    # Legacy symlinks — nuc services still reference old paths via /mnt/nas.
+    # Must be relative so they resolve correctly over NFS.
+    "L /pool-1/music - - - - mediastack/media/music"
+    "L /pool-1/media/Movies - - - - ../mediastack/media/movies"
+    "L /pool-1/media/TV - - - - ../mediastack/media/tv"
+    "L /pool-1/media/audiobooks - - - - ../mediastack/media/audiobooks"
+    "L /pool-1/media/books - - - - ../mediastack/media/books"
   ];
 
   networking.firewall.enable = false;
