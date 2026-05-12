@@ -199,6 +199,7 @@ local withNamespace(resources, ns) = {
               rule: 'Host(`' + domain + '`)',
               service: name,
               entryPoints: entryPoints,
+              tls: {},
             },
             // Traefik uses hostNetwork, so 127.0.0.1 reaches host services
             // regardless of which interface they bind to.
