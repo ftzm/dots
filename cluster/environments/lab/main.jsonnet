@@ -1255,7 +1255,7 @@ local withNamespace(resources, ns) = {
     radarr: mediaApp('radarr', 'linuxserver/radarr:latest', 7878, 'radarr.lan.ftzmlab.xyz'),
     sonarr: mediaApp('sonarr', 'linuxserver/sonarr:latest', 8989, 'sonarr.lan.ftzmlab.xyz'),
     lidarr: mediaApp('lidarr', 'linuxserver/lidarr:latest', 8686, 'lidarr.lan.ftzmlab.xyz'),
-    readarr: mediaApp('readarr', 'linuxserver/readarr:latest', 8787, 'readarr.lan.ftzmlab.xyz'),
+    readarr: mediaApp('readarr', 'linuxserver/readarr:develop', 8787, 'readarr.lan.ftzmlab.xyz'),
 
     // Support services (no mediastack volume)
     prowlarr: selfhosted.new('prowlarr', 'linuxserver/prowlarr:latest', 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns),
