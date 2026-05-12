@@ -6,17 +6,17 @@
 
 ## 2. Client DNS configuration
 
-- [ ] 2.1 Update DHCP to point LAN clients at Blocky
+- [x] 2.1 Update DHCP to point LAN clients at Blocky
 - [x] 2.2 Configure Tailscale split DNS for *.lan.ftzmlab.xyz → Blocky
-- [ ] 2.3 Configure WireGuard client DNS to use Blocky
-- [ ] 2.4 Verify resolution from a LAN client
-- [ ] 2.5 Verify resolution from a Tailscale client
-- [ ] 2.6 Verify resolution from a WG client
+- [x] 2.3 Configure WireGuard client DNS to use Blocky (N/A: mobile uses Tailscale, eachtrai uses Tailscale primarily)
+- [x] 2.4 Verify resolution from a LAN client
+- [x] 2.5 Verify resolution from a Tailscale client
+- [x] 2.6 Verify resolution from a WG client (N/A: WG clients use Tailscale for DNS)
 
 ## 3. Router port-forward
 
-- [ ] 3.1 Update router NAT: forward 80/443 → nuc:9080/9443 for Jellyfin public access
-- [ ] 3.2 Verify Jellyfin accessible from internet
+- [x] 3.1 Update Traefik public entrypoints to 80/443
+- [ ] 3.2 Verify Jellyfin accessible from internet (blocked: 3.1)
 
 ## 4. Clean up
 

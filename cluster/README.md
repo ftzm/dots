@@ -340,13 +340,14 @@ The secret name must match what the SOPS/SealedSecret resource creates in-cluste
 
 ### Dual-network architecture
 
-Traefik runs with `hostNetwork: true` on the `nuc` node and binds to two
+Traefik runs with `hostNetwork: true` on the `nuc` node and binds to
 separate IPs, creating isolated public and private ingress paths:
 
 | Network | IP | Entrypoints | Ports | Use case |
 |---|---|---|---|---|
-| **Public (LAN)** | `192.168.1.4` | `web`, `websecure` | 9080, 9443 | Internet-routable services |
+| **Public (LAN)** | `192.168.1.4` | `web`, `websecure` | 80, 443 | Internet-routable services |
 | **Private (Tailscale)** | `100.64.0.2` | `privateweb`, `privatesecure` | 80, 443 | Internal-only access via Tailscale VPN |
+| **WireGuard** | `10.0.100.4` | `wgweb`, `wgsecure` | 80, 443 | WireGuard VPN access |
 
 ### How routing decisions work
 

@@ -170,12 +170,12 @@ local withNamespace(resources, ns) = {
           // containerPort values even with different hostIPs.
           ports: {
             web: {
-              port: 9080,
+              port: 80,
               hostIP: config.publicIP,
               expose: { default: false },
             },
             websecure: {
-              port: 9443,
+              port: 443,
               hostIP: config.publicIP,
               expose: { default: false },
             },

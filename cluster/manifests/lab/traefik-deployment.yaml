@@ -37,8 +37,8 @@ spec:
         - --entryPoints.metrics.address=:9091/tcp
         - --entryPoints.torrent.address=:6881/tcp
         - --entryPoints.traefik.address=:8080/tcp
-        - --entryPoints.web.address=192.168.1.4:9080/tcp
-        - --entryPoints.websecure.address=192.168.1.4:9443/tcp
+        - --entryPoints.web.address=192.168.1.4:80/tcp
+        - --entryPoints.websecure.address=192.168.1.4:443/tcp
         - --api.dashboard=true
         - --ping=true
         - --metrics.prometheus=true
@@ -93,11 +93,11 @@ spec:
         - containerPort: 8080
           name: traefik
           protocol: TCP
-        - containerPort: 9080
+        - containerPort: 80
           hostIP: 192.168.1.4
           name: web
           protocol: TCP
-        - containerPort: 9443
+        - containerPort: 443
           hostIP: 192.168.1.4
           name: websecure
           protocol: TCP

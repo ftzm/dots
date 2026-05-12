@@ -62,16 +62,11 @@
       ];
     };
   };
-  # Bind nginx to LAN only, excluding Tailscale and wireguard
+  # nginx only serves WebDAV on localhost, fronted by Traefik
   nginxListenAddrs = [
     {
-      addr = "192.168.1.4";
-      port = 80;
-    }
-    {
-      addr = "192.168.1.4";
-      port = 443;
-      ssl = true;
+      addr = "127.0.0.1";
+      port = 8080;
     }
   ];
 in {
@@ -292,21 +287,6 @@ in {
       text = ''
         chmod 775 -R /var/lib/deluge
         chgrp -R storage /var/lib/deluge
-      '';
-      deps = [];
-    };
-    nginxSelfSignedCert = {
-      text = ''
-        if [ ! -f /var/lib/nginx/selfsigned.crt ]; then
-          mkdir -p /var/lib/nginx
-          ${pkgs.openssl}/bin/openssl req -x509 -nodes -days 3650 \
-            -newkey rsa:2048 \
-            -keyout /var/lib/nginx/selfsigned.key \
-            -out /var/lib/nginx/selfsigned.crt \
-            -subj "/CN=wg-default"
-          chown nginx:nginx /var/lib/nginx/selfsigned.*
-          chmod 600 /var/lib/nginx/selfsigned.key
-        fi
       '';
       deps = [];
     };
@@ -599,113 +579,11 @@ in {
 
   # ----------------------------------------------------------------------
 
-  security.acme = {
-    acceptTerms = true;
-    defaults.email = "fitz.matt.d@gmail.com";
-  };
-
-  # nginx reverse proxy
+  # nginx: WebDAV backend only (Traefik handles routing + TLS)
   services.nginx = {
-    commonHttpConfig = ''
-      map "$time_iso8601 # $msec" $time_iso8601_ms { "~(^[^+]+)(\+[0-9:]+) # \d+\.(\d+)$" $1.$3$2; }
-
-      log_format main_json escape=json '{'
-        '"timestamp":"$time_iso8601_ms",'
-        '"remote_addr":"$remote_addr",'
-        '"remote_user":"$remote_user",'
-        '"host":"$host",'
-        '"request":"$request",'
-        '"status":$status,'
-        '"body_bytes_sent":$body_bytes_sent,'
-        '"http_referer":"$http_referer",'
-        '"http_user_agent":"$http_user_agent",'
-        '"http_x_forwarded_for":"$http_x_forwarded_for",'
-        '"request_time":$request_time'
-      '}';
-    '';
-
-    appendHttpConfig = ''
-      access_log /var/log/nginx/access.log main_json;
-    '';
-
-    # Use recommended settings
-    recommendedGzipSettings = true;
-    recommendedOptimisation = true;
-    recommendedProxySettings = true;
-    recommendedTlsSettings = true;
-
-    # Only allow PFS-enabled ciphers with AES256
-    sslCiphers = "AES256+EECDH:AES256+EDH:!aNULL";
-
     enable = true;
-    # virtualHosts.${config.services.grafana.settings.server.domain} = {
-    #   enableACME = true;
-    #   forceSSL = true;
-    #   locations."/" = {
-    #     proxyPass = "http://127.0.0.1:${
-    #       toString config.services.grafana.settings.server.http_port
-    #     }";
-    #     proxyWebsockets = true;
-    #   };
-    # };
-    virtualHosts."vaultwarden.ftzmlab.xyz" = {
+    virtualHosts."dav" = {
       listen = nginxListenAddrs;
-      enableACME = true;
-      forceSSL = true;
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:${toString config.services.vaultwarden.config.ROCKET_PORT}";
-        proxyWebsockets = true;
-      };
-    };
-    virtualHosts."deluge.ftzmlab.xyz" = {
-      listen = nginxListenAddrs;
-      enableACME = true;
-      forceSSL = true;
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:${toString config.services.deluge.web.port}";
-        proxyWebsockets = true;
-      };
-    };
-    virtualHosts."jellyfin.ftzmlab.xyz" = {
-      listen = nginxListenAddrs;
-      enableACME = true;
-      forceSSL = true;
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:8096";
-        proxyWebsockets = true;
-      };
-    };
-    virtualHosts."audiobookshelf.ftzmlab.xyz" = {
-      listen = nginxListenAddrs;
-      enableACME = true;
-      forceSSL = true;
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:${toString config.services.audiobookshelf.port}";
-        proxyWebsockets = true;
-      };
-    };
-    virtualHosts."img.ftzmlab.xyz" = {
-      listen = nginxListenAddrs;
-      enableACME = true;
-      forceSSL = true;
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:2343";
-        proxyWebsockets = true;
-      };
-    };
-    virtualHosts."filestash.ftzmlab.xyz" = {
-      listen = nginxListenAddrs;
-      enableACME = true;
-      forceSSL = true;
-      locations."/" = {
-        proxyPass = "http://127.0.0.1:8334";
-        proxyWebsockets = true;
-      };
-    };
-    virtualHosts."dav.ftzmlab.xyz" = {
-      listen = nginxListenAddrs;
-      enableACME = true;
-      forceSSL = true;
       root = "/var/www/dav/";
       locations."/" = {
         extraConfig = ''
@@ -719,11 +597,8 @@ in {
           create_full_put_path on;
           client_body_temp_path /tmp/;
 
-          #auth_pam "Restricted";
-          #auth_pam_service_name "common-auth";
           auth_basic "Restricted";
           auth_basic_user_file /.htpasswd;
-
         '';
       };
     };
