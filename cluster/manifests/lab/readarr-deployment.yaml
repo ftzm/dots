@@ -23,7 +23,7 @@ spec:
           value: "1001"
         - name: TZ
           value: Europe/Copenhagen
-        image: linuxserver/readarr:nightly
+        image: linuxserver/readarr:0.4.19-nightly
         name: readarr
         ports:
         - containerPort: 8787

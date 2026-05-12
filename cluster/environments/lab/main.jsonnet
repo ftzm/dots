@@ -1252,15 +1252,15 @@ local withNamespace(resources, ns) = {
     mediastackPvc: ms.pvc,
 
     // Arr apps (all mount mediastack for hardlinks)
-    radarr: mediaApp('radarr', 'linuxserver/radarr:latest', 7878, 'radarr.lan.ftzmlab.xyz'),
-    sonarr: mediaApp('sonarr', 'linuxserver/sonarr:latest', 8989, 'sonarr.lan.ftzmlab.xyz'),
-    lidarr: mediaApp('lidarr', 'linuxserver/lidarr:latest', 8686, 'lidarr.lan.ftzmlab.xyz'),
-    readarr: mediaApp('readarr', 'linuxserver/readarr:nightly', 8787, 'readarr.lan.ftzmlab.xyz'),
+    radarr: mediaApp('radarr', 'linuxserver/radarr:6.1.1', 7878, 'radarr.lan.ftzmlab.xyz'),
+    sonarr: mediaApp('sonarr', 'linuxserver/sonarr:4.0.17', 8989, 'sonarr.lan.ftzmlab.xyz'),
+    lidarr: mediaApp('lidarr', 'linuxserver/lidarr:3.1.2-nightly', 8686, 'lidarr.lan.ftzmlab.xyz'),
+    readarr: mediaApp('readarr', 'linuxserver/readarr:0.4.19-nightly', 8787, 'readarr.lan.ftzmlab.xyz'),
 
     // Support services (no mediastack volume)
-    prowlarr: selfhosted.new('prowlarr', 'linuxserver/prowlarr:latest', 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns),
-    flaresolverr: selfhosted.new('flaresolverr', 'ghcr.io/flaresolverr/flaresolverr:latest', 8191, 'flaresolverr.lan.ftzmlab.xyz', ns=ns),
-    jellyseerr: selfhosted.new('jellyseerr', 'fallenbagel/jellyseerr:latest', 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns),
+    prowlarr: selfhosted.new('prowlarr', 'linuxserver/prowlarr:2.4.0-nightly', 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns),
+    flaresolverr: selfhosted.new('flaresolverr', 'flaresolverr/flaresolverr:v3.4.6', 8191, 'flaresolverr.lan.ftzmlab.xyz', ns=ns),
+    jellyseerr: selfhosted.new('jellyseerr', 'fallenbagel/jellyseerr:develop', 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns),
   },
 
 }

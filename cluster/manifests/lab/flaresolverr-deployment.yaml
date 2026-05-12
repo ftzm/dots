@@ -16,7 +16,7 @@ spec:
         app.kubernetes.io/name: flaresolverr
     spec:
       containers:
-      - image: ghcr.io/flaresolverr/flaresolverr:latest
+      - image: flaresolverr/flaresolverr:v3.4.6
         name: flaresolverr
         ports:
         - containerPort: 8191

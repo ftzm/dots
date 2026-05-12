@@ -23,7 +23,7 @@ spec:
           value: "1001"
         - name: TZ
           value: Europe/Copenhagen
-        image: linuxserver/sonarr:latest
+        image: linuxserver/sonarr:4.0.17
         name: sonarr
         ports:
         - containerPort: 8989

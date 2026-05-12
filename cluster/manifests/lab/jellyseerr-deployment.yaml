@@ -16,7 +16,7 @@ spec:
         app.kubernetes.io/name: jellyseerr
     spec:
       containers:
-      - image: fallenbagel/jellyseerr:latest
+      - image: fallenbagel/jellyseerr:develop
         name: jellyseerr
         ports:
         - containerPort: 5055

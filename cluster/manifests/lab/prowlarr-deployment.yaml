@@ -16,7 +16,7 @@ spec:
         app.kubernetes.io/name: prowlarr
     spec:
       containers:
-      - image: linuxserver/prowlarr:latest
+      - image: linuxserver/prowlarr:2.4.0-nightly
         name: prowlarr
         ports:
         - containerPort: 9696
