@@ -7,8 +7,8 @@ metadata:
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: loki
     app.kubernetes.io/part-of: memberlist
-    app.kubernetes.io/version: 3.6.5
-    helm.sh/chart: loki-6.53.0
+    app.kubernetes.io/version: 3.6.7
+    helm.sh/chart: loki-6.55.0
   name: loki
   namespace: monitoring
 spec:
@@ -50,7 +50,7 @@ spec:
       - args:
         - -config.file=/etc/loki/config/config.yaml
         - -target=all
-        image: docker.io/grafana/loki:3.6.5
+        image: docker.io/grafana/loki:3.6.7
         imagePullPolicy: IfNotPresent
         name: loki
         ports:
@@ -105,7 +105,7 @@ spec:
           value: "60"
         - name: LOG_LEVEL
           value: INFO
-        image: docker.io/kiwigrid/k8s-sidecar:1.30.9
+        image: docker.io/kiwigrid/k8s-sidecar:2.5.0
         imagePullPolicy: IfNotPresent
         name: loki-sc-rules
         securityContext:
@@ -115,6 +115,8 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
         volumeMounts:
+        - mountPath: /tmp
+          name: tmp
         - mountPath: /rules
           name: sc-rules-volume
       enableServiceLinks: true
