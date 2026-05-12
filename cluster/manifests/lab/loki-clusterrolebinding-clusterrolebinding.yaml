@@ -5,8 +5,8 @@ metadata:
     app.kubernetes.io/instance: loki
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: loki
-    app.kubernetes.io/version: 3.6.5
-    helm.sh/chart: loki-6.53.0
+    app.kubernetes.io/version: 3.6.7
+    helm.sh/chart: loki-6.55.0
   name: loki-clusterrolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
