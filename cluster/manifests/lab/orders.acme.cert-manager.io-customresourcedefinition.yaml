@@ -9,8 +9,8 @@ metadata:
     app.kubernetes.io/instance: cert-manager
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: cert-manager
-    app.kubernetes.io/version: v1.17.2
-    helm.sh/chart: cert-manager-v1.17.2
+    app.kubernetes.io/version: v1.20.2
+    helm.sh/chart: cert-manager-v1.20.2
   name: orders.acme.cert-manager.io
 spec:
   group: acme.cert-manager.io
@@ -81,6 +81,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: atomic
               duration:
                 description: |-
                   Duration is the duration for the not after date for the requested certificate.
@@ -94,6 +95,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: atomic
               issuerRef:
                 description: |-
                   IssuerRef references a properly configured ACME-type Issuer which should
@@ -103,17 +105,26 @@ spec:
                   Order will be marked as failed.
                 properties:
                   group:
-                    description: Group of the resource being referred to.
+                    description: |-
+                      Group of the issuer being referred to.
+                      Defaults to 'cert-manager.io'.
                     type: string
                   kind:
-                    description: Kind of the resource being referred to.
+                    description: |-
+                      Kind of the issuer being referred to.
+                      Defaults to 'Issuer'.
                     type: string
                   name:
-                    description: Name of the resource being referred to.
+                    description: Name of the issuer being referred to.
                     type: string
                 required:
                 - name
                 type: object
+              profile:
+                description: |-
+                  Profile allows requesting a certificate profile from the ACME server.
+                  Supported profiles are listed by the server's ACME directory URL.
+                type: string
               request:
                 description: |-
                   Certificate signing request bytes in DER encoding.
@@ -157,7 +168,7 @@ spec:
                             type: string
                           type:
                             description: |-
-                              Type is the type of challenge being offered, e.g. 'http-01', 'dns-01',
+                              Type is the type of challenge being offered, e.g., 'http-01', 'dns-01',
                               'tls-sni-01', etc.
                               This is the raw value retrieved from the ACME server.
                               Only 'http-01' and 'dns-01' are supported by cert-manager, other values
@@ -174,6 +185,7 @@ spec:
                         - url
                         type: object
                       type: array
+                      x-kubernetes-list-type: atomic
                     identifier:
                       description: Identifier is the DNS name to be validated as part
                         of this authorization
@@ -213,6 +225,7 @@ spec:
                   - url
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
               certificate:
                 description: |-
                   Certificate is a copy of the PEM encoded certificate for this Order.
@@ -262,6 +275,10 @@ spec:
         - metadata
         - spec
         type: object
+    selectableFields:
+    - jsonPath: .spec.issuerRef.group
+    - jsonPath: .spec.issuerRef.kind
+    - jsonPath: .spec.issuerRef.name
     served: true
     storage: true
     subresources:
