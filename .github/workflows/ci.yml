@@ -17,16 +17,30 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            nix:
+              - '**/*.nix'
+              - 'flake.lock'
+              - 'secrets/**'
       - uses: DeterminateSystems/determinate-nix-action@v3
       - uses: DeterminateSystems/magic-nix-cache-action@main
         with:
           use-flakehub: false
       - name: Build saoiste
+        if: steps.changes.outputs.nix == 'true'
         run: nix build .#nixosConfigurations.saoiste.config.system.build.toplevel
       - name: Build eachtrai
+        if: steps.changes.outputs.nix == 'true'
         run: nix build .#nixosConfigurations.eachtrai.config.system.build.toplevel
       - name: Build nuc
+        if: steps.changes.outputs.nix == 'true'
         run: nix build .#nixosConfigurations.nuc.config.system.build.toplevel
       - name: Build nas
+        if: steps.changes.outputs.nix == 'true'
         run: nix build .#nixosConfigurations.nas.config.system.build.toplevel
       # pi is aarch64-linux, skipped in CI (would require QEMU/cross-compilation)
+      - name: Render cluster manifests
+        run: cd cluster && nix develop .. -c just render-lab
