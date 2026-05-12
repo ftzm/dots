@@ -1,5 +1,5 @@
 apiVersion: v2
-appVersion: v1.13.0
+appVersion: v1.16.1
 dependencies:
 - condition: crds.create
   name: crds
@@ -9,4 +9,4 @@ description: Grafana Alloy
 icon: https://raw.githubusercontent.com/grafana/alloy/main/docs/sources/assets/alloy_icon_orange.svg
 name: alloy
 type: application
-version: 1.6.0
+version: 1.8.1
