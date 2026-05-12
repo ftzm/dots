@@ -7,6 +7,7 @@ spec:
   dnsNames:
   - '*.lan.ftzmlab.xyz'
   - lan.ftzmlab.xyz
+  - jellyfin.ftzmlab.xyz
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt

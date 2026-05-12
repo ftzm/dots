@@ -308,6 +308,7 @@ local withNamespace(resources, ns) = {
         dnsNames: [
           '*.lan.ftzmlab.xyz',
           'lan.ftzmlab.xyz',
+          'jellyfin.ftzmlab.xyz',
         ],
       },
     },
