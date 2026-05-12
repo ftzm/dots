@@ -151,9 +151,9 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   networking.hostName = "eachtrai";
-  # Pick only one of the below networking options.
-  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-  networking.networkmanager.enable = true; # Easiest to use and most distros use this by default.
+  networking.networkmanager.enable = true;
+  # Required for Tailscale to inject DNS config (split DNS for *.lan.ftzmlab.xyz)
+  services.resolved.enable = true;
   systemd.services.NetworkManager.restartIfChanged = false;
 
   # Set your time zone.
