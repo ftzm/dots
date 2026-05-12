@@ -1,4 +1,6 @@
 local config = import '../../lib/config.libsonnet';
+local selfhosted = import '../../lib/selfhosted.libsonnet';
+local storage = import '../../lib/storage.libsonnet';
 local helm = (import 'tanka-util/helm.libsonnet').new(std.thisFile);
 local k = import 'k8s-libsonnet/main.libsonnet';
 
