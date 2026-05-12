@@ -37,6 +37,6 @@ requires:
   - chart: sealed-secrets/sealed-secrets
     version: "2.18.0"
   - chart: jetstack/cert-manager
-    version: "1.17.2"
+    version: "v1.20.2"
   - chart: sops-secrets-operator/sops-secrets-operator
     version: "0.25.3"
