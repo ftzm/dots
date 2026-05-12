@@ -12,7 +12,7 @@
 - [x] 2.6 Deploy Flaresolverr (k8s)
 - [x] 2.7 Deploy Jellyseerr (k8s)
 - [x] 2.8 Update Deluge download paths to use mediastack (NixOS)
-- [ ] 2.9 Update NZBget download path to /mnt/nas/mediastack/downloads/usenet (web UI)
+- [x] 2.9 Update NZBget download path to /mnt/nas/mediastack/downloads/usenet (declarative)
 - [ ] 2.10 Clean up old download dirs on nuc (/var/lib/deluge/complete, /var/lib/deluge/downloads, /nzb/dst)
 
 ## 3. Data migration (manual)

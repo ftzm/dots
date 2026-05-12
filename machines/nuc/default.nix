@@ -253,6 +253,9 @@ in {
   services.nzbget = {
     enable = true;
     group = "storage";
+    settings = {
+      MainDir = "/mnt/nas/mediastack/downloads/usenet";
+    };
   };
   users.users.nzbget.extraGroups = ["users" "storage"];
 
