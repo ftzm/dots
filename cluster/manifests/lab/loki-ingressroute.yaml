@@ -15,3 +15,4 @@ spec:
     services:
     - name: loki-gateway
       port: 80
+  tls: {}

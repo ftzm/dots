@@ -120,6 +120,7 @@ local withNamespace(resources, ns) = {
             ],
           },
         ],
+        tls: {},
       },
     },
   },
@@ -985,6 +986,7 @@ local withNamespace(resources, ns) = {
             port: 80,
           }],
         }],
+        tls: {},
       },
     },
 
@@ -1006,6 +1008,7 @@ local withNamespace(resources, ns) = {
             port: 80,
           }],
         }],
+        tls: {},
       },
     },
   },
