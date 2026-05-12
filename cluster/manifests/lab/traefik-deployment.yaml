@@ -22,6 +22,7 @@ spec:
   template:
     metadata:
       annotations:
+        checksum/file-provider: 935ad7f6d7f5fbb9c1aa468a65a3eead
         prometheus.io/path: /metrics
         prometheus.io/port: "9091"
         prometheus.io/scrape: "true"

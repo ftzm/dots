@@ -192,56 +192,60 @@ local withNamespace(resources, ns) = {
             },
           },
 
+          local fileProviderContent = std.manifestYamlDoc({
+            local privateEP = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+            local publicEP = ['web', 'websecure'],
+            local hostRouter(name, domain, entryPoints=privateEP) = {
+              rule: 'Host(`' + domain + '`)',
+              service: name,
+              entryPoints: entryPoints,
+            },
+            // Traefik uses hostNetwork, so 127.0.0.1 reaches host services
+            // regardless of which interface they bind to.
+            local hostSvc(port) = {
+              loadBalancer: {
+                servers: [{ url: 'http://127.0.0.1:' + port }],
+              },
+            },
+            http: {
+              routers: {
+                jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
+                vaultwarden: hostRouter('vaultwarden', 'vaultwarden.lan.ftzmlab.xyz'),
+                deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
+                audiobookshelf: hostRouter('audiobookshelf', 'audiobookshelf.lan.ftzmlab.xyz'),
+                immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
+                filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
+                navidrome: hostRouter('navidrome', 'navidrome.lan.ftzmlab.xyz'),
+                webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
+              },
+              services: {
+                jellyfin: hostSvc('8096'),
+                vaultwarden: hostSvc('8222'),
+                deluge: hostSvc('8112'),
+                audiobookshelf: hostSvc('8000'),
+                immich: hostSvc('2283'),
+                filestash: hostSvc('8334'),
+                navidrome: hostSvc('4533'),
+                webdav: hostSvc('8085'),
+              },
+            },
+          }),
+
           deployment: {
             dnsPolicy: 'ClusterFirstWithHostNet',
+            podAnnotations: {
+              'checksum/file-provider': std.md5(fileProviderContent),
+            },
           },
 
           // File provider for NixOS host services: routes directly to host IP:port,
           // bypassing k8s Service/EndpointSlice (which ArgoCD excludes).
           // watch: false = single directory read at startup (no inotify symlink double-read).
-          // ConfigMap changes trigger pod restart via the chart's checksum annotation.
           providers: {
             file: {
               enabled: true,
               watch: false,
-              content: std.manifestYamlDoc({
-                local privateEP = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
-                local publicEP = ['web', 'websecure'],
-                local hostRouter(name, domain, entryPoints=privateEP) = {
-                  rule: 'Host(`' + domain + '`)',
-                  service: name,
-                  entryPoints: entryPoints,
-                },
-                // Traefik uses hostNetwork, so 127.0.0.1 reaches host services
-                // regardless of which interface they bind to.
-                local hostSvc(port) = {
-                  loadBalancer: {
-                    servers: [{ url: 'http://127.0.0.1:' + port }],
-                  },
-                },
-                http: {
-                  routers: {
-                    jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
-                    vaultwarden: hostRouter('vaultwarden', 'vaultwarden.lan.ftzmlab.xyz'),
-                    deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
-                    audiobookshelf: hostRouter('audiobookshelf', 'audiobookshelf.lan.ftzmlab.xyz'),
-                    immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
-                    filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
-                    navidrome: hostRouter('navidrome', 'navidrome.lan.ftzmlab.xyz'),
-                    webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
-                  },
-                  services: {
-                    jellyfin: hostSvc('8096'),
-                    vaultwarden: hostSvc('8222'),
-                    deluge: hostSvc('8112'),
-                    audiobookshelf: hostSvc('8000'),
-                    immich: hostSvc('2283'),
-                    filestash: hostSvc('8334'),
-                    navidrome: hostSvc('4533'),
-                    webdav: hostSvc('8085'),
-                  },
-                },
-              }),
+              content: fileProviderContent,
             },
           },
 
