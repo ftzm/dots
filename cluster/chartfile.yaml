@@ -35,7 +35,7 @@ requires:
   - chart: grafana/alloy
     version: "1.6.0"
   - chart: sealed-secrets/sealed-secrets
-    version: "2.18.0"
+    version: "2.18.5"
   - chart: jetstack/cert-manager
     version: "1.17.2"
   - chart: sops-secrets-operator/sops-secrets-operator
