@@ -5,11 +5,12 @@ metadata:
     helm.sh/resource-policy: keep
   labels:
     app: cert-manager
+    app.kubernetes.io/component: crds
     app.kubernetes.io/instance: cert-manager
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: cert-manager
-    app.kubernetes.io/version: v1.17.2
-    helm.sh/chart: cert-manager-v1.17.2
+    app.kubernetes.io/version: v1.20.2
+    helm.sh/chart: cert-manager-v1.20.2
   name: certificates.cert-manager.io
 spec:
   group: cert-manager.io
@@ -26,7 +27,7 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+    - jsonPath: .status.conditions[?(@.type == "Ready")].status
       name: Ready
       type: string
     - jsonPath: .spec.secretName
@@ -36,7 +37,7 @@ spec:
       name: Issuer
       priority: 1
       type: string
-    - jsonPath: .status.conditions[?(@.type=="Ready")].message
+    - jsonPath: .status.conditions[?(@.type == "Ready")].message
       name: Status
       priority: 1
       type: string
@@ -82,10 +83,6 @@ spec:
                 description: |-
                   Defines extra output formats of the private key and signed certificate chain
                   to be written to this Certificate's target Secret.
-
-                  This is a Beta Feature enabled by default. It can be disabled with the
-                  `--feature-gates=AdditionalCertificateOutputFormats=false` option set on both
-                  the controller and webhook components.
                 items:
                   description: |-
                     CertificateAdditionalOutputFormat defines an additional output format of a
@@ -104,6 +101,7 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
               commonName:
                 description: |-
                   Requested common name X509 certificate subject attribute.
@@ -119,6 +117,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: atomic
               duration:
                 description: |-
                   Requested 'duration' (i.e. lifetime) of the Certificate. Note that the
@@ -134,6 +133,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: atomic
               encodeUsagesInRequest:
                 description: |-
                   Whether the KeyUsage and ExtKeyUsage extensions should be set in the encoded CSR.
@@ -146,6 +146,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: atomic
               isCA:
                 description: |-
                   Requested basic constraints isCA value.
@@ -166,13 +167,17 @@ spec:
                   The `name` field of the reference must always be specified.
                 properties:
                   group:
-                    description: Group of the resource being referred to.
+                    description: |-
+                      Group of the issuer being referred to.
+                      Defaults to 'cert-manager.io'.
                     type: string
                   kind:
-                    description: Kind of the resource being referred to.
+                    description: |-
+                      Kind of the issuer being referred to.
+                      Defaults to 'Issuer'.
                     type: string
                   name:
-                    description: Name of the resource being referred to.
+                    description: Name of the issuer being referred to.
                     type: string
                 required:
                 - name
@@ -286,7 +291,7 @@ spec:
                           `LegacyRC2`: Deprecated. Not supported by default in OpenSSL 3 or Java 20.
                           `LegacyDES`: Less secure algorithm. Use this option for maximal compatibility.
                           `Modern2023`: Secure algorithm. Use this option in case you have to always use secure algorithms
-                          (eg. because of company policy). Please note that the security of the algorithm is not that important
+                          (e.g., because of company policy). Please note that the security of the algorithm is not that important
                           in reality, because the unencrypted certificate and private key are also stored in the Secret.
                         enum:
                         - LegacyRC2
@@ -334,12 +339,14 @@ spec:
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: atomic
                       emailAddresses:
                         description: EmailAddresses is a list of Email Addresses that
                           are permitted or excluded.
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: atomic
                       ipRanges:
                         description: |-
                           IPRanges is a list of IP Ranges that are permitted or excluded.
@@ -347,12 +354,14 @@ spec:
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: atomic
                       uriDomains:
                         description: URIDomains is a list of URI domains that are
                           permitted or excluded.
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: atomic
                     type: object
                   permitted:
                     description: Permitted contains the constraints in which the names
@@ -364,12 +373,14 @@ spec:
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: atomic
                       emailAddresses:
                         description: EmailAddresses is a list of Email Addresses that
                           are permitted or excluded.
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: atomic
                       ipRanges:
                         description: |-
                           IPRanges is a list of IP Ranges that are permitted or excluded.
@@ -377,12 +388,14 @@ spec:
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: atomic
                       uriDomains:
                         description: URIDomains is a list of URI domains that are
                           permitted or excluded.
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: atomic
                     type: object
                 type: object
               otherNames:
@@ -406,6 +419,7 @@ spec:
                       type: string
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
               privateKey:
                 description: |-
                   Private key options. These include the key algorithm and size, the used
@@ -449,7 +463,8 @@ spec:
                       to await user intervention.
                       If set to `Always`, a private key matching the specified requirements
                       will be generated whenever a re-issuance occurs.
-                      Default is `Never` for backward compatibility.
+                      Default is `Always`.
+                      The default was changed from `Never` to `Always` in cert-manager >=v1.18.0.
                     enum:
                     - Never
                     - Always
@@ -510,8 +525,7 @@ spec:
                   revisions exceeds this number.
 
                   If set, revisionHistoryLimit must be a value of `1` or greater.
-                  If unset (`nil`), revisions will not be garbage collected.
-                  Default value is `nil`.
+                  Default value is `1`.
                 format: int32
                 type: integer
               secretName:
@@ -542,6 +556,21 @@ spec:
                       Kubernetes Secret.
                     type: object
                 type: object
+              signatureAlgorithm:
+                description: |-
+                  Signature algorithm to use.
+                  Allowed values for RSA keys: SHA256WithRSA, SHA384WithRSA, SHA512WithRSA.
+                  Allowed values for ECDSA keys: ECDSAWithSHA256, ECDSAWithSHA384, ECDSAWithSHA512.
+                  Allowed values for Ed25519 keys: PureEd25519.
+                enum:
+                - SHA256WithRSA
+                - SHA384WithRSA
+                - SHA512WithRSA
+                - ECDSAWithSHA256
+                - ECDSAWithSHA384
+                - ECDSAWithSHA512
+                - PureEd25519
+                type: string
               subject:
                 description: |-
                   Requested set of X509 certificate subject attributes.
@@ -555,31 +584,37 @@ spec:
                     items:
                       type: string
                     type: array
+                    x-kubernetes-list-type: atomic
                   localities:
                     description: Cities to be used on the Certificate.
                     items:
                       type: string
                     type: array
+                    x-kubernetes-list-type: atomic
                   organizationalUnits:
                     description: Organizational Units to be used on the Certificate.
                     items:
                       type: string
                     type: array
+                    x-kubernetes-list-type: atomic
                   organizations:
                     description: Organizations to be used on the Certificate.
                     items:
                       type: string
                     type: array
+                    x-kubernetes-list-type: atomic
                   postalCodes:
                     description: Postal codes to be used on the Certificate.
                     items:
                       type: string
                     type: array
+                    x-kubernetes-list-type: atomic
                   provinces:
                     description: State/Provinces to be used on the Certificate.
                     items:
                       type: string
                     type: array
+                    x-kubernetes-list-type: atomic
                   serialNumber:
                     description: Serial number to be used on the Certificate.
                     type: string
@@ -588,12 +623,14 @@ spec:
                     items:
                       type: string
                     type: array
+                    x-kubernetes-list-type: atomic
                 type: object
               uris:
                 description: Requested URI subject alternative names.
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: atomic
               usages:
                 description: |-
                   Requested key usages and extended key usages.
@@ -659,6 +696,7 @@ spec:
                   - netscape sgc
                   type: string
                 type: array
+                x-kubernetes-list-type: atomic
             required:
             - issuerRef
             - secretName
@@ -787,6 +825,10 @@ spec:
                 type: integer
             type: object
         type: object
+    selectableFields:
+    - jsonPath: .spec.issuerRef.group
+    - jsonPath: .spec.issuerRef.kind
+    - jsonPath: .spec.issuerRef.name
     served: true
     storage: true
     subresources:
