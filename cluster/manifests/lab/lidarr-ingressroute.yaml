@@ -1,0 +1,18 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: lidarr
+  namespace: media
+spec:
+  entryPoints:
+  - privateweb
+  - privatesecure
+  - wgweb
+  - wgsecure
+  routes:
+  - kind: Rule
+    match: Host(`lidarr.lan.ftzmlab.xyz`)
+    services:
+    - name: lidarr
+      port: 8686
+  tls: {}

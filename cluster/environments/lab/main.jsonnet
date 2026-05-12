@@ -1222,4 +1222,45 @@ local withNamespace(resources, ns) = {
     },
   },
 
+  // Media pipeline: arr apps + support services (download clients stay on NixOS)
+  media: {
+    local ns = 'media',
+    local ms = storage.mediastack(ns),
+    // PUID/PGID for linuxserver containers — matches NAS storage group
+    local storageEnv = [
+      k.core.v1.envVar.new('PUID', '0'),
+      k.core.v1.envVar.new('PGID', '1001'),
+      k.core.v1.envVar.new('TZ', 'Europe/Copenhagen'),
+    ],
+    local mediaApp(name, image, port, domain) =
+      selfhosted.new(name, image, port, domain, ns=ns) {
+        deployment+: k.apps.v1.deployment.spec.template.spec.withVolumesMixin([
+          k.core.v1.volume.fromPersistentVolumeClaim('media', 'mediastack'),
+        ]) + {
+          spec+: { template+: { spec+: { containers: [
+            super.containers[0]
+            + k.core.v1.container.withEnv(storageEnv)
+            + k.core.v1.container.withVolumeMountsMixin([
+              k.core.v1.volumeMount.new('media', '/data'),
+            ]),
+          ] } } },
+        },
+      },
+
+    namespace: k.core.v1.namespace.new(ns),
+    mediastackPv: ms.pv,
+    mediastackPvc: ms.pvc,
+
+    // Arr apps (all mount mediastack for hardlinks)
+    radarr: mediaApp('radarr', 'linuxserver/radarr:latest', 7878, 'radarr.lan.ftzmlab.xyz'),
+    sonarr: mediaApp('sonarr', 'linuxserver/sonarr:latest', 8989, 'sonarr.lan.ftzmlab.xyz'),
+    lidarr: mediaApp('lidarr', 'linuxserver/lidarr:latest', 8686, 'lidarr.lan.ftzmlab.xyz'),
+    readarr: mediaApp('readarr', 'linuxserver/readarr:latest', 8787, 'readarr.lan.ftzmlab.xyz'),
+
+    // Support services (no mediastack volume)
+    prowlarr: selfhosted.new('prowlarr', 'linuxserver/prowlarr:latest', 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns),
+    flaresolverr: selfhosted.new('flaresolverr', 'ghcr.io/flaresolverr/flaresolverr:latest', 8191, 'flaresolverr.lan.ftzmlab.xyz', ns=ns),
+    jellyseerr: selfhosted.new('jellyseerr', 'fallenbagel/jellyseerr:latest', 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns),
+  },
+
 }

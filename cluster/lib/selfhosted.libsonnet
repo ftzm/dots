@@ -1,17 +1,18 @@
 local k = import 'k8s-libsonnet/main.libsonnet';
 
 {
-  // Stamp out a standard self-hosted app: namespace, deployment, service,
-  // config PVC, and private IngressRoute. Extend with +: for extra volumes.
+  // Stamp out a standard self-hosted app: deployment, service, config PVC,
+  // and private IngressRoute. Includes namespace if not sharing one.
+  // Extend with +: for extra volumes.
   //
   // Usage:
   //   selfhosted.new('radarr', 'linuxserver/radarr:latest', 7878, 'radarr.lan.ftzmlab.xyz')
+  //   selfhosted.new('radarr', 'linuxserver/radarr:latest', 7878, 'radarr.lan.ftzmlab.xyz', ns='media')
   //
-  new(name, image, port, domain, configSize='1Gi'):: {
-    local ns = name,
+  new(name, image, port, domain, configSize='1Gi', ns=name):: {
     local labels = { 'app.kubernetes.io/name': name },
 
-    namespace: k.core.v1.namespace.new(ns),
+    [if ns == name then 'namespace']: k.core.v1.namespace.new(ns),
 
     configPvc: k.core.v1.persistentVolumeClaim.new(name + '-config')
       + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)

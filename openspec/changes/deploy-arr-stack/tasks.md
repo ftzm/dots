@@ -1,19 +1,19 @@
 ## 1. Storage
 
-- [ ] 1.1 Create mediastack static NFS PV and PVC in main.jsonnet (k8s)
+- [x] 1.1 Create mediastack static NFS PV and PVC in main.jsonnet (k8s)
 
 ## 2. Deploy apps
 
-- [ ] 2.1 Deploy Deluge with mediastack volume (k8s)
-- [ ] 2.2 Deploy NZBget with mediastack volume (k8s)
-- [ ] 2.3 Deploy Radarr with mediastack volume (k8s)
-- [ ] 2.4 Deploy Sonarr with mediastack volume (k8s)
-- [ ] 2.5 Deploy Lidarr with mediastack volume (k8s)
-- [ ] 2.6 Deploy Readarr with mediastack volume (k8s)
-- [ ] 2.7 Deploy Prowlarr (k8s)
-- [ ] 2.8 Deploy Flaresolverr (k8s)
-- [ ] 2.9 Deploy Jellyseerr (k8s)
-- [ ] 2.10 Add IngressRouteTCP for Deluge peer traffic on port 6881 (k8s)
+- [x] 2.1 Deploy Radarr with mediastack volume (k8s)
+- [x] 2.2 Deploy Sonarr with mediastack volume (k8s)
+- [x] 2.3 Deploy Lidarr with mediastack volume (k8s)
+- [x] 2.4 Deploy Readarr with mediastack volume (k8s)
+- [x] 2.5 Deploy Prowlarr (k8s)
+- [x] 2.6 Deploy Flaresolverr (k8s)
+- [x] 2.7 Deploy Jellyseerr (k8s)
+- [x] 2.8 Update Deluge download paths to use mediastack (NixOS)
+- [ ] 2.9 Update NZBget download path to /mnt/nas/mediastack/downloads/usenet (web UI)
+- [ ] 2.10 Clean up old download dirs on nuc (/var/lib/deluge/complete, /var/lib/deluge/downloads, /nzb/dst)
 
 ## 3. Data migration (manual)
 

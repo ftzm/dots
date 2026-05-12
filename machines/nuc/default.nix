@@ -273,10 +273,10 @@ in {
     web.enable = true;
     authFile = config.age.secrets.deluge.path;
     config = {
-      download_location = "/var/lib/deluge/downloads";
-      move_completed_path = "/var/lib/deluge/complete";
+      download_location = "/mnt/nas/mediastack/downloads/torrents";
+      move_completed_path = "/mnt/nas/mediastack/downloads/torrents";
       torrentfiles_location = "/var/lib/deluge/torrents";
-      move_completed = true;
+      move_completed = false;
     };
     group = "storage";
   };
