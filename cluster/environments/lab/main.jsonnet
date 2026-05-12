@@ -238,7 +238,7 @@ local withNamespace(resources, ns) = {
                     immich: hostSvc('2283'),
                     filestash: hostSvc('8334'),
                     navidrome: hostSvc('4533'),
-                    webdav: hostSvc('8080'),
+                    webdav: hostSvc('8085'),
                   },
                 },
               }),
