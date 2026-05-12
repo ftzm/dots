@@ -5,4 +5,4 @@
 - [x] 1.3 Remove nginx WG catch-all proxy (machines/nuc/default.nix)
 - [x] 1.4 Remove `security.acme` config (machines/nuc/default.nix)
 - [x] 1.5 Verify nuc config evaluates cleanly
-- [ ] 1.6 Verify WebDAV still works through Traefik → nginx
+- [x] 1.6 Verify WebDAV still works through Traefik → nginx

@@ -16,7 +16,7 @@
 ## 3. Router port-forward
 
 - [x] 3.1 Update Traefik public entrypoints to 80/443
-- [ ] 3.2 Verify Jellyfin accessible from internet (blocked: 3.1)
+- [x] 3.2 Verify Jellyfin accessible from internet
 
 ## 4. Clean up
 

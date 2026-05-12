@@ -14,4 +14,4 @@
 ## 3. All service IngressRoutes
 
 - [x] 3.1 Create private IngressRoutes for all remaining services (k8s)
-- [ ] 3.2 Verify all services accessible via Traefik
+- [x] 3.2 Verify all services accessible via Traefik
