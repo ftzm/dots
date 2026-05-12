@@ -27,7 +27,7 @@ requires:
   - chart: argo/argo-cd
     version: "9.4.1"
   - chart: prometheus-community/kube-prometheus-stack
-    version: "81.6.2"
+    version: "81.6.9"
   - chart: grafana/loki
     version: "6.53.0"
   - chart: grafana-community/tempo

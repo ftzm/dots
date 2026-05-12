@@ -6,8 +6,8 @@ metadata:
     app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/part-of: kube-prometheus-stack
-    app.kubernetes.io/version: 81.6.2
-    chart: kube-prometheus-stack-81.6.2
+    app.kubernetes.io/version: 81.6.9
+    chart: kube-prometheus-stack-81.6.9
     heritage: Helm
     release: kube-prometheus-stack
   name: kube-prometheus-stack-alertmanager
@@ -33,7 +33,7 @@ spec:
   alertmanagerConfigSelector: {}
   automountServiceAccountToken: true
   externalUrl: http://kube-prometheus-stack-alertmanager.monitoring:9093
-  image: quay.io/prometheus/alertmanager:v0.31.0
+  image: quay.io/prometheus/alertmanager:v0.31.1
   imagePullPolicy: IfNotPresent
   listenLocal: false
   logFormat: logfmt
@@ -60,4 +60,4 @@ spec:
           requests:
             storage: 1Gi
         storageClassName: nfs
-  version: v0.31.0
+  version: v0.31.1
