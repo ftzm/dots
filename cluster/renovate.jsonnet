@@ -7,7 +7,7 @@ local repoUrls = {
 };
 
 // Generate a customManager per chart
-local managers = [
+local chartManagers = [
   {
     customType: 'regex',
     managerFilePatterns: ['/cluster/chartfile\\.yaml$/'],
@@ -21,10 +21,20 @@ local managers = [
   for req in chartfile.requires
 ];
 
+// Container images in images.libsonnet
+local imageManager = {
+  customType: 'regex',
+  managerFilePatterns: ['/cluster/lib/images\\.libsonnet$/'],
+  matchStrings: [
+    "'(?<depName>[a-z0-9/-]+):(?<currentValue>[^']+)'",
+  ],
+  datasourceTemplate: 'docker',
+};
+
 {
   '$schema': 'https://docs.renovatebot.com/renovate-schema.json',
   extends: ['config:recommended'],
-  customManagers: managers,
+  customManagers: chartManagers + [imageManager],
   enabledManagers: ['custom.regex', 'github-actions', 'jsonnet-bundler'],
   prHourlyLimit: 10,
   prConcurrentLimit: 20,

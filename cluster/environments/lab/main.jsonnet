@@ -1,4 +1,5 @@
 local config = import '../../lib/config.libsonnet';
+local images = import '../../lib/images.libsonnet';
 local selfhosted = import '../../lib/selfhosted.libsonnet';
 local storage = import '../../lib/storage.libsonnet';
 local helm = (import 'tanka-util/helm.libsonnet').new(std.thisFile);
@@ -1105,7 +1106,7 @@ local withNamespace(resources, ns) = {
         'kubernetes.io/hostname': 'nuc',
       })
       + k.apps.v1.deployment.spec.template.spec.withContainers([
-        k.core.v1.container.new('blocky', 'spx01/blocky:latest')
+        k.core.v1.container.new('blocky', images.blocky)
         + k.core.v1.container.withArgs(['--config', '/config/config.yaml'])
         + k.core.v1.container.withPorts([
           k.core.v1.containerPort.new(53) + k.core.v1.containerPort.withName('dns-udp') + k.core.v1.containerPort.withProtocol('UDP'),
@@ -1180,7 +1181,7 @@ local withNamespace(resources, ns) = {
         'checksum/config': std.md5(std.toString(configData)),
       })
       + k.apps.v1.deployment.spec.template.spec.withContainers([
-        k.core.v1.container.new('ntfy', 'binwiederhier/ntfy')
+        k.core.v1.container.new('ntfy', images.ntfy)
         + k.core.v1.container.withArgs(['serve'])
         + k.core.v1.container.withPorts([
           k.core.v1.containerPort.newNamed(80, 'http'),
@@ -1252,15 +1253,15 @@ local withNamespace(resources, ns) = {
     mediastackPvc: ms.pvc,
 
     // Arr apps (all mount mediastack for hardlinks)
-    radarr: mediaApp('radarr', 'linuxserver/radarr:6.1.1', 7878, 'radarr.lan.ftzmlab.xyz'),
-    sonarr: mediaApp('sonarr', 'linuxserver/sonarr:4.0.17', 8989, 'sonarr.lan.ftzmlab.xyz'),
-    lidarr: mediaApp('lidarr', 'linuxserver/lidarr:3.1.2-nightly', 8686, 'lidarr.lan.ftzmlab.xyz'),
-    readarr: mediaApp('readarr', 'linuxserver/readarr:0.4.19-nightly', 8787, 'readarr.lan.ftzmlab.xyz'),
+    radarr: mediaApp('radarr', images.radarr, 7878, 'radarr.lan.ftzmlab.xyz'),
+    sonarr: mediaApp('sonarr', images.sonarr, 8989, 'sonarr.lan.ftzmlab.xyz'),
+    lidarr: mediaApp('lidarr', images.lidarr, 8686, 'lidarr.lan.ftzmlab.xyz'),
+    readarr: mediaApp('readarr', images.readarr, 8787, 'readarr.lan.ftzmlab.xyz'),
 
     // Support services (no mediastack volume)
-    prowlarr: selfhosted.new('prowlarr', 'linuxserver/prowlarr:2.4.0-nightly', 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns),
-    flaresolverr: selfhosted.new('flaresolverr', 'flaresolverr/flaresolverr:v3.4.6', 8191, 'flaresolverr.lan.ftzmlab.xyz', ns=ns),
-    jellyseerr: selfhosted.new('jellyseerr', 'fallenbagel/jellyseerr:develop', 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns),
+    prowlarr: selfhosted.new('prowlarr', images.prowlarr, 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns),
+    flaresolverr: selfhosted.new('flaresolverr', images.flaresolverr, 8191, 'flaresolverr.lan.ftzmlab.xyz', ns=ns),
+    jellyseerr: selfhosted.new('jellyseerr', images.jellyseerr, 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns),
   },
 
 }

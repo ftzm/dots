@@ -120,6 +120,16 @@
             "- chart: sops-secrets-operator/sops-secrets-operator\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
          ],
          "registryUrlTemplate": "https://isindir.github.io/sops-secrets-operator/"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "docker",
+         "managerFilePatterns": [
+            "/cluster/lib/images\\.libsonnet$/"
+         ],
+         "matchStrings": [
+            "'(?<depName>[a-z0-9/-]+):(?<currentValue>[^']+)'"
+         ]
       }
    ],
    "enabledManagers": [
