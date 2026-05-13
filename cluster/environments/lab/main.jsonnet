@@ -222,6 +222,7 @@ local withNamespace(resources, ns) = {
                 filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
                 navidrome: hostRouter('navidrome', 'navidrome.lan.ftzmlab.xyz'),
                 webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
+                nzbget: hostRouter('nzbget', 'nzbget.lan.ftzmlab.xyz'),
               },
               services: {
                 jellyfin: hostSvc('8096'),
@@ -232,6 +233,7 @@ local withNamespace(resources, ns) = {
                 filestash: hostSvc('8334'),
                 navidrome: hostSvc('4533'),
                 webdav: hostSvc('8085'),
+                nzbget: hostSvc('6789'),
               },
             },
           }),

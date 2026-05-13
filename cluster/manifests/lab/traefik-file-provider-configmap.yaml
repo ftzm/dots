@@ -55,6 +55,15 @@ data:
           "rule": "Host(`navidrome.lan.ftzmlab.xyz`)"
           "service": "navidrome"
           "tls": {}
+        "nzbget":
+          "entryPoints":
+          - "privateweb"
+          - "privatesecure"
+          - "wgweb"
+          - "wgsecure"
+          "rule": "Host(`nzbget.lan.ftzmlab.xyz`)"
+          "service": "nzbget"
+          "tls": {}
         "vaultwarden":
           "entryPoints":
           - "privateweb"
@@ -98,6 +107,10 @@ data:
           "loadBalancer":
             "servers":
             - "url": "http://127.0.0.1:4533"
+        "nzbget":
+          "loadBalancer":
+            "servers":
+            - "url": "http://127.0.0.1:6789"
         "vaultwarden":
           "loadBalancer":
             "servers":
