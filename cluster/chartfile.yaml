@@ -25,7 +25,7 @@ requires:
   - chart: traefik/traefik
     version: "39.0.0"
   - chart: argo/argo-cd
-    version: "9.4.1"
+    version: "9.5.14"
   - chart: prometheus-community/kube-prometheus-stack
     version: "81.6.2"
   - chart: grafana/loki
