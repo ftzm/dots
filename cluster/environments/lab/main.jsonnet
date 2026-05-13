@@ -1261,7 +1261,15 @@ local withNamespace(resources, ns) = {
     // Support services (no mediastack volume)
     prowlarr: selfhosted.new('prowlarr', images.prowlarr, 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns),
     flaresolverr: selfhosted.new('flaresolverr', images.flaresolverr, 8191, 'flaresolverr.lan.ftzmlab.xyz', ns=ns),
-    jellyseerr: selfhosted.new('jellyseerr', images.jellyseerr, 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns),
+    jellyseerr: selfhosted.new('jellyseerr', images.jellyseerr, 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns) {
+      deployment+: {
+        spec+: { template+: { spec+: { containers: [
+          super.containers[0] {
+            volumeMounts: [v { mountPath: '/app/config' } for v in super.volumeMounts],
+          },
+        ] } } },
+      },
+    },
   },
 
 }
