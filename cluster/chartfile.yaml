@@ -31,7 +31,7 @@ requires:
   - chart: grafana/loki
     version: "6.53.0"
   - chart: grafana-community/tempo
-    version: "1.26.1"
+    version: "2.1.0"
   - chart: grafana/alloy
     version: "1.6.0"
   - chart: sealed-secrets/sealed-secrets

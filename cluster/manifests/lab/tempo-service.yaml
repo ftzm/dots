@@ -5,8 +5,8 @@ metadata:
     app.kubernetes.io/instance: tempo
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: tempo
-    app.kubernetes.io/version: 2.10.0
-    helm.sh/chart: tempo-1.26.1
+    app.kubernetes.io/version: 2.10.1
+    helm.sh/chart: tempo-2.1.0
   name: tempo
   namespace: monitoring
 spec:
