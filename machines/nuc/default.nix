@@ -209,41 +209,6 @@ in {
     };
   };
 
-  services.radarr = {
-    enable = true;
-    group = "storage";
-    settings.update.automatically = true;
-  };
-  users.users.radarr.extraGroups = ["users" "storage"];
-
-  services.sonarr = {
-    enable = true;
-    group = "storage";
-    settings.update.automatically = true;
-  };
-  users.users.sonarr.extraGroups = ["users" "storage"];
-
-  services.lidarr = {
-    enable = true;
-    group = "storage";
-    settings.update.automatically = true;
-  };
-
-  services.flaresolverr = {
-    enable = true;
-  };
-
-  services.prowlarr = {
-    enable = true;
-    settings.update.automatically = true;
-  };
-
-  services.readarr = {
-    enable = true;
-    group = "storage";
-    settings.update.automatically = true;
-  };
-
   services.audiobookshelf = {
     enable = true;
     group = "storage";
