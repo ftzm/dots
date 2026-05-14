@@ -263,7 +263,7 @@ in {
 
   users.users.deluge.extraGroups = ["users" "storage"];
   systemd.services.deluged.serviceConfig.ExecStart = lib.mkForce ''
-    ${pkgs.deluge}/bin/deluged --do-not-daemonize --config /var/lib/deluge/.config/deluge -L warning
+    ${pkgs.deluge}/bin/deluged --do-not-daemonize --config /var/lib/deluge/.config/deluge -L info
   '';
 
   services.samba-wsdd.enable =
