@@ -6,6 +6,7 @@
   prowlarr: 'linuxserver/prowlarr:2.4.0-nightly',
   flaresolverr: 'flaresolverr/flaresolverr:v3.4.6',
   jellyseerr: 'fallenbagel/jellyseerr:develop',
+  vaultwarden: 'vaultwarden/server:1.36.0',
   blocky: 'spx01/blocky:latest',
   ntfy: 'binwiederhier/ntfy',
   navidrome: 'ghcr.io/navidrome/navidrome:0.61.2',

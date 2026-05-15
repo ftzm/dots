@@ -215,7 +215,6 @@ local withNamespace(resources, ns) = {
             http: {
               routers: {
                 jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
-                vaultwarden: hostRouter('vaultwarden', 'vaultwarden.lan.ftzmlab.xyz'),
                 deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
                 immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
                 filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
@@ -224,7 +223,6 @@ local withNamespace(resources, ns) = {
               },
               services: {
                 jellyfin: hostSvc('8096'),
-                vaultwarden: hostSvc('8222'),
                 deluge: hostSvc('8112'),
                 immich: hostSvc('2283'),
                 filestash: hostSvc('8334'),
@@ -1329,6 +1327,33 @@ local withNamespace(resources, ns) = {
             for v in super.volumeMounts
           ],
         },
+      ] } } },
+    },
+  },
+
+  // Vaultwarden: password vault
+  vaultwarden: selfhosted.new('vaultwarden', images.vaultwarden, 80, 'vaultwarden.lan.ftzmlab.xyz') {
+    deployment+: {
+      spec+: { template+: { spec+: { containers: [
+        super.containers[0] {
+          volumeMounts: [
+            if v.mountPath == '/config' then v { mountPath: '/data' } else v
+            for v in super.volumeMounts
+          ],
+        }
+        + k.core.v1.container.withEnvMixin([
+          k.core.v1.envVar.new('DOMAIN', 'https://vaultwarden.lan.ftzmlab.xyz'),
+          k.core.v1.envVar.new('ROCKET_PORT', '80'),
+          {
+            name: 'ADMIN_TOKEN',
+            valueFrom: {
+              secretKeyRef: {
+                name: 'vaultwarden-env',
+                key: 'ADMIN_TOKEN',
+              },
+            },
+          },
+        ]),
       ] } } },
     },
   },

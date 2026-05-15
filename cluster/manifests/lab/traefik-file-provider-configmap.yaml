@@ -46,15 +46,6 @@ data:
           "rule": "Host(`nzbget.lan.ftzmlab.xyz`)"
           "service": "nzbget"
           "tls": {}
-        "vaultwarden":
-          "entryPoints":
-          - "privateweb"
-          - "privatesecure"
-          - "wgweb"
-          - "wgsecure"
-          "rule": "Host(`vaultwarden.lan.ftzmlab.xyz`)"
-          "service": "vaultwarden"
-          "tls": {}
         "webdav":
           "entryPoints":
           - "privateweb"
@@ -85,10 +76,6 @@ data:
           "loadBalancer":
             "servers":
             - "url": "http://127.0.0.1:6789"
-        "vaultwarden":
-          "loadBalancer":
-            "servers":
-            - "url": "http://127.0.0.1:8222"
         "webdav":
           "loadBalancer":
             "servers":

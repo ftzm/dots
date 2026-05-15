@@ -214,12 +214,6 @@ in {
     owner = "deluge";
   };
 
-  age.secrets.vaultwarden-env = {
-    file = ../../secrets/vaultwarden.age;
-    path = "/var/lib/vaultwarden/.env";
-    owner = "vaultwarden";
-    group = "vaultwarden";
-  };
   services.deluge = {
     enable = true;
     declarative = true;
@@ -478,21 +472,6 @@ in {
   users.users.immich.extraGroups = ["users" "storage"];
 
   # ----------------------------------------------------------------------
-
-  # ----------------------------------------------------------------------
-  # Vaultwarden
-
-  services.vaultwarden = {
-    enable = true;
-    backupDir = "/vaultwarden-backup";
-    environmentFile = config.age.secrets.vaultwarden-env.path;
-    config = {
-      DOMAIN = "https://vaultwarden.ftzmlab.xyz";
-      ROCKET_ADDRESS = "127.0.0.1";
-      ROCKET_PORT = 8222;
-      DATA_FOLDER = "/var/lib/vaultwarden";
-    };
-  };
 
   # ----------------------------------------------------------------------
   # Atuin
