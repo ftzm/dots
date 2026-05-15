@@ -22,7 +22,7 @@ spec:
         - containerPort: 9000
           name: http
         volumeMounts:
-        - mountPath: /config
+        - mountPath: /var/opt/thelounge
           name: config
       volumes:
       - name: config

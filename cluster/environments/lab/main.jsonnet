@@ -1320,6 +1320,17 @@ local withNamespace(resources, ns) = {
   },
 
   // The Lounge: IRC client
-  thelounge: selfhosted.new('thelounge', images.thelounge, 9000, 'irc.lan.ftzmlab.xyz'),
+  thelounge: selfhosted.new('thelounge', images.thelounge, 9000, 'irc.lan.ftzmlab.xyz') {
+    deployment+: {
+      spec+: { template+: { spec+: { containers: [
+        super.containers[0] {
+          volumeMounts: [
+            if v.mountPath == '/config' then v { mountPath: '/var/opt/thelounge' } else v
+            for v in super.volumeMounts
+          ],
+        },
+      ] } } },
+    },
+  },
 
 }
