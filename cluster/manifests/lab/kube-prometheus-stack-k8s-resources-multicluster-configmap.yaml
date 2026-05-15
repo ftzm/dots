@@ -22,7 +22,7 @@ data:
     by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m))
     by (cluster)","legendFormat":"__auto"}],"title":"CPU Usage","type":"timeseries"},{"datasource":{"type":"datasource","uid":"--
     Mixed --"},"fieldConfig":{"overrides":[{"matcher":{"id":"byRegexp","options":"/%/"},"properties":[{"id":"unit","value":"percentunit"}]},{"matcher":{"id":"byName","options":"Cluster"},"properties":[{"id":"links","value":[{"title":"Drill
-    down","url":"/d/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster?${datasource:queryparam}&var-cluster=${__data.fields.Cluster}"}]}]}]},"gridPos":{"h":7,"w":24,"x":0,"y":2},"id":8,"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
+    down","url":"/d/efa86fd1d0c121a26444b636a3f509a8?${datasource:queryparam}&var-cluster=${__data.fields.Cluster}"}]}]}]},"gridPos":{"h":7,"w":24,"x":0,"y":2},"id":8,"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
     by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m))
     by (cluster)","format":"table","instant":true},{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\",
     resource=\"cpu\"}) by (cluster)","format":"table","instant":true},{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
@@ -44,7 +44,7 @@ data:
     metrics_path=\"/metrics/cadvisor\", container!=\"\"})) by (cluster)","legendFormat":"__auto"}],"title":"Memory
     Usage (w/o cache)","type":"timeseries"},{"datasource":{"type":"datasource","uid":"--
     Mixed --"},"fieldConfig":{"defaults":{"unit":"bytes"},"overrides":[{"matcher":{"id":"byRegexp","options":"/%/"},"properties":[{"id":"unit","value":"percentunit"}]},{"matcher":{"id":"byName","options":"Cluster"},"properties":[{"id":"links","value":[{"title":"Drill
-    down","url":"/d/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster?${datasource:queryparam}&var-cluster=${__data.fields.Cluster}"}]}]}]},"gridPos":{"h":7,"w":24,"x":0,"y":4},"id":10,"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
+    down","url":"/d/efa86fd1d0c121a26444b636a3f509a8?${datasource:queryparam}&var-cluster=${__data.fields.Cluster}"}]}]}]},"gridPos":{"h":7,"w":24,"x":0,"y":4},"id":10,"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
     by (cluster, namespace, pod, container)(container_memory_rss{job=\"kubelet\",
     metrics_path=\"/metrics/cadvisor\", container!=\"\"})) by (cluster)","format":"table","instant":true},{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\",
     resource=\"memory\"}) by (cluster)","format":"table","instant":true},{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
@@ -70,8 +70,8 @@ metadata:
     app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/part-of: kube-prometheus-stack
-    app.kubernetes.io/version: 81.6.2
-    chart: kube-prometheus-stack-81.6.2
+    app.kubernetes.io/version: 85.0.3
+    chart: kube-prometheus-stack-85.0.3
     grafana_dashboard: "1"
     heritage: Helm
     release: kube-prometheus-stack
