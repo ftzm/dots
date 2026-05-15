@@ -13,11 +13,11 @@
 - [x] 2.7 Deploy Jellyseerr (k8s)
 - [x] 2.8 Update Deluge download paths to use mediastack (NixOS)
 - [x] 2.9 Update NZBget download path to /mnt/nas/mediastack/downloads/usenet (declarative)
-- [ ] 2.10 Clean up old download dirs on nuc (/var/lib/deluge/complete, /var/lib/deluge/downloads, /nzb/dst)
+- [x] 2.10 Clean up old download dirs on nuc (/var/lib/deluge/complete, /var/lib/deluge/downloads, /nzb)
 
 ## 3. Data migration (manual)
 
-- [ ] 3.1 Migrate app state via rsync for each service
-- [ ] 3.2 Configure download client paths in arr apps via web UI
-- [ ] 3.3 Configure root folders in arr apps via web UI
-- [ ] 3.4 Verify hardlink pipeline end-to-end
+- [x] 3.1 Migrate app state via rsync for each service
+- [x] 3.2 Configure download client paths in arr apps (fixed via database)
+- [x] 3.3 Configure root folders in arr apps
+- [x] 3.4 Verify hardlink pipeline end-to-end (Blue Planet II: Links: 2 on all episodes)
