@@ -14,5 +14,5 @@ spec:
     match: Host(`audiobookshelf.lan.ftzmlab.xyz`)
     services:
     - name: audiobookshelf
-      port: 8000
+      port: 80
   tls: {}

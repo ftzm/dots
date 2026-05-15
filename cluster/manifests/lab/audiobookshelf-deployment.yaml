@@ -19,7 +19,7 @@ spec:
       - image: advplyr/audiobookshelf:2.34.0
         name: audiobookshelf
         ports:
-        - containerPort: 8000
+        - containerPort: 80
           name: http
         volumeMounts:
         - mountPath: /config

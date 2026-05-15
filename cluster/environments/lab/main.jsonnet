@@ -1306,7 +1306,7 @@ local withNamespace(resources, ns) = {
 
     audiobooksPv: abMount.pv,
     audiobooksPvc: abMount.pvc,
-  } + selfhosted.new('audiobookshelf', images.audiobookshelf, 8000, 'audiobookshelf.lan.ftzmlab.xyz') {
+  } + selfhosted.new('audiobookshelf', images.audiobookshelf, 80, 'audiobookshelf.lan.ftzmlab.xyz') {
     deployment+: k.apps.v1.deployment.spec.template.spec.withVolumesMixin([
       k.core.v1.volume.fromPersistentVolumeClaim('audiobooks', 'audiobooks'),
     ]) + {
