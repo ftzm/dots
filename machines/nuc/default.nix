@@ -200,22 +200,6 @@ in {
     port = 9002;
   };
 
-  services.navidrome = {
-    enable = true;
-    settings = {
-      MusicFolder = "/mnt/nas/music";
-      Address = "0.0.0.0";
-      Port = 4533;
-      EnableSharing = true;
-    };
-  };
-
-  services.audiobookshelf = {
-    enable = true;
-    group = "storage";
-    host = "0.0.0.0";
-  };
-
   services.nzbget = {
     enable = true;
     group = "storage";
@@ -531,11 +515,6 @@ in {
   # start over
 
   # ----------------------------------------------------------------------
-  # The Lounge
-
-  services.thelounge = {
-    enable = true;
-  };
 
   # ----------------------------------------------------------------------
   services.mosquitto = {

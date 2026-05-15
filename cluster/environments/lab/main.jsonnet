@@ -217,10 +217,8 @@ local withNamespace(resources, ns) = {
                 jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
                 vaultwarden: hostRouter('vaultwarden', 'vaultwarden.lan.ftzmlab.xyz'),
                 deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
-                audiobookshelf: hostRouter('audiobookshelf', 'audiobookshelf.lan.ftzmlab.xyz'),
                 immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
                 filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
-                navidrome: hostRouter('navidrome', 'navidrome.lan.ftzmlab.xyz'),
                 webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
                 nzbget: hostRouter('nzbget', 'nzbget.lan.ftzmlab.xyz'),
               },
@@ -228,10 +226,8 @@ local withNamespace(resources, ns) = {
                 jellyfin: hostSvc('8096'),
                 vaultwarden: hostSvc('8222'),
                 deluge: hostSvc('8112'),
-                audiobookshelf: hostSvc('8000'),
                 immich: hostSvc('2283'),
                 filestash: hostSvc('8334'),
-                navidrome: hostSvc('4533'),
                 webdav: hostSvc('8085'),
                 nzbget: hostSvc('6789'),
               },
@@ -1273,5 +1269,51 @@ local withNamespace(resources, ns) = {
       },
     },
   },
+
+  // Navidrome: music streaming
+  navidrome: {
+    local ns = 'navidrome',
+    local musicMount = storage.nfsMount('music', ns, '/pool-1/mediastack/media/music', '500Gi'),
+
+    musicPv: musicMount.pv,
+    musicPvc: musicMount.pvc,
+  } + selfhosted.new('navidrome', images.navidrome, 4533, 'navidrome.lan.ftzmlab.xyz') {
+    deployment+: k.apps.v1.deployment.spec.template.spec.withVolumesMixin([
+      k.core.v1.volume.fromPersistentVolumeClaim('music', 'music'),
+    ]) + {
+      spec+: { template+: { spec+: { containers: [
+        super.containers[0]
+        + k.core.v1.container.withVolumeMountsMixin([
+          k.core.v1.volumeMount.new('music', '/music') + k.core.v1.volumeMount.withReadOnly(true),
+        ])
+        + k.core.v1.container.withEnv([
+          k.core.v1.envVar.new('ND_MUSICFOLDER', '/music'),
+        ]),
+      ] } } },
+    },
+  },
+
+  // Audiobookshelf: audiobook/podcast server
+  audiobookshelf: {
+    local ns = 'audiobookshelf',
+    local abMount = storage.nfsMount('audiobooks', ns, '/pool-1/mediastack/media/audiobooks', '100Gi'),
+
+    audiobooksPv: abMount.pv,
+    audiobooksPvc: abMount.pvc,
+  } + selfhosted.new('audiobookshelf', images.audiobookshelf, 8000, 'audiobookshelf.lan.ftzmlab.xyz') {
+    deployment+: k.apps.v1.deployment.spec.template.spec.withVolumesMixin([
+      k.core.v1.volume.fromPersistentVolumeClaim('audiobooks', 'audiobooks'),
+    ]) + {
+      spec+: { template+: { spec+: { containers: [
+        super.containers[0]
+        + k.core.v1.container.withVolumeMountsMixin([
+          k.core.v1.volumeMount.new('audiobooks', '/audiobooks'),
+        ]),
+      ] } } },
+    },
+  },
+
+  // The Lounge: IRC client
+  thelounge: selfhosted.new('thelounge', images.thelounge, 9000, 'irc.lan.ftzmlab.xyz'),
 
 }

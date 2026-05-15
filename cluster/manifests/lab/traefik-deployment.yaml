@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    checksum/traefik-dynamic-conf: b82338df8818e4023c275ebafb57d64111851ed0f4c385efcd946f430c9be8e5
+    checksum/traefik-dynamic-conf: 208c4ccda4950504e0eeaf9604042383e9f4128bb1c1a9d8b559cdb084f510c8
   labels:
     app.kubernetes.io/instance: traefik-traefik
     app.kubernetes.io/managed-by: Helmraiser
@@ -22,7 +22,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/file-provider: 1e04f6b18d52e14eb71deb640bd24a75
+        checksum/file-provider: 35e8c17e52f15d78bd12b8edea14568b
         prometheus.io/path: /metrics
         prometheus.io/port: "9091"
         prometheus.io/scrape: "true"
