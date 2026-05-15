@@ -1282,7 +1282,13 @@ local withNamespace(resources, ns) = {
       k.core.v1.volume.fromPersistentVolumeClaim('music', 'music'),
     ]) + {
       spec+: { template+: { spec+: { containers: [
-        super.containers[0]
+        super.containers[0] {
+          // Navidrome uses /data not /config
+          volumeMounts: [
+            if v.mountPath == '/config' then v { mountPath: '/data' } else v
+            for v in super.volumeMounts
+          ],
+        }
         + k.core.v1.container.withVolumeMountsMixin([
           k.core.v1.volumeMount.new('music', '/music') + k.core.v1.volumeMount.withReadOnly(true),
         ])

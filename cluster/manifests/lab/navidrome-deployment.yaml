@@ -25,7 +25,7 @@ spec:
         - containerPort: 4533
           name: http
         volumeMounts:
-        - mountPath: /config
+        - mountPath: /data
           name: config
         - mountPath: /music
           name: music
