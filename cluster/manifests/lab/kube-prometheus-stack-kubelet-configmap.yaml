@@ -6,7 +6,7 @@ data:
     Kubelets","type":"stat"},{"datasource":{"type":"datasource","uid":"-- Mixed --"},"fieldConfig":{"defaults":{"unit":"none"}},"gridPos":{"h":7,"w":4,"x":4,"y":0},"id":2,"interval":"1m","options":{"colorMode":"none"},"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(kubelet_running_pods{cluster=\"$cluster\",
     job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\"})","instant":true}],"title":"Running
     Pods","type":"stat"},{"datasource":{"type":"datasource","uid":"-- Mixed --"},"fieldConfig":{"defaults":{"unit":"none"}},"gridPos":{"h":7,"w":4,"x":8,"y":0},"id":3,"interval":"1m","options":{"colorMode":"none"},"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(kubelet_running_containers{cluster=\"$cluster\",
-    job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\"})","instant":true}],"title":"Running
+    job=\"kubelet\", metrics_path=\"/metrics\", container_state=\"running\", instance=~\"$instance\"})","instant":true}],"title":"Running
     Containers","type":"stat"},{"datasource":{"type":"datasource","uid":"-- Mixed
     --"},"fieldConfig":{"defaults":{"unit":"none"}},"gridPos":{"h":7,"w":4,"x":12,"y":0},"id":4,"interval":"1m","options":{"colorMode":"none"},"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(volume_manager_total_volumes{cluster=\"$cluster\",
     job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\", state=\"actual_state_of_world\"})","instant":true}],"title":"Actual
@@ -104,8 +104,8 @@ metadata:
     app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/part-of: kube-prometheus-stack
-    app.kubernetes.io/version: 81.6.2
-    chart: kube-prometheus-stack-81.6.2
+    app.kubernetes.io/version: 85.0.3
+    chart: kube-prometheus-stack-85.0.3
     grafana_dashboard: "1"
     heritage: Helm
     release: kube-prometheus-stack

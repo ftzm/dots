@@ -11,7 +11,7 @@ data:
     by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m{cluster=\"$cluster\",
     node=~\"$node\"})) by (pod)","legendFormat":"{{pod}}"}],"title":"CPU Usage","type":"timeseries"},{"datasource":{"type":"datasource","uid":"--
     Mixed --"},"fieldConfig":{"overrides":[{"matcher":{"id":"byRegexp","options":"/%/"},"properties":[{"id":"unit","value":"percentunit"}]},{"matcher":{"id":"byName","options":"Pod"},"properties":[{"id":"links","value":[{"title":"Drill
-    down to pods","url":"/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?${datasource:queryparam}&var-cluster=$cluster&var-namespace=$namespace&var-pod=${__data.fields.Pod}"}]}]}]},"gridPos":{"h":6,"w":24,"x":0,"y":6},"id":2,"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
+    down to pods","url":"/d/6581e46e4e5c7ba40a07646395ef7b23?${datasource:queryparam}&var-cluster=$cluster&var-namespace=$namespace&var-pod=${__data.fields.Pod}"}]}]}]},"gridPos":{"h":6,"w":24,"x":0,"y":6},"id":2,"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
     by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m{cluster=\"$cluster\",
     node=~\"$node\"})) by (pod)","format":"table","instant":true},{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
     by (cluster, namespace, pod, container)(cluster:namespace:pod_cpu:active:kube_pod_container_resource_requests{cluster=\"$cluster\",
@@ -48,7 +48,7 @@ data:
     node=~\"$node\", container!=\"\"})) by (pod)","legendFormat":"{{pod}}"}],"title":"Memory
     Usage (w/o cache)","type":"timeseries"},{"datasource":{"type":"datasource","uid":"--
     Mixed --"},"fieldConfig":{"defaults":{"unit":"bytes"},"overrides":[{"matcher":{"id":"byRegexp","options":"/%/"},"properties":[{"id":"unit","value":"percentunit"}]},{"matcher":{"id":"byName","options":"Pod"},"properties":[{"id":"links","value":[{"title":"Drill
-    down to pods","url":"/d/6581e46e4e5c7ba40a07646395ef7b23/k8s-resources-pod?${datasource:queryparam}&var-cluster=$cluster&var-namespace=$namespace&var-pod=${__data.fields.Pod}"}]}]}]},"gridPos":{"h":6,"w":24,"x":0,"y":24},"id":5,"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
+    down to pods","url":"/d/6581e46e4e5c7ba40a07646395ef7b23?${datasource:queryparam}&var-cluster=$cluster&var-namespace=$namespace&var-pod=${__data.fields.Pod}"}]}]}]},"gridPos":{"h":6,"w":24,"x":0,"y":24},"id":5,"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
     by (cluster, namespace, pod, container)(node_namespace_pod_container:container_memory_working_set_bytes{cluster=\"$cluster\",
     node=~\"$node\",container!=\"\"})) by (pod)","format":"table","instant":true},{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum(max
     by (cluster, namespace, pod, container)(cluster:namespace:pod_memory:active:kube_pod_container_resource_requests{cluster=\"$cluster\",
@@ -86,8 +86,8 @@ metadata:
     app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/part-of: kube-prometheus-stack
-    app.kubernetes.io/version: 81.6.2
-    chart: kube-prometheus-stack-81.6.2
+    app.kubernetes.io/version: 85.0.3
+    chart: kube-prometheus-stack-85.0.3
     grafana_dashboard: "1"
     heritage: Helm
     release: kube-prometheus-stack

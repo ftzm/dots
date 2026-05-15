@@ -6,8 +6,8 @@ metadata:
     app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/part-of: kube-prometheus-stack
-    app.kubernetes.io/version: 81.6.2
-    chart: kube-prometheus-stack-81.6.2
+    app.kubernetes.io/version: 85.0.3
+    chart: kube-prometheus-stack-85.0.3
     heritage: Helm
     release: kube-prometheus-stack
   name: kube-prometheus-stack-prometheus
@@ -44,7 +44,7 @@ spec:
   enableOTLPReceiver: false
   externalUrl: http://kube-prometheus-stack-prometheus.monitoring:9090
   hostNetwork: false
-  image: quay.io/prometheus/prometheus:v3.9.1
+  image: quay.io/prometheus/prometheus:v3.11.3-distroless
   imagePullPolicy: IfNotPresent
   listenLocal: false
   logFormat: logfmt
@@ -91,5 +91,5 @@ spec:
         storageClassName: nfs
   tsdb:
     outOfOrderTimeWindow: 0s
-  version: v3.9.1
+  version: v3.11.3-distroless
   walCompression: true
