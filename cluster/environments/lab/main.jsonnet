@@ -1331,13 +1331,21 @@ local withNamespace(resources, ns) = {
     },
   },
 
-  // Vaultwarden: password vault
-  vaultwarden: selfhosted.new('vaultwarden', images.vaultwarden, 80, 'vaultwarden.lan.ftzmlab.xyz') {
+  // Vaultwarden: password vault (static NFS PV for stable backup path)
+  vaultwarden: {
+    local ns = 'vaultwarden',
+    local vwMount = storage.nfsMount('vaultwarden', ns, '/pool-1/vaultwarden', '1Gi'),
+
+    dataPv: vwMount.pv,
+    dataPvc: vwMount.pvc,
+  } + selfhosted.new('vaultwarden', images.vaultwarden, 80, 'vaultwarden.lan.ftzmlab.xyz') {
+    // Remove the default config PVC — we use the static NFS mount instead
+    configPvc:: null,
     deployment+: {
       spec+: { template+: { spec+: { containers: [
         super.containers[0] {
           volumeMounts: [
-            if v.mountPath == '/config' then v { mountPath: '/data' } else v
+            if v.mountPath == '/config' then v { mountPath: '/data', name: 'data' } else v
             for v in super.volumeMounts
           ],
         }
@@ -1355,7 +1363,9 @@ local withNamespace(resources, ns) = {
           },
         ]),
       ] } } },
-    },
+    } + k.apps.v1.deployment.spec.template.spec.withVolumes([
+      k.core.v1.volume.fromPersistentVolumeClaim('data', 'vaultwarden'),
+    ]),
   },
 
 }

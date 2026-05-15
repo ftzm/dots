@@ -140,7 +140,10 @@ in {
   age.secrets.borgbase-passphrase.file = ../../secrets/borgbase_passphrase.age;
 
   services.borgbackup.jobs."borgbase" = {
-    paths = ["/pool-1/cloud/photos"];
+    paths = [
+      "/pool-1/cloud/photos"
+      "/pool-1/vaultwarden"
+    ];
     exclude = [];
     repo = "d6hr008k@d6hr008k.repo.borgbase.com:repo";
     encryption = {
@@ -168,6 +171,7 @@ in {
     "d /pool-1/mediastack/media/audiobooks 0775 root storage -"
     "d /pool-1/media/photos 0775 root storage -"
     "d /pool-1/cloud 0775 root storage -"
+    "d /pool-1/vaultwarden 0775 root storage -"
     # Recursive permission fix on download dirs (files arrive with varying perms)
     "Z /pool-1/mediastack/downloads 0775 root storage -"
     # Legacy symlinks — nuc services still reference old paths via /mnt/nas.
