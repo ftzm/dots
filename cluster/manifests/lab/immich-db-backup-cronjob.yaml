@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-db-backup
+  namespace: immich
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - args:
+            - pg_dump --format=custom --file=/backup/immich-$(date +%Y%m%d-%H%M%S).dump
+              "$DB_URL" && find /backup -name "*.dump" -mtime +7 -delete
+            command:
+            - /bin/sh
+            - -c
+            env:
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  key: uri
+                  name: immich-database-app
+            image: ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+            name: pg-dump
+            volumeMounts:
+            - mountPath: /backup
+              name: backup
+          restartPolicy: OnFailure
+          volumes:
+          - name: backup
+            persistentVolumeClaim:
+              claimName: immich-db-backup
+  schedule: 0 3 * * *
+  successfulJobsHistoryLimit: 3

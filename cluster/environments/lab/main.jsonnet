@@ -216,7 +216,6 @@ local withNamespace(resources, ns) = {
               routers: {
                 jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
                 deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
-                immich: hostRouter('immich', 'img.lan.ftzmlab.xyz'),
                 filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
                 webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
                 nzbget: hostRouter('nzbget', 'nzbget.lan.ftzmlab.xyz'),
@@ -224,7 +223,6 @@ local withNamespace(resources, ns) = {
               services: {
                 jellyfin: hostSvc('8096'),
                 deluge: hostSvc('8112'),
-                immich: hostSvc('2283'),
                 filestash: hostSvc('8334'),
                 webdav: hostSvc('8085'),
                 nzbget: hostSvc('6789'),
@@ -445,6 +443,21 @@ local withNamespace(resources, ns) = {
             value: '/mnt/age/key',
           }],
         },
+      }),
+      ns
+    ),
+  },
+
+  // CloudNativePG: PostgreSQL operator
+  cnpg: {
+    local ns = 'cnpg-system',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('cloudnative-pg', '../../charts/cloudnative-pg', {
+        namespace: ns,
+        values: {},
       }),
       ns
     ),
@@ -1366,6 +1379,185 @@ local withNamespace(resources, ns) = {
     } + k.apps.v1.deployment.spec.template.spec.withVolumes([
       k.core.v1.volume.fromPersistentVolumeClaim('data', 'vaultwarden'),
     ]),
+  },
+
+  // Immich: photo management with ML search
+  immich: {
+    local ns = 'immich',
+    local photosMount = storage.nfsMount('immich-photos', ns, '/pool-1/cloud/photos', '500Gi'),
+    local dbBackupMount = storage.nfsMount('immich-db-backup', ns, '/pool-1/k8s/immich-db-backup', '5Gi'),
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    // Static NFS PV/PVC for photo library
+    photosPv: photosMount.pv,
+    photosPvc: photosMount.pvc,
+
+    // Static NFS PV/PVC for database backups
+    dbBackupPv: dbBackupMount.pv,
+    dbBackupPvc: dbBackupMount.pvc,
+
+    // CloudNativePG PostgreSQL cluster with VectorChord
+    database: {
+      apiVersion: 'postgresql.cnpg.io/v1',
+      kind: 'Cluster',
+      metadata: {
+        name: 'immich-database',
+        namespace: ns,
+      },
+      spec: {
+        instances: 1,
+        imageName: images.cloudnativeVectorchord,
+        storage: {
+          size: '5Gi',
+          storageClass: 'nfs',
+        },
+        postgresql: {
+          shared_preload_libraries: ['vchord.so'],
+        },
+        bootstrap: {
+          initdb: {
+            database: 'immich',
+            owner: 'immich',
+            postInitApplicationSQL: [
+              'CREATE EXTENSION vchord CASCADE;',
+              'CREATE EXTENSION earthdistance CASCADE;',
+            ],
+          },
+        },
+      },
+    },
+
+    // Immich Helm chart
+    resources: withNamespace(
+      helm.template('immich', '../../charts/immich', {
+        namespace: ns,
+        values: {
+          controllers: {
+            main: {
+              containers: {
+                main: {
+                  env: {
+                    DB_URL: {
+                      valueFrom: {
+                        secretKeyRef: {
+                          name: 'immich-database-app',
+                          key: 'uri',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          immich: {
+            persistence: {
+              library: {
+                existingClaim: 'immich-photos',
+              },
+            },
+          },
+          valkey: {
+            enabled: true,
+            persistence: {
+              data: {
+                enabled: true,
+                type: 'persistentVolumeClaim',
+                size: '1Gi',
+                storageClass: 'nfs',
+                accessMode: 'ReadWriteOnce',
+              },
+            },
+          },
+          'machine-learning': {
+            enabled: true,
+            persistence: {
+              cache: {
+                enabled: true,
+                type: 'persistentVolumeClaim',
+                size: '10Gi',
+                storageClass: 'nfs',
+                accessMode: 'ReadWriteOnce',
+              },
+            },
+          },
+        },
+      }),
+      ns
+    ),
+
+    // IngressRoute
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: {
+        name: 'immich',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`img.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{
+            name: 'immich-server',
+            port: 2283,
+          }],
+        }],
+        tls: {},
+      },
+    },
+
+    // Daily pg_dump backup
+    dbBackupCronJob: {
+      apiVersion: 'batch/v1',
+      kind: 'CronJob',
+      metadata: {
+        name: 'immich-db-backup',
+        namespace: ns,
+      },
+      spec: {
+        schedule: '0 3 * * *',
+        concurrencyPolicy: 'Forbid',
+        successfulJobsHistoryLimit: 3,
+        failedJobsHistoryLimit: 3,
+        jobTemplate: {
+          spec: {
+            template: {
+              spec: {
+                restartPolicy: 'OnFailure',
+                containers: [{
+                  name: 'pg-dump',
+                  image: images.cloudnativeVectorchord,
+                  command: ['/bin/sh', '-c'],
+                  args: ['pg_dump --format=custom --file=/backup/immich-$(date +%Y%m%d-%H%M%S).dump "$DB_URL" && find /backup -name "*.dump" -mtime +7 -delete'],
+                  env: [{
+                    name: 'DB_URL',
+                    valueFrom: {
+                      secretKeyRef: {
+                        name: 'immich-database-app',
+                        key: 'uri',
+                      },
+                    },
+                  }],
+                  volumeMounts: [{
+                    name: 'backup',
+                    mountPath: '/backup',
+                  }],
+                }],
+                volumes: [{
+                  name: 'backup',
+                  persistentVolumeClaim: {
+                    claimName: 'immich-db-backup',
+                  },
+                }],
+              },
+            },
+          },
+        },
+      },
+    },
   },
 
 }

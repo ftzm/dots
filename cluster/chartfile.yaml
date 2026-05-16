@@ -18,6 +18,10 @@ repositories:
     url: https://charts.jetstack.io
   - name: sops-secrets-operator
     url: https://isindir.github.io/sops-secrets-operator/
+  - name: immich
+    url: https://immich-app.github.io/immich-charts
+  - name: cloudnative-pg
+    url: https://cloudnative-pg.github.io/charts
 
 requires:
   - chart: nfs-subdir-external-provisioner/nfs-subdir-external-provisioner
@@ -40,3 +44,7 @@ requires:
     version: "1.17.2"
   - chart: sops-secrets-operator/sops-secrets-operator
     version: "0.25.3"
+  - chart: immich/immich
+    version: "0.12.0"
+  - chart: cloudnative-pg/cloudnative-pg
+    version: "0.28.2"

@@ -21,15 +21,6 @@ data:
           "rule": "Host(`filestash.lan.ftzmlab.xyz`)"
           "service": "filestash"
           "tls": {}
-        "immich":
-          "entryPoints":
-          - "privateweb"
-          - "privatesecure"
-          - "wgweb"
-          - "wgsecure"
-          "rule": "Host(`img.lan.ftzmlab.xyz`)"
-          "service": "immich"
-          "tls": {}
         "jellyfin":
           "entryPoints":
           - "web"
@@ -64,10 +55,6 @@ data:
           "loadBalancer":
             "servers":
             - "url": "http://127.0.0.1:8334"
-        "immich":
-          "loadBalancer":
-            "servers":
-            - "url": "http://127.0.0.1:2283"
         "jellyfin":
           "loadBalancer":
             "servers":
