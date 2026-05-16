@@ -142,6 +142,7 @@
     directories = [
       "/var/lib/bluetooth"
       "/var/lib/nixos"
+      "/var/lib/tailscale"
       "/etc/NetworkManager/system-connections"
     ];
   };
