@@ -10,6 +10,12 @@
     description = "Font size for waybar";
   };
 
+  options.waybarMinHeight = lib.mkOption {
+    type = lib.types.str;
+    default = "24px";
+    description = "Minimum height for waybar";
+  };
+
   config = {
     wayland.windowManager.sway = {
       enable = true;
@@ -135,7 +141,7 @@
             font-family: "Symbols Nerd Font", iosevka ftzm;
             font-weight: 500;
             font-size: ${config.waybarFontSize};
-            min-height: 24px;
+            min-height: ${config.waybarMinHeight};
         }
 
         window#waybar {

@@ -297,7 +297,8 @@
     platform = "ipu6ep";
   };
 
-  hm.waybarFontSize = "18px";
+  hm.waybarFontSize = "24px";
+  hm.waybarMinHeight = "40px";
 
   hm.home.stateVersion = "23.11"; # Did you read the comment?
   hm.home.activation = {
