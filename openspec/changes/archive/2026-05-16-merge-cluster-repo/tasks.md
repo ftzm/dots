@@ -17,4 +17,4 @@
 
 ## 4. Clean up
 
-- [ ] 4.1 Delete standalone cluster repo (deferred to end of migration)
+- [x] 4.1 Archive standalone cluster repo (Renovate disabled, history preserved)
