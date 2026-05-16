@@ -39,4 +39,4 @@ requires:
   - chart: jetstack/cert-manager
     version: "1.17.2"
   - chart: sops-secrets-operator/sops-secrets-operator
-    version: "0.25.3"
+    version: "0.27.0"

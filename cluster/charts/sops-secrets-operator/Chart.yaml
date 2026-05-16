@@ -1,5 +1,22 @@
+annotations:
+  artifacthub.io/crds: |
+    - kind: SopsSecret
+      version: isindir.github.com/v1alpha3
+      name: sopssecret
+      displayName: SopsSecret
+      description: SopsSecret - encapsulates sops encrypted kubernetes secrets definitions
+  artifacthub.io/links: |
+    - name: "SOPS: Secrets OPerationS - Kubernetes Operator github project"
+      url: "https://github.com/isindir/sops-secrets-operator.git"
+    - name: "SOPS: Secrets OPerationS"
+      url: "https://github.com/mozilla/sops"
+  artifacthub.io/maintainers: |
+    - name: isindir
+      email: isindir@users.sf.net
+  artifacthub.io/operator: "true"
+  artifacthub.io/operatorCapabilities: Full Lifecycle
 apiVersion: v2
-appVersion: 0.20.1
+appVersion: 0.21.0
 description: Helm chart deploys sops-secrets-operator
 keywords:
 - gitops
@@ -8,6 +25,7 @@ keywords:
 - encryption
 - secret
 - git
+kubeVersion: '>= 1.35.0 < 1.37.0'
 maintainers:
 - email: isindir@users.sf.net
   name: isindir
@@ -15,4 +33,4 @@ name: sops-secrets-operator
 sources:
 - https://github.com/isindir/sops-secrets-operator.git
 type: application
-version: 0.25.3
+version: 0.27.0
