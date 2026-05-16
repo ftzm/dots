@@ -348,6 +348,17 @@ local withNamespace(resources, ns) = {
           redisSecretInit: {
             enabled: false,
           },
+          repoServer: {
+            livenessProbe: {
+              timeoutSeconds: 5,
+              periodSeconds: 30,
+              failureThreshold: 5,
+            },
+            readinessProbe: {
+              timeoutSeconds: 5,
+              periodSeconds: 15,
+            },
+          },
         },
       }),
       ns
