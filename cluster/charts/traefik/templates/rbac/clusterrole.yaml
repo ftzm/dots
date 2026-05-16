@@ -64,9 +64,6 @@ rules:
       - ""
     resources:
       - secrets
-    {{- with .Values.rbac.secretResourceNames }}
-    resourceNames: {{ toYaml . | nindent 6 }}
-    {{- end }}
     verbs:
       - get
       - list
@@ -108,6 +105,9 @@ rules:
   - apiGroups:
       - ""
     resources:
+    {{- if semverCompare ">=v3.7.0-0" $version }}
+      - configmaps
+    {{- end }}
       - namespaces
     verbs:
       - list
