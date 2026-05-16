@@ -358,6 +358,10 @@ local withNamespace(resources, ns) = {
               timeoutSeconds: 5,
               periodSeconds: 15,
             },
+            env: [{
+              name: 'ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE',
+              value: '30000000',
+            }],
           },
         },
       }),
