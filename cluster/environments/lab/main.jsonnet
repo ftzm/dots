@@ -1399,14 +1399,14 @@ local withNamespace(resources, ns) = {
   // Immich: photo management with ML search
   immich: {
     local ns = 'immich',
-    local photosMount = storage.nfsMount('immich-photos', ns, '/pool-1/cloud/photos', '500Gi'),
+    local libraryMount = storage.nfsMount('immich-library', ns, '/pool-1/cloud/photos', '500Gi'),
     local dbBackupMount = storage.nfsMount('immich-db-backup', ns, '/pool-1/k8s/immich-db-backup', '5Gi'),
 
     namespace: k.core.v1.namespace.new(ns),
 
-    // Static NFS PV/PVC for photo library
-    photosPv: photosMount.pv,
-    photosPvc: photosMount.pvc,
+    // Immich upload library (existing photos + new uploads)
+    libraryPv: libraryMount.pv,
+    libraryPvc: libraryMount.pvc,
 
     // Static NFS PV/PVC for database backups
     dbBackupPv: dbBackupMount.pv,
@@ -1469,7 +1469,7 @@ local withNamespace(resources, ns) = {
           immich: {
             persistence: {
               library: {
-                existingClaim: 'immich-photos',
+                existingClaim: 'immich-library',
               },
             },
           },
