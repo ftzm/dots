@@ -15,6 +15,7 @@ data:
   repo.server: argocd-repo-server:8081
   reposerver.log.format: text
   reposerver.log.level: info
+  reposerver.max.combined.directory.manifests.size: "30000000"
   server.dex.server: https://argocd-dex-server:5556
   server.dex.server.strict.tls: "false"
   server.log.format: text

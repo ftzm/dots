@@ -22,7 +22,7 @@ spec:
     metadata:
       annotations:
         checksum/cm: 4eaec360110f09f126212215858252d95afdaf6eb00d67fd650245691d4c62ce
-        checksum/cmd-params: b6cc7018c9e3cdf2de9b0d1de4047a677556990bd3d6ae19ec34ac0f7482c4bf
+        checksum/cmd-params: 6794478273e13249ea35e4624df2b7ebc120f57c01cbf88054c482f3cabd571a
       labels:
         app.kubernetes.io/component: repo-server
         app.kubernetes.io/instance: argocd
@@ -48,8 +48,6 @@ spec:
         - --port=8081
         - --metrics-port=8084
         env:
-        - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
-          value: "30000000"
         - name: ARGOCD_REPO_SERVER_NAME
           value: argocd-repo-server
         - name: ARGOCD_RECONCILIATION_TIMEOUT
