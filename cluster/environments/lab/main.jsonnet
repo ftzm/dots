@@ -668,6 +668,16 @@ local withNamespace(resources, ns) = {
                 access: 'proxy',
               },
             ],
+            'grafana.ini': {
+              security: {
+                allow_embedding: true,
+                cookie_samesite: 'lax',
+              },
+              'auth.anonymous': {
+                enabled: true,
+                org_role: 'Viewer',
+              },
+            },
             ingress: { enabled: false },
             sidecar: {
               dashboards: { enabled: true, searchNamespace: 'ALL' },
@@ -1033,6 +1043,366 @@ local withNamespace(resources, ns) = {
           services: [{
             name: 'kube-prometheus-stack-grafana',
             port: 80,
+          }],
+        }],
+        tls: {},
+      },
+    },
+
+    // Grafana dashboard for Homepage iframe embed
+    homepageOverviewDashboard: k.core.v1.configMap.new('homepage-overview-dashboard')
+      + k.core.v1.configMap.metadata.withNamespace(ns)
+      + k.core.v1.configMap.metadata.withLabels({ grafana_dashboard: '1' })
+      + k.core.v1.configMap.withData({
+        'homepage-overview.json': std.manifestJson({
+          uid: 'homepage-overview',
+          title: 'Homepage Overview',
+          tags: ['homepage'],
+          timezone: 'browser',
+          schemaVersion: 39,
+          refresh: '30s',
+          time: { from: 'now-1h', to: 'now' },
+          panels: [
+            // Node CPU Usage
+            {
+              id: 1,
+              type: 'gauge',
+              title: 'CPU Usage',
+              gridPos: { h: 8, w: 6, x: 0, y: 0 },
+              targets: [{
+                expr: '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
+                legendFormat: 'CPU',
+              }],
+              fieldConfig: {
+                defaults: {
+                  unit: 'percent',
+                  min: 0,
+                  max: 100,
+                  thresholds: {
+                    steps: [
+                      { value: 0, color: 'green' },
+                      { value: 70, color: 'yellow' },
+                      { value: 90, color: 'red' },
+                    ],
+                  },
+                },
+              },
+            },
+            // Node Memory Usage
+            {
+              id: 2,
+              type: 'gauge',
+              title: 'Memory Usage',
+              gridPos: { h: 8, w: 6, x: 6, y: 0 },
+              targets: [{
+                expr: '100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)',
+                legendFormat: 'Memory',
+              }],
+              fieldConfig: {
+                defaults: {
+                  unit: 'percent',
+                  min: 0,
+                  max: 100,
+                  thresholds: {
+                    steps: [
+                      { value: 0, color: 'green' },
+                      { value: 70, color: 'yellow' },
+                      { value: 90, color: 'red' },
+                    ],
+                  },
+                },
+              },
+            },
+            // Pod Health
+            {
+              id: 3,
+              type: 'stat',
+              title: 'Pods Not Ready',
+              gridPos: { h: 8, w: 6, x: 12, y: 0 },
+              targets: [{
+                expr: 'count(kube_pod_status_phase{phase!="Running",phase!="Succeeded"}) or vector(0)',
+                legendFormat: 'Not Ready',
+              }],
+              fieldConfig: {
+                defaults: {
+                  thresholds: {
+                    steps: [
+                      { value: 0, color: 'green' },
+                      { value: 1, color: 'yellow' },
+                      { value: 3, color: 'red' },
+                    ],
+                  },
+                },
+              },
+            },
+            // NFS Disk Usage
+            {
+              id: 4,
+              type: 'gauge',
+              title: 'NFS Disk Usage',
+              gridPos: { h: 8, w: 6, x: 18, y: 0 },
+              targets: [{
+                expr: '100 * (1 - node_filesystem_avail_bytes{mountpoint="/pool-1"} / node_filesystem_size_bytes{mountpoint="/pool-1"})',
+                legendFormat: 'Disk',
+              }],
+              fieldConfig: {
+                defaults: {
+                  unit: 'percent',
+                  min: 0,
+                  max: 100,
+                  thresholds: {
+                    steps: [
+                      { value: 0, color: 'green' },
+                      { value: 70, color: 'yellow' },
+                      { value: 90, color: 'red' },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      }),
+  },
+
+  // Homepage: unified dashboard with service links and Grafana embed
+  homepage: {
+    local ns = 'homepage',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('homepage', '../../charts/homepage', {
+        namespace: ns,
+        values: {
+          enableRbac: true,
+          serviceAccount: { create: true },
+          env: [
+            { name: 'HOMEPAGE_ALLOWED_HOSTS', value: 'home.lan.ftzmlab.xyz' },
+          ],
+          envFrom: [
+            { secretRef: { name: 'homepage-api-keys' } },
+          ],
+          config: {
+            useExistingConfigMap: 'homepage-config',
+          },
+        },
+      }),
+      ns
+    ),
+
+    configMap: k.core.v1.configMap.new('homepage-config')
+      + k.core.v1.configMap.metadata.withNamespace(ns)
+      + k.core.v1.configMap.withData({
+        'settings.yaml': std.manifestYamlDoc({
+          title: 'ftzmlab',
+          theme: 'dark',
+          color: 'slate',
+          headerStyle: 'clean',
+          layout: {
+            Media: { style: 'row', columns: 4 },
+            Apps: { style: 'row', columns: 3 },
+            Infrastructure: { style: 'row', columns: 3 },
+          },
+        }),
+        'widgets.yaml': std.manifestYamlDoc([
+          {
+            iframe: {
+              src: 'https://grafana.lan.ftzmlab.xyz/d-solo/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk',
+              classes: 'h-64 w-full',
+              referrerPolicy: 'same-origin',
+            },
+          },
+          {
+            kubernetes: {
+              cluster: {
+                show: true,
+                cpu: true,
+                memory: true,
+                showLabel: true,
+              },
+              nodes: {
+                show: true,
+                cpu: true,
+                memory: true,
+                showLabel: true,
+              },
+            },
+          },
+        ]),
+        'services.yaml': std.manifestYamlDoc([
+          {
+            Media: [
+              {
+                Radarr: {
+                  href: 'https://radarr.lan.ftzmlab.xyz',
+                  icon: 'radarr',
+                  ping: 'https://radarr.lan.ftzmlab.xyz',
+                  widget: {
+                    type: 'radarr',
+                    url: 'http://radarr.media.svc.cluster.local:7878',
+                    key: '{{HOMEPAGE_VAR_RADARR_KEY}}',
+                  },
+                },
+              },
+              {
+                Sonarr: {
+                  href: 'https://sonarr.lan.ftzmlab.xyz',
+                  icon: 'sonarr',
+                  ping: 'https://sonarr.lan.ftzmlab.xyz',
+                  widget: {
+                    type: 'sonarr',
+                    url: 'http://sonarr.media.svc.cluster.local:8989',
+                    key: '{{HOMEPAGE_VAR_SONARR_KEY}}',
+                  },
+                },
+              },
+              {
+                Lidarr: {
+                  href: 'https://lidarr.lan.ftzmlab.xyz',
+                  icon: 'lidarr',
+                  ping: 'https://lidarr.lan.ftzmlab.xyz',
+                  widget: {
+                    type: 'lidarr',
+                    url: 'http://lidarr.media.svc.cluster.local:8686',
+                    key: '{{HOMEPAGE_VAR_LIDARR_KEY}}',
+                  },
+                },
+              },
+              {
+                Readarr: {
+                  href: 'https://readarr.lan.ftzmlab.xyz',
+                  icon: 'readarr',
+                  ping: 'https://readarr.lan.ftzmlab.xyz',
+                  widget: {
+                    type: 'readarr',
+                    url: 'http://readarr.media.svc.cluster.local:8787',
+                    key: '{{HOMEPAGE_VAR_READARR_KEY}}',
+                  },
+                },
+              },
+              {
+                Prowlarr: {
+                  href: 'https://prowlarr.lan.ftzmlab.xyz',
+                  icon: 'prowlarr',
+                  ping: 'https://prowlarr.lan.ftzmlab.xyz',
+                  widget: {
+                    type: 'prowlarr',
+                    url: 'http://prowlarr.media.svc.cluster.local:9696',
+                    key: '{{HOMEPAGE_VAR_PROWLARR_KEY}}',
+                  },
+                },
+              },
+              {
+                Jellyseerr: {
+                  href: 'https://jellyseerr.lan.ftzmlab.xyz',
+                  icon: 'jellyseerr',
+                  ping: 'https://jellyseerr.lan.ftzmlab.xyz',
+                },
+              },
+              {
+                Jellyfin: {
+                  href: 'https://jellyfin.ftzmlab.xyz',
+                  icon: 'jellyfin',
+                },
+              },
+            ],
+          },
+          {
+            Apps: [
+              {
+                Immich: {
+                  href: 'https://img.lan.ftzmlab.xyz',
+                  icon: 'immich',
+                  ping: 'https://img.lan.ftzmlab.xyz',
+                  widget: {
+                    type: 'immich',
+                    url: 'http://immich-server.immich.svc.cluster.local:2283',
+                    key: '{{HOMEPAGE_VAR_IMMICH_KEY}}',
+                  },
+                },
+              },
+              {
+                Navidrome: {
+                  href: 'https://navidrome.lan.ftzmlab.xyz',
+                  icon: 'navidrome',
+                  ping: 'https://navidrome.lan.ftzmlab.xyz',
+                },
+              },
+              {
+                Audiobookshelf: {
+                  href: 'https://audiobookshelf.lan.ftzmlab.xyz',
+                  icon: 'audiobookshelf',
+                  ping: 'https://audiobookshelf.lan.ftzmlab.xyz',
+                },
+              },
+              {
+                Vaultwarden: {
+                  href: 'https://vaultwarden.lan.ftzmlab.xyz',
+                  icon: 'vaultwarden',
+                  ping: 'https://vaultwarden.lan.ftzmlab.xyz',
+                },
+              },
+              {
+                'The Lounge': {
+                  href: 'https://irc.lan.ftzmlab.xyz',
+                  icon: 'thelounge',
+                  ping: 'https://irc.lan.ftzmlab.xyz',
+                },
+              },
+              {
+                ntfy: {
+                  href: 'https://ntfy.lan.ftzmlab.xyz',
+                  icon: 'ntfy',
+                  ping: 'https://ntfy.lan.ftzmlab.xyz',
+                },
+              },
+            ],
+          },
+          {
+            Infrastructure: [
+              {
+                ArgoCD: {
+                  href: 'https://argo.lan.ftzmlab.xyz',
+                  icon: 'argocd',
+                },
+              },
+              {
+                Grafana: {
+                  href: 'https://grafana.lan.ftzmlab.xyz',
+                  icon: 'grafana',
+                },
+              },
+              {
+                Traefik: {
+                  icon: 'traefik',
+                },
+              },
+            ],
+          },
+        ]),
+        'bookmarks.yaml': std.manifestYamlDoc([]),
+        'kubernetes.yaml': std.manifestYamlDoc({
+          mode: 'cluster',
+        }),
+        'docker.yaml': std.manifestYamlDoc({}),
+      }),
+
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: {
+        name: 'homepage',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`home.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{
+            name: 'homepage',
+            port: 3000,
           }],
         }],
         tls: {},

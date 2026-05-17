@@ -3,6 +3,9 @@ data:
   grafana.ini: |
     [analytics]
     check_for_updates = true
+    [auth.anonymous]
+    enabled = true
+    org_role = Viewer
     [log]
     mode = console
     [paths]
@@ -10,6 +13,9 @@ data:
     logs = /var/log/grafana
     plugins = /var/lib/grafana/plugins
     provisioning = /etc/grafana/provisioning
+    [security]
+    allow_embedding = true
+    cookie_samesite = lax
     [server]
     domain = ''
     [unified_storage]
