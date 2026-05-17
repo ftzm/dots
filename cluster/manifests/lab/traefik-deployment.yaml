@@ -49,6 +49,8 @@ spec:
         - --providers.kubernetesingress
         - --providers.kubernetesingress.allowEmptyServices=true
         - --providers.file.directory=/etc/traefik/dynamic
+        - --entryPoints.web.http.redirections.entryPoint.to=:443
+        - --entryPoints.web.http.redirections.entryPoint.scheme=https
         - --entryPoints.websecure.http.tls=true
         - --log.level=INFO
         - --accesslog=true
@@ -56,8 +58,12 @@ spec:
         - --accesslog.fields.defaultmode=keep
         - --accesslog.fields.headers.defaultmode=drop
         - --entrypoints.privateweb.address=100.64.0.2:80
+        - --entrypoints.privateweb.http.redirections.entryPoint.to=privatesecure
+        - --entrypoints.privateweb.http.redirections.entryPoint.scheme=https
         - --entrypoints.privatesecure.address=100.64.0.2:443
         - --entrypoints.wgweb.address=10.0.100.4:80
+        - --entrypoints.wgweb.http.redirections.entryPoint.to=wgsecure
+        - --entrypoints.wgweb.http.redirections.entryPoint.scheme=https
         - --entrypoints.wgsecure.address=10.0.100.4:443
         env:
         - name: POD_NAME

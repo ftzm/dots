@@ -177,6 +177,14 @@ local withNamespace(resources, ns) = {
               port: 80,
               hostIP: config.publicIP,
               expose: { default: false },
+              http: {
+                redirections: {
+                  entryPoint: {
+                    to: 'websecure',
+                    scheme: 'https',
+                  },
+                },
+              },
             },
             websecure: {
               port: 443,
@@ -252,8 +260,12 @@ local withNamespace(resources, ns) = {
           // across different IPs, which k8s containerPort spec can't express).
           additionalArguments: [
             '--entrypoints.privateweb.address=' + config.tailscaleIP + ':80',
+            '--entrypoints.privateweb.http.redirections.entryPoint.to=privatesecure',
+            '--entrypoints.privateweb.http.redirections.entryPoint.scheme=https',
             '--entrypoints.privatesecure.address=' + config.tailscaleIP + ':443',
             '--entrypoints.wgweb.address=' + config.wgIP + ':80',
+            '--entrypoints.wgweb.http.redirections.entryPoint.to=wgsecure',
+            '--entrypoints.wgweb.http.redirections.entryPoint.scheme=https',
             '--entrypoints.wgsecure.address=' + config.wgIP + ':443',
           ],
 

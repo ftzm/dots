@@ -28,7 +28,7 @@
 ## 5. Deploy and Verify
 
 - [x] 5.1 Render full manifests with `tk show` / `just render-lab`
-- [ ] 5.2 Commit and push — let ArgoCD sync
+- [x] 5.2 Commit and push — let ArgoCD sync
 - [ ] 5.3 Verify `home.lan.ftzmlab.xyz` loads with dark theme and service groups
 - [ ] 5.4 Verify Grafana iframe renders cluster overview without login prompt
 - [ ] 5.5 Verify health ping dots show correct status for running services
