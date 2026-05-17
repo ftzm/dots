@@ -1221,7 +1221,7 @@ local withNamespace(resources, ns) = {
         'widgets.yaml': std.manifestYamlDoc([
           {
             iframe: {
-              src: 'https://grafana.lan.ftzmlab.xyz/d-solo/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk',
+              src: 'https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk',
               classes: 'h-64 w-full',
               referrerPolicy: 'same-origin',
             },
