@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   labels:
     app.kubernetes.io/managed-by: Helmraiser
   name: ingressroutes.traefik.io
@@ -341,6 +341,9 @@ spec:
                                     - none
                                     - lax
                                     - strict
+                                    - None
+                                    - Lax
+                                    - Strict
                                     type: string
                                   secure:
                                     description: Secure defines whether the cookie
@@ -375,6 +378,7 @@ spec:
                       description: |-
                         Syntax defines the router's rule syntax.
                         More info: https://doc.traefik.io/traefik/v3.6/reference/routing-configuration/http/routing/rules-and-priority/#rulesyntax
+
                         Deprecated: Please do not use this field and rewrite the router rules to use the v3 syntax.
                       type: string
                   required:

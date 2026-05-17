@@ -215,7 +215,11 @@ The version can comes many sources: appVersion, image.tag, override, marketplace
  {{- else -}}
   {{- $imageVersion := ($.Values.oci_meta.enabled | ternary $.Values.oci_meta.images.proxy.tag $.Values.image.tag) -}}
   {{- $imageVersion = ($.Values.global.azure.enabled | ternary $.Values.global.azure.images.proxy.tag $imageVersion) -}}
-  {{- (split "@" (default $.Chart.AppVersion $imageVersion))._0 | replace "latest-" "" | replace "experimental-" "" }}
+  {{- $version := (split "@" (default $.Chart.AppVersion $imageVersion))._0 | replace "latest-" "" | replace "experimental-" "" | replace "master" $.Chart.AppVersion }}
+  {{- if not (regexMatch `^v?\d+(\.\d+)?(\.\d+)?(-.*)?` $version) -}}
+    {{- fail (printf "ERROR: version %q is not supported" $imageVersion) -}}
+  {{- end -}}
+  {{- $version -}}
  {{- end -}}
 {{- end -}}
 
@@ -250,8 +254,10 @@ Hash: {{ sha1sum ($cert.Cert | b64enc) }}
     {{- $path := .path -}}
     {{- range $key, $value := .content -}}
         {{- if kindIs "map" $value }}
-            {{- include "traefik.yaml2CommandLineArgsRec" (dict "path" (printf "%s.%s" $path $key) "content" $value) -}}
-        {{- else if ne $value nil }}
+          {{- include "traefik.yaml2CommandLineArgsRec" (dict "path" (printf "%s.%s" $path $key) "content" $value) -}}
+        {{- else if and (kindIs "bool" $value) (ne $value nil) }}
+--{{ join "." (list $path $key)}}={{ $value }}
+        {{- else if not (empty $value) }}
 --{{ join "." (list $path $key)}}={{ if kindIs "slice" $value }}{{ join "," $value }}{{ else }}{{ $value }}{{ end }}
         {{- end -}}
     {{- end -}}
@@ -453,3 +459,10 @@ Check if using old localPlugin hostPath structure (for deprecation warning)
    {{- end }}
   {{- end }}
 {{- end }}
+
+{{/*
+Define hub token mount path
+*/}}
+{{- define "traefik.hubTokenFilePath" }}
+{{- printf "%s/%s" (.Values.hub.tokenMountPath | trimSuffix "/") "token" -}}
+{{- end -}}

@@ -53,6 +53,7 @@ deployment:
   # It supports templating. One can set it with values like traefik/name: '{{ template "traefik.name" . }}'
   podAnnotations: {}
   # -- Additional Pod labels (e.g. for filtering Pod by custom labels)
+  # It supports templating. One can set it with values like traefik/name: '{{ template "traefik.name" . }}'
   podLabels: {}
   # -- Additional containers (e.g. for metric offloading sidecars)
   additionalContainers: []
@@ -195,9 +196,13 @@ gatewayClass:  # @schema additionalProperties: false
   # -- Additional gatewayClass labels (e.g. for filtering gateway objects by custom labels)
   labels: {}
 
-api:
+api:  # @schema additionalProperties: false
   # -- Enable the dashboard
   dashboard: true
+  # -- Enable the insecure API (HTTP)
+  insecure:  # @schema type:[boolean, null]
+  # -- Enable the debug API
+  debug:  # @schema type:[boolean, null]
   # -- Configure API basePath
   basePath: ""  # @schema type:[string, null]; default: "/"
 
@@ -478,7 +483,7 @@ logs:
           # -- The path to the private key. When using this option, setting the cert option is required.
           key: ""
           # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
-          insecureSkipVerify: false
+          insecureSkipVerify:  # @schema type:[boolean, null]
       # -- Defines additional resource attributes to be sent to the collector.
       resourceAttributes: {}
 
@@ -551,7 +556,7 @@ logs:
           # -- The path to the private key. When using this option, setting the cert option is required.
           key: ""
           # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
-          insecureSkipVerify: false
+          insecureSkipVerify:  # @schema type:[boolean, null]
       # -- Defines additional resource attributes to be sent to the collector.
       resourceAttributes: {}
 
@@ -702,7 +707,7 @@ metrics:
         # -- The path to the private key. When using this option, setting the cert option is required.
         key: ""
         # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
-        insecureSkipVerify: false
+        insecureSkipVerify:  # @schema type:[boolean, null]
     # -- Defines additional resource attributes to be sent to the collector.
     resourceAttributes: {}
 
@@ -750,7 +755,7 @@ tracing:  # @schema additionalProperties: false
         # -- The path to the private key. When using this option, setting the cert option is required.
         key: ""
         # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
-        insecureSkipVerify: false
+        insecureSkipVerify:  # @schema type:[boolean, null]
     grpc:
       # -- Set to true in order to send metrics to the OpenTelemetry Collector using gRPC
       enabled: false
@@ -767,7 +772,7 @@ tracing:  # @schema additionalProperties: false
         # -- The path to the private key. When using this option, setting the cert option is required.
         key: ""
         # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
-        insecureSkipVerify: false
+        insecureSkipVerify:  # @schema type:[boolean, null]
 
 global:
   checkNewVersion: true
@@ -1106,8 +1111,6 @@ rbac:  # @schema additionalProperties: false
   # Enable user-facing roles
   # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles
   aggregateTo: []
-  # List of Kubernetes secrets that are accessible for Traefik. If empty, then access is granted to every secret.
-  secretResourceNames: []
 
 # -- Enable to create a PodSecurityPolicy and assign it to the Service Account via RoleBinding or ClusterRoleBinding
 podSecurityPolicy:
@@ -1190,11 +1193,18 @@ instanceLabelOverride: ""
 # -- This field overrides the default version extracted from image.tag
 versionOverride: ""
 
+# -- overrides the app.kubernetes.io/name label
+nameOverride: ""
+# -- Overrides the resource name for templates (i.e deployment, service, etc..)
+fullnameOverride: ""
+
 # Traefik Hub configuration. See https://doc.traefik.io/traefik-hub/
 hub:
   # -- Name of `Secret` with key 'token' set to a valid license token.
   # It enables API Gateway.
   token: ""
+  # -- Mount path for token secret.
+  tokenMountPath: "/etc/secrets"
   # -- Disables all external network connections.
   offline:  # @schema type:[boolean, null]
   # -- By default, Traefik Hub provider watches all namespaces. When using `rbac.namespaced`, it will watch helm release namespace and namespaces listed in this array.
@@ -1383,3 +1393,10 @@ oci_meta:
     hub:
       image: traefik-hub
       tag: latest
+
+# -- Required for IBM Cloud Marketplace integration.
+# Injected by IBM Cloud Catalog when deploying via IBM Cloud Schematics. This value is not used by the chart.
+offering_version: ""  # @schema type:[string, null]
+
+# -- Allow the Helm chart to be used as optional subchart.
+enabled: true  # @schema type:boolean; const:true
