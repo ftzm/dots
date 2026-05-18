@@ -1076,15 +1076,14 @@ local withNamespace(resources, ns) = {
           refresh: '30s',
           time: { from: 'now-1h', to: 'now' },
           panels: [
-            // Node CPU Usage
             {
               id: 1,
               type: 'gauge',
-              title: 'CPU Usage',
+              title: 'NFS Pool Usage',
               gridPos: { h: 8, w: 6, x: 0, y: 0 },
               targets: [{
-                expr: '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
-                legendFormat: 'CPU',
+                expr: '100 * (1 - node_filesystem_avail_bytes{instance="nas",mountpoint="/pool-1"} / node_filesystem_size_bytes{instance="nas",mountpoint="/pool-1"})',
+                legendFormat: 'pool-1',
               }],
               fieldConfig: {
                 defaults: {
@@ -1101,40 +1100,14 @@ local withNamespace(resources, ns) = {
                 },
               },
             },
-            // Node Memory Usage
             {
               id: 2,
-              type: 'gauge',
-              title: 'Memory Usage',
+              type: 'stat',
+              title: 'Unhealthy Pods',
               gridPos: { h: 8, w: 6, x: 6, y: 0 },
               targets: [{
-                expr: '100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)',
-                legendFormat: 'Memory',
-              }],
-              fieldConfig: {
-                defaults: {
-                  unit: 'percent',
-                  min: 0,
-                  max: 100,
-                  thresholds: {
-                    steps: [
-                      { value: 0, color: 'green' },
-                      { value: 70, color: 'yellow' },
-                      { value: 90, color: 'red' },
-                    ],
-                  },
-                },
-              },
-            },
-            // Pod Health
-            {
-              id: 3,
-              type: 'stat',
-              title: 'Pods Not Ready',
-              gridPos: { h: 8, w: 6, x: 12, y: 0 },
-              targets: [{
-                expr: 'count(kube_pod_status_phase{phase!="Running",phase!="Succeeded"}) or vector(0)',
-                legendFormat: 'Not Ready',
+                expr: 'count(kube_pod_status_phase{phase!="Running",phase!="Succeeded"} == 1) or vector(0)',
+                legendFormat: 'Unhealthy',
               }],
               fieldConfig: {
                 defaults: {
@@ -1148,26 +1121,43 @@ local withNamespace(resources, ns) = {
                 },
               },
             },
-            // NFS Disk Usage
             {
-              id: 4,
-              type: 'gauge',
-              title: 'NFS Disk Usage',
-              gridPos: { h: 8, w: 6, x: 18, y: 0 },
+              id: 3,
+              type: 'stat',
+              title: 'Pod Restarts (1h)',
+              gridPos: { h: 8, w: 6, x: 12, y: 0 },
               targets: [{
-                expr: '100 * (1 - node_filesystem_avail_bytes{mountpoint="/pool-1"} / node_filesystem_size_bytes{mountpoint="/pool-1"})',
-                legendFormat: 'Disk',
+                expr: 'floor(sum(increase(kube_pod_container_status_restarts_total[1h])))',
+                legendFormat: 'Restarts',
               }],
               fieldConfig: {
                 defaults: {
-                  unit: 'percent',
-                  min: 0,
-                  max: 100,
                   thresholds: {
                     steps: [
                       { value: 0, color: 'green' },
-                      { value: 70, color: 'yellow' },
-                      { value: 90, color: 'red' },
+                      { value: 3, color: 'yellow' },
+                      { value: 10, color: 'red' },
+                    ],
+                  },
+                },
+              },
+            },
+            {
+              id: 4,
+              type: 'stat',
+              title: 'Firing Alerts',
+              gridPos: { h: 8, w: 6, x: 18, y: 0 },
+              targets: [{
+                expr: 'count(ALERTS{alertstate="firing",alertname!="Watchdog"}) or vector(0)',
+                legendFormat: 'Alerts',
+              }],
+              fieldConfig: {
+                defaults: {
+                  thresholds: {
+                    steps: [
+                      { value: 0, color: 'green' },
+                      { value: 1, color: 'yellow' },
+                      { value: 3, color: 'red' },
                     ],
                   },
                 },
@@ -1200,17 +1190,25 @@ local withNamespace(resources, ns) = {
             bookmarks: [],
             kubernetes: { mode: 'cluster' },
             docker: {},
-            settings: {
-              title: 'ftzmlab',
-              theme: 'dark',
-              color: 'slate',
-              headerStyle: 'clean',
-              layout: {
-                Media: { style: 'row', columns: 4 },
-                Apps: { style: 'row', columns: 3 },
-                Infrastructure: { style: 'row', columns: 3 },
-              },
-            },
+            settingsString: |||
+              title: ftzmlab
+              theme: dark
+              color: slate
+              headerStyle: clean
+              layout:
+                Cluster Overview:
+                  style: row
+                  columns: 1
+                Media:
+                  style: row
+                  columns: 4
+                Apps:
+                  style: row
+                  columns: 3
+                Infrastructure:
+                  style: row
+                  columns: 3
+            |||,
             widgets: [
               {
                 kubernetes: {
@@ -1238,7 +1236,7 @@ local withNamespace(resources, ns) = {
                         type: 'iframe',
                         name: 'grafana-overview',
                         src: 'https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk',
-                        classes: 'h-64 w-full',
+                        classes: 'h-96 w-full',
                         referrerPolicy: 'same-origin',
                       },
                     },

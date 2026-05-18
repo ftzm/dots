@@ -8,7 +8,7 @@ data:
     - Cluster Overview:
       - "":
           widget:
-            classes: h-64 w-full
+            classes: h-96 w-full
             name: grafana-overview
             referrerPolicy: same-origin
             src: https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk
@@ -100,20 +100,23 @@ data:
       - Traefik:
           icon: traefik
   settings.yaml: |
+    title: ftzmlab
+    theme: dark
     color: slate
     headerStyle: clean
     layout:
-      Apps:
-        columns: 3
+      Cluster Overview:
         style: row
-      Infrastructure:
-        columns: 3
-        style: row
+        columns: 1
       Media:
-        columns: 4
         style: row
-    theme: dark
-    title: ftzmlab
+        columns: 4
+      Apps:
+        style: row
+        columns: 3
+      Infrastructure:
+        style: row
+        columns: 3
   widgets.yaml: |
     - kubernetes:
         cluster:
