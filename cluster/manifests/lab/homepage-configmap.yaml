@@ -70,6 +70,7 @@ data:
             key: '{{HOMEPAGE_VAR_IMMICH_KEY}}'
             type: immich
             url: http://immich-server.immich.svc.cluster.local:2283
+            version: 2
       - Navidrome:
           href: https://navidrome.lan.ftzmlab.xyz
           icon: navidrome

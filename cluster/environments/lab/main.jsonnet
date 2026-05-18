@@ -1367,6 +1367,7 @@ local withNamespace(resources, ns) = {
                         type: 'immich',
                         url: 'http://immich-server.immich.svc.cluster.local:2283',
                         key: '{{HOMEPAGE_VAR_IMMICH_KEY}}',
+                        version: 2,
                       },
                     },
                   },
