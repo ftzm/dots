@@ -28,8 +28,8 @@ data:
                     }
                 },
                 "gridPos": {
-                    "h": 8,
-                    "w": 6,
+                    "h": 5,
+                    "w": 4,
                     "x": 0,
                     "y": 0
                 },
@@ -40,7 +40,7 @@ data:
                         "legendFormat": "pool-1"
                     }
                 ],
-                "title": "NFS Pool Usage",
+                "title": "NFS Pool",
                 "type": "gauge"
             },
             {
@@ -65,9 +65,9 @@ data:
                     }
                 },
                 "gridPos": {
-                    "h": 8,
-                    "w": 6,
-                    "x": 6,
+                    "h": 5,
+                    "w": 4,
+                    "x": 4,
                     "y": 0
                 },
                 "id": 2,
@@ -102,9 +102,9 @@ data:
                     }
                 },
                 "gridPos": {
-                    "h": 8,
-                    "w": 6,
-                    "x": 12,
+                    "h": 5,
+                    "w": 4,
+                    "x": 8,
                     "y": 0
                 },
                 "id": 3,
@@ -114,45 +114,78 @@ data:
                         "legendFormat": "Restarts"
                     }
                 ],
-                "title": "Pod Restarts (1h)",
+                "title": "Restarts (1h)",
                 "type": "stat"
             },
             {
                 "fieldConfig": {
                     "defaults": {
-                        "thresholds": {
-                            "steps": [
+
+                    },
+                    "overrides": [
+                        {
+                            "matcher": {
+                                "id": "byName",
+                                "options": "Severity"
+                            },
+                            "properties": [
                                 {
-                                    "color": "green",
-                                    "value": 0
-                                },
-                                {
-                                    "color": "yellow",
-                                    "value": 1
-                                },
-                                {
-                                    "color": "red",
-                                    "value": 3
+                                    "id": "custom.width",
+                                    "value": 80
                                 }
                             ]
                         }
-                    }
+                    ]
                 },
                 "gridPos": {
-                    "h": 8,
-                    "w": 6,
-                    "x": 18,
+                    "h": 5,
+                    "w": 12,
+                    "x": 12,
                     "y": 0
                 },
                 "id": 4,
+                "options": {
+                    "footer": {
+                        "show": false
+                    },
+                    "showHeader": true
+                },
                 "targets": [
                     {
-                        "expr": "count(ALERTS{alertstate=\"firing\",alertname!=\"Watchdog\"}) or vector(0)",
-                        "legendFormat": "Alerts"
+                        "expr": "ALERTS{alertstate=\"firing\",alertname!=\"Watchdog\"}",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": ""
                     }
                 ],
                 "title": "Firing Alerts",
-                "type": "stat"
+                "transformations": [
+                    {
+                        "id": "organize",
+                        "options": {
+                            "excludeByName": {
+                                "Time": true,
+                                "Value": true,
+                                "__name__": true,
+                                "alertstate": true,
+                                "container": true,
+                                "endpoint": true,
+                                "instance": true,
+                                "job": true,
+                                "pod": true,
+                                "prometheus": true,
+                                "service": true,
+                                "uid": true
+                            },
+                            "renameByName": {
+                                "alertname": "Alert",
+                                "namespace": "Namespace",
+                                "severity": "Severity"
+                            }
+                        }
+                    }
+                ],
+                "type": "table"
             }
         ],
         "refresh": "30s",

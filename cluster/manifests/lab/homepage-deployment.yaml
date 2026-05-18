@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    values-checksum: e3a68c61ce434269338303abd67430af74df82a2bf060ef568281df6718f68dd
+    values-checksum: 90c52746cf4f326c492d88437c3d26021a604b5988f3e66c2cae81ffcb1a6141
   labels:
     app.kubernetes.io/instance: homepage
     app.kubernetes.io/managed-by: Helmraiser
@@ -24,7 +24,7 @@ spec:
     metadata:
       annotations:
         checksum/secrets: 4141e6981f3b767e75a4e744858b9ff414dba5d0ef6afd761f7700061fb6e32e
-        values-checksum: e3a68c61ce434269338303abd67430af74df82a2bf060ef568281df6718f68dd
+        values-checksum: 90c52746cf4f326c492d88437c3d26021a604b5988f3e66c2cae81ffcb1a6141
       labels:
         app.kubernetes.io/instance: homepage
         app.kubernetes.io/name: homepage
