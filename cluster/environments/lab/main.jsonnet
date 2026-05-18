@@ -1213,13 +1213,6 @@ local withNamespace(resources, ns) = {
             },
             widgets: [
               {
-                iframe: {
-                  src: 'https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk',
-                  classes: 'h-64 w-full',
-                  referrerPolicy: 'same-origin',
-                },
-              },
-              {
                 kubernetes: {
                   cluster: {
                     show: true,
@@ -1237,6 +1230,21 @@ local withNamespace(resources, ns) = {
               },
             ],
             services: [
+              {
+                'Cluster Overview': [
+                  {
+                    '': {
+                      widget: {
+                        type: 'iframe',
+                        name: 'grafana-overview',
+                        src: 'https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk',
+                        classes: 'h-64 w-full',
+                        referrerPolicy: 'same-origin',
+                      },
+                    },
+                  },
+                ],
+              },
               {
                 Media: [
                   {
