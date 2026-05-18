@@ -1197,209 +1197,201 @@ local withNamespace(resources, ns) = {
             { secretRef: { name: 'homepage-api-keys' } },
           ],
           config: {
-            useExistingConfigMap: 'homepage-config',
+            bookmarks: [],
+            kubernetes: { mode: 'cluster' },
+            docker: {},
+            settings: {
+              title: 'ftzmlab',
+              theme: 'dark',
+              color: 'slate',
+              headerStyle: 'clean',
+              layout: {
+                Media: { style: 'row', columns: 4 },
+                Apps: { style: 'row', columns: 3 },
+                Infrastructure: { style: 'row', columns: 3 },
+              },
+            },
+            widgets: [
+              {
+                iframe: {
+                  src: 'https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk',
+                  classes: 'h-64 w-full',
+                  referrerPolicy: 'same-origin',
+                },
+              },
+              {
+                kubernetes: {
+                  cluster: {
+                    show: true,
+                    cpu: true,
+                    memory: true,
+                    showLabel: true,
+                  },
+                  nodes: {
+                    show: true,
+                    cpu: true,
+                    memory: true,
+                    showLabel: true,
+                  },
+                },
+              },
+            ],
+            services: [
+              {
+                Media: [
+                  {
+                    Radarr: {
+                      href: 'https://radarr.lan.ftzmlab.xyz',
+                      icon: 'radarr',
+                      ping: 'https://radarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'radarr',
+                        url: 'http://radarr.media.svc.cluster.local:7878',
+                        key: '{{HOMEPAGE_VAR_RADARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Sonarr: {
+                      href: 'https://sonarr.lan.ftzmlab.xyz',
+                      icon: 'sonarr',
+                      ping: 'https://sonarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'sonarr',
+                        url: 'http://sonarr.media.svc.cluster.local:8989',
+                        key: '{{HOMEPAGE_VAR_SONARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Lidarr: {
+                      href: 'https://lidarr.lan.ftzmlab.xyz',
+                      icon: 'lidarr',
+                      ping: 'https://lidarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'lidarr',
+                        url: 'http://lidarr.media.svc.cluster.local:8686',
+                        key: '{{HOMEPAGE_VAR_LIDARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Readarr: {
+                      href: 'https://readarr.lan.ftzmlab.xyz',
+                      icon: 'readarr',
+                      ping: 'https://readarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'readarr',
+                        url: 'http://readarr.media.svc.cluster.local:8787',
+                        key: '{{HOMEPAGE_VAR_READARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Prowlarr: {
+                      href: 'https://prowlarr.lan.ftzmlab.xyz',
+                      icon: 'prowlarr',
+                      ping: 'https://prowlarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'prowlarr',
+                        url: 'http://prowlarr.media.svc.cluster.local:9696',
+                        key: '{{HOMEPAGE_VAR_PROWLARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Jellyseerr: {
+                      href: 'https://jellyseerr.lan.ftzmlab.xyz',
+                      icon: 'jellyseerr',
+                      ping: 'https://jellyseerr.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    Jellyfin: {
+                      href: 'https://jellyfin.ftzmlab.xyz',
+                      icon: 'jellyfin',
+                    },
+                  },
+                ],
+              },
+              {
+                Apps: [
+                  {
+                    Immich: {
+                      href: 'https://img.lan.ftzmlab.xyz',
+                      icon: 'immich',
+                      ping: 'https://img.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'immich',
+                        url: 'http://immich-server.immich.svc.cluster.local:2283',
+                        key: '{{HOMEPAGE_VAR_IMMICH_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Navidrome: {
+                      href: 'https://navidrome.lan.ftzmlab.xyz',
+                      icon: 'navidrome',
+                      ping: 'https://navidrome.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    Audiobookshelf: {
+                      href: 'https://audiobookshelf.lan.ftzmlab.xyz',
+                      icon: 'audiobookshelf',
+                      ping: 'https://audiobookshelf.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    Vaultwarden: {
+                      href: 'https://vaultwarden.lan.ftzmlab.xyz',
+                      icon: 'vaultwarden',
+                      ping: 'https://vaultwarden.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    'The Lounge': {
+                      href: 'https://irc.lan.ftzmlab.xyz',
+                      icon: 'thelounge',
+                      ping: 'https://irc.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    ntfy: {
+                      href: 'https://ntfy.lan.ftzmlab.xyz',
+                      icon: 'ntfy',
+                      ping: 'https://ntfy.lan.ftzmlab.xyz',
+                    },
+                  },
+                ],
+              },
+              {
+                Infrastructure: [
+                  {
+                    ArgoCD: {
+                      href: 'https://argo.lan.ftzmlab.xyz',
+                      icon: 'argocd',
+                    },
+                  },
+                  {
+                    Grafana: {
+                      href: 'https://grafana.lan.ftzmlab.xyz',
+                      icon: 'grafana',
+                    },
+                  },
+                  {
+                    Traefik: {
+                      icon: 'traefik',
+                    },
+                  },
+                ],
+              },
+            ],
           },
         },
       }),
       ns
     ),
-
-    configMap: k.core.v1.configMap.new('homepage-config')
-      + k.core.v1.configMap.metadata.withNamespace(ns)
-      + k.core.v1.configMap.withData({
-        'settings.yaml': std.manifestYamlDoc({
-          title: 'ftzmlab',
-          theme: 'dark',
-          color: 'slate',
-          headerStyle: 'clean',
-          layout: {
-            Media: { style: 'row', columns: 4 },
-            Apps: { style: 'row', columns: 3 },
-            Infrastructure: { style: 'row', columns: 3 },
-          },
-        }),
-        'widgets.yaml': std.manifestYamlDoc([
-          {
-            iframe: {
-              src: 'https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk',
-              classes: 'h-64 w-full',
-              referrerPolicy: 'same-origin',
-            },
-          },
-          {
-            kubernetes: {
-              cluster: {
-                show: true,
-                cpu: true,
-                memory: true,
-                showLabel: true,
-              },
-              nodes: {
-                show: true,
-                cpu: true,
-                memory: true,
-                showLabel: true,
-              },
-            },
-          },
-        ]),
-        'services.yaml': std.manifestYamlDoc([
-          {
-            Media: [
-              {
-                Radarr: {
-                  href: 'https://radarr.lan.ftzmlab.xyz',
-                  icon: 'radarr',
-                  ping: 'https://radarr.lan.ftzmlab.xyz',
-                  widget: {
-                    type: 'radarr',
-                    url: 'http://radarr.media.svc.cluster.local:7878',
-                    key: '{{HOMEPAGE_VAR_RADARR_KEY}}',
-                  },
-                },
-              },
-              {
-                Sonarr: {
-                  href: 'https://sonarr.lan.ftzmlab.xyz',
-                  icon: 'sonarr',
-                  ping: 'https://sonarr.lan.ftzmlab.xyz',
-                  widget: {
-                    type: 'sonarr',
-                    url: 'http://sonarr.media.svc.cluster.local:8989',
-                    key: '{{HOMEPAGE_VAR_SONARR_KEY}}',
-                  },
-                },
-              },
-              {
-                Lidarr: {
-                  href: 'https://lidarr.lan.ftzmlab.xyz',
-                  icon: 'lidarr',
-                  ping: 'https://lidarr.lan.ftzmlab.xyz',
-                  widget: {
-                    type: 'lidarr',
-                    url: 'http://lidarr.media.svc.cluster.local:8686',
-                    key: '{{HOMEPAGE_VAR_LIDARR_KEY}}',
-                  },
-                },
-              },
-              {
-                Readarr: {
-                  href: 'https://readarr.lan.ftzmlab.xyz',
-                  icon: 'readarr',
-                  ping: 'https://readarr.lan.ftzmlab.xyz',
-                  widget: {
-                    type: 'readarr',
-                    url: 'http://readarr.media.svc.cluster.local:8787',
-                    key: '{{HOMEPAGE_VAR_READARR_KEY}}',
-                  },
-                },
-              },
-              {
-                Prowlarr: {
-                  href: 'https://prowlarr.lan.ftzmlab.xyz',
-                  icon: 'prowlarr',
-                  ping: 'https://prowlarr.lan.ftzmlab.xyz',
-                  widget: {
-                    type: 'prowlarr',
-                    url: 'http://prowlarr.media.svc.cluster.local:9696',
-                    key: '{{HOMEPAGE_VAR_PROWLARR_KEY}}',
-                  },
-                },
-              },
-              {
-                Jellyseerr: {
-                  href: 'https://jellyseerr.lan.ftzmlab.xyz',
-                  icon: 'jellyseerr',
-                  ping: 'https://jellyseerr.lan.ftzmlab.xyz',
-                },
-              },
-              {
-                Jellyfin: {
-                  href: 'https://jellyfin.ftzmlab.xyz',
-                  icon: 'jellyfin',
-                },
-              },
-            ],
-          },
-          {
-            Apps: [
-              {
-                Immich: {
-                  href: 'https://img.lan.ftzmlab.xyz',
-                  icon: 'immich',
-                  ping: 'https://img.lan.ftzmlab.xyz',
-                  widget: {
-                    type: 'immich',
-                    url: 'http://immich-server.immich.svc.cluster.local:2283',
-                    key: '{{HOMEPAGE_VAR_IMMICH_KEY}}',
-                  },
-                },
-              },
-              {
-                Navidrome: {
-                  href: 'https://navidrome.lan.ftzmlab.xyz',
-                  icon: 'navidrome',
-                  ping: 'https://navidrome.lan.ftzmlab.xyz',
-                },
-              },
-              {
-                Audiobookshelf: {
-                  href: 'https://audiobookshelf.lan.ftzmlab.xyz',
-                  icon: 'audiobookshelf',
-                  ping: 'https://audiobookshelf.lan.ftzmlab.xyz',
-                },
-              },
-              {
-                Vaultwarden: {
-                  href: 'https://vaultwarden.lan.ftzmlab.xyz',
-                  icon: 'vaultwarden',
-                  ping: 'https://vaultwarden.lan.ftzmlab.xyz',
-                },
-              },
-              {
-                'The Lounge': {
-                  href: 'https://irc.lan.ftzmlab.xyz',
-                  icon: 'thelounge',
-                  ping: 'https://irc.lan.ftzmlab.xyz',
-                },
-              },
-              {
-                ntfy: {
-                  href: 'https://ntfy.lan.ftzmlab.xyz',
-                  icon: 'ntfy',
-                  ping: 'https://ntfy.lan.ftzmlab.xyz',
-                },
-              },
-            ],
-          },
-          {
-            Infrastructure: [
-              {
-                ArgoCD: {
-                  href: 'https://argo.lan.ftzmlab.xyz',
-                  icon: 'argocd',
-                },
-              },
-              {
-                Grafana: {
-                  href: 'https://grafana.lan.ftzmlab.xyz',
-                  icon: 'grafana',
-                },
-              },
-              {
-                Traefik: {
-                  icon: 'traefik',
-                },
-              },
-            ],
-          },
-        ]),
-        'bookmarks.yaml': std.manifestYamlDoc([]),
-        'kubernetes.yaml': std.manifestYamlDoc({
-          mode: 'cluster',
-        }),
-        'docker.yaml': std.manifestYamlDoc({}),
-      }),
 
     ingressRoute: {
       apiVersion: 'traefik.io/v1alpha1',

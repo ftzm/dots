@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    values-checksum: d5982e34add8622d65aef529f23971cdebe0dab0cd52f02e0c0d956588f544d9
+    values-checksum: 6ea761ef6d122137b67b5a5255ebd761e623fbc0aced601b861e864290251174
   labels:
     app.kubernetes.io/instance: homepage
     app.kubernetes.io/managed-by: Helmraiser
@@ -24,7 +24,7 @@ spec:
     metadata:
       annotations:
         checksum/secrets: 4141e6981f3b767e75a4e744858b9ff414dba5d0ef6afd761f7700061fb6e32e
-        values-checksum: d5982e34add8622d65aef529f23971cdebe0dab0cd52f02e0c0d956588f544d9
+        values-checksum: 6ea761ef6d122137b67b5a5255ebd761e623fbc0aced601b861e864290251174
       labels:
         app.kubernetes.io/instance: homepage
         app.kubernetes.io/name: homepage
@@ -95,7 +95,7 @@ spec:
       - emptyDir: {}
         name: homepage-base-config
       - configMap:
-          name: homepage-config
+          name: homepage
         name: homepage-config
       - emptyDir: {}
         name: logs
