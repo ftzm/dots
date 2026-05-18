@@ -4,6 +4,7 @@ data:
     {
         "panels": [
             {
+                "description": "NFS Pool",
                 "fieldConfig": {
                     "defaults": {
                         "max": 100,
@@ -40,10 +41,12 @@ data:
                         "legendFormat": "pool-1"
                     }
                 ],
-                "title": "NFS Pool",
+                "title": "",
+                "transparent": true,
                 "type": "gauge"
             },
             {
+                "description": "Unhealthy Pods",
                 "fieldConfig": {
                     "defaults": {
                         "thresholds": {
@@ -77,10 +80,12 @@ data:
                         "legendFormat": "Unhealthy"
                     }
                 ],
-                "title": "Unhealthy Pods",
+                "title": "",
+                "transparent": true,
                 "type": "stat"
             },
             {
+                "description": "Restarts (1h)",
                 "fieldConfig": {
                     "defaults": {
                         "thresholds": {
@@ -114,10 +119,12 @@ data:
                         "legendFormat": "Restarts"
                     }
                 ],
-                "title": "Restarts (1h)",
+                "title": "",
+                "transparent": true,
                 "type": "stat"
             },
             {
+                "description": "Firing Alerts",
                 "fieldConfig": {
                     "defaults": {
 
@@ -158,7 +165,7 @@ data:
                         "legendFormat": ""
                     }
                 ],
-                "title": "Firing Alerts",
+                "title": "",
                 "transformations": [
                     {
                         "id": "organize",
@@ -185,6 +192,7 @@ data:
                         }
                     }
                 ],
+                "transparent": true,
                 "type": "table"
             }
         ],
@@ -196,6 +204,9 @@ data:
         "time": {
             "from": "now-1h",
             "to": "now"
+        },
+        "timepicker": {
+            "hidden": true
         },
         "timezone": "browser",
         "title": "Homepage Overview",

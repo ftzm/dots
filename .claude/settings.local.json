@@ -18,7 +18,8 @@
       "Bash(git -C /home/ftzm/dots log --all --pretty=format:\"%h %s\" -- dotfiles/.config/emacs/init.el)",
       "Bash(git:*)",
       "Bash(nix-shell:*)",
-      "Bash(openspec new:*)"
+      "Bash(openspec new:*)",
+      "WebFetch(domain:community.grafana.com)"
     ]
   }
 }

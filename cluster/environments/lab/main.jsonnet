@@ -1075,11 +1075,14 @@ local withNamespace(resources, ns) = {
           schemaVersion: 39,
           refresh: '30s',
           time: { from: 'now-1h', to: 'now' },
+          timepicker: { hidden: true },
+          // Empty title triggers hover-header (menu hidden until mouseover)
+          local chromeless = { title: '', transparent: true },
           panels: [
-            {
+            chromeless {
               id: 1,
               type: 'gauge',
-              title: 'NFS Pool',
+              description: 'NFS Pool',
               gridPos: { h: 5, w: 4, x: 0, y: 0 },
               targets: [{
                 expr: '100 * (1 - node_filesystem_avail_bytes{instance="nas",mountpoint="/pool-1"} / node_filesystem_size_bytes{instance="nas",mountpoint="/pool-1"})',
@@ -1100,10 +1103,10 @@ local withNamespace(resources, ns) = {
                 },
               },
             },
-            {
+            chromeless {
               id: 2,
               type: 'stat',
-              title: 'Unhealthy Pods',
+              description: 'Unhealthy Pods',
               gridPos: { h: 5, w: 4, x: 4, y: 0 },
               targets: [{
                 expr: 'count(kube_pod_status_phase{phase!="Running",phase!="Succeeded"} == 1) or vector(0)',
@@ -1121,10 +1124,10 @@ local withNamespace(resources, ns) = {
                 },
               },
             },
-            {
+            chromeless {
               id: 3,
               type: 'stat',
-              title: 'Restarts (1h)',
+              description: 'Restarts (1h)',
               gridPos: { h: 5, w: 4, x: 8, y: 0 },
               targets: [{
                 expr: 'floor(sum(increase(kube_pod_container_status_restarts_total[1h])))',
@@ -1142,10 +1145,10 @@ local withNamespace(resources, ns) = {
                 },
               },
             },
-            {
+            chromeless {
               id: 4,
               type: 'table',
-              title: 'Firing Alerts',
+              description: 'Firing Alerts',
               gridPos: { h: 5, w: 12, x: 12, y: 0 },
               targets: [{
                 expr: 'ALERTS{alertstate="firing",alertname!="Watchdog"}',
