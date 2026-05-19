@@ -1062,149 +1062,9 @@ local withNamespace(resources, ns) = {
       },
     },
 
-    // Grafana dashboard for Homepage iframe embed
-    homepageOverviewDashboard: k.core.v1.configMap.new('homepage-overview-dashboard')
-      + k.core.v1.configMap.metadata.withNamespace(ns)
-      + k.core.v1.configMap.metadata.withLabels({ grafana_dashboard: '1' })
-      + k.core.v1.configMap.withData({
-        'homepage-overview.json': std.manifestJson({
-          uid: 'homepage-overview',
-          title: 'Homepage Overview',
-          tags: ['homepage'],
-          timezone: 'browser',
-          schemaVersion: 39,
-          refresh: '30s',
-          time: { from: 'now-1h', to: 'now' },
-          timepicker: { hidden: true },
-          // Empty title triggers hover-header (menu hidden until mouseover)
-          local chromeless = { title: '', transparent: true },
-          panels: [
-            chromeless {
-              id: 1,
-              type: 'gauge',
-              description: 'NFS Pool',
-              gridPos: { h: 4, w: 4, x: 0, y: 0 },
-              targets: [{
-                expr: '100 * (1 - node_filesystem_avail_bytes{instance="nas",mountpoint="/pool-1"} / node_filesystem_size_bytes{instance="nas",mountpoint="/pool-1"})',
-                legendFormat: 'pool-1',
-              }],
-              fieldConfig: {
-                defaults: {
-                  unit: 'percent',
-                  min: 0,
-                  max: 100,
-                  thresholds: {
-                    steps: [
-                      { value: 0, color: 'green' },
-                      { value: 70, color: 'yellow' },
-                      { value: 90, color: 'red' },
-                    ],
-                  },
-                },
-              },
-            },
-            chromeless {
-              id: 2,
-              type: 'stat',
-              description: 'Unhealthy Pods',
-              gridPos: { h: 4, w: 4, x: 4, y: 0 },
-              targets: [{
-                expr: 'count(kube_pod_status_phase{phase!="Running",phase!="Succeeded"} == 1) or vector(0)',
-                legendFormat: 'Unhealthy',
-              }],
-              fieldConfig: {
-                defaults: {
-                  thresholds: {
-                    steps: [
-                      { value: 0, color: 'green' },
-                      { value: 1, color: 'yellow' },
-                      { value: 3, color: 'red' },
-                    ],
-                  },
-                },
-              },
-            },
-            chromeless {
-              id: 3,
-              type: 'stat',
-              description: 'Restarts (1h)',
-              gridPos: { h: 4, w: 4, x: 8, y: 0 },
-              targets: [{
-                expr: 'floor(sum(increase(kube_pod_container_status_restarts_total[1h])))',
-                legendFormat: 'Restarts',
-              }],
-              fieldConfig: {
-                defaults: {
-                  thresholds: {
-                    steps: [
-                      { value: 0, color: 'green' },
-                      { value: 3, color: 'yellow' },
-                      { value: 10, color: 'red' },
-                    ],
-                  },
-                },
-              },
-            },
-            chromeless {
-              id: 4,
-              type: 'table',
-              description: 'Firing Alerts',
-              gridPos: { h: 4, w: 12, x: 12, y: 0 },
-              targets: [{
-                expr: 'ALERTS{alertstate="firing",alertname!="Watchdog"}',
-                format: 'table',
-                instant: true,
-                legendFormat: '',
-              }],
-              transformations: [
-                {
-                  id: 'organize',
-                  options: {
-                    excludeByName: {
-                      Time: true,
-                      Value: true,
-                      __name__: true,
-                      alertstate: true,
-                      prometheus: true,
-                      container: true,
-                      endpoint: true,
-                      instance: true,
-                      job: true,
-                      pod: true,
-                      service: true,
-                      uid: true,
-                    },
-                    renameByName: {
-                      alertname: 'Alert',
-                      namespace: 'Namespace',
-                      severity: 'Severity',
-                    },
-                  },
-                },
-              ],
-              fieldConfig: {
-                defaults: {},
-                overrides: [
-                  {
-                    matcher: { id: 'byName', options: 'Severity' },
-                    properties: [{
-                      id: 'custom.width',
-                      value: 80,
-                    }],
-                  },
-                ],
-              },
-              options: {
-                showHeader: true,
-                footer: { show: false },
-              },
-            },
-          ],
-        }),
-      }),
   },
 
-  // Homepage: unified dashboard with service links and Grafana embed
+  // Homepage: unified dashboard with service links and Prometheus metrics
   homepage: {
     local ns = 'homepage',
 
@@ -1232,9 +1092,9 @@ local withNamespace(resources, ns) = {
               color: slate
               headerStyle: clean
               layout:
-                Cluster Overview:
+                Cluster:
                   style: row
-                  columns: 1
+                  columns: 4
                 Media:
                   style: row
                   columns: 4
@@ -1263,20 +1123,38 @@ local withNamespace(resources, ns) = {
                 },
               },
             ],
+            local promWidget(label, query, format='number') = {
+              widget: {
+                type: 'prometheusmetric',
+                url: 'http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090',
+                refreshInterval: 30000,
+                metrics: [{
+                  label: label,
+                  query: query,
+                  format: { type: format },
+                }],
+              },
+            },
             services: [
               {
-                'Cluster Overview': [
-                  {
-                    '': {
-                      widget: {
-                        type: 'iframe',
-                        name: 'grafana-overview',
-                        src: 'https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk&autofitpanels',
-                        classes: 'h-80',
-                        referrerPolicy: 'same-origin',
-                      },
-                    },
-                  },
+                Cluster: [
+                  { 'NFS Pool': promWidget(
+                    'Used',
+                    '100 * (1 - node_filesystem_avail_bytes{instance="nas",mountpoint="/pool-1"} / node_filesystem_size_bytes{instance="nas",mountpoint="/pool-1"})',
+                    'percent',
+                  ) },
+                  { 'Unhealthy Pods': promWidget(
+                    'Count',
+                    'count(kube_pod_status_phase{phase!="Running",phase!="Succeeded"} == 1) or vector(0)',
+                  ) },
+                  { 'Pod Restarts': promWidget(
+                    'Last Hour',
+                    'floor(sum(increase(kube_pod_container_status_restarts_total[1h])))',
+                  ) },
+                  { 'Firing Alerts': promWidget(
+                    'Active',
+                    'count(ALERTS{alertstate="firing",alertname!="Watchdog"}) or vector(0)',
+                  ) },
                 ],
               },
               {
