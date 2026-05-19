@@ -1,5 +1,460 @@
 # Change Log
 
+## 40.2.0  ![AppVersion: v3.7.1](https://img.shields.io/static/v1?label=AppVersion&message=v3.7.1&color=success&logo=) ![Kubernetes: >=1.25.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.25.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Upgrade guide**
+
+> [!IMPORTANT]
+> This release is the first release without Gateway API v1.5.1 CRDs. The reason why it has been removed is detailed in [#1169](https://github.com/traefik/traefik-helm-chart/issues/1669). 
+> See [UPGRADING](https://github.com/traefik/traefik-helm-chart?tab=readme-ov-file#upgrading) instructions and upstream [migration guide](https://doc.traefik.io/traefik/v3.7/migrate/v3/#v370).
+
+**Release date:** 2026-05-13
+
+* fix: remove Gateway API CRDs
+* feat(provider): :sparkles: support crossProviderNamespaces on kubernetes providers
+* feat(hub): :rocket: support traefik hub v3.20.2
+* chore(release): 🚀 publish 40.2.0
+
+### Default value changes
+
+```diff
+diff --git a/traefik/values.yaml b/traefik/values.yaml
+index cc45373..6afcb96 100644
+--- a/traefik/values.yaml
++++ b/traefik/values.yaml
+@@ -311,6 +311,8 @@ providers:
+     allowExternalNameServices: false
+     # -- Allows to return 503 when there are no endpoints available
+     allowEmptyServices: true
++    # -- List of namespaces from which IngressRoute, IngressRouteTCP, IngressRouteUDP, and TraefikService are allowed to declare cross-provider references. Requires traefik v3.7.1+.
++    crossProviderNamespaces: []
+     # -- When the parameter is set, only resources containing an annotation with the same value are processed. Otherwise, resources missing the annotation, having an empty value, or the value traefik are processed. It will also set required annotation on Dashboard and Healthcheck IngressRoute when enabled.
+     ingressClass: ""
+     # -- See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-ingress/#opt-providers-kubernetesIngress-labelselector)
+@@ -328,6 +330,8 @@ providers:
+     allowExternalNameServices: false
+     # -- Allows to return 503 when there are no endpoints available
+     allowEmptyServices: true
++    # -- List of namespaces from which Ingresses or Services are allowed to declare Middlewares, TLSOptions, or ServersTransport references. Requires traefik v3.7.1+.
++    crossProviderNamespaces: []
+     # -- Only for Traefik v3.0, Deprecated since v3.1. See [upstream documentation](https://doc.traefik.io/traefik/v3.0/providers/kubernetes-ingress/#disableingressclasslookup)
+     disableIngressClassLookup: false
+     # -- When ingressClass is set, only Ingresses containing an annotation with the same value are processed. Otherwise, Ingresses missing the annotation, having an empty value, or the value traefik are processed.
+@@ -358,6 +362,8 @@ providers:
+   kubernetesGateway:
+     # -- Enable Traefik Gateway provider for Gateway API
+     enabled: false
++    # -- List of namespaces from which Gateway API routes are allowed to declare TraefikService backendRef references. Requires traefik v3.7.1+.
++    crossProviderNamespaces: []
+     # -- Toggles support for the Experimental Channel resources (Gateway API release channels documentation).
+     # This option currently enables support for TCPRoute and TLSRoute.
+     experimentalChannel: false
+```
+
+## 40.1.0  ![AppVersion: v3.7.1](https://img.shields.io/static/v1?label=AppVersion&message=v3.7.1&color=success&logo=) ![Kubernetes: >=1.25.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.25.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-05-12
+
+* fix(ingressroute): :bug: use spec.ingressClassName with Proxy v3.7+
+* feat(provider/kubernetesIngressNGINX): set default values on httpentrypoint & httpsentrypoint
+* feat(deps): update traefik docker tag to v3.7.1
+* feat(api): support disableDashboardAd option
+* chore(release): publish 40.1.0
+
+### Default value changes
+
+```diff
+diff --git a/traefik/values.yaml b/traefik/values.yaml
+index aeedcc1..cc45373 100644
+--- a/traefik/values.yaml
++++ b/traefik/values.yaml
+@@ -207,6 +207,8 @@ api:  # @schema additionalProperties: false
+   dashboard: true
+   # -- Custom name for the dashboard (v3.7+).
+   dashboardName: ""  # @schema type:[string, null]
++  # -- Disable the advertisement from the dashboard.
++  disableDashboardAd:  # @schema type:[boolean, null]
+   # -- Enable the insecure API (HTTP)
+   insecure:  # @schema type:[boolean, null]
+   # -- Enable the debug API
+@@ -467,9 +469,9 @@ providers:
+     # -- Defines whether to reject the entire ingress when any path contains regex characters and pathType is Prefix or Exact (default: true)
+     strictValidatePathType: null  # @schema type:[boolean, null]
+     # -- Defines the EntryPoint to use for HTTP requests
+-    httpEntryPoint: ""
++    httpEntryPoint: "web"
+     # -- Defines the EntryPoint to use for HTTPS requests
+-    httpsEntryPoint: ""
++    httpsEntryPoint: "websecure"
+     # @schema additionalProperties: false
+     modsec:
+       # -- Enable ModSec engine. Requires Traefik Hub >= v3.20.0-ea.8.
+```
+
+
+## 40.0.1  ![AppVersion: v3.7.0](https://img.shields.io/static/v1?label=AppVersion&message=v3.7.0&color=success&logo=) ![Kubernetes: >=1.25.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.25.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-05-11
+
+* feat(hub): :rocket: support traefik hub v3.20.1
+* chore(release): 🚀 publish 40.0.1
+
+
+
+## 40.0.0  ![AppVersion: v3.7.0](https://img.shields.io/static/v1?label=AppVersion&message=v3.7.0&color=success&logo=) ![Kubernetes: >=1.25.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.25.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-05-06
+
+* fix(providers.kubernetesIngressNGINX): :bug: clarify int defaults
+* feat: add service.nameOverride for adopting existing Services
+* feat(chart): 📝 version support with annotations
+* feat(deps): update traefik docker tag to v3.7.0-rc.1
+* feat(CRDs): add traefik hub ContentItem
+* feat(CRDs): update Traefik Hub to v1.29.0
+* feat(hub): ✨ expose multicluster serversTransport TLS and timeout options
+* feat(hub): ✨ support Nutanix Prism Central provider
+* feat(hub): 🍱 map Traefik Hub v3.20.0-ea.7+ to Traefik Proxy v3.7.0-rc.1
+* feat(nginx): ✨ support globalAuthUrl option
+* feat(nginx): ✨ support modsec option
+* feat(providers): ✨ support precedence option
+* feat(proxy): add support of kubernetesIngressNGINX.ipAllowListStrategy
+* feat(image): add image.digest for digest-based pinning
+* feat(deps): support traefik v3.7.0 & hub v3.20.0
+* chore(release): 🚀 publish traefik 40.0.0 and crds 1.18.0
+
+### Default value changes
+
+```diff
+diff --git a/traefik/values.yaml b/traefik/values.yaml
+index a26fc4e..aeedcc1 100644
+--- a/traefik/values.yaml
++++ b/traefik/values.yaml
+@@ -8,8 +8,10 @@ image:  # @schema additionalProperties: false
+   # -- Traefik image repository
+   repository: traefik
+   # -- defaults to appVersion. It's used for version checking, even prefixed with experimental- or latest-.
+-  # When a digest is required, `versionOverride` can be used to set the version.
++  # To pin by digest, prefer `image.digest`. A `<version>@<digest>` combo is also accepted here; in that case the digest is what Kubernetes verifies and the version is informational (and can drift from the underlying image).
+   tag:  # @schema type:[string, null]
++  # -- Traefik image digest (e.g. `sha256:abc...`). When set, takes precedence over `tag`. Set `versionOverride` alongside it so the chart's version-checking logic knows the version (it cannot be derived from the digest).
++  digest:  # @schema type:[string, null]; pattern:^sha256:[a-f0-9]{64}$
+   # -- Traefik image pull policy
+   pullPolicy: IfNotPresent
+ 
+@@ -420,37 +422,46 @@ providers:
+     # -- Defines whether to enable request buffering (default: false)
+     proxyRequestBuffering: null  # @schema type:[boolean, null]
+     # -- Default buffer size for reading client request body in bytes (default: 16384)
+-    clientBodyBufferSize: 0
++    clientBodyBufferSize:  # @schema type:[integer, null]
+     # -- Default maximum size of a client request body in bytes (default: 1048576)
+-    proxyBodySize: 0
++    proxyBodySize:  # @schema type:[integer, null]
+     # -- Defines whether to enable response buffering (default: false)
+     proxyBuffering: null  # @schema type:[boolean, null]
+     # -- Default buffer size for reading the response body in bytes (default: 8192)
+-    proxyBufferSize: 0
++    proxyBufferSize:  # @schema type:[integer, null]
+     # -- Default number of buffers for reading a response (default: 4)
+-    proxyBuffersNumber: 0
++    proxyBuffersNumber:  # @schema type:[integer, null]
+     # -- Amount of time to wait until a connection to a server can be established. Unitless, in seconds (default: 60)
+-    proxyConnectTimeout: 0
++    proxyConnectTimeout:  # @schema type:[integer, null]
+     # -- Amount of time between two successive read operations. Unitless, in seconds (default: 60)
+-    proxyReadTimeout: 0
++    proxyReadTimeout:  # @schema type:[integer, null]
+     # -- Amount of time between two successive write operations. Unitless, in seconds (default: 60)
+-    proxySendTimeout: 0
++    proxySendTimeout:  # @schema type:[integer, null]
+     # -- Defines in which cases a request should be retried (default: "error timeout")
+     proxyNextUpstream: ""
+     # -- Limits the number of possible tries if the backend server does not reply (default: 3)
+-    proxyNextUpstreamTries: 0
++    proxyNextUpstreamTries:  # @schema type:[integer, null]
+     # -- Limits the total elapsed time to retry the request. Unitless, in seconds (default: 0)
+-    proxyNextUpstreamTimeout: 0
++    proxyNextUpstreamTimeout:  # @schema type:[integer, null]
+     # -- Defines which HTTP status codes should result in calling the default backend to return an error page
+     customHTTPErrors: []
+     # -- Defines the idle timeout for keep-alive connections to upstream servers. Unitless, in seconds (default: 60)
+-    upstreamKeepaliveTimeout: 0
++    upstreamKeepaliveTimeout:  # @schema type:[integer, null]
+     # -- Allow Ingress to reference resources (e.g. ConfigMaps, Secrets) in different namespaces (default: false)
+     allowCrossNamespaceResources: null  # @schema type:[boolean, null]
+     # -- List of allowed response headers inside the custom headers annotations
+     globalAllowedResponseHeaders: []
+     # -- URL to the service that provides authentication for all the locations. Per ingress auth-url annotation has precedence over this option.
+     globalAuthUrl: ""
++    # -- When set, the strategy is applied to every generated IPAllowList middleware.
++    # @default -- See below
++    ipAllowListStrategy:
++      # -- Number of trusted proxy hops to skip when extracting the client IP from the X-Forwarded-For header. 0 disables depth-based extraction. (default: 0)
++      depth: 0
++      # -- List of IPs to exclude when scanning the X-Forwarded-For header to find the client IP.
++      excludedIPS: []
++      # -- IPv6 subnet size used to group IPv6 addresses when checking the allow list. 0 disables subnet grouping.
++      ipv6Subnet: 0
+     # -- Enables parsing and adding -snippet annotations/directives (default: false)
+     allowSnippetAnnotations: null  # @schema type:[boolean, null]
+     # -- Defines whether to reject the entire ingress when any path contains regex characters and pathType is Prefix or Exact (default: true)
+@@ -1237,7 +1248,7 @@ namespaceOverride: ""
+ # -- This field overrides the default app.kubernetes.io/instance label for all Objects.
+ instanceLabelOverride: ""
+ 
+-# -- This field overrides the default version extracted from image.tag
++# -- This field overrides the default version extracted from image.tag. Required when pinning by `image.digest`, since the version cannot be derived from a digest.
+ versionOverride: ""
+ 
+ # -- overrides the app.kubernetes.io/name label
+@@ -1307,7 +1318,7 @@ hub:  # @schema additionalProperties: false
+         # -- Data center to use. If not provided, the default agent data center is used
+         datacenter: ""
+         # -- WaitTime limits how long a Watch will block. If not provided, the agent default
+-        endpointWaitTime: 0
++        endpointWaitTime:  # @schema type:[integer, null]
+         httpauth:
+           # -- Basic Auth password
+           password: ""
+```
+
+## 39.0.9  ![AppVersion: v3.6.15](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.15&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-05-04
+
+* fix(deps): bump traefik.io CRDs to release v3.6.14
+* feat(deps): update traefik docker tag to v3.6.15 (v39.0)
+* chore(release): 🚀 publish traefik 39.0.9 and crds 1.14.1
+
+
+
+## 39.0.8  ![AppVersion: v3.6.13](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.13&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-04-17
+
+* feat(deps): update traefik docker tag to v3.6.13 (v39.0)
+* chore: :bento: merge back #1679 into v39.0
+* chore(release): 🚀 publish v39.0.8
+
+### Default value changes
+
+```diff
+diff --git a/traefik/values.yaml b/traefik/values.yaml
+index ef2993c..ab46bf5 100644
+--- a/traefik/values.yaml
++++ b/traefik/values.yaml
+@@ -1203,6 +1203,8 @@ hub:
+   # -- Name of `Secret` with key 'token' set to a valid license token.
+   # It enables API Gateway.
+   token: ""
++  # -- Mount path for token secret.
++  tokenMountPath: "/etc/secrets"
+   # -- Disables all external network connections.
+   offline:  # @schema type:[boolean, null]
+   # -- By default, Traefik Hub provider watches all namespaces. When using `rbac.namespaced`, it will watch helm release namespace and namespaces listed in this array.
+```
+
+
+## v39.0.7  ![AppVersion: v3.6.12](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.12&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-03-30
+
+* feat(deps): update traefik docker tag to v3.6.12 (v39.0)
+* chore(release): 🚀 publish v39.0.7
+
+## 39.0.6  ![AppVersion: v3.6.11](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.11&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-03-20
+
+* feat: :rocket: upgrade traefik to version v3.6.11
+* chore(release): :rocket: publish v39.0.6
+
+## 39.0.5  ![AppVersion: v3.6.10](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.10&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+* fix: :bug: handle experimental-master and fail gracefully
+* fix(nginx): add required RBAC for v3.7
+* fix(gateway): setting port value for `websecure` listener can fail
+* feat: upgrade traefik to version v3.6.10
+
+**Upgrade Notes**
+
+This version allows users to test the upcoming Traefik v3.7.0.
+
+Since v3.7.0 is not released yet, the required CRDs are not part of the chart release.
+Users must manually apply the latest CRDs from the `master` branch before upgrading.
+## 39.0.4  ![AppVersion: v3.6.9](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.9&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-03-05
+
+* fix(deps): bump traefik.io CRDs to release v3.6.9
+* chore(release): publish v39.0.4
+
+## 39.0.3  ![AppVersion: v3.6.9](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.9&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-03-05
+
+* fix: remove `rbac.secretResourceNames`
+* feat(deps): update traefik docker tag to v3.6.9
+* docs(example): anchors on trustedIPs with schema enforced
+* chore(release): :rocket: publish v39.0.3
+
+### Default value changes
+
+```diff
+diff --git a/traefik/values.yaml b/traefik/values.yaml
+index 5604572..ef2993c 100644
+--- a/traefik/values.yaml
++++ b/traefik/values.yaml
+@@ -1111,8 +1111,6 @@ rbac:  # @schema additionalProperties: false
+   # Enable user-facing roles
+   # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles
+   aggregateTo: []
+-  # List of Kubernetes secrets that are accessible for Traefik. If empty, then access is granted to every secret.
+-  secretResourceNames: []
+ 
+ # -- Enable to create a PodSecurityPolicy and assign it to the Service Account via RoleBinding or ClusterRoleBinding
+ podSecurityPolicy:
+```
+
+## 39.0.2  ![AppVersion: v3.6.8](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.8&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-02-20
+
+* chore(release): 🚀 publish traefik 39.0.2
+* docs: fix typo in examples
+* chore(deps): update helm/kind-action action to v1.14.0
+* feat: :package: allow IBM cloud values
+* chore(ci): lint on pr title
+
+### Default value changes
+
+```diff
+diff --git a/traefik/values.yaml b/traefik/values.yaml
+index e1ede33..5604572 100644
+--- a/traefik/values.yaml
++++ b/traefik/values.yaml
+@@ -1394,5 +1394,9 @@ oci_meta:
+       image: traefik-hub
+       tag: latest
+ 
++# -- Required for IBM Cloud Marketplace integration.
++# Injected by IBM Cloud Catalog when deploying via IBM Cloud Schematics. This value is not used by the chart.
++offering_version: ""  # @schema type:[string, null]
++
+ # -- Allow the Helm chart to be used as optional subchart.
+ enabled: true  # @schema type:boolean; const:true
+```
+
+## 39.0.1  ![AppVersion: v3.6.8](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.8&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Release date:** 2026-02-13
+
+* tests(hub): relocate and clean api gw tests
+* fix(grpc): enforce mutually exclusive TLS and insecure options
+* fix(chart): allow to be used as optional subchart
+* fix(chart): add nameOverride and fullnameOverride to schema file
+* fix(api): add support for missing insecure and debug options
+* feat(deps): update traefik docker tag to v3.6.8
+* feat(deployment): support templating for podLabels
+* docs(schema): add description from helm-docs comments
+* chore(release): publish v39.0.1
+
+### Default value changes
+
+```diff
+diff --git a/traefik/values.yaml b/traefik/values.yaml
+index a8aec47..e1ede33 100644
+--- a/traefik/values.yaml
++++ b/traefik/values.yaml
+@@ -53,6 +53,7 @@ deployment:
+   # It supports templating. One can set it with values like traefik/name: '{{ template "traefik.name" . }}'
+   podAnnotations: {}
+   # -- Additional Pod labels (e.g. for filtering Pod by custom labels)
++  # It supports templating. One can set it with values like traefik/name: '{{ template "traefik.name" . }}'
+   podLabels: {}
+   # -- Additional containers (e.g. for metric offloading sidecars)
+   additionalContainers: []
+@@ -195,9 +196,13 @@ gatewayClass:  # @schema additionalProperties: false
+   # -- Additional gatewayClass labels (e.g. for filtering gateway objects by custom labels)
+   labels: {}
+ 
+-api:
++api:  # @schema additionalProperties: false
+   # -- Enable the dashboard
+   dashboard: true
++  # -- Enable the insecure API (HTTP)
++  insecure:  # @schema type:[boolean, null]
++  # -- Enable the debug API
++  debug:  # @schema type:[boolean, null]
+   # -- Configure API basePath
+   basePath: ""  # @schema type:[string, null]; default: "/"
+ 
+@@ -478,7 +483,7 @@ logs:
+           # -- The path to the private key. When using this option, setting the cert option is required.
+           key: ""
+           # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
+-          insecureSkipVerify: false
++          insecureSkipVerify:  # @schema type:[boolean, null]
+       # -- Defines additional resource attributes to be sent to the collector.
+       resourceAttributes: {}
+ 
+@@ -551,7 +556,7 @@ logs:
+           # -- The path to the private key. When using this option, setting the cert option is required.
+           key: ""
+           # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
+-          insecureSkipVerify: false
++          insecureSkipVerify:  # @schema type:[boolean, null]
+       # -- Defines additional resource attributes to be sent to the collector.
+       resourceAttributes: {}
+ 
+@@ -702,7 +707,7 @@ metrics:
+         # -- The path to the private key. When using this option, setting the cert option is required.
+         key: ""
+         # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
+-        insecureSkipVerify: false
++        insecureSkipVerify:  # @schema type:[boolean, null]
+     # -- Defines additional resource attributes to be sent to the collector.
+     resourceAttributes: {}
+ 
+@@ -750,7 +755,7 @@ tracing:  # @schema additionalProperties: false
+         # -- The path to the private key. When using this option, setting the cert option is required.
+         key: ""
+         # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
+-        insecureSkipVerify: false
++        insecureSkipVerify:  # @schema type:[boolean, null]
+     grpc:
+       # -- Set to true in order to send metrics to the OpenTelemetry Collector using gRPC
+       enabled: false
+@@ -767,7 +772,7 @@ tracing:  # @schema additionalProperties: false
+         # -- The path to the private key. When using this option, setting the cert option is required.
+         key: ""
+         # -- When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers.
+-        insecureSkipVerify: false
++        insecureSkipVerify:  # @schema type:[boolean, null]
+ 
+ global:
+   checkNewVersion: true
+@@ -1190,6 +1195,11 @@ instanceLabelOverride: ""
+ # -- This field overrides the default version extracted from image.tag
+ versionOverride: ""
+ 
++# -- overrides the app.kubernetes.io/name label
++nameOverride: ""
++# -- Overrides the resource name for templates (i.e deployment, service, etc..)
++fullnameOverride: ""
++
+ # Traefik Hub configuration. See https://doc.traefik.io/traefik-hub/
+ hub:
+   # -- Name of `Secret` with key 'token' set to a valid license token.
+@@ -1383,3 +1393,6 @@ oci_meta:
+     hub:
+       image: traefik-hub
+       tag: latest
++
++# -- Allow the Helm chart to be used as optional subchart.
++enabled: true  # @schema type:boolean; const:true
+```
+
 ## 39.0.0  ![AppVersion: v3.6.7](https://img.shields.io/static/v1?label=AppVersion&message=v3.6.7&color=success&logo=) ![Kubernetes: >=1.22.0-0](https://img.shields.io/static/v1?label=Kubernetes&message=%3E%3D1.22.0-0&color=informational&logo=kubernetes) ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
 
 **Release date:** 2026-01-22
