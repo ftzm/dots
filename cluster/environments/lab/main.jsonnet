@@ -1271,7 +1271,7 @@ local withNamespace(resources, ns) = {
                       widget: {
                         type: 'iframe',
                         name: 'grafana-overview',
-                        src: 'https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk',
+                        src: 'https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk&autofitpanels',
                         classes: 'h-80',
                         referrerPolicy: 'same-origin',
                       },
