@@ -29,7 +29,7 @@
 
 - [x] 5.1 Render full manifests with `tk show` / `just render-lab`
 - [x] 5.2 Commit and push — let ArgoCD sync
-- [ ] 5.3 Verify `home.lan.ftzmlab.xyz` loads with dark theme and service groups
-- [ ] 5.4 Verify Grafana iframe renders cluster overview without login prompt
-- [ ] 5.5 Verify health ping dots show correct status for running services
-- [ ] 5.6 Verify app widgets display data (arr queues, Immich stats)
+- [x] 5.3 Verify `home.lan.ftzmlab.xyz` loads with dark theme and service groups
+- [x] 5.4 Verify Grafana iframe renders cluster overview without login prompt
+- [x] 5.5 Verify health ping dots show correct status for running services
+- [x] 5.6 Verify app widgets display data (arr queues, Immich stats)

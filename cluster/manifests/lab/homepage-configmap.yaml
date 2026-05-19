@@ -8,7 +8,7 @@ data:
     - Cluster Overview:
       - "":
           widget:
-            classes: h-48 w-full
+            classes: h-80
             name: grafana-overview
             referrerPolicy: same-origin
             src: https://grafana.lan.ftzmlab.xyz/d/homepage-overview/homepage-overview?orgId=1&theme=dark&kiosk
