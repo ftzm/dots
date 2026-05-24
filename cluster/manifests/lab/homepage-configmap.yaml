@@ -6,6 +6,26 @@ data:
     mode: cluster
   services.yaml: |
     - Cluster:
+      - CPU:
+          widget:
+            metrics:
+            - format:
+                type: percent
+              label: Cluster
+              query: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+            refreshInterval: 30000
+            type: prometheusmetric
+            url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+      - Memory:
+          widget:
+            metrics:
+            - format:
+                type: percent
+              label: Cluster
+              query: 100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))
+            refreshInterval: 30000
+            type: prometheusmetric
+            url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
       - NFS Pool:
           widget:
             metrics:
@@ -143,7 +163,7 @@ data:
     layout:
       Cluster:
         style: row
-        columns: 4
+        columns: 6
       Media:
         style: row
         columns: 4
@@ -153,18 +173,7 @@ data:
       Infrastructure:
         style: row
         columns: 3
-  widgets.yaml: |
-    - kubernetes:
-        cluster:
-          cpu: true
-          memory: true
-          show: true
-          showLabel: true
-        nodes:
-          cpu: true
-          memory: true
-          show: true
-          showLabel: true
+  widgets.yaml: ""
 kind: ConfigMap
 metadata:
   labels:

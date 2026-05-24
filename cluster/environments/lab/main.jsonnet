@@ -1094,7 +1094,7 @@ local withNamespace(resources, ns) = {
               layout:
                 Cluster:
                   style: row
-                  columns: 4
+                  columns: 6
                 Media:
                   style: row
                   columns: 4
@@ -1105,24 +1105,7 @@ local withNamespace(resources, ns) = {
                   style: row
                   columns: 3
             |||,
-            widgets: [
-              {
-                kubernetes: {
-                  cluster: {
-                    show: true,
-                    cpu: true,
-                    memory: true,
-                    showLabel: true,
-                  },
-                  nodes: {
-                    show: true,
-                    cpu: true,
-                    memory: true,
-                    showLabel: true,
-                  },
-                },
-              },
-            ],
+            widgets: [],
             local promWidget(label, query, format='number') = {
               widget: {
                 type: 'prometheusmetric',
@@ -1138,6 +1121,16 @@ local withNamespace(resources, ns) = {
             services: [
               {
                 Cluster: [
+                  { CPU: promWidget(
+                    'Cluster',
+                    '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
+                    'percent',
+                  ) },
+                  { Memory: promWidget(
+                    'Cluster',
+                    '100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))',
+                    'percent',
+                  ) },
                   { 'NFS Pool': promWidget(
                     'Used',
                     '100 * (1 - node_filesystem_avail_bytes{instance="nas",mountpoint="/pool-1"} / node_filesystem_size_bytes{instance="nas",mountpoint="/pool-1"})',
