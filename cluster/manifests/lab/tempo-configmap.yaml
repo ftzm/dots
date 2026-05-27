@@ -4,6 +4,7 @@ data:
     overrides:
       {}
   tempo.yaml: |
+    stream_over_http_enabled: false
     memberlist:
       cluster_label: "tempo.monitoring"
     multitenancy_enabled: false
@@ -55,7 +56,7 @@ metadata:
     app.kubernetes.io/instance: tempo
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: tempo
-    app.kubernetes.io/version: 2.10.0
-    helm.sh/chart: tempo-1.26.1
+    app.kubernetes.io/version: 2.10.5
+    helm.sh/chart: tempo-2.2.0
   name: tempo
   namespace: monitoring
