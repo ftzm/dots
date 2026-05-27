@@ -4,7 +4,7 @@
   lidarr: 'linuxserver/lidarr:3.1.2-nightly',
   readarr: 'linuxserver/readarr:0.4.19-nightly',
   prowlarr: 'linuxserver/prowlarr:2.4.0-nightly',
-  flaresolverr: 'flaresolverr/flaresolverr:v3.4.6',
+  flaresolverr: 'flaresolverr/flaresolverr:v3.5.0',
   jellyseerr: 'fallenbagel/jellyseerr:develop',
   vaultwarden: 'vaultwarden/server:1.36.0',
   cloudnativeVectorchord: 'ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3',
