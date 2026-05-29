@@ -2302,6 +2302,20 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
   :hook ((racket-mode emacs-lisp-mode) . paren-face-mode)
   )
 
+(use-package lispy
+  :hook ((racket-mode emacs-lisp-mode gerbil-mode scheme-mode) . lispy-mode)
+  :config
+  (lispy-set-key-theme '(special c-digits)))
+
+(use-package lispyville
+  :hook (lispy-mode . lispyville-mode)
+  :config
+  (lispyville-set-key-theme
+   '(operators
+     c-w
+     slurp/barf-cp
+     additional
+     additional-movement)))
 
 ;; ==============================================================================
 ;; Frontend
@@ -2694,6 +2708,4 @@ Positive values scroll down, negative values scroll up."
 
   (setq zoom-size 'size-callback)
 
-  (setq zoom-mode t)
-
-  )
+  (setq zoom-mode t))

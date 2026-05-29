@@ -4,8 +4,7 @@
   inputs,
   lib,
   ...
-}:
-let
+}: let
   # Wrap xdg-desktop-portal-wlr with nixGLIntel so it can find Mesa/DRI
   # drivers on non-NixOS. Without this, the portal segfaults because the
   # Nix-built binary looks for drivers at /run/opengl-driver/ (NixOS-only).
@@ -13,25 +12,24 @@ let
     name = "xdg-desktop-portal-wlr-gl";
     dontUnpack = true;
     installPhase = ''
-      mkdir -p $out/libexec
-      cat > $out/libexec/xdg-desktop-portal-wlr <<EOF
-#!/bin/sh
-exec ${pkgs.nixgl.nixGLIntel}/bin/nixGLIntel ${pkgs.xdg-desktop-portal-wlr}/libexec/xdg-desktop-portal-wlr "\$@"
-EOF
-      chmod +x $out/libexec/xdg-desktop-portal-wlr
+            mkdir -p $out/libexec
+            cat > $out/libexec/xdg-desktop-portal-wlr <<EOF
+      #!/bin/sh
+      exec ${pkgs.nixgl.nixGLIntel}/bin/nixGLIntel ${pkgs.xdg-desktop-portal-wlr}/libexec/xdg-desktop-portal-wlr "\$@"
+      EOF
+            chmod +x $out/libexec/xdg-desktop-portal-wlr
 
-      cp -r --no-preserve=mode ${pkgs.xdg-desktop-portal-wlr}/share $out/share
+            cp -r --no-preserve=mode ${pkgs.xdg-desktop-portal-wlr}/share $out/share
 
-      substituteInPlace $out/share/systemd/user/xdg-desktop-portal-wlr.service \
-        --replace-fail "${pkgs.xdg-desktop-portal-wlr}/libexec/xdg-desktop-portal-wlr" \
-          "$out/libexec/xdg-desktop-portal-wlr"
-      substituteInPlace $out/share/dbus-1/services/org.freedesktop.impl.portal.desktop.wlr.service \
-        --replace-fail "${pkgs.xdg-desktop-portal-wlr}/libexec/xdg-desktop-portal-wlr" \
-          "$out/libexec/xdg-desktop-portal-wlr"
+            substituteInPlace $out/share/systemd/user/xdg-desktop-portal-wlr.service \
+              --replace-fail "${pkgs.xdg-desktop-portal-wlr}/libexec/xdg-desktop-portal-wlr" \
+                "$out/libexec/xdg-desktop-portal-wlr"
+            substituteInPlace $out/share/dbus-1/services/org.freedesktop.impl.portal.desktop.wlr.service \
+              --replace-fail "${pkgs.xdg-desktop-portal-wlr}/libexec/xdg-desktop-portal-wlr" \
+                "$out/libexec/xdg-desktop-portal-wlr"
     '';
   };
-in
-{
+in {
   nixpkgs = {
     config.allowUnfree = true;
     overlays = [
@@ -95,8 +93,8 @@ in
     uv
     aider-chat
     jetbrains-mono
-    nodejs
-    yarn
+    # nodejs
+    # yarn
     crowdin-cli
     inputs.claude-code-nix.packages.${pkgs.system}.default
     ripgrep
@@ -324,7 +322,7 @@ in
       text-color = "#ebdbb2";
       margin = "15";
       padding = "10";
-};
+    };
   };
 
   # workaround for systemd units not being loaded by ubuntu
