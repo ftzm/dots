@@ -8,7 +8,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
@@ -38,4 +37,4 @@ jobs:
         run: nix build .#nixosConfigurations.nas.config.system.build.toplevel
       # pi is aarch64-linux, skipped in CI (would require QEMU/cross-compilation)
       - name: Render cluster manifests
-        run: cd cluster && nix develop .. -c just render-lab
+        run: cd cluster && nix develop . -c just render-lab
