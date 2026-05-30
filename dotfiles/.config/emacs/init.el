@@ -1974,6 +1974,34 @@ in which case does avy-goto-char with the first char."
 
 (use-package racket-mode)
 
+(use-package geiser
+  :defer t)
+
+(use-package geiser-chez
+  :after geiser)
+
+(defun scheme-ts-auto-load-on-save ()
+  "Load current buffer into Geiser REPL on save."
+  (when (geiser-repl--connection*)
+    (geiser-load-current-buffer nil)))
+
+(add-hook 'scheme-ts-mode-hook
+          (lambda ()
+            (geiser-mode--maybe-activate)
+            (add-hook 'after-save-hook #'scheme-ts-auto-load-on-save nil t)))
+
+(use-package scheme-ts-mode
+  :ensure nil
+  :load-path "lisp/"
+  :demand t
+  :mode ("\\.scm\\'" "\\.sld\\'")
+  :config
+  (with-eval-after-load 'markdown-ts-mode
+    (add-to-list 'markdown-ts-code-block-source-mode-map
+                 '(scheme . scheme-ts-mode))))
+
+(use-package rainbow-delimiters)
+
 (use-package paren-face
   :hook ((racket-mode emacs-lisp-mode) . paren-face-mode)
   )
@@ -2013,77 +2041,6 @@ in which case does avy-goto-char with the first char."
   (setq vterm-max-scrollback 50000)
 
   )
-
-;; ==============================================================================
-;; Gerbil
-;; ==============================================================================
-
-(use-package rainbow-delimiters
-  )
-
-(use-package gambit
-  :ensure (
-	   :host github
-	   :repo "gambit/gambit"
-	   :files ("misc/gambit.el")
-	   :branch "master"))
-
-(use-package gerbil-mode
-  :ensure (
-	   :host github
-	   :repo "mighty-gerbils/gerbil"
-	   :files ("etc/gerbil-mode.el")
-	   :branch "master")
-  :defer t
-  :mode (("\\.ss\\'"  . gerbil-mode)
-	 ("\\.pkg\\'" . gerbil-mode))
-  :bind (:map comint-mode-map
-	      (("C-S-n" . comint-next-input)
-	       ("C-S-p" . comint-previous-input)
-	       ("C-S-l" . clear-comint-buffer))
-	      :map gerbil-mode-map
-	      (("C-S-l" . clear-comint-buffer)))
-  :init
-					; (autoload 'gerbil-mode
-					;   (expand-file-name "share/emacs/site-lisp/gerbil-mode.el" *gerbil-path*)
-					;   "Gerbil editing mode." t)
-  :hook
-  ((gerbil-mode-hook . linum-mode)
-   (gerbil-mode-hook . rainbow-delimiters-mode)
-   (inferior-scheme-mode-hook . gambit-inferior-mode))
-  :config
-  (require 'gambit)
-					;(setf scheme-program-name (expand-file-name "bin/gxi" *gerbil-path*))
-  (setf scheme-program-name "gxi")
-
-  ;; (let ((tags (locate-dominating-file default-directory "TAGS")))
-  ;;   (when tags (visit-tags-table tags)))
-  ;; (let ((tags (expand-file-name "src/TAGS" *gerbil-path*)))
-  ;;   (when (file-exists-p tags) (visit-tags-table tags)))
-
-  (when (package-installed-p 'smartparens)
-    (sp-pair "'" nil :actions :rem)
-    (sp-pair "`" nil :actions :rem))
-
-  (defun clear-comint-buffer ()
-    (interactive)
-    (with-current-buffer "*scheme*"
-      (let ((comint-buffer-maximum-size 0))
-	(comint-truncate-buffer))))
-
-  (defun gerbil-setup-buffers ()
-    "Change current buffer mode to gerbil-mode and start a REPL"
-    (interactive)
-    (gerbil-mode)
-    (split-window-right)
-    (shrink-window-horizontally 2)
-    (let ((buf (buffer-name)))
-      (other-window 1)
-      (run-scheme "gxi")
-      (switch-to-buffer-other-window "*scheme*" nil)
-      (switch-to-buffer buf)))
-
-  (global-set-key (kbd "C-c C-g") 'gerbil-setup-buffers))
 
 ;; ==============================================================================
 ;; Eat

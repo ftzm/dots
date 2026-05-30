@@ -27,7 +27,10 @@
     agenix.url = "github:ryantm/agenix";
     impermanence.url = "github:nix-community/impermanence";
     disko.url = "github:nix-community/disko";
-    git-hooks.url = "github:cachix/git-hooks.nix";
+    git-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nixgl.url = "github:nix-community/nixGL";
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
     comin = {
