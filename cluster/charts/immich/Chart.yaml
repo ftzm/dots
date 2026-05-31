@@ -1,0 +1,24 @@
+annotations:
+  artifacthub.io/category: storage
+  artifacthub.io/changes: |-
+    - kind: changed
+      description: Dependency updates
+apiVersion: v2
+appVersion: v2.6.3
+dependencies:
+- name: common
+  repository: https://bjw-s-labs.github.io/helm-charts
+  version: 5.0.1
+description: A chart to power Immich (immich.app) running on kubernetes
+home: https://immich.app/
+icon: https://raw.githubusercontent.com/immich-app/immich/main/design/immich-logo.svg
+maintainers:
+- email: 5434875+PixelJonas@users.noreply.github.com
+  name: PixelJonas
+- email: immich@bo0tzz.me
+  name: bo0tzz
+name: immich
+sources:
+- https://github.com/immich-app/immich-charts/tree/main/charts/immich
+- https://github.com/immich-app/immich
+version: 0.12.0
