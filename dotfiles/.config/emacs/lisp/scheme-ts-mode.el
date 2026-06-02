@@ -57,13 +57,13 @@
    :language 'scheme
    :feature 'keyword
    :override t
-   (format "(list . (symbol) @font-lock-keyword-face (#match %S @font-lock-keyword-face))"
+   (format "(list . (symbol) @font-lock-keyword-face (#match? %S @font-lock-keyword-face))"
            scheme-ts-mode--keyword-regexp)
 
    :language 'scheme
    :feature 'definition
-   "(list . (symbol) @_kw . (symbol) @font-lock-function-name-face (#match \"^define\" @_kw))
-    (list . (symbol) @_kw . (list . (symbol) @font-lock-function-name-face) (#match \"^define\" @_kw))"
+   "(list . (symbol) @_kw . (symbol) @font-lock-function-name-face (#match? \"^define\" @_kw))
+    (list . (symbol) @_kw . (list . (symbol) @font-lock-function-name-face) (#match? \"^define\" @_kw))"
 
    :language 'scheme
    :feature 'function
@@ -124,10 +124,10 @@
 
     (treesit-major-mode-setup)))
 
-(if (treesit-ready-p 'scheme t)
-    (progn
-      (add-to-list 'auto-mode-alist '("\\.scm\\'" . scheme-ts-mode))
-      (add-to-list 'auto-mode-alist '("\\.sld\\'" . scheme-ts-mode))))
+;; Intentionally NOT registered in `auto-mode-alist'.  This mode is used only
+;; to fontify scheme code blocks inside markdown (via
+;; `markdown-ts-code-block-source-mode-map' in init.el); general Scheme files
+;; open in the faster built-in `scheme-mode'.
 
 (provide 'scheme-ts-mode)
 ;;; scheme-ts-mode.el ends here

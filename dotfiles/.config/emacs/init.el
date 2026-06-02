@@ -141,6 +141,12 @@ See `eval-after-load' for the possible formats of FORM."
 (use-package doom-themes
   :config
   (load-theme 'doom-gruvbox t)
+  ;; doom-themes italicizes function calls; turn that off.
+  (set-face-attribute 'font-lock-function-call-face nil :slant 'normal)
+  ;; Use the default foreground for function defs and calls (was green).
+  (let ((fg (face-attribute 'default :foreground)))
+    (set-face-attribute 'font-lock-function-name-face nil :foreground fg)
+    (set-face-attribute 'font-lock-function-call-face nil :foreground fg))
   ;; Must be used *after* the theme is loaded
   ;; (custom-set-faces
   ;;  `(font-lock-type-face ((t (:foreground ,(doom-color 'violet)))))
@@ -1985,20 +1991,154 @@ in which case does avy-goto-char with the first char."
   (when (geiser-repl--connection*)
     (geiser-load-current-buffer nil)))
 
-(add-hook 'scheme-ts-mode-hook
-          (lambda ()
-            (geiser-mode--maybe-activate)
-            (add-hook 'after-save-hook #'scheme-ts-auto-load-on-save nil t)))
+(defun scheme-ts-ensure-repl ()
+  "Start a Chez Geiser REPL if one isn't already running.
+Starts it in the background so the current window layout is preserved.
+Return non-nil when a new REPL was started."
+  (unless (seq-some (lambda (b)
+                      (and (buffer-live-p b)
+                           (get-buffer-process b)
+                           (with-current-buffer b
+                             (eq geiser-impl--implementation 'chez))))
+                    geiser-repl--repls)
+    (save-window-excursion (geiser 'chez))
+    t))
+
+(defun scheme-ts-find-definition ()
+  "Jump to definition, preferring Geiser, then falling back to `xref'.
+Geiser resolves symbols the running REPL knows (your loaded code); xref
+covers whatever a project makes available to it (e.g. an etags index for
+built-in / library procedures the REPL keeps no source for)."
+  (interactive)
+  (let ((start (point)) (start-buf (current-buffer)))
+    (condition-case nil (geiser-edit-symbol-at-point) (error nil))
+    (when (and (eq (current-buffer) start-buf) (= (point) start))
+      (let ((sym (thing-at-point 'symbol t)))
+        (when sym (ignore-errors (xref-find-definitions sym)))))))
+
+(defun scheme-ts-setup-geiser ()
+  "Activate geiser, ensure a REPL, and load the buffer for introspection.
+Loading the library into the REPL is what makes jump-to-definition,
+autodoc and completion work; without it geiser cannot resolve symbols."
+  (turn-on-geiser-mode)
+  (add-hook 'after-save-hook #'scheme-ts-auto-load-on-save nil t)
+  ;; M-.: Geiser first, then xref (whatever the project wires up) as fallback.
+  ;; Override only M-. while inheriting the rest of `geiser-mode-map'.
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map geiser-mode-map)
+    (define-key map (kbd "M-.") #'scheme-ts-find-definition)
+    (setq-local minor-mode-overriding-map-alist
+                (cons (cons 'geiser-mode map) minor-mode-overriding-map-alist)))
+  ;; evil `gd': evil-collection binds it straight to `geiser-edit-symbol-at-point';
+  ;; a buffer-local binding wins over that minor-mode map and adds the fallback.
+  (when (fboundp 'evil-local-set-key)
+    (evil-local-set-key 'normal (kbd "gd") #'scheme-ts-find-definition))
+  (when buffer-file-name
+    (scheme-ts-ensure-repl)
+    ;; Load this buffer into the REPL so M-. & friends resolve immediately.
+    (when (geiser-repl--connection*)
+      (ignore-errors (geiser-load-current-buffer nil)))))
+
+;; General Scheme editing uses the built-in `scheme-mode'.  Benchmarks showed
+;; `scheme-ts-mode' is ~3-4x slower at full fontification and ~2x slower per
+;; keystroke even at its lowest correct font-lock level: tree-sitter's
+;; per-node query machinery is pure overhead on Scheme's trivial lexical
+;; structure, where regex font-lock is already near-optimal.  It also lacks
+;; symex emit/capture (unimplemented for the tree-sitter backend).
+;;
+;; `scheme-ts-mode' is kept ONLY to fontify scheme code blocks inside markdown
+;; (see `markdown-ts-code-block-source-mode-map' below).  That path is
+;; mandatory: `markdown-ts-mode' harvests `treesit-font-lock-settings' from the
+;; mapped mode and fontifies blocks with an embedded tree-sitter parser, so a
+;; regex mode like `scheme-mode' supplies nothing there.  The geiser/REPL
+;; helpers above are mode-agnostic, so they run on `scheme-mode' instead.
+(use-package scheme
+  :ensure nil
+  :mode (("\\.scm\\'" . scheme-mode)
+         ("\\.sld\\'" . scheme-mode)
+         ("\\.sls\\'" . scheme-mode))
+  :hook (scheme-mode . scheme-ts-setup-geiser))
 
 (use-package scheme-ts-mode
   :ensure nil
   :load-path "lisp/"
   :demand t
-  :mode ("\\.scm\\'" "\\.sld\\'")
   :config
   (with-eval-after-load 'markdown-ts-mode
     (add-to-list 'markdown-ts-code-block-source-mode-map
                  '(scheme . scheme-ts-mode))))
+
+;; Symex — modal, tree-structured editing for Lisp/Scheme, entered with
+;; `symex-mode-interface'.  Symex and its whole dependency tree are not on
+;; MELPA, so each package gets an explicit elpaca recipe; `symex-core' and
+;; `symex' live in subdirectories of the same monorepo (hence the :files).
+;; The dependency declarations exist only to register recipes for elpaca to
+;; resolve `symex's Package-Requires.
+(use-package lithium
+  :elpaca (lithium :host github :repo "countvajhula/lithium"))
+(use-package mantra
+  :elpaca (mantra :host github :repo "countvajhula/mantra"))
+(use-package repeat-ring
+  :elpaca (repeat-ring :host github :repo "countvajhula/repeat-ring"))
+(use-package pubsub
+  :elpaca (pubsub :host github :repo "countvajhula/pubsub"))
+(use-package symex-core
+  :elpaca (symex-core :host github :repo "drym-org/symex.el"
+                      :files ("symex-core/*.el")))
+
+(use-package symex
+  :elpaca (symex :host github :repo "drym-org/symex.el"
+                 :files ("symex/*.el" "symex/doc/*.texi" "symex/doc/figures"))
+  :demand t
+  :config
+  (symex-mode 1)
+  ;; Emit/capture (barf/slurp) on home-row mnemonic keys: e = Emit, r =
+  ;; capture (reach).  Lowercase = forward (the common case), Shift =
+  ;; backward.  The default C-)/C-}/C-S-hjkl bindings remain as backups.
+  (lithium-define-keys symex-editing-mode
+    (("r" symex-capture-forward)
+     ("e" symex-emit-forward)
+     ("R" symex-capture-backward)
+     ("E" symex-emit-backward))))
+
+;; symex-evil — integrate symex with Evil: it defines a real evil `symex'
+;; state (tag <λ>) and wires symex<->normal/insert transitions.  Must load
+;; AFTER symex (it overrides symex-escape-higher / symex-enter-lower).
+(use-package symex-evil
+  :elpaca (symex-evil :host github :repo "drym-org/symex.el"
+                      :files ("symex-evil/*.el"))
+  :after (symex evil)
+  :config
+  (symex-evil-mode 1)
+  ;; Make symex the initial state in Lisp buffers.  After the major mode and
+  ;; evil have set the buffer up, enter symex via the natural
+  ;; editing-mode -> evil-symex-state path (a reverse `evil-symex-state'
+  ;; entry hook recurses, so we don't use one).  Depth 90 makes this run
+  ;; after evil's own `after-change-major-mode-hook' so it isn't clobbered.
+  (defun my/lisp-symex-initial-state ()
+    (when (and (bound-and-true-p evil-local-mode)
+               (memq major-mode '(scheme-mode emacs-lisp-mode lisp-mode)))
+      (symex-mode-interface)))
+  (add-hook 'after-change-major-mode-hook #'my/lisp-symex-initial-state 90)
+
+  ;; Escape from insert returns to symex — but only when insert was entered
+  ;; *from* symex (jmckernon's recipe, symex.el issue #164).  We deliberately
+  ;; do NOT rebind <escape>: that would bypass evil's insert-exit machinery
+  ;; (point back-off, undo grouping, `.' repeat) and shadow corfu's
+  ;; escape-to-dismiss.  Instead we advise `evil-normal-state' :after, so the
+  ;; full escape runs first and we only *continue* into symex.  Hooks were
+  ;; ruled out by jmckernon: an exit hook infinite-regresses, an entry hook
+  ;; desyncs `evil-state'.  Corfu is unaffected — when its popup is open,
+  ;; <escape> hits `corfu-quit' and never reaches `evil-normal-state'.
+  (defvar-local my/entered-insert-from-symex nil
+    "Non-nil if this buffer's last insert-state entry came from symex.")
+  (defun my/note-insert-origin ()
+    (setq my/entered-insert-from-symex (eq evil-previous-state 'symex)))
+  (add-hook 'evil-insert-state-entry-hook #'my/note-insert-origin)
+  (defun my/return-to-symex-after-insert (&rest _)
+    (when (and (eq evil-previous-state 'insert) my/entered-insert-from-symex)
+      (symex-mode-interface)))
+  (advice-add 'evil-normal-state :after #'my/return-to-symex-after-insert))
 
 (use-package rainbow-delimiters)
 
