@@ -159,7 +159,7 @@
 
     waypaper
     waybar
-    nodejs_20
+    nodejs_24
     perf
     nil
     inputs.agenix.packages.x86_64-linux.agenix
