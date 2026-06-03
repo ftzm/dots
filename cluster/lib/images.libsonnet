@@ -11,7 +11,7 @@
   blocky: 'spx01/blocky:latest',
   ntfy: 'binwiederhier/ntfy',
   navidrome: 'ghcr.io/navidrome/navidrome:0.61.2',
-  audiobookshelf: 'advplyr/audiobookshelf:2.34.0',
+  audiobookshelf: 'advplyr/audiobookshelf:2.35.1',
   thelounge: 'thelounge/thelounge:4.5.0',
   filestash: 'machines/filestash:latest',
 }
