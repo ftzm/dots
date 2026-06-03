@@ -246,7 +246,7 @@
       chromium
       pgformatter
       wakeonlan
-      nodejs_20
+      nodejs_24
       ripgrep
       claude-code
     ];
