@@ -12,6 +12,6 @@
   ntfy: 'binwiederhier/ntfy',
   navidrome: 'ghcr.io/navidrome/navidrome:0.61.2',
   audiobookshelf: 'advplyr/audiobookshelf:2.34.0',
-  thelounge: 'thelounge/thelounge:4.4.3',
+  thelounge: 'thelounge/thelounge:4.5.0',
   filestash: 'machines/filestash:latest',
 }
