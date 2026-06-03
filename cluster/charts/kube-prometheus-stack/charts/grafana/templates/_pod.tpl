@@ -1299,7 +1299,7 @@ containers:
       {{- with .Values.datasources }}
       {{- $datasources := . }}
       {{- range (keys . | sortAlpha) }}
-      {{- if (or (hasKey (index $datasources .) "secret")) }} {{/*check if current datasource should be handeled as secret */}}
+      {{- if (or (hasKey (index $datasources .) "secret")) }} {{/*check if current datasource should be handled as secret */}}
       - name: config-secret
         mountPath: "/etc/grafana/provisioning/datasources/{{ . }}"
         subPath: {{ . | quote }}
@@ -1313,7 +1313,7 @@ containers:
       {{- with .Values.notifiers }}
       {{- $notifiers := . }}
       {{- range (keys . | sortAlpha) }}
-      {{- if (or (hasKey (index $notifiers .) "secret")) }} {{/*check if current notifier should be handeled as secret */}}
+      {{- if (or (hasKey (index $notifiers .) "secret")) }} {{/*check if current notifier should be handled as secret */}}
       - name: config-secret
         mountPath: "/etc/grafana/provisioning/notifiers/{{ . }}"
         subPath: {{ . | quote }}
@@ -1327,7 +1327,7 @@ containers:
       {{- with .Values.alerting }}
       {{- $alertingmap := .}}
       {{- range (keys . | sortAlpha) }}
-      {{- if (or (hasKey (index $.Values.alerting .) "secret") (hasKey (index $.Values.alerting .) "secretFile")) }} {{/*check if current alerting entry should be handeled as secret */}}
+      {{- if (or (hasKey (index $.Values.alerting .) "secret") (hasKey (index $.Values.alerting .) "secretFile")) }} {{/*check if current alerting entry should be handled as secret */}}
       - name: config-secret
         mountPath: "/etc/grafana/provisioning/alerting/{{ . }}"
         subPath: {{ . | quote }}
@@ -1386,6 +1386,10 @@ containers:
       - name: {{ .name }}
         mountPath: {{ .mountPath }}
       {{- end }}
+      {{- if .Values.shadowBundledPlugins }}
+      - name: shadow-bundled-plugins
+        mountPath: /usr/share/grafana/data/plugins-bundled
+      {{- end }}
     ports:
       - name: {{ .Values.podPortName }}
         containerPort: {{ .Values.service.targetPort }}
@@ -1442,7 +1446,7 @@ containers:
         {{- if .Values.imageRenderer.serverURL }}
         value: {{ .Values.imageRenderer.serverURL | quote }}
         {{- else }}
-        value: http://{{ include "grafana.fullname" . }}-image-renderer.{{ include "grafana.namespace" . }}:{{ .Values.imageRenderer.service.port }}/render
+        value: http://{{ include "grafana.imageRenderer.fullname" . }}-image-renderer.{{ include "grafana.namespace" . }}:{{ .Values.imageRenderer.service.port }}/render
         {{- end }}
       - name: GF_RENDERING_CALLBACK_URL
         {{- if .Values.imageRenderer.renderingCallbackURL }}
@@ -1450,6 +1454,11 @@ containers:
         {{- else }}
         value: {{ .Values.imageRenderer.grafanaProtocol }}://{{ include "grafana.fullname" . }}.{{ include "grafana.namespace" . }}:{{ .Values.service.port }}/{{ .Values.imageRenderer.grafanaSubPath }}
         {{- end }}
+      - name: GF_RENDERING_RENDERER_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.imageRenderer.existingSecret | default (printf "%s-image-renderer" (include "grafana.imageRenderer.fullname" .)) }}
+            key: token
       {{- end }}
       - name: GF_PATHS_DATA
         value: {{ (get .Values "grafana.ini").paths.data }}
@@ -1713,6 +1722,10 @@ volumes:
   {{- end }}
   {{- range .Values.extraEmptyDirMounts }}
   - name: {{ .name }}
+    emptyDir: {}
+  {{- end }}
+  {{- if .Values.shadowBundledPlugins }}
+  - name: shadow-bundled-plugins
     emptyDir: {}
   {{- end }}
   {{- with .Values.extraContainerVolumes }}
