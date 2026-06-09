@@ -84,7 +84,6 @@
     git
     git-crypt
     git-filter-repo
-    silver-searcher
     stack
     gnumake
     jq
