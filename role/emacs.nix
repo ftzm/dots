@@ -1,16 +1,18 @@
 {pkgs, ...}: let
   package = pkgs.emacs-pgtk.override {};
-  inherit ((pkgs.emacsPackagesFor package)) emacsWithPackages;
-  emacs = emacsWithPackages (epkgs: [
-    epkgs.treesit-grammars.with-all-grammars
-    #epkgs.tree-sitter
-    #epkgs.tree-sitter-langs
-    #epkgs.telega
-    epkgs.vterm
-    #epkgs.emms
+  epkgs = pkgs.emacsPackagesFor package;
+  # tree-sitter bundle with a Chez-corrected scheme grammar (see emacs-grammars.nix)
+  schemeGrammars = import ./emacs-grammars.nix {inherit pkgs epkgs;};
+  emacs = epkgs.emacsWithPackages (e: [
+    schemeGrammars
+    #e.tree-sitter
+    #e.tree-sitter-langs
+    #e.telega
+    e.vterm
+    #e.emms
     #emms-taglib
-    #epkgs.org
-    #epkgs.pdf-tools
+    #e.org
+    #e.pdf-tools
   ]);
   archiveScript = pkgs.writeShellScript "org-archive" ''
     ${emacs}/bin/emacsclient --eval "(ftzm/org-archive-old-tasks)"
@@ -24,6 +26,11 @@ in {
 
   systemd.user.services.emacs = {
     description = "Emacs daemon";
+    # Don't kill a running daemon on `switch` (incl. comin auto-deploys).
+    # Any change to the emacs derivation changes ExecStart's store path,
+    # which would otherwise stop+restart the daemon mid-session. The new
+    # version is picked up on reboot or `systemctl --user restart emacs`.
+    restartIfChanged = false;
     serviceConfig = {
       Type = "simple";
       ExecStart = "${emacs}/bin/emacs --fg-daemon";

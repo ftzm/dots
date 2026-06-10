@@ -163,7 +163,7 @@
     nil
     inputs.agenix.packages.x86_64-linux.agenix
 
-    claude-code
+    inputs.claude-code-nix.packages.${pkgs.system}.default
   ];
 
   programs.thunar.enable = true;

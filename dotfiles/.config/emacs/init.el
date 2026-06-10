@@ -147,6 +147,12 @@ See `eval-after-load' for the possible formats of FORM."
   (let ((fg (face-attribute 'default :foreground)))
     (set-face-attribute 'font-lock-function-name-face nil :foreground fg)
     (set-face-attribute 'font-lock-function-call-face nil :foreground fg))
+  ;; Dim the window divider to mode-line-inactive's grey. Source the color
+  ;; from the palette (doom-color), not (face-foreground 'mode-line-inactive):
+  ;; the latter returns nil at daemon-init and leaves the border the light
+  ;; default fg until the first eval-buffer.
+  (set-face-background 'vertical-border nil)
+  (set-face-foreground 'vertical-border (doom-color 'base4))
   ;; Must be used *after* the theme is loaded
   ;; (custom-set-faces
   ;;  `(font-lock-type-face ((t (:foreground ,(doom-color 'violet)))))
@@ -258,6 +264,7 @@ See `eval-after-load' for the possible formats of FORM."
 					;"e" '(flycheck-keys :which-key "error")
 					;"i" '(ivy-keys :which-key "ivy")
     "g" '(magit-keys :which-key "git")
+    "G" '(my/symex-guide-mode :which-key "symex guide")
     "o" '(org-global-hydra/body :which-key "org")
     "t" '(term-hydra/body :which-key "terminal")
     "p" '(project-keys :which-key "project")
@@ -1986,10 +1993,103 @@ in which case does avy-goto-char with the first char."
 (use-package geiser-chez
   :after geiser)
 
-(defun scheme-ts-auto-load-on-save ()
-  "Load current buffer into Geiser REPL on save."
-  (when (geiser-repl--connection*)
-    (geiser-load-current-buffer nil)))
+;; Defensive auto-heal for stale-session load errors -- KEPT, BUT POSSIBLY DEAD
+;; CODE.  The theory: Chez caches each imported library per session, so editing
+;; a library's exports and then loading a dependent could bind to a stale
+;; resident copy and fail with an unbound-identifier or "different compilation
+;; instance" error even though the source is correct; the cure is a clean
+;; reload from a fresh process.
+;;
+;; Caveat learned from testing (2026-06): I could NOT reproduce that failure
+;; through geiser's actual save-hook load path.  `geiser:load-file' uses
+;; `compile-and-load' (compile-file + load), which recompiles the target and
+;; re-reads dependency *source* on every load -- so it already self-heals.  The
+;; per-session staleness only showed up with raw interactive `(import ...)' at
+;; the REPL, not via this hook.  So this code may never fire on a save; it is
+;; kept only as a cheap safety net for staleness introduced by interactive
+;; imports.  It is at least harmless: a genuine error survives the clean
+;; restart, so we cache its text and stop -- one restart the first time an
+;; error appears, none thereafter, never a loop (this bound is unit-tested).
+(defconst scheme-ts--stale-error-rx
+  (rx (or "different compilation instance"
+          "unbound identifier"
+          "is not bound"
+          "not bound"
+          "not visible in"))
+  "Load-error signatures that may be stale-session artifacts worth one reload.")
+
+(defvar-local scheme-ts--last-confirmed-error nil
+  "Text of the last load error confirmed genuine by surviving a clean restart.
+While the same error persists we skip the restart instead of thrashing.")
+
+(defun scheme-ts--retort-error-text (ret)
+  "Combined error+output text of geiser load retort RET, or nil if it succeeded."
+  (let ((err (geiser-eval--retort-error ret)))
+    (when err
+      (string-trim
+       (format "%s %s"
+               (let ((m (geiser-eval--error-msg err)) ) (if m (format "%s" m) ""))
+               (or (geiser-eval--retort-output ret) ""))))))
+
+(defun scheme-ts--load-file-code ()
+  "Geiser eval code that loads the current buffer's file."
+  (list :load-file (file-local-name (buffer-file-name))))
+
+(defun scheme-ts-auto-load-on-save (&optional buf)
+  "Load BUF (default current) into the Chez REPL, healing stale-session errors.
+Loads asynchronously; on a stale-looking failure, restarts the REPL once and
+reloads from a clean slate (see `scheme-ts--stale-error-rx')."
+  (let ((buf (or buf (current-buffer))))
+    (when (and (buffer-live-p buf)
+               (buffer-file-name buf)
+               (geiser-repl--connection*))
+      (with-current-buffer buf
+        (let ((label (format "Loading %s" (file-local-name (buffer-file-name)))))
+          (geiser-autodoc--clean-cache)
+          (message "%s ..." label)
+          (geiser-eval--send
+           (scheme-ts--load-file-code)
+           (lambda (ret) (scheme-ts--after-load buf label ret))))))))
+
+(defun scheme-ts--after-load (buf label ret)
+  "Handle the first (async) load result RET for BUF, labelled LABEL."
+  (when (buffer-live-p buf)
+    (with-current-buffer buf
+      (let ((err (scheme-ts--retort-error-text ret)))
+        (cond
+         ((null err)                                   ; clean load
+          (setq scheme-ts--last-confirmed-error nil)
+          (message "%s done" label))
+         ((equal err scheme-ts--last-confirmed-error)  ; known genuine: no thrash
+          (geiser-debug--display-retort label ret))
+         ((string-match-p scheme-ts--stale-error-rx err)
+          ;; Defer out of the process filter, then restart + reload clean.
+          (run-at-time
+           0 nil
+           (lambda ()
+             (when (buffer-live-p buf)
+               (with-current-buffer buf
+                 (message "Scheme: REPL state may be stale; restarting Chez and reloading...")
+                 (geiser-repl-restart-repl)
+                 (scheme-ts--reload-after-restart buf label))))))
+         (t                                            ; ordinary error
+          (geiser-debug--display-retort label ret)))))))
+
+(defun scheme-ts--reload-after-restart (buf label)
+  "Reload BUF after a REPL restart; a surviving error is genuine, so cache it."
+  (when (and (buffer-live-p buf) (geiser-repl--connection*))
+    (with-current-buffer buf
+      (geiser-autodoc--clean-cache)
+      (let* ((ret (geiser-eval--send/wait (scheme-ts--load-file-code)))
+             (err (scheme-ts--retort-error-text ret)))
+        (if (null err)
+            (progn (setq scheme-ts--last-confirmed-error nil)
+                   (message "%s done (after clean restart)" label))
+          ;; Survived a fresh REPL => real error; remember it so the next save
+          ;; with the same error skips the restart.
+          (setq scheme-ts--last-confirmed-error err)
+          (geiser-debug--display-retort label ret)
+          (message "Scheme: error persists after a clean reload -- real error, not staleness."))))))
 
 (defun scheme-ts-ensure-repl ()
   "Start a Chez Geiser REPL if one isn't already running.
@@ -2016,11 +2116,41 @@ built-in / library procedures the REPL keeps no source for)."
       (let ((sym (thing-at-point 'symbol t)))
         (when sym (ignore-errors (xref-find-definitions sym)))))))
 
+(defun scheme-ts--load-when-ready (buf &optional tries)
+  "Load BUF into the Chez REPL once a connection exists, retrying until it does.
+Geiser evaluates a buffer's forms in that buffer's library module (here
+`(sqlite)' &c.), so until the file is loaded into the REPL every eval fails with
+\"library ... is not loaded\" -- the procedures appear \"undefined\".  The old
+open-time load fired exactly once and was simply skipped when the freshly
+cold-started REPL's connection wasn't live yet, so the file stayed unloaded
+until the first save.  We instead poll for the connection (~0.3s x 50 = 15s cap)
+and load as soon as it is up.  (We gate on the *connection*, not a probe eval:
+a probe would itself run in the not-yet-loaded module and never succeed.)"
+  (let ((tries (or tries 0)))
+    (when (and (buffer-live-p buf) (buffer-file-name buf))
+      (with-current-buffer buf
+        (cond
+         ((geiser-repl--connection*)
+          (ignore-errors (scheme-ts-auto-load-on-save buf)))
+         ((< tries 50)
+          (run-at-time 0.3 nil #'scheme-ts--load-when-ready buf (1+ tries)))
+         (t
+          (message "scheme-ts: Chez REPL never connected; %s not auto-loaded"
+                   (buffer-name buf))))))))
+
 (defun scheme-ts-setup-geiser ()
   "Activate geiser, ensure a REPL, and load the buffer for introspection.
 Loading the library into the REPL is what makes jump-to-definition,
-autodoc and completion work; without it geiser cannot resolve symbols."
-  (turn-on-geiser-mode)
+autodoc and completion work; without it geiser cannot resolve symbols.
+
+Geiser activation and REPL startup are wrapped in `with-demoted-errors':
+they spawn an external Chez process, and an error here would propagate out
+of `scheme-mode-hook' and abort `run-mode-hooks' *before*
+`after-change-major-mode-hook' -- the hook that enables font-lock.  A
+failed REPL start would then silently leave the buffer with no syntax
+highlighting (and no keybindings).  Demoting keeps the mode hook intact."
+  (with-demoted-errors "scheme-ts: geiser activation failed: %S"
+    (turn-on-geiser-mode))
   (add-hook 'after-save-hook #'scheme-ts-auto-load-on-save nil t)
   ;; M-.: Geiser first, then xref (whatever the project wires up) as fallback.
   ;; Override only M-. while inheriting the rest of `geiser-mode-map'.
@@ -2034,10 +2164,14 @@ autodoc and completion work; without it geiser cannot resolve symbols."
   (when (fboundp 'evil-local-set-key)
     (evil-local-set-key 'normal (kbd "gd") #'scheme-ts-find-definition))
   (when buffer-file-name
-    (scheme-ts-ensure-repl)
-    ;; Load this buffer into the REPL so M-. & friends resolve immediately.
-    (when (geiser-repl--connection*)
-      (ignore-errors (geiser-load-current-buffer nil)))))
+    (with-demoted-errors "scheme-ts: REPL startup failed: %S"
+      (scheme-ts-ensure-repl)
+      ;; Load this buffer into the REPL so M-. & friends resolve immediately.
+      ;; Deferred + retried rather than fired once inline: a just-cold-started
+      ;; REPL isn't reliably ready to eval the instant `geiser' returns, which
+      ;; used to leave the file unloaded until the first save (see
+      ;; `scheme-ts--load-when-ready').
+      (scheme-ts--load-when-ready (current-buffer)))))
 
 ;; General Scheme editing uses the built-in `scheme-mode'.  Benchmarks showed
 ;; `scheme-ts-mode' is ~3-4x slower at full fontification and ~2x slower per
@@ -2075,19 +2209,19 @@ autodoc and completion work; without it geiser cannot resolve symbols."
 ;; The dependency declarations exist only to register recipes for elpaca to
 ;; resolve `symex's Package-Requires.
 (use-package lithium
-  :elpaca (lithium :host github :repo "countvajhula/lithium"))
+  :ensure (lithium :host github :repo "countvajhula/lithium"))
 (use-package mantra
-  :elpaca (mantra :host github :repo "countvajhula/mantra"))
+  :ensure (mantra :host github :repo "countvajhula/mantra"))
 (use-package repeat-ring
-  :elpaca (repeat-ring :host github :repo "countvajhula/repeat-ring"))
+  :ensure (repeat-ring :host github :repo "countvajhula/repeat-ring"))
 (use-package pubsub
-  :elpaca (pubsub :host github :repo "countvajhula/pubsub"))
+  :ensure (pubsub :host github :repo "countvajhula/pubsub"))
 (use-package symex-core
-  :elpaca (symex-core :host github :repo "drym-org/symex.el"
+  :ensure (symex-core :host github :repo "drym-org/symex.el"
                       :files ("symex-core/*.el")))
 
 (use-package symex
-  :elpaca (symex :host github :repo "drym-org/symex.el"
+  :ensure (symex :host github :repo "drym-org/symex.el"
                  :files ("symex/*.el" "symex/doc/*.texi" "symex/doc/figures"))
   :demand t
   :config
@@ -2099,17 +2233,83 @@ autodoc and completion work; without it geiser cannot resolve symbols."
     (("r" symex-capture-forward)
      ("e" symex-emit-forward)
      ("R" symex-capture-backward)
-     ("E" symex-emit-backward))))
+     ("E" symex-emit-backward)))
+  ;; `s' = jump, mirroring the unbreakable normal-state `s' -> `flash-jump'
+  ;; habit instead of symex's default `s' -> `symex-replace'.  After the avy
+  ;; jump we re-select the symex at the landing point so symex's selection and
+  ;; overlay track point (no `:exit' -- we stay in symex).  The displaced
+  ;; `symex-replace' (clear a form's *contents*, keeping its delimiters) moves
+  ;; to `g c', reading as a `c'-family variant of `c' = `symex-change' (which
+  ;; deletes the whole node).  `g c' keeps `:exit' because `symex-replace'
+  ;; drops into insert state, which needs the modal mode to exit first.
+  (defun my/symex-flash-jump ()
+    "Avy-jump (the normal-mode `s' habit), then re-select the symex at point.
+Flash reads keys in a `read-char' loop while symex's modal map is the active
+`overriding-terminal-local-map' (lithium promotes it there).  With
+`which-key-show-transient-maps' on, which-key's idle timer would render that
+entire map over the jump prompt every 0.3s.  We bind it nil for the session:
+`which-key-inhibit' does NOT gate which-key's transient-map branch (see the
+second cond clause of `which-key--update'), only its normal prefix branch -- so
+suppressing this case specifically requires `which-key-show-transient-maps'.
+The bindings are dynamic, so the timer firing *during* the blocking read sees
+them."
+    (interactive)
+    (let ((which-key-show-transient-maps nil)
+          (which-key-inhibit t))
+      (call-interactively #'flash-jump))
+    (symex-select-nearest))
+  ;; `g d' goto-definition inside symex.  The normal-state `gd' (init.el:2165)
+  ;; is dead here because symex is its own evil state, so re-provide it on
+  ;; symex's `g' prefix.  Dispatch by major mode: Scheme gets the Geiser-then-
+  ;; xref path; Elisp/Lisp (and anything else) jump via plain `xref' on the
+  ;; symbol at point -- matching what normal-state `gd' resolves to there.
+  (defun my/symex-find-definition ()
+    "Jump to definition from symex: Geiser-aware in Scheme, `xref' elsewhere."
+    (interactive)
+    (if (derived-mode-p 'scheme-mode)
+        (scheme-ts-find-definition)
+      (let ((sym (thing-at-point 'symbol t)))
+        (if sym
+            (xref-find-definitions sym)
+          (call-interactively #'xref-find-definitions)))))
+  (lithium-define-keys symex-editing-mode
+    (("s" my/symex-flash-jump)
+     ("g c" symex-replace :exit)
+     ("g d" my/symex-find-definition))))
 
 ;; symex-evil — integrate symex with Evil: it defines a real evil `symex'
 ;; state (tag <λ>) and wires symex<->normal/insert transitions.  Must load
 ;; AFTER symex (it overrides symex-escape-higher / symex-enter-lower).
 (use-package symex-evil
-  :elpaca (symex-evil :host github :repo "drym-org/symex.el"
+  :ensure (symex-evil :host github :repo "drym-org/symex.el"
                       :files ("symex-evil/*.el"))
   :after (symex evil)
   :config
   (symex-evil-mode 1)
+  ;; Escape is a "go home to symex" key, never an eject.  symex-evil's default
+  ;; binds <escape> in symex to `symex-escape-higher' (which exits to evil
+  ;; normal); we make it sticky instead so symex is a home state you only leave
+  ;; deliberately.  The deliberate door is `\': `\' in symex drops to normal
+  ;; (the old escape action) and `\' in normal returns to symex (bound
+  ;; per-buffer in `my/lisp-symex-initial-state' below), making `\' a symmetric
+  ;; normal<->symex toggle.  Both overrides must run after `symex-evil-mode'
+  ;; installs symex-evil's own defaults.
+  (defun my/symex-stay ()
+    "Sticky <escape> in symex: end the key sequence but stay in symex state."
+    (interactive))
+  (lithium-define-keys symex-editing-mode
+    (("<escape>" my/symex-stay)
+     ("\\" symex-escape-higher)))
+  ;; Make the `SPC' leader work in symex too.  The leader lives in
+  ;; `general-override-mode-map' as a per-evil-state auxiliary keymap, defined
+  ;; only for normal/visual/motion -- so symex, a distinct evil state, has no
+  ;; leader.  Rather than re-list every binding for symex (and chase future
+  ;; ones), we parent the symex auxiliary onto the normal one: symex inherits
+  ;; the entire normal leader, now and as it grows.  `evil-normalize-keymaps'
+  ;; (run automatically on each state entry) activates it.
+  (set-keymap-parent
+   (evil-get-auxiliary-keymap general-override-mode-map 'symex t t)
+   (evil-get-auxiliary-keymap general-override-mode-map 'normal t t))
   ;; Make symex the initial state in Lisp buffers.  After the major mode and
   ;; evil have set the buffer up, enter symex via the natural
   ;; editing-mode -> evil-symex-state path (a reverse `evil-symex-state'
@@ -2118,8 +2318,31 @@ autodoc and completion work; without it geiser cannot resolve symbols."
   (defun my/lisp-symex-initial-state ()
     (when (and (bound-and-true-p evil-local-mode)
                (memq major-mode '(scheme-mode emacs-lisp-mode lisp-mode)))
+      ;; `\' returns to symex from evil normal state -- the mirror of symex's
+      ;; own `\' (-> normal) set above, giving a symmetric normal<->symex
+      ;; toggle.  Buffer-local so it only shadows `\' where symex applies.
+      (evil-local-set-key 'normal (kbd "\\") #'symex-mode-interface)
       (symex-mode-interface)))
   (add-hook 'after-change-major-mode-hook #'my/lisp-symex-initial-state 90)
+
+  ;; Reap leaked symex highlight overlays.  `symex--highlight' tracks its
+  ;; overlay in the buffer-local `symex--current-overlay' and only ever deletes
+  ;; *that* one -- but a major-mode change runs `kill-all-local-variables',
+  ;; which resets the pointer to nil WITHOUT deleting the overlay, orphaning it
+  ;; on screen where symex's own cleanup can no longer reach it (every
+  ;; `revert-buffer' or repeated `scheme-mode' leaks one).  The leak's sole
+  ;; cause is the mode change, so we sweep here, on `after-change-major-mode-hook'
+  ;; at default depth -- i.e. *before* `my/lisp-symex-initial-state' (depth 90)
+  ;; re-enters symex and makes the legitimate overlay.  We skip the overlay that
+  ;; equals `symex--current-overlay' so it stays correct even if ordering ever
+  ;; puts symex re-entry first: only genuine orphans are deleted.
+  (defun my/symex-reap-stray-highlights ()
+    (let ((current (and (boundp 'symex--current-overlay) symex--current-overlay)))
+      (dolist (o (overlays-in (point-min) (point-max)))
+        (when (and (eq (overlay-get o 'face) 'symex-highlight-face)
+                   (not (eq o current)))
+          (delete-overlay o)))))
+  (add-hook 'after-change-major-mode-hook #'my/symex-reap-stray-highlights)
 
   ;; Escape from insert returns to symex — but only when insert was entered
   ;; *from* symex (jmckernon's recipe, symex.el issue #164).  We deliberately
@@ -2139,6 +2362,72 @@ autodoc and completion work; without it geiser cannot resolve symbols."
     (when (and (eq evil-previous-state 'insert) my/entered-insert-from-symex)
       (symex-mode-interface)))
   (advice-add 'evil-normal-state :after #'my/return-to-symex-after-insert))
+
+;; Symex learning guide — a cheat sheet pinned in a right-side window.
+;; Toggle with `SPC G' (or M-x my/symex-guide-mode).  A temporary aid while
+;; learning symex; flip it off when fluent.  Not auto-enabled (the daemon has
+;; no frame at startup, and a side window needs one).
+(defvar my/symex-guide-text "\
+ SYMEX   open .scm/.el -> symex
+
+ NAVIGATE
+   h l   prev / next sibling
+   j k   into / out of form
+   f b   traverse fwd / back
+   0 $   first / last sibling
+
+ INSERT  (then type; esc -> symex)
+   i a   insert start / end
+   c     change node
+   o O   open line after / before
+
+ STRUCTURE
+   r e   slurp / barf (forward)
+   R E   slurp / barf (backward)
+   w     wrap in ( )
+   K     raise (promote)
+   -     splice (drop parens)
+   H L   shift left / right
+
+ EDIT
+   x     delete       y    yank
+   p P   paste after / before
+   =     tidy / reindent
+
+ EXIT
+   esc   -> normal    i -> insert
+")
+
+(defun my/symex-guide--buffer ()
+  "Return the symex-guide buffer, creating and filling it once."
+  (let ((buf (get-buffer-create "*symex guide*")))
+    (with-current-buffer buf
+      (when (zerop (buffer-size))
+        (let ((inhibit-read-only t))
+          (insert my/symex-guide-text))
+        (goto-char (point-min))
+        (setq-local mode-line-format nil)
+        (setq-local cursor-type nil)
+        (setq buffer-read-only t)))
+    buf))
+
+(defun my/symex-guide--show ()
+  "Display the guide in a pinned right-side window."
+  (display-buffer-in-side-window
+   (my/symex-guide--buffer)
+   '((side . right) (slot . 0) (window-width . 38)
+     (window-parameters . ((no-other-window . t)
+                           (no-delete-other-windows . t))))))
+
+(define-minor-mode my/symex-guide-mode
+  "Pin a symex keybinding cheat sheet in a side window while learning.
+The side window persists across `C-x 1' and splits on its own, and can
+be dismissed with this command (`SPC G') or by closing the window."
+  :global t
+  (if my/symex-guide-mode
+      (my/symex-guide--show)
+    (dolist (w (get-buffer-window-list "*symex guide*" nil t))
+      (when (window-live-p w) (delete-window w)))))
 
 (use-package rainbow-delimiters)
 
@@ -2475,9 +2764,6 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 
 (add-hook 'window-configuration-change-hook 'my-change-window-divider)
 
-(set-face-background 'vertical-border nil)
-(set-face-foreground 'vertical-border (face-foreground 'mode-line-inactive))
-
 (defun scroll-by-percent (percent)
   "Scroll by PERCENT of the window height.
 Positive values scroll down, negative values scroll up."
@@ -2559,10 +2845,10 @@ subprocess) so Claude Code redraws at the correct size."
 
 (use-package emacs-mcp
   :demand t
-  :elpaca (emacs-mcp :host github :repo "mpontus/emacs-mcp"))
+  :ensure (emacs-mcp :host github :repo "mpontus/emacs-mcp"))
 
 (use-package eca
-  :elpaca (eca :host github :repo "editor-code-assistant/eca-emacs"))
+  :ensure (eca :host github :repo "editor-code-assistant/eca-emacs"))
 
 (use-package zoom
   :config

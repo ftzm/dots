@@ -98,7 +98,7 @@ in
     nodejs
     yarn
     crowdin-cli
-    claude-code
+    inputs.claude-code-nix.packages.${pkgs.system}.default
     ripgrep
     fd
   ];

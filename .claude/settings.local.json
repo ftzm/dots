@@ -20,7 +20,13 @@
       "Bash(nix-shell:*)",
       "Bash(openspec new:*)",
       "WebFetch(domain:community.grafana.com)",
-      "WebFetch(domain:gethomepage.dev)"
+      "WebFetch(domain:gethomepage.dev)",
+      "Bash(emacsclient -e '\\(load \"/tmp/noq.el\"\\)')",
+      "Read(//tmp/**)",
+      "Bash(rm -f /tmp/noq.el /tmp/noq-result.txt)",
+      "Bash(cd ~/.config/emacs/elpaca/builds/symex)",
+      "Bash(grep -rn \"define-minor-mode symex-mode\\\\|define-globalized\\\\|defun symex-mode-interface\\\\|defun symex-mode \" ~/.config/emacs/elpaca/builds/symex*/)",
+      "Bash(emacsclient -e '\\(with-current-buffer \"sqlite.sls\" *)"
     ]
   }
 }
