@@ -17,6 +17,35 @@
   archiveScript = pkgs.writeShellScript "org-archive" ''
     ${emacs}/bin/emacsclient --eval "(ftzm/org-archive-old-tasks)"
   '';
+  # Periodic memory snapshot. On 2026-06-13 the daemon ballooned to ~60G RSS
+  # + 41G swap over ~2 days and tripped the OOM killer; the cause couldn't be
+  # pinned because the process was already gone. This appends a compact
+  # `memory-report' (top buffers + variables) to a log on a timer so the next
+  # slow leak is caught with evidence instead of guessed at.
+  memReportScript = pkgs.writeShellApplication {
+    name = "emacs-memory-report";
+    runtimeInputs = [pkgs.coreutils pkgs.systemd emacs];
+    text = ''
+      log="''${XDG_STATE_HOME:-$HOME/.local/state}/emacs-memory-report.log"
+      mkdir -p "$(dirname "$log")"
+      ts=$(date -Iseconds)
+      mem=$(systemctl --user show emacs.service -p MemoryCurrent --value 2>/dev/null || echo "?")
+      echo "==== $ts  MemoryCurrent=$mem bytes ====" >> "$log"
+      # Let emacs write the report itself (no shell-side escaping of newlines)
+      # and clean up its own *Memory Report* buffer so the logger can't leak.
+      if ! emacsclient --eval \
+          "(let ((f \"$log\")) (memory-report) (with-current-buffer \"*Memory Report*\" (write-region (point-min) (point-max) f t) (kill-buffer)) t)" \
+          >/dev/null 2>&1; then
+        echo "  (emacsclient unavailable)" >> "$log"
+      fi
+      echo >> "$log"
+      # keep the log bounded (~last 20k lines, several days of snapshots)
+      lines=$(wc -l < "$log")
+      if [ "$lines" -gt 20000 ]; then
+        tail -n 20000 "$log" > "$log.tmp" && mv "$log.tmp" "$log"
+      fi
+    '';
+  };
 in {
   environment.systemPackages = [
     emacs
@@ -59,6 +88,27 @@ in {
     timerConfig = {
       OnCalendar = "daily";
       Persistent = true;
+    };
+    wantedBy = ["timers.target"];
+  };
+
+  systemd.user.services.emacs-memory-report = {
+    description = "Snapshot Emacs daemon memory usage to a log";
+    after = ["emacs.service"];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${memReportScript}/bin/emacs-memory-report";
+      # memory-report walks every buffer/variable; on a bloated, swap-thrashing
+      # daemon that can be slow, but that snapshot is the one we most want.
+      TimeoutStartSec = 180;
+    };
+  };
+
+  systemd.user.timers.emacs-memory-report = {
+    description = "Periodic Emacs memory snapshot";
+    timerConfig = {
+      OnBootSec = "10min";
+      OnUnitActiveSec = "20min";
     };
     wantedBy = ["timers.target"];
   };
