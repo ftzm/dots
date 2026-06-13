@@ -40,19 +40,18 @@ in {
         "COLORTERM=truecolor"
         "PATH=/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin"
       ];
-      # Bound the whole emacs.service cgroup so a blowup can't take the session
-      # down. claudemacs runs builds/tests (cwasm-s5: chez, js140, node) as Emacs
-      # subprocesses, so their RAM + page cache is charged here. On 2026-06-13
-      # this cgroup hit 60G + 41G swap and triggered a *system-wide* OOM that
-      # killed the session. These limits contain it:
-      #   MemoryHigh   - soft: kernel reclaims (drops reclaimable page cache,
-      #                  most of the bloat) and throttles before trouble.
-      #   MemoryMax    - hard: a real runaway is OOM-killed *inside* this cgroup;
-      #                  the killer picks the largest process (the multi-GB
-      #                  build), so the ~350M emacs daemon survives, and it never
-      #                  escalates to a system-wide OOM.
-      #   MemorySwapMax- caps the swap-thrash that preceded the original OOM.
-      # Sized for this host's 62G RAM / 68G swap, leaving system headroom.
+      # Bound the emacs.service cgroup. Subprocesses launched under the daemon
+      # (LSP servers, terminals, build/test jobs, AI assistants) have their RAM
+      # and page cache charged here; left unbounded, one can grow until it
+      # triggers a system-wide OOM that kills the daemon along with everything
+      # else. These limits keep any such blowup contained to this cgroup:
+      #   MemoryHigh    - soft: reclaim (drops reclaimable page cache) + throttle.
+      #   MemoryMax     - hard: a runaway is OOM-killed within this cgroup, where
+      #                   the kernel targets the largest process rather than the
+      #                   small daemon -- the session survives instead of the
+      #                   whole machine OOMing.
+      #   MemorySwapMax - bounds swap so a runaway can't thrash the system.
+      # Sized for this host's RAM; revisit if the hardware changes.
       MemoryHigh = "24G";
       MemoryMax = "40G";
       MemorySwapMax = "8G";
