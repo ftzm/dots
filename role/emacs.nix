@@ -17,11 +17,13 @@
   archiveScript = pkgs.writeShellScript "org-archive" ''
     ${emacs}/bin/emacsclient --eval "(ftzm/org-archive-old-tasks)"
   '';
-  # Periodic memory snapshot. On 2026-06-13 the daemon ballooned to ~60G RSS
-  # + 41G swap over ~2 days and tripped the OOM killer; the cause couldn't be
-  # pinned because the process was already gone. This appends a compact
-  # `memory-report' (top buffers + variables) to a log on a timer so the next
-  # slow leak is caught with evidence instead of guessed at.
+  # Periodic memory snapshot. On 2026-06-13 the emacs.service *cgroup* ballooned
+  # to ~60G + 41G swap over ~2 days and tripped the OOM killer; the cause
+  # couldn't be pinned because the process was already gone. Investigation
+  # showed Emacs's own Lisp heap was tiny (~78 MiB) -- the bulk was child
+  # processes in the cgroup (claudemacs spawns `claude' CLIs, ~500M each).
+  # So this logs BOTH signals on a timer: the cgroup's per-process RSS (catches
+  # child-process blowups) and Emacs's `memory-report' (catches Lisp leaks).
   memReportScript = pkgs.writeShellApplication {
     name = "emacs-memory-report";
     runtimeInputs = [pkgs.coreutils pkgs.systemd emacs];
@@ -30,9 +32,26 @@
       mkdir -p "$(dirname "$log")"
       ts=$(date -Iseconds)
       mem=$(systemctl --user show emacs.service -p MemoryCurrent --value 2>/dev/null || echo "?")
-      echo "==== $ts  MemoryCurrent=$mem bytes ====" >> "$log"
-      # Let emacs write the report itself (no shell-side escaping of newlines)
-      # and clean up its own *Memory Report* buffer so the logger can't leak.
+      peak=$(systemctl --user show emacs.service -p MemoryPeak --value 2>/dev/null || echo "?")
+      {
+        echo "==== $ts  cgroup MemoryCurrent=$mem MemoryPeak=$peak bytes ===="
+        # Per-process RSS within the emacs.service cgroup. RSS via statm
+        # (field 2 = pages; *4 = KiB) to avoid an awk dependency.
+        cg=$(systemctl --user show emacs.service -p ControlGroup --value 2>/dev/null || echo "")
+        procs="/sys/fs/cgroup''${cg}/cgroup.procs"
+        if [ -r "$procs" ]; then
+          echo "-- cgroup processes by RSS (KiB) --"
+          while read -r pid; do
+            [ -r "/proc/$pid/statm" ] || continue
+            pages=$(cut -d' ' -f2 "/proc/$pid/statm" 2>/dev/null || echo 0)
+            cmd=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | cut -c1-80)
+            printf '%10d  %s  %s\n' "$(( pages * 4 ))" "$pid" "$cmd"
+          done < "$procs" | sort -rn | head -15 || true
+        fi
+      } >> "$log"
+      # Emacs Lisp-heap report: emacs writes the file itself (no shell-side
+      # newline escaping) and kills its own *Memory Report* buffer so the
+      # logger can't leak.
       if ! emacsclient --eval \
           "(let ((f \"$log\")) (memory-report) (with-current-buffer \"*Memory Report*\" (write-region (point-min) (point-max) f t) (kill-buffer)) t)" \
           >/dev/null 2>&1; then
