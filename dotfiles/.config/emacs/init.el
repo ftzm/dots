@@ -264,7 +264,6 @@ See `eval-after-load' for the possible formats of FORM."
 					;"e" '(flycheck-keys :which-key "error")
 					;"i" '(ivy-keys :which-key "ivy")
     "g" '(magit-keys :which-key "git")
-    "G" '(my/symex-guide-mode :which-key "symex guide")
     "o" '(org-global-hydra/body :which-key "org")
     "t" '(term-hydra/body :which-key "terminal")
     "p" '(project-keys :which-key "project")
@@ -1439,9 +1438,6 @@ in which case does avy-goto-char with the first char."
           (evil-insert-state)))
   )
 
-(use-package aggressive-indent
-  :hook (elisp-mode . aggressive-indent-mode))
-
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -2177,8 +2173,7 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
 ;; `scheme-ts-mode' is ~3-4x slower at full fontification and ~2x slower per
 ;; keystroke even at its lowest correct font-lock level: tree-sitter's
 ;; per-node query machinery is pure overhead on Scheme's trivial lexical
-;; structure, where regex font-lock is already near-optimal.  It also lacks
-;; symex emit/capture (unimplemented for the tree-sitter backend).
+;; structure, where regex font-lock is already near-optimal.
 ;;
 ;; `scheme-ts-mode' is kept ONLY to fontify scheme code blocks inside markdown
 ;; (see `markdown-ts-code-block-source-mode-map' below).  That path is
@@ -2202,242 +2197,94 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
     (add-to-list 'markdown-ts-code-block-source-mode-map
                  '(scheme . scheme-ts-mode))))
 
-;; Symex — modal, tree-structured editing for Lisp/Scheme, entered with
-;; `symex-mode-interface'.  Symex and its whole dependency tree are not on
-;; MELPA, so each package gets an explicit elpaca recipe; `symex-core' and
-;; `symex' live in subdirectories of the same monorepo (hence the :files).
-;; The dependency declarations exist only to register recipes for elpaca to
-;; resolve `symex's Package-Requires.
-(use-package lithium
-  :ensure (lithium :host github :repo "countvajhula/lithium"))
-(use-package mantra
-  :ensure (mantra :host github :repo "countvajhula/mantra"))
-(use-package repeat-ring
-  :ensure (repeat-ring :host github :repo "countvajhula/repeat-ring"))
-(use-package pubsub
-  :ensure (pubsub :host github :repo "countvajhula/pubsub"))
-(use-package symex-core
-  :ensure (symex-core :host github :repo "drym-org/symex.el"
-                      :files ("symex-core/*.el")))
+;; Structural editing for Lisp/Scheme: the full paredit editing surface from
+;; evil NORMAL state on a `,' localleader, paren-safe evil operators (without
+;; rebinding them), and continuous automatic indentation.  Replaces symex.
+;;
+;;   paredit                -> the editing command library (+ insert auto-pairing)
+;;   enhanced-evil-paredit  -> makes d/c/x/p paren-safe WITHOUT rebinding them
+;;   aggressive-indent      -> keeps the enclosing form correctly indented
+;;   general                -> the `,' localleader, scoped to paredit buffers
 
-(use-package symex
-  :ensure (symex :host github :repo "drym-org/symex.el"
-                 :files ("symex/*.el" "symex/doc/*.texi" "symex/doc/figures"))
-  :demand t
+;; The `,' localleader is scoped to `paredit-mode-map', so the only key it
+;; shadows is evil's `,' (repeat-find-char-reverse), and only inside lisp
+;; buffers -- everywhere else reverse-find-repeat is untouched.  It lives in
+;; paredit's own `:config' (which runs after paredit loads, so
+;; `paredit-mode-map' exists); `general' is already loaded eagerly (`:demand t'
+;; at the top of the file), so we must NOT re-declare it with `use-package
+;; general' here -- that re-queues the package in elpaca ("Duplicate item ID
+;; queued: general") and aborts init.
+(use-package paredit
+  :hook ((emacs-lisp-mode
+          lisp-mode
+          lisp-interaction-mode
+          scheme-mode
+          eval-expression-minibuffer-setup) . enable-paredit-mode)
   :config
-  (symex-mode 1)
-  ;; Emit/capture (barf/slurp) on home-row mnemonic keys: e = Emit, r =
-  ;; capture (reach).  Lowercase = forward (the common case), Shift =
-  ;; backward.  The default C-)/C-}/C-S-hjkl bindings remain as backups.
-  (lithium-define-keys symex-editing-mode
-    (("r" symex-capture-forward)
-     ("e" symex-emit-forward)
-     ("R" symex-capture-backward)
-     ("E" symex-emit-backward)))
-  ;; `s' = jump, mirroring the unbreakable normal-state `s' -> `flash-jump'
-  ;; habit instead of symex's default `s' -> `symex-replace'.  After the avy
-  ;; jump we re-select the symex at the landing point so symex's selection and
-  ;; overlay track point (no `:exit' -- we stay in symex).  The displaced
-  ;; `symex-replace' (clear a form's *contents*, keeping its delimiters) moves
-  ;; to `g c', reading as a `c'-family variant of `c' = `symex-change' (which
-  ;; deletes the whole node).  `g c' keeps `:exit' because `symex-replace'
-  ;; drops into insert state, which needs the modal mode to exit first.
-  (defun my/symex-flash-jump ()
-    "Avy-jump (the normal-mode `s' habit), then re-select the symex at point.
-Flash reads keys in a `read-char' loop while symex's modal map is the active
-`overriding-terminal-local-map' (lithium promotes it there).  With
-`which-key-show-transient-maps' on, which-key's idle timer would render that
-entire map over the jump prompt every 0.3s.  We bind it nil for the session:
-`which-key-inhibit' does NOT gate which-key's transient-map branch (see the
-second cond clause of `which-key--update'), only its normal prefix branch -- so
-suppressing this case specifically requires `which-key-show-transient-maps'.
-The bindings are dynamic, so the timer firing *during* the blocking read sees
-them."
-    (interactive)
-    (let ((which-key-show-transient-maps nil)
-          (which-key-inhibit t))
-      (call-interactively #'flash-jump))
-    (symex-select-nearest))
-  ;; `g d' goto-definition inside symex.  The normal-state `gd' (init.el:2165)
-  ;; is dead here because symex is its own evil state, so re-provide it on
-  ;; symex's `g' prefix.  Dispatch by major mode: Scheme gets the Geiser-then-
-  ;; xref path; Elisp/Lisp (and anything else) jump via plain `xref' on the
-  ;; symbol at point -- matching what normal-state `gd' resolves to there.
-  (defun my/symex-find-definition ()
-    "Jump to definition from symex: Geiser-aware in Scheme, `xref' elsewhere."
-    (interactive)
-    (if (derived-mode-p 'scheme-mode)
-        (scheme-ts-find-definition)
-      (let ((sym (thing-at-point 'symbol t)))
-        (if sym
-            (xref-find-definitions sym)
-          (call-interactively #'xref-find-definitions)))))
-  (lithium-define-keys symex-editing-mode
-    (("s" my/symex-flash-jump)
-     ("g c" symex-replace :exit)
-     ("g d" my/symex-find-definition))))
+  (general-create-definer my/lisp-localleader
+    :states  '(normal visual)
+    :keymaps 'paredit-mode-map
+    :prefix  ",")
 
-;; symex-evil — integrate symex with Evil: it defines a real evil `symex'
-;; state (tag <λ>) and wires symex<->normal/insert transitions.  Must load
-;; AFTER symex (it overrides symex-escape-higher / symex-enter-lower).
-(use-package symex-evil
-  :ensure (symex-evil :host github :repo "drym-org/symex.el"
-                      :files ("symex-evil/*.el"))
-  :after (symex evil)
-  :config
-  (symex-evil-mode 1)
-  ;; Escape is a "go home to symex" key, never an eject.  symex-evil's default
-  ;; binds <escape> in symex to `symex-escape-higher' (which exits to evil
-  ;; normal); we make it sticky instead so symex is a home state you only leave
-  ;; deliberately.  The deliberate door is `\': `\' in symex drops to normal
-  ;; (the old escape action) and `\' in normal returns to symex (bound
-  ;; per-buffer in `my/lisp-symex-initial-state' below), making `\' a symmetric
-  ;; normal<->symex toggle.  Both overrides must run after `symex-evil-mode'
-  ;; installs symex-evil's own defaults.
-  (defun my/symex-stay ()
-    "Sticky <escape> in symex: end the key sequence but stay in symex state."
-    (interactive))
-  (lithium-define-keys symex-editing-mode
-    (("<escape>" my/symex-stay)
-     ("\\" symex-escape-higher)))
-  ;; Make the `SPC' leader work in symex too.  The leader lives in
-  ;; `general-override-mode-map' as a per-evil-state auxiliary keymap, defined
-  ;; only for normal/visual/motion -- so symex, a distinct evil state, has no
-  ;; leader.  Rather than re-list every binding for symex (and chase future
-  ;; ones), we parent the symex auxiliary onto the normal one: symex inherits
-  ;; the entire normal leader, now and as it grows.  `evil-normalize-keymaps'
-  ;; (run automatically on each state entry) activates it.
-  (set-keymap-parent
-   (evil-get-auxiliary-keymap general-override-mode-map 'symex t t)
-   (evil-get-auxiliary-keymap general-override-mode-map 'normal t t))
-  ;; Make symex the initial state in Lisp buffers.  After the major mode and
-  ;; evil have set the buffer up, enter symex via the natural
-  ;; editing-mode -> evil-symex-state path (a reverse `evil-symex-state'
-  ;; entry hook recurses, so we don't use one).  Depth 90 makes this run
-  ;; after evil's own `after-change-major-mode-hook' so it isn't clobbered.
-  (defun my/lisp-symex-initial-state ()
-    (when (and (bound-and-true-p evil-local-mode)
-               (memq major-mode '(scheme-mode emacs-lisp-mode lisp-mode)))
-      ;; `\' returns to symex from evil normal state -- the mirror of symex's
-      ;; own `\' (-> normal) set above, giving a symmetric normal<->symex
-      ;; toggle.  Buffer-local so it only shadows `\' where symex applies.
-      (evil-local-set-key 'normal (kbd "\\") #'symex-mode-interface)
-      (symex-mode-interface)))
-  (add-hook 'after-change-major-mode-hook #'my/lisp-symex-initial-state 90)
+  (my/lisp-localleader
+    "" '(:ignore t :which-key "lisp")
 
-  ;; Reap leaked symex highlight overlays.  `symex--highlight' tracks its
-  ;; overlay in the buffer-local `symex--current-overlay' and only ever deletes
-  ;; *that* one -- but a major-mode change runs `kill-all-local-variables',
-  ;; which resets the pointer to nil WITHOUT deleting the overlay, orphaning it
-  ;; on screen where symex's own cleanup can no longer reach it (every
-  ;; `revert-buffer' or repeated `scheme-mode' leaks one).  The leak's sole
-  ;; cause is the mode change, so we sweep here, on `after-change-major-mode-hook'
-  ;; at default depth -- i.e. *before* `my/lisp-symex-initial-state' (depth 90)
-  ;; re-enters symex and makes the legitimate overlay.  We skip the overlay that
-  ;; equals `symex--current-overlay' so it stays correct even if ordering ever
-  ;; puts symex re-entry first: only genuine orphans are deleted.
-  (defun my/symex-reap-stray-highlights ()
-    (let ((current (and (boundp 'symex--current-overlay) symex--current-overlay)))
-      (dolist (o (overlays-in (point-min) (point-max)))
-        (when (and (eq (overlay-get o 'face) 'symex-highlight-face)
-                   (not (eq o current)))
-          (delete-overlay o)))))
-  (add-hook 'after-change-major-mode-hook #'my/symex-reap-stray-highlights)
+    ;; -- slurp / barf --------------------------------------------------
+    "s" '(paredit-forward-slurp-sexp   :which-key "slurp ->")
+    "b" '(paredit-forward-barf-sexp    :which-key "barf ->")
+    "S" '(paredit-backward-slurp-sexp  :which-key "slurp <-")
+    "B" '(paredit-backward-barf-sexp   :which-key "barf <-")
 
-  ;; Escape from insert returns to symex — but only when insert was entered
-  ;; *from* symex (jmckernon's recipe, symex.el issue #164).  We deliberately
-  ;; do NOT rebind <escape>: that would bypass evil's insert-exit machinery
-  ;; (point back-off, undo grouping, `.' repeat) and shadow corfu's
-  ;; escape-to-dismiss.  Instead we advise `evil-normal-state' :after, so the
-  ;; full escape runs first and we only *continue* into symex.  Hooks were
-  ;; ruled out by jmckernon: an exit hook infinite-regresses, an entry hook
-  ;; desyncs `evil-state'.  Corfu is unaffected — when its popup is open,
-  ;; <escape> hits `corfu-quit' and never reaches `evil-normal-state'.
-  (defvar-local my/entered-insert-from-symex nil
-    "Non-nil if this buffer's last insert-state entry came from symex.")
-  (defun my/note-insert-origin ()
-    (setq my/entered-insert-from-symex (eq evil-previous-state 'symex)))
-  (add-hook 'evil-insert-state-entry-hook #'my/note-insert-origin)
-  (defun my/return-to-symex-after-insert (&rest _)
-    (when (and (eq evil-previous-state 'insert) my/entered-insert-from-symex)
-      (symex-mode-interface)))
-  (advice-add 'evil-normal-state :after #'my/return-to-symex-after-insert))
+    ;; -- splice / raise / convolute ------------------------------------
+    "x" '(paredit-splice-sexp                  :which-key "splice")
+    "<" '(paredit-splice-sexp-killing-backward :which-key "splice kill <-")
+    ">" '(paredit-splice-sexp-killing-forward  :which-key "splice kill ->")
+    "r" '(paredit-raise-sexp                   :which-key "raise")
+    "v" '(paredit-convolute-sexp               :which-key "convolute")
 
-;; Symex learning guide — a cheat sheet pinned in a right-side window.
-;; Toggle with `SPC G' (or M-x my/symex-guide-mode).  A temporary aid while
-;; learning symex; flip it off when fluent.  Not auto-enabled (the daemon has
-;; no frame at startup, and a side window needs one).
-(defvar my/symex-guide-text "\
- SYMEX   open .scm/.el -> symex
+    ;; -- wrap (works on the visual selection too) ----------------------
+    "(" '(paredit-wrap-round        :which-key "wrap ()")
+    "[" '(paredit-wrap-square       :which-key "wrap []")
+    "{" '(paredit-wrap-curly        :which-key "wrap {}")
+    "\"" '(paredit-meta-doublequote :which-key "wrap \"\"")
 
- NAVIGATE
-   h l   prev / next sibling
-   j k   into / out of form
-   f b   traverse fwd / back
-   0 $   first / last sibling
+    ;; -- split / join / transpose --------------------------------------
+    "/" '(paredit-split-sexp :which-key "split")
+    "j" '(paredit-join-sexps :which-key "join")
+    "t" '(transpose-sexps    :which-key "transpose")
 
- INSERT  (then type; esc -> symex)
-   i a   insert start / end
-   c     change node
-   o O   open line after / before
+    ;; -- kill / comment ------------------------------------------------
+    "k" '(paredit-kill         :which-key "kill to eol")
+    ";" '(paredit-comment-dwim :which-key "comment dwim")
 
- STRUCTURE
-   r e   slurp / barf (forward)
-   R E   slurp / barf (backward)
-   w     wrap in ( )
-   K     raise (promote)
-   -     splice (drop parens)
-   H L   shift left / right
+    ;; -- navigation ----------------------------------------------------
+    "f" '(paredit-forward      :which-key "fwd sexp")
+    "h" '(paredit-backward     :which-key "back sexp")
+    "u" '(paredit-backward-up  :which-key "up (out)")
+    "n" '(paredit-forward-down :which-key "down (in)")
 
- EDIT
-   x     delete       y    yank
-   p P   paste after / before
-   =     tidy / reindent
+    ;; -- explicit reindent ---------------------------------------------
+    "=" '(paredit-reindent-defun :which-key "indent defun")))
 
- EXIT
-   esc   -> normal    i -> insert
-")
+;; enhanced-evil-paredit guards evil's operators without rebinding them: d / c /
+;; x / p keep their bindings and behavior, they just refuse to unbalance parens.
+;; This is the only "safety" layer needed.
+(use-package enhanced-evil-paredit
+  :hook (paredit-mode . enhanced-evil-paredit-mode))
 
-(defun my/symex-guide--buffer ()
-  "Return the symex-guide buffer, creating and filling it once."
-  (let ((buf (get-buffer-create "*symex guide*")))
-    (with-current-buffer buf
-      (when (zerop (buffer-size))
-        (let ((inhibit-read-only t))
-          (insert my/symex-guide-text))
-        (goto-char (point-min))
-        (setq-local mode-line-format nil)
-        (setq-local cursor-type nil)
-        (setq buffer-read-only t)))
-    buf))
-
-(defun my/symex-guide--show ()
-  "Display the guide in a pinned right-side window."
-  (display-buffer-in-side-window
-   (my/symex-guide--buffer)
-   '((side . right) (slot . 0) (window-width . 38)
-     (window-parameters . ((no-other-window . t)
-                           (no-delete-other-windows . t))))))
-
-(define-minor-mode my/symex-guide-mode
-  "Pin a symex keybinding cheat sheet in a side window while learning.
-The side window persists across `C-x 1' and splits on its own, and can
-be dismissed with this command (`SPC G') or by closing the window."
-  :global t
-  (if my/symex-guide-mode
-      (my/symex-guide--show)
-    (dolist (w (get-buffer-window-list "*symex guide*" nil t))
-      (when (window-live-p w) (delete-window w)))))
+;; Reindents the enclosing defun after every edit.  Safe here because paredit
+;; guarantees the structure stays balanced.
+(use-package aggressive-indent
+  :hook ((emacs-lisp-mode
+          lisp-mode
+          lisp-interaction-mode
+          scheme-mode
+          racket-mode) . aggressive-indent-mode))
 
 (use-package rainbow-delimiters)
 
 (use-package paren-face
   :hook ((racket-mode emacs-lisp-mode) . paren-face-mode)
-  )
-
-(use-package aggressive-indent
-  :ensure nil
-  :hook ((racket-mode emacs-lisp-mode) . aggressive-indent-mode)
   )
 
 
