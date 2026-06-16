@@ -16,7 +16,7 @@ spec:
         app.kubernetes.io/name: audiobookshelf
     spec:
       containers:
-      - image: advplyr/audiobookshelf:2.34.0
+      - image: advplyr/audiobookshelf:2.35.1
         name: audiobookshelf
         ports:
         - containerPort: 80
