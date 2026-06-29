@@ -27,6 +27,9 @@ tests:
   - hasDocuments:
       count: 1
   - equal:
+      path: metadata.namespace
+      value: sops
+  - equal:
       path: spec.selector.matchLabels
       value:
         app.kubernetes.io/instance: sops
@@ -55,6 +58,6 @@ tests:
         app.kubernetes.io/instance: sops
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: sops-secrets-operator
-        app.kubernetes.io/version: "0.21.0"
-        helm.sh/chart: sops-secrets-operator-0.27.1
+        app.kubernetes.io/version: "0.21.1"
+        helm.sh/chart: sops-secrets-operator-0.28.0
         custom-label: custom-value
