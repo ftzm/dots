@@ -41,6 +41,9 @@
       url = "github:sadjow/claude-code-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    kimi-code = {
+      url = "github:MoonshotAI/kimi-code";
+    };
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
     comin = {
       url = "github:nlewo/comin";

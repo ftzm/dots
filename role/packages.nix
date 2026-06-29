@@ -164,6 +164,7 @@
     inputs.agenix.packages.x86_64-linux.agenix
 
     inputs.claude-code-nix.packages.${pkgs.system}.default
+    inputs.kimi-code.packages.${pkgs.system}.kimi-code
   ];
 
   programs.thunar.enable = true;

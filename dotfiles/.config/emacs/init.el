@@ -2266,11 +2266,21 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
     ;; -- explicit reindent ---------------------------------------------
     "=" '(paredit-reindent-defun :which-key "indent defun")))
 
-;; enhanced-evil-paredit guards evil's operators without rebinding them: d / c /
-;; x / p keep their bindings and behavior, they just refuse to unbalance parens.
-;; This is the only "safety" layer needed.
+;; enhanced-evil-paredit makes d / c / x / p / y paren-safe -- but it does so by
+;; *rebinding* them in `enhanced-evil-paredit-mode-map' to its own operators
+;; (e.g. `c' -> `enhanced-evil-paredit-change').  That minor-mode map shadows the
+;; global `cc' -> `cw' dispatch defined on `c' up in the general config, so in
+;; lisp/scheme buffers `cc' would otherwise fall back to change-whole-line.
+;; Re-apply the same dispatch here on top of the paren-safe change operator: `cc'
+;; = change-word, while `c<motion>' stays balanced.
 (use-package enhanced-evil-paredit
-  :hook (paredit-mode . enhanced-evil-paredit-mode))
+  :hook (paredit-mode . enhanced-evil-paredit-mode)
+  :config
+  (general-define-key
+   :states  'normal
+   :keymaps 'enhanced-evil-paredit-mode-map
+   "c" (general-key-dispatch 'enhanced-evil-paredit-change
+         "c" (general-simulate-key ('enhanced-evil-paredit-change "e")))))
 
 ;; Reindents the enclosing defun after every edit.  Safe here because paredit
 ;; guarantees the structure stays balanced.
