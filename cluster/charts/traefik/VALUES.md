@@ -1,6 +1,6 @@
 # traefik
 
-![Version: 40.2.0](https://img.shields.io/badge/Version-40.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.7.1](https://img.shields.io/badge/AppVersion-v3.7.1-informational?style=flat-square)
+![Version: 41.0.1](https://img.shields.io/badge/Version-41.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.7.5](https://img.shields.io/badge/AppVersion-v3.7.5-informational?style=flat-square)
 
 A Traefik based Kubernetes ingress controller
 
@@ -27,6 +27,38 @@ Kubernetes: `>=1.25.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| accessLog | object | `{"addInternals":false,"bufferingSize":null,"dualOutput":false,"enabled":false,"fields":{"defaultMode":"keep","headers":{"defaultMode":"drop","names":{}},"names":{},"queryParameters":{"defaultMode":null}},"filters":{"minDuration":"","retryAttempts":false,"statusCodes":""},"format":null,"otlp":{"enabled":false,"grpc":{"enabled":false,"endpoint":"","insecure":false,"tls":{"ca":"","cert":"","insecureSkipVerify":null,"key":""}},"http":{"enabled":false,"endpoint":"","headers":{},"tls":{"ca":"","cert":"","insecureSkipVerify":null,"key":""}},"resourceAttributes":{},"serviceName":null},"timezone":""}` | See [access logs reference](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/) |
+| accessLog.addInternals | bool | `false` | Enables accessLogs for internal resources. Default: false. |
+| accessLog.bufferingSize | string | `nil` | Set [bufferingSize](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/#opt-accesslog-bufferingSize) |
+| accessLog.dualOutput | bool | `false` | Enables access log output alongside OTLP (v3.7+). |
+| accessLog.enabled | bool | `false` | To enable access logs |
+| accessLog.fields.defaultMode | string | `"keep"` | Set default mode for fields.names |
+| accessLog.fields.headers.defaultMode | string | `"drop"` | [Limit logged fields or headers](https://doc.traefik.io/traefik/observe/logs-and-access-logs/#log-fields-customization) |
+| accessLog.fields.names | object | `{}` | Names of the fields to limit. |
+| accessLog.fields.queryParameters.defaultMode | string | `nil` | Keep or drop all query parameters in the RequestPath access log field (v3.7.3+). |
+| accessLog.filters | object | See below | Set [filtering](https://doc.traefik.io/traefik/observe/logs-and-access-logs/#access-log-filters) |
+| accessLog.filters.minDuration | string | `""` | Set minDuration, to keep access logs when requests take longer than the specified duration |
+| accessLog.filters.retryAttempts | bool | `false` | Set retryAttempts, to keep the access logs when at least one retry has happened |
+| accessLog.filters.statusCodes | string | `""` | Set statusCodes, to limit the access logs to requests with a status codes in the specified range |
+| accessLog.format | string | `nil` | Set [access log format](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/#opt-accesslog-format) |
+| accessLog.otlp.enabled | bool | `false` | Set to true in order to enable OpenTelemetry on access logs. Note that experimental.otlpLogs needs to be enabled. |
+| accessLog.otlp.grpc.enabled | bool | `false` | Set to true in order to send access logs to the OpenTelemetry Collector using gRPC |
+| accessLog.otlp.grpc.endpoint | string | `""` | Format: <host>:<port>. Default: "localhost:4317" |
+| accessLog.otlp.grpc.insecure | bool | `false` | Allows reporter to send access logs to the OpenTelemetry Collector without using a secured protocol. |
+| accessLog.otlp.grpc.tls.ca | string | `""` | The path to the certificate authority, it defaults to the system bundle. |
+| accessLog.otlp.grpc.tls.cert | string | `""` | The path to the public certificate. When using this option, setting the key option is required. |
+| accessLog.otlp.grpc.tls.insecureSkipVerify | string | `nil` | When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers. |
+| accessLog.otlp.grpc.tls.key | string | `""` | The path to the private key. When using this option, setting the cert option is required. |
+| accessLog.otlp.http.enabled | bool | `false` | Set to true in order to send access logs to the OpenTelemetry Collector using HTTP. |
+| accessLog.otlp.http.endpoint | string | `""` | Format: <scheme>://<host>:<port><path>. Default: https://localhost:4318/v1/logs |
+| accessLog.otlp.http.headers | object | `{}` | Additional headers sent with access logs by the reporter to the OpenTelemetry Collector. |
+| accessLog.otlp.http.tls.ca | string | `""` | The path to the certificate authority, it defaults to the system bundle. |
+| accessLog.otlp.http.tls.cert | string | `""` | The path to the public certificate. When using this option, setting the key option is required. |
+| accessLog.otlp.http.tls.insecureSkipVerify | string | `nil` | When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers. |
+| accessLog.otlp.http.tls.key | string | `""` | The path to the private key. When using this option, setting the cert option is required. |
+| accessLog.otlp.resourceAttributes | object | `{}` | Defines additional resource attributes to be sent to the collector. |
+| accessLog.otlp.serviceName | string | `nil` | Service name used in OTLP backend. Default: traefik. |
+| accessLog.timezone | string | `""` | Set [timezone](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/#time-zones) |
 | additionalArguments | list | `[]` | Additional arguments to be passed at Traefik's binary See [CLI Reference](https://docs.traefik.io/reference/static-configuration/cli/) Use curly braces to pass values: `helm install --set="additionalArguments={--providers.kubernetesingress.ingressclass=traefik-internal,--log.level=DEBUG}"` |
 | additionalVolumeMounts | list | `[]` | Additional volumeMounts to add to the Traefik container |
 | affinity | object | `{}` | on nodes where no other traefik pods are scheduled. It should be used when hostNetwork: true to prevent port conflicts |
@@ -67,7 +99,7 @@ Kubernetes: `>=1.25.0-0`
 | deployment.podAnnotations | object | `{}` | Additional pod annotations (e.g. for mesh injection or prometheus scraping) It supports templating. One can set it with values like traefik/name: '{{ template "traefik.name" . }}' |
 | deployment.podLabels | object | `{}` | Additional Pod labels (e.g. for filtering Pod by custom labels) It supports templating. One can set it with values like traefik/name: '{{ template "traefik.name" . }}' |
 | deployment.readinessPath | string | `""` |  |
-| deployment.replicas | int | `1` | Number of pods of the deployment (only applies when kind == Deployment) |
+| deployment.replicas | int | `1` | Number of pods of the deployment (only applies when kind == Deployment). Set to null to omit spec.replicas, e.g. when an external controller (HPA/KEDA) owns scaling. |
 | deployment.revisionHistoryLimit | string | `nil` | Number of old history to retain to allow rollback (If not set, default Kubernetes value is set to 10) |
 | deployment.runtimeClassName | string | `""` | Set a runtimeClassName on pod |
 | deployment.shareProcessNamespace | bool | `false` | Use process namespace sharing |
@@ -216,8 +248,8 @@ Kubernetes: `>=1.25.0-0`
 | hub.tracing.additionalTraceHeaders.traceContext.traceState | string | `""` | Name of the header that will contain the tracestate copy. |
 | image.digest | string | `nil` | Traefik image digest (e.g. `sha256:abc...`). When set, takes precedence over `tag`. Set `versionOverride` alongside it so the chart's version-checking logic knows the version (it cannot be derived from the digest). |
 | image.pullPolicy | string | `"IfNotPresent"` | Traefik image pull policy |
-| image.registry | string | `"docker.io"` | Traefik image host registry |
-| image.repository | string | `"traefik"` | Traefik image repository |
+| image.registry | string | `nil` | Traefik image host registry. Defaults to `docker.io` for Traefik Proxy and `ghcr.io` for Traefik Hub (when `hub.token` is set). |
+| image.repository | string | `nil` | Traefik image repository. Defaults to `traefik` for Traefik Proxy and `traefik/traefik-hub` for Traefik Hub (when `hub.token` is set). |
 | image.tag | string | `nil` | defaults to appVersion. It's used for version checking, even prefixed with experimental- or latest-. To pin by digest, prefer `image.digest`. A `<version>@<digest>` combo is also accepted here; in that case the digest is what Kubernetes verifies and the version is informational (and can drift from the underlying image). |
 | ingressClass.enabled | bool | `true` | Create a default IngressClass for Traefik |
 | ingressClass.isDefaultClass | bool | `true` |  |
@@ -245,58 +277,28 @@ Kubernetes: `>=1.25.0-0`
 | livenessProbe.periodSeconds | int | `10` | The number of seconds to wait between consecutive probes. |
 | livenessProbe.successThreshold | int | `1` | The minimum consecutive successes required to consider the probe successful. |
 | livenessProbe.timeoutSeconds | int | `2` | The number of seconds to wait for a probe response before considering it as failed. |
-| logs.access.addInternals | bool | `false` | Enables accessLogs for internal resources. Default: false. |
-| logs.access.bufferingSize | string | `nil` | Set [bufferingSize](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/#opt-accesslog-bufferingSize) |
-| logs.access.dualOutput | bool | `false` | Enables access log output alongside OTLP (v3.7+). |
-| logs.access.enabled | bool | `false` | To enable access logs |
-| logs.access.fields.general.defaultmode | string | `"keep"` | Set default mode for fields.names |
-| logs.access.fields.general.names | object | `{}` | Names of the fields to limit. |
-| logs.access.fields.headers.defaultmode | string | `"drop"` | [Limit logged fields or headers](https://doc.traefik.io/traefik/observe/logs-and-access-logs/#log-fields-customization) |
-| logs.access.fields.headers.names | object | `{}` |  |
-| logs.access.filters | object | See below | Set [filtering](https://doc.traefik.io/traefik/observe/logs-and-access-logs/#access-log-filters) |
-| logs.access.filters.minduration | string | `""` | Set minDuration, to keep access logs when requests take longer than the specified duration |
-| logs.access.filters.retryattempts | bool | `false` | Set retryAttempts, to keep the access logs when at least one retry has happened |
-| logs.access.filters.statuscodes | string | `""` | Set statusCodes, to limit the access logs to requests with a status codes in the specified range |
-| logs.access.format | string | `nil` | Set [access log format](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/#opt-accesslog-format) |
-| logs.access.otlp.enabled | bool | `false` | Set to true in order to enable OpenTelemetry on access logs. Note that experimental.otlpLogs needs to be enabled. |
-| logs.access.otlp.grpc.enabled | bool | `false` | Set to true in order to send access logs to the OpenTelemetry Collector using gRPC |
-| logs.access.otlp.grpc.endpoint | string | `""` | Format: <host>:<port>. Default: "localhost:4317" |
-| logs.access.otlp.grpc.insecure | bool | `false` | Allows reporter to send access logs to the OpenTelemetry Collector without using a secured protocol. |
-| logs.access.otlp.grpc.tls.ca | string | `""` | The path to the certificate authority, it defaults to the system bundle. |
-| logs.access.otlp.grpc.tls.cert | string | `""` | The path to the public certificate. When using this option, setting the key option is required. |
-| logs.access.otlp.grpc.tls.insecureSkipVerify | string | `nil` | When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers. |
-| logs.access.otlp.grpc.tls.key | string | `""` | The path to the private key. When using this option, setting the cert option is required. |
-| logs.access.otlp.http.enabled | bool | `false` | Set to true in order to send access logs to the OpenTelemetry Collector using HTTP. |
-| logs.access.otlp.http.endpoint | string | `""` | Format: <scheme>://<host>:<port><path>. Default: https://localhost:4318/v1/logs |
-| logs.access.otlp.http.headers | object | `{}` | Additional headers sent with access logs by the reporter to the OpenTelemetry Collector. |
-| logs.access.otlp.http.tls.ca | string | `""` | The path to the certificate authority, it defaults to the system bundle. |
-| logs.access.otlp.http.tls.cert | string | `""` | The path to the public certificate. When using this option, setting the key option is required. |
-| logs.access.otlp.http.tls.insecureSkipVerify | string | `nil` | When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers. |
-| logs.access.otlp.http.tls.key | string | `""` | The path to the private key. When using this option, setting the cert option is required. |
-| logs.access.otlp.resourceAttributes | object | `{}` | Defines additional resource attributes to be sent to the collector. |
-| logs.access.otlp.serviceName | string | `nil` | Service name used in OTLP backend. Default: traefik. |
-| logs.access.timezone | string | `""` | Set [timezone](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/#time-zones) |
-| logs.general.filePath | string | `""` | To write the logs into a log file, use the filePath option. |
-| logs.general.format | string | `nil` | Set [logs format](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/#opt-log-format) |
-| logs.general.level | string | `"INFO"` | Alternative logging levels are TRACE, DEBUG, INFO, WARN, ERROR, FATAL, and PANIC. |
-| logs.general.noColor | bool | `false` | When set to true and format is common, it disables the colorized output. |
-| logs.general.otlp.enabled | bool | `false` | Set to true in order to enable OpenTelemetry on logs. Note that experimental.otlpLogs needs to be enabled. |
-| logs.general.otlp.grpc.enabled | bool | `false` | Set to true in order to send logs  to the OpenTelemetry Collector using gRPC |
-| logs.general.otlp.grpc.endpoint | string | `""` | Format: <host>:<port>. Default: "localhost:4317" |
-| logs.general.otlp.grpc.insecure | bool | `false` | Allows reporter to send logs to the OpenTelemetry Collector without using a secured protocol. |
-| logs.general.otlp.grpc.tls.ca | string | `""` | The path to the certificate authority, it defaults to the system bundle. |
-| logs.general.otlp.grpc.tls.cert | string | `""` | The path to the public certificate. When using this option, setting the key option is required. |
-| logs.general.otlp.grpc.tls.insecureSkipVerify | string | `nil` | When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers. |
-| logs.general.otlp.grpc.tls.key | string | `""` | The path to the private key. When using this option, setting the cert option is required. |
-| logs.general.otlp.http.enabled | bool | `false` | Set to true in order to send logs to the OpenTelemetry Collector using HTTP. |
-| logs.general.otlp.http.endpoint | string | `""` | Format: <scheme>://<host>:<port><path>. Default: https://localhost:4318/v1/logs |
-| logs.general.otlp.http.headers | object | `{}` | Additional headers sent with logs by the reporter to the OpenTelemetry Collector. |
-| logs.general.otlp.http.tls.ca | string | `""` | The path to the certificate authority, it defaults to the system bundle. |
-| logs.general.otlp.http.tls.cert | string | `""` | The path to the public certificate. When using this option, setting the key option is required. |
-| logs.general.otlp.http.tls.insecureSkipVerify | string | `nil` | When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers. |
-| logs.general.otlp.http.tls.key | string | `""` | The path to the private key. When using this option, setting the cert option is required. |
-| logs.general.otlp.resourceAttributes | object | `{}` | Defines additional resource attributes to be sent to the collector. |
-| logs.general.otlp.serviceName | string | `nil` | Service name used in OTLP backend. Default: traefik. |
+| log | object | `{"filePath":"","format":null,"level":"INFO","noColor":false,"otlp":{"enabled":false,"grpc":{"enabled":false,"endpoint":"","insecure":false,"tls":{"ca":"","cert":"","insecureSkipVerify":null,"key":""}},"http":{"enabled":false,"endpoint":"","headers":{},"tls":{"ca":"","cert":"","insecureSkipVerify":null,"key":""}},"resourceAttributes":{},"serviceName":null}}` | See [logs reference](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/) |
+| log.filePath | string | `""` | To write the logs into a log file, use the filePath option. |
+| log.format | string | `nil` | Set [logs format](https://doc.traefik.io/traefik/reference/install-configuration/observability/logs-and-accesslogs/#opt-log-format) |
+| log.level | string | `"INFO"` | Alternative logging levels are TRACE, DEBUG, INFO, WARN, ERROR, FATAL, and PANIC. |
+| log.noColor | bool | `false` | When set to true and format is common, it disables the colorized output. |
+| log.otlp.enabled | bool | `false` | Set to true in order to enable OpenTelemetry on logs. Note that experimental.otlpLogs needs to be enabled. |
+| log.otlp.grpc.enabled | bool | `false` | Set to true in order to send logs  to the OpenTelemetry Collector using gRPC |
+| log.otlp.grpc.endpoint | string | `""` | Format: <host>:<port>. Default: "localhost:4317" |
+| log.otlp.grpc.insecure | bool | `false` | Allows reporter to send logs to the OpenTelemetry Collector without using a secured protocol. |
+| log.otlp.grpc.tls.ca | string | `""` | The path to the certificate authority, it defaults to the system bundle. |
+| log.otlp.grpc.tls.cert | string | `""` | The path to the public certificate. When using this option, setting the key option is required. |
+| log.otlp.grpc.tls.insecureSkipVerify | string | `nil` | When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers. |
+| log.otlp.grpc.tls.key | string | `""` | The path to the private key. When using this option, setting the cert option is required. |
+| log.otlp.http.enabled | bool | `false` | Set to true in order to send logs to the OpenTelemetry Collector using HTTP. |
+| log.otlp.http.endpoint | string | `""` | Format: <scheme>://<host>:<port><path>. Default: https://localhost:4318/v1/logs |
+| log.otlp.http.headers | object | `{}` | Additional headers sent with logs by the reporter to the OpenTelemetry Collector. |
+| log.otlp.http.tls.ca | string | `""` | The path to the certificate authority, it defaults to the system bundle. |
+| log.otlp.http.tls.cert | string | `""` | The path to the public certificate. When using this option, setting the key option is required. |
+| log.otlp.http.tls.insecureSkipVerify | string | `nil` | When set to true, the TLS connection accepts any certificate presented by the server regardless of the hostnames it covers. |
+| log.otlp.http.tls.key | string | `""` | The path to the private key. When using this option, setting the cert option is required. |
+| log.otlp.resourceAttributes | object | `{}` | Defines additional resource attributes to be sent to the collector. |
+| log.otlp.serviceName | string | `nil` | Service name used in OTLP backend. Default: traefik. |
 | metrics.addInternals | bool | `false` | Enable metrics for internal resources. Default: false |
 | metrics.otlp.addEntryPointsLabels | string | `nil` | Enable metrics on entry points. Default: true |
 | metrics.otlp.addRoutersLabels | string | `nil` | Enable metrics on routers. Default: false |
@@ -445,7 +447,7 @@ Kubernetes: `>=1.25.0-0`
 | ports.websecure.transport.respondingTimeouts.readTimeout | string | `nil` |  |
 | ports.websecure.transport.respondingTimeouts.writeTimeout | string | `nil` |  |
 | priorityClassName | string | `""` | [Pod Priority and Preemption](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/) |
-| providers.file.content | string | `""` | File content (YAML format, go template supported) (see https://doc.traefik.io/traefik/reference/install-configuration/providers/others/file/) |
+| providers.file.content | object | `{}` | File content as an object (will be YAML-formatted, go template supported) (see https://doc.traefik.io/traefik/reference/install-configuration/providers/others/file/) |
 | providers.file.enabled | bool | `false` | Create a file provider |
 | providers.file.watch | bool | `true` | Allows Traefik to automatically watch for file changes |
 | providers.knative.enabled | bool | `false` | Enable Knative provider |
@@ -460,12 +462,14 @@ Kubernetes: `>=1.25.0-0`
 | providers.kubernetesCRD.labelSelector | string | `""` | See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-ingress/#opt-providers-kubernetesIngress-labelselector) |
 | providers.kubernetesCRD.namespaces | list | `[]` | Array of namespaces to watch. If left empty, Traefik watches all namespaces. . When using `rbac.namespaced`, it will watch helm release namespace and namespaces listed in this array. |
 | providers.kubernetesCRD.nativeLBByDefault | bool | `false` | Defines whether to use Native Kubernetes load-balancing mode by default. |
+| providers.kubernetesGateway.burst | string | `nil` | Maximum burst of requests to the Kubernetes API server (v3.7.3+). Defaults to 100. |
 | providers.kubernetesGateway.crossProviderNamespaces | list | `[]` | List of namespaces from which Gateway API routes are allowed to declare TraefikService backendRef references. Requires traefik v3.7.1+. |
 | providers.kubernetesGateway.enabled | bool | `false` | Enable Traefik Gateway provider for Gateway API |
 | providers.kubernetesGateway.experimentalChannel | bool | `false` | Toggles support for the Experimental Channel resources (Gateway API release channels documentation). This option currently enables support for TCPRoute and TLSRoute. |
 | providers.kubernetesGateway.labelSelector | string | `""` | A label selector can be defined to filter on specific GatewayClass objects only. |
 | providers.kubernetesGateway.namespaces | list | `[]` | Array of namespaces to watch. If left empty, Traefik watches all namespaces. kubernetesGateway provider requires ClusterRole and as a consequence `rbac.namespaced` is not supported. |
 | providers.kubernetesGateway.nativeLBByDefault | bool | `false` | Defines whether to use Native Kubernetes load-balancing mode by default. |
+| providers.kubernetesGateway.qps | string | `nil` | Maximum QPS to the Kubernetes API server. A negative value disables client-side ratelimiting (v3.7.3+). Defaults to 50. |
 | providers.kubernetesGateway.statusAddress.hostname | string | `""` | This Hostname will get copied to the Gateway status.addresses. |
 | providers.kubernetesGateway.statusAddress.ip | string | `""` | This IP will get copied to the Gateway status.addresses, and currently only supports one IP value (IPv4 or IPv6). |
 | providers.kubernetesGateway.statusAddress.service.enabled | bool | `true` | The Kubernetes service to copy status addresses from. When using third parties tools like External-DNS, this option can be used to copy the service loadbalancer.status (containing the service's endpoints IPs) to the gateways. Default to Service of this Chart. |
@@ -519,8 +523,8 @@ Kubernetes: `>=1.25.0-0`
 | providers.kubernetesIngressNGINX.proxyReadTimeout | string | `nil` | Amount of time between two successive read operations. Unitless, in seconds (default: 60) |
 | providers.kubernetesIngressNGINX.proxyRequestBuffering | string | `nil` | Defines whether to enable request buffering (default: false) |
 | providers.kubernetesIngressNGINX.proxySendTimeout | string | `nil` | Amount of time between two successive write operations. Unitless, in seconds (default: 60) |
-| providers.kubernetesIngressNGINX.publishService.enabled | bool | `false` | Service fronting the Ingress controller. Takes the form 'namespace/name' |
-| providers.kubernetesIngressNGINX.publishService.pathOverride | string | `""` |  |
+| providers.kubernetesIngressNGINX.publishService.enabled | bool | `false` | Enable publishService. Service fronting the Ingress controller, used to set the load-balancer status of Ingress objects. Usually the Service provided by this Chart. It's possible to use it with an external Service using pathOverride. |
+| providers.kubernetesIngressNGINX.publishService.pathOverride | string | `""` | Override path of Kubernetes Service used to copy status from. Format: namespace/servicename. Default to Service deployed with this Chart. |
 | providers.kubernetesIngressNGINX.publishStatusAddress | string | `""` | Customized address (or addresses, separated by comma) to set as the load-balancer status of Ingress objects this controller satisfies |
 | providers.kubernetesIngressNGINX.strictValidatePathType | string | `nil` | Defines whether to reject the entire ingress when any path contains regex characters and pathType is Prefix or Exact (default: true) |
 | providers.kubernetesIngressNGINX.throttleDuration | string | `""` | Ingress refresh throttle duration |
