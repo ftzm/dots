@@ -118,7 +118,11 @@
     ];
     hostKeys = ["/etc/secrets/initrd/ssh_host_rsa_key"];
   };
-  boot.kernelParams = ["ip=dhcp" "i915.force_probe=4c8a"];
+  # Disable NVMe APST deep power states. The FireCuda 530 (fw SU6SM003) drops
+  # into non-operational PS3/PS4 after 100ms idle and stalls on wake, causing
+  # write-command timeouts -> silent write loss -> store corruption. Operational
+  # states PS0-2 have 0us exit latency, so no throughput cost under load.
+  boot.kernelParams = ["ip=dhcp" "i915.force_probe=4c8a" "nvme_core.default_ps_max_latency_us=0"];
   boot.initrd.availableKernelModules = ["r8169"];
 
   # Setup keyfile
