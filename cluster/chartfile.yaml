@@ -39,7 +39,7 @@ requires:
   - chart: grafana-community/tempo
     version: "2.2.0"
   - chart: grafana/alloy
-    version: "1.8.2"
+    version: "1.10.1"
   - chart: sealed-secrets/sealed-secrets
     version: "2.18.6"
   - chart: jetstack/cert-manager
