@@ -16,7 +16,7 @@ image:
   # -- Operator image name
   repository: quay.io/isindir/sops-secrets-operator
   # -- Operator image tag
-  tag: "0.21.0"
+  tag: "0.21.1"
   # -- Operator image pull policy
   pullPolicy: Always
 
@@ -35,6 +35,8 @@ imagePullSecrets: []
 nameOverride: ""
 # -- Overrides auto-generated long resource name
 fullnameOverride: ""
+# -- Overrides the release namespace rendered into metadata. Defaults to the release namespace when empty. Useful for GitOps tooling (e.g. Kustomize/ArgoCD) that consumes `helm template` output.
+namespaceOverride: ""
 
 # -- Annotations to be added to operator pod
 podAnnotations: {}

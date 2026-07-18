@@ -248,7 +248,7 @@
       wakeonlan
       nodejs_24
       ripgrep
-      claude-code
+      inputs.claude-code-nix.packages.${pkgs.system}.default
     ];
     hashedPasswordFile = "/persist/passwords/ftzm";
   };

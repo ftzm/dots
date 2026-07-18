@@ -1,0 +1,12 @@
+;; geiser-chez startup file (geiser-chez-init-file, default ~/.chez-geiser).
+;; geiser launches the REPL with `--compile-imported-libraries`, which makes
+;; Chez compile every imported library and write its .so next to the source.
+;; Libraries installed via akku/nix (e.g. (srfi :64)) live in the read-only
+;; Nix store, so that write fails:
+;;   Exception in compile-library: failed for .../:64.chezscheme.so:
+;;   read-only file system
+;; geiser loads this file right after that flag, so turning the parameter back
+;; off here disables compilation for the dev REPL. Imported libraries are
+;; interpreted instead -- fine for jump-to-def/autodoc/completion, and no .so
+;; is written anywhere.
+(compile-imported-libraries #f)

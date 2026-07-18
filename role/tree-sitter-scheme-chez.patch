@@ -1,0 +1,19 @@
+--- a/grammar.js
++++ b/grammar.js
+@@ -104,14 +104,11 @@
+           repeat(common.intra_whitespace)),
+         /[xX][0-9a-fA-F]+;/)),
+   symbol:
++    // Chez dialect: backslash is a literal char inside |...|, the next | closes.
++    // (R7RS treats \\| as an escaped pipe, which mis-parses Chez's |\\| = symbol \\.)
+     seq(
+       "|",
+-      repeat(
+-        choice(
+-          /[^\|\\]+/,
+-          /\\[xX][0-9a-fA-F]+;/,
+-          /\\[abtnr]/,
+-          "\\|")),
++      repeat(/[^\|]+/),
+       "|")
+ };

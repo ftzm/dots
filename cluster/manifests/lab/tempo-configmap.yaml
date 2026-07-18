@@ -25,7 +25,6 @@ data:
                   endpoint: 0.0.0.0:6831
                 thrift_http:
                   endpoint: 0.0.0.0:14268
-            opencensus: null
             otlp:
               protocols:
                 grpc:
@@ -56,7 +55,7 @@ metadata:
     app.kubernetes.io/instance: tempo
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: tempo
-    app.kubernetes.io/version: 2.10.5
-    helm.sh/chart: tempo-2.2.0
+    app.kubernetes.io/version: 2.10.7
+    helm.sh/chart: tempo-2.2.3
   name: tempo
   namespace: monitoring

@@ -141,6 +141,18 @@ See `eval-after-load' for the possible formats of FORM."
 (use-package doom-themes
   :config
   (load-theme 'doom-gruvbox t)
+  ;; doom-themes italicizes function calls; turn that off.
+  (set-face-attribute 'font-lock-function-call-face nil :slant 'normal)
+  ;; Use the default foreground for function defs and calls (was green).
+  (let ((fg (face-attribute 'default :foreground)))
+    (set-face-attribute 'font-lock-function-name-face nil :foreground fg)
+    (set-face-attribute 'font-lock-function-call-face nil :foreground fg))
+  ;; Dim the window divider to mode-line-inactive's grey. Source the color
+  ;; from the palette (doom-color), not (face-foreground 'mode-line-inactive):
+  ;; the latter returns nil at daemon-init and leaves the border the light
+  ;; default fg until the first eval-buffer.
+  (set-face-background 'vertical-border nil)
+  (set-face-foreground 'vertical-border (doom-color 'base4))
   ;; Must be used *after* the theme is loaded
   ;; (custom-set-faces
   ;;  `(font-lock-type-face ((t (:foreground ,(doom-color 'violet)))))
@@ -1426,9 +1438,6 @@ in which case does avy-goto-char with the first char."
           (evil-insert-state)))
   )
 
-(use-package aggressive-indent
-  :hook (elisp-mode . aggressive-indent-mode))
-
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -1974,13 +1983,318 @@ in which case does avy-goto-char with the first char."
 
 (use-package racket-mode)
 
+(use-package geiser
+  :defer t)
+
+(use-package geiser-chez
+  :after geiser)
+
+;; Defensive auto-heal for stale-session load errors -- KEPT, BUT POSSIBLY DEAD
+;; CODE.  The theory: Chez caches each imported library per session, so editing
+;; a library's exports and then loading a dependent could bind to a stale
+;; resident copy and fail with an unbound-identifier or "different compilation
+;; instance" error even though the source is correct; the cure is a clean
+;; reload from a fresh process.
+;;
+;; Caveat learned from testing (2026-06): I could NOT reproduce that failure
+;; through geiser's actual save-hook load path.  `geiser:load-file' uses
+;; `compile-and-load' (compile-file + load), which recompiles the target and
+;; re-reads dependency *source* on every load -- so it already self-heals.  The
+;; per-session staleness only showed up with raw interactive `(import ...)' at
+;; the REPL, not via this hook.  So this code may never fire on a save; it is
+;; kept only as a cheap safety net for staleness introduced by interactive
+;; imports.  It is at least harmless: a genuine error survives the clean
+;; restart, so we cache its text and stop -- one restart the first time an
+;; error appears, none thereafter, never a loop (this bound is unit-tested).
+(defconst scheme-ts--stale-error-rx
+  (rx (or "different compilation instance"
+          "unbound identifier"
+          "is not bound"
+          "not bound"
+          "not visible in"))
+  "Load-error signatures that may be stale-session artifacts worth one reload.")
+
+(defvar-local scheme-ts--last-confirmed-error nil
+  "Text of the last load error confirmed genuine by surviving a clean restart.
+While the same error persists we skip the restart instead of thrashing.")
+
+(defun scheme-ts--retort-error-text (ret)
+  "Combined error+output text of geiser load retort RET, or nil if it succeeded."
+  (let ((err (geiser-eval--retort-error ret)))
+    (when err
+      (string-trim
+       (format "%s %s"
+               (let ((m (geiser-eval--error-msg err)) ) (if m (format "%s" m) ""))
+               (or (geiser-eval--retort-output ret) ""))))))
+
+(defun scheme-ts--load-file-code ()
+  "Geiser eval code that loads the current buffer's file."
+  (list :load-file (file-local-name (buffer-file-name))))
+
+(defun scheme-ts-auto-load-on-save (&optional buf)
+  "Load BUF (default current) into the Chez REPL, healing stale-session errors.
+Loads asynchronously; on a stale-looking failure, restarts the REPL once and
+reloads from a clean slate (see `scheme-ts--stale-error-rx')."
+  (let ((buf (or buf (current-buffer))))
+    (when (and (buffer-live-p buf)
+               (buffer-file-name buf)
+               (geiser-repl--connection*))
+      (with-current-buffer buf
+        (let ((label (format "Loading %s" (file-local-name (buffer-file-name)))))
+          (geiser-autodoc--clean-cache)
+          (message "%s ..." label)
+          (geiser-eval--send
+           (scheme-ts--load-file-code)
+           (lambda (ret) (scheme-ts--after-load buf label ret))))))))
+
+(defun scheme-ts--after-load (buf label ret)
+  "Handle the first (async) load result RET for BUF, labelled LABEL."
+  (when (buffer-live-p buf)
+    (with-current-buffer buf
+      (let ((err (scheme-ts--retort-error-text ret)))
+        (cond
+         ((null err)                                   ; clean load
+          (setq scheme-ts--last-confirmed-error nil)
+          (message "%s done" label))
+         ((equal err scheme-ts--last-confirmed-error)  ; known genuine: no thrash
+          (geiser-debug--display-retort label ret))
+         ((string-match-p scheme-ts--stale-error-rx err)
+          ;; Defer out of the process filter, then restart + reload clean.
+          (run-at-time
+           0 nil
+           (lambda ()
+             (when (buffer-live-p buf)
+               (with-current-buffer buf
+                 (message "Scheme: REPL state may be stale; restarting Chez and reloading...")
+                 (geiser-repl-restart-repl)
+                 (scheme-ts--reload-after-restart buf label))))))
+         (t                                            ; ordinary error
+          (geiser-debug--display-retort label ret)))))))
+
+(defun scheme-ts--reload-after-restart (buf label)
+  "Reload BUF after a REPL restart; a surviving error is genuine, so cache it."
+  (when (and (buffer-live-p buf) (geiser-repl--connection*))
+    (with-current-buffer buf
+      (geiser-autodoc--clean-cache)
+      (let* ((ret (geiser-eval--send/wait (scheme-ts--load-file-code)))
+             (err (scheme-ts--retort-error-text ret)))
+        (if (null err)
+            (progn (setq scheme-ts--last-confirmed-error nil)
+                   (message "%s done (after clean restart)" label))
+          ;; Survived a fresh REPL => real error; remember it so the next save
+          ;; with the same error skips the restart.
+          (setq scheme-ts--last-confirmed-error err)
+          (geiser-debug--display-retort label ret)
+          (message "Scheme: error persists after a clean reload -- real error, not staleness."))))))
+
+(defun scheme-ts-ensure-repl ()
+  "Start a Chez Geiser REPL if one isn't already running.
+Starts it in the background so the current window layout is preserved.
+Return non-nil when a new REPL was started."
+  (unless (seq-some (lambda (b)
+                      (and (buffer-live-p b)
+                           (get-buffer-process b)
+                           (with-current-buffer b
+                             (eq geiser-impl--implementation 'chez))))
+                    geiser-repl--repls)
+    (save-window-excursion (geiser 'chez))
+    t))
+
+(defun scheme-ts-find-definition ()
+  "Jump to definition, preferring Geiser, then falling back to `xref'.
+Geiser resolves symbols the running REPL knows (your loaded code); xref
+covers whatever a project makes available to it (e.g. an etags index for
+built-in / library procedures the REPL keeps no source for)."
+  (interactive)
+  (let ((start (point)) (start-buf (current-buffer)))
+    (condition-case nil (geiser-edit-symbol-at-point) (error nil))
+    (when (and (eq (current-buffer) start-buf) (= (point) start))
+      (let ((sym (thing-at-point 'symbol t)))
+        (when sym (ignore-errors (xref-find-definitions sym)))))))
+
+(defun scheme-ts--load-when-ready (buf &optional tries)
+  "Load BUF into the Chez REPL once a connection exists, retrying until it does.
+Geiser evaluates a buffer's forms in that buffer's library module (here
+`(sqlite)' &c.), so until the file is loaded into the REPL every eval fails with
+\"library ... is not loaded\" -- the procedures appear \"undefined\".  The old
+open-time load fired exactly once and was simply skipped when the freshly
+cold-started REPL's connection wasn't live yet, so the file stayed unloaded
+until the first save.  We instead poll for the connection (~0.3s x 50 = 15s cap)
+and load as soon as it is up.  (We gate on the *connection*, not a probe eval:
+a probe would itself run in the not-yet-loaded module and never succeed.)"
+  (let ((tries (or tries 0)))
+    (when (and (buffer-live-p buf) (buffer-file-name buf))
+      (with-current-buffer buf
+        (cond
+         ((geiser-repl--connection*)
+          (ignore-errors (scheme-ts-auto-load-on-save buf)))
+         ((< tries 50)
+          (run-at-time 0.3 nil #'scheme-ts--load-when-ready buf (1+ tries)))
+         (t
+          (message "scheme-ts: Chez REPL never connected; %s not auto-loaded"
+                   (buffer-name buf))))))))
+
+(defun scheme-ts-setup-geiser ()
+  "Activate geiser, ensure a REPL, and load the buffer for introspection.
+Loading the library into the REPL is what makes jump-to-definition,
+autodoc and completion work; without it geiser cannot resolve symbols.
+
+Geiser activation and REPL startup are wrapped in `with-demoted-errors':
+they spawn an external Chez process, and an error here would propagate out
+of `scheme-mode-hook' and abort `run-mode-hooks' *before*
+`after-change-major-mode-hook' -- the hook that enables font-lock.  A
+failed REPL start would then silently leave the buffer with no syntax
+highlighting (and no keybindings).  Demoting keeps the mode hook intact."
+  (with-demoted-errors "scheme-ts: geiser activation failed: %S"
+    (turn-on-geiser-mode))
+  (add-hook 'after-save-hook #'scheme-ts-auto-load-on-save nil t)
+  ;; M-.: Geiser first, then xref (whatever the project wires up) as fallback.
+  ;; Override only M-. while inheriting the rest of `geiser-mode-map'.
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map geiser-mode-map)
+    (define-key map (kbd "M-.") #'scheme-ts-find-definition)
+    (setq-local minor-mode-overriding-map-alist
+                (cons (cons 'geiser-mode map) minor-mode-overriding-map-alist)))
+  ;; evil `gd': evil-collection binds it straight to `geiser-edit-symbol-at-point';
+  ;; a buffer-local binding wins over that minor-mode map and adds the fallback.
+  (when (fboundp 'evil-local-set-key)
+    (evil-local-set-key 'normal (kbd "gd") #'scheme-ts-find-definition))
+  (when buffer-file-name
+    (with-demoted-errors "scheme-ts: REPL startup failed: %S"
+      (scheme-ts-ensure-repl)
+      ;; Load this buffer into the REPL so M-. & friends resolve immediately.
+      ;; Deferred + retried rather than fired once inline: a just-cold-started
+      ;; REPL isn't reliably ready to eval the instant `geiser' returns, which
+      ;; used to leave the file unloaded until the first save (see
+      ;; `scheme-ts--load-when-ready').
+      (scheme-ts--load-when-ready (current-buffer)))))
+
+;; General Scheme editing uses the built-in `scheme-mode'.  Benchmarks showed
+;; `scheme-ts-mode' is ~3-4x slower at full fontification and ~2x slower per
+;; keystroke even at its lowest correct font-lock level: tree-sitter's
+;; per-node query machinery is pure overhead on Scheme's trivial lexical
+;; structure, where regex font-lock is already near-optimal.
+;;
+;; `scheme-ts-mode' is kept ONLY to fontify scheme code blocks inside markdown
+;; (see `markdown-ts-code-block-source-mode-map' below).  That path is
+;; mandatory: `markdown-ts-mode' harvests `treesit-font-lock-settings' from the
+;; mapped mode and fontifies blocks with an embedded tree-sitter parser, so a
+;; regex mode like `scheme-mode' supplies nothing there.  The geiser/REPL
+;; helpers above are mode-agnostic, so they run on `scheme-mode' instead.
+(use-package scheme
+  :ensure nil
+  :mode (("\\.scm\\'" . scheme-mode)
+         ("\\.sld\\'" . scheme-mode)
+         ("\\.sls\\'" . scheme-mode))
+  :hook (scheme-mode . scheme-ts-setup-geiser))
+
+(use-package scheme-ts-mode
+  :ensure nil
+  :load-path "lisp/"
+  :demand t
+  :config
+  (with-eval-after-load 'markdown-ts-mode
+    (add-to-list 'markdown-ts-code-block-source-mode-map
+                 '(scheme . scheme-ts-mode))))
+
+;; Structural editing for Lisp/Scheme: the full paredit editing surface from
+;; evil NORMAL state on a `,' localleader, paren-safe evil operators (without
+;; rebinding them), and continuous automatic indentation.  Replaces symex.
+;;
+;;   paredit                -> the editing command library (+ insert auto-pairing)
+;;   enhanced-evil-paredit  -> makes d/c/x/p paren-safe WITHOUT rebinding them
+;;   aggressive-indent      -> keeps the enclosing form correctly indented
+;;   general                -> the `,' localleader, scoped to paredit buffers
+
+;; The `,' localleader is scoped to `paredit-mode-map', so the only key it
+;; shadows is evil's `,' (repeat-find-char-reverse), and only inside lisp
+;; buffers -- everywhere else reverse-find-repeat is untouched.  It lives in
+;; paredit's own `:config' (which runs after paredit loads, so
+;; `paredit-mode-map' exists); `general' is already loaded eagerly (`:demand t'
+;; at the top of the file), so we must NOT re-declare it with `use-package
+;; general' here -- that re-queues the package in elpaca ("Duplicate item ID
+;; queued: general") and aborts init.
+(use-package paredit
+  :hook ((emacs-lisp-mode
+          lisp-mode
+          lisp-interaction-mode
+          scheme-mode
+          eval-expression-minibuffer-setup) . enable-paredit-mode)
+  :config
+  (general-create-definer my/lisp-localleader
+    :states  '(normal visual)
+    :keymaps 'paredit-mode-map
+    :prefix  ",")
+
+  (my/lisp-localleader
+    "" '(:ignore t :which-key "lisp")
+
+    ;; -- slurp / barf --------------------------------------------------
+    "s" '(paredit-forward-slurp-sexp   :which-key "slurp ->")
+    "b" '(paredit-forward-barf-sexp    :which-key "barf ->")
+    "S" '(paredit-backward-slurp-sexp  :which-key "slurp <-")
+    "B" '(paredit-backward-barf-sexp   :which-key "barf <-")
+
+    ;; -- splice / raise / convolute ------------------------------------
+    "x" '(paredit-splice-sexp                  :which-key "splice")
+    "<" '(paredit-splice-sexp-killing-backward :which-key "splice kill <-")
+    ">" '(paredit-splice-sexp-killing-forward  :which-key "splice kill ->")
+    "r" '(paredit-raise-sexp                   :which-key "raise")
+    "v" '(paredit-convolute-sexp               :which-key "convolute")
+
+    ;; -- wrap (works on the visual selection too) ----------------------
+    "(" '(paredit-wrap-round        :which-key "wrap ()")
+    "[" '(paredit-wrap-square       :which-key "wrap []")
+    "{" '(paredit-wrap-curly        :which-key "wrap {}")
+    "\"" '(paredit-meta-doublequote :which-key "wrap \"\"")
+
+    ;; -- split / join / transpose --------------------------------------
+    "/" '(paredit-split-sexp :which-key "split")
+    "j" '(paredit-join-sexps :which-key "join")
+    "t" '(transpose-sexps    :which-key "transpose")
+
+    ;; -- kill / comment ------------------------------------------------
+    "k" '(paredit-kill         :which-key "kill to eol")
+    ";" '(paredit-comment-dwim :which-key "comment dwim")
+
+    ;; -- navigation ----------------------------------------------------
+    "f" '(paredit-forward      :which-key "fwd sexp")
+    "h" '(paredit-backward     :which-key "back sexp")
+    "u" '(paredit-backward-up  :which-key "up (out)")
+    "n" '(paredit-forward-down :which-key "down (in)")
+
+    ;; -- explicit reindent ---------------------------------------------
+    "=" '(paredit-reindent-defun :which-key "indent defun")))
+
+;; enhanced-evil-paredit makes d / c / x / p / y paren-safe -- but it does so by
+;; *rebinding* them in `enhanced-evil-paredit-mode-map' to its own operators
+;; (e.g. `c' -> `enhanced-evil-paredit-change').  That minor-mode map shadows the
+;; global `cc' -> `cw' dispatch defined on `c' up in the general config, so in
+;; lisp/scheme buffers `cc' would otherwise fall back to change-whole-line.
+;; Re-apply the same dispatch here on top of the paren-safe change operator: `cc'
+;; = change-word, while `c<motion>' stays balanced.
+(use-package enhanced-evil-paredit
+  :hook (paredit-mode . enhanced-evil-paredit-mode)
+  :config
+  (general-define-key
+   :states  'normal
+   :keymaps 'enhanced-evil-paredit-mode-map
+   "c" (general-key-dispatch 'enhanced-evil-paredit-change
+         "c" (general-simulate-key ('enhanced-evil-paredit-change "e")))))
+
+;; Reindents the enclosing defun after every edit.  Safe here because paredit
+;; guarantees the structure stays balanced.
+(use-package aggressive-indent
+  :hook ((emacs-lisp-mode
+          lisp-mode
+          lisp-interaction-mode
+          scheme-mode
+          racket-mode) . aggressive-indent-mode))
+
+(use-package rainbow-delimiters)
+
 (use-package paren-face
   :hook ((racket-mode emacs-lisp-mode) . paren-face-mode)
-  )
-
-(use-package aggressive-indent
-  :ensure nil
-  :hook ((racket-mode emacs-lisp-mode) . aggressive-indent-mode)
   )
 
 
@@ -2013,77 +2327,6 @@ in which case does avy-goto-char with the first char."
   (setq vterm-max-scrollback 50000)
 
   )
-
-;; ==============================================================================
-;; Gerbil
-;; ==============================================================================
-
-(use-package rainbow-delimiters
-  )
-
-(use-package gambit
-  :ensure (
-	   :host github
-	   :repo "gambit/gambit"
-	   :files ("misc/gambit.el")
-	   :branch "master"))
-
-(use-package gerbil-mode
-  :ensure (
-	   :host github
-	   :repo "mighty-gerbils/gerbil"
-	   :files ("etc/gerbil-mode.el")
-	   :branch "master")
-  :defer t
-  :mode (("\\.ss\\'"  . gerbil-mode)
-	 ("\\.pkg\\'" . gerbil-mode))
-  :bind (:map comint-mode-map
-	      (("C-S-n" . comint-next-input)
-	       ("C-S-p" . comint-previous-input)
-	       ("C-S-l" . clear-comint-buffer))
-	      :map gerbil-mode-map
-	      (("C-S-l" . clear-comint-buffer)))
-  :init
-					; (autoload 'gerbil-mode
-					;   (expand-file-name "share/emacs/site-lisp/gerbil-mode.el" *gerbil-path*)
-					;   "Gerbil editing mode." t)
-  :hook
-  ((gerbil-mode-hook . linum-mode)
-   (gerbil-mode-hook . rainbow-delimiters-mode)
-   (inferior-scheme-mode-hook . gambit-inferior-mode))
-  :config
-  (require 'gambit)
-					;(setf scheme-program-name (expand-file-name "bin/gxi" *gerbil-path*))
-  (setf scheme-program-name "gxi")
-
-  ;; (let ((tags (locate-dominating-file default-directory "TAGS")))
-  ;;   (when tags (visit-tags-table tags)))
-  ;; (let ((tags (expand-file-name "src/TAGS" *gerbil-path*)))
-  ;;   (when (file-exists-p tags) (visit-tags-table tags)))
-
-  (when (package-installed-p 'smartparens)
-    (sp-pair "'" nil :actions :rem)
-    (sp-pair "`" nil :actions :rem))
-
-  (defun clear-comint-buffer ()
-    (interactive)
-    (with-current-buffer "*scheme*"
-      (let ((comint-buffer-maximum-size 0))
-	(comint-truncate-buffer))))
-
-  (defun gerbil-setup-buffers ()
-    "Change current buffer mode to gerbil-mode and start a REPL"
-    (interactive)
-    (gerbil-mode)
-    (split-window-right)
-    (shrink-window-horizontally 2)
-    (let ((buf (buffer-name)))
-      (other-window 1)
-      (run-scheme "gxi")
-      (switch-to-buffer-other-window "*scheme*" nil)
-      (switch-to-buffer buf)))
-
-  (global-set-key (kbd "C-c C-g") 'gerbil-setup-buffers))
 
 ;; ==============================================================================
 ;; Eat
@@ -2378,9 +2621,6 @@ DISPLAY-BUFFER-FN is the function to display the buffer."
 
 (add-hook 'window-configuration-change-hook 'my-change-window-divider)
 
-(set-face-background 'vertical-border nil)
-(set-face-foreground 'vertical-border (face-foreground 'mode-line-inactive))
-
 (defun scroll-by-percent (percent)
   "Scroll by PERCENT of the window height.
 Positive values scroll down, negative values scroll up."
@@ -2462,10 +2702,10 @@ subprocess) so Claude Code redraws at the correct size."
 
 (use-package emacs-mcp
   :demand t
-  :elpaca (emacs-mcp :host github :repo "mpontus/emacs-mcp"))
+  :ensure (emacs-mcp :host github :repo "mpontus/emacs-mcp"))
 
 (use-package eca
-  :elpaca (eca :host github :repo "editor-code-assistant/eca-emacs"))
+  :ensure (eca :host github :repo "editor-code-assistant/eca-emacs"))
 
 (use-package zoom
   :config

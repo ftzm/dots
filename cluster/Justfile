@@ -1,11 +1,19 @@
 # Render all environments
 render-all: render-lab
 
-# Render lab environment
+# Render lab environment.
+# Render into a temp dir and swap only on success: a failed render must not
+# leave manifests/lab empty (renovate commits whatever the tree looks like
+# after its post-upgrade task, and an empty tree would delete everything).
 render-lab:
-    rm -rf manifests/lab/*
-    tk export manifests/lab/ environments/lab --format '{{ "{{" }}.metadata.name{{ "}}" }}-{{ "{{" }}.kind | lower{{ "}}" }}' --skip-manifest
-    cp environments/lab/secrets/*.enc.yaml manifests/lab/
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp=$(mktemp -d manifests/.render-lab.XXXXXX)
+    trap 'rm -rf "$tmp"' EXIT
+    tk export "$tmp" environments/lab --format '{{ "{{" }}.metadata.name{{ "}}" }}-{{ "{{" }}.kind | lower{{ "}}" }}' --skip-manifest
+    cp environments/lab/secrets/*.enc.yaml "$tmp"/
+    rm -rf manifests/lab
+    mv "$tmp" manifests/lab
 
 # Initialize jsonnet-bundler dependencies
 jb-install:

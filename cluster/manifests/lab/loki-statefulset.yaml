@@ -7,8 +7,8 @@ metadata:
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: loki
     app.kubernetes.io/part-of: memberlist
-    app.kubernetes.io/version: 3.6.7
-    helm.sh/chart: loki-7.0.0
+    app.kubernetes.io/version: 3.6.8
+    helm.sh/chart: loki-7.1.0
   name: loki
   namespace: monitoring
 spec:
@@ -50,7 +50,7 @@ spec:
       - args:
         - -config.file=/etc/loki/config/config.yaml
         - -target=all
-        image: docker.io/grafana/loki:3.6.7
+        image: docker.io/grafana/loki:3.6.8
         imagePullPolicy: IfNotPresent
         name: loki
         ports:
