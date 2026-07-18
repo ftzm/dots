@@ -1,6 +1,6 @@
 {
   radarr: 'linuxserver/radarr:6.1.1',
-  sonarr: 'linuxserver/sonarr:4.0.17',
+  sonarr: 'linuxserver/sonarr:4.0.19',
   lidarr: 'linuxserver/lidarr:3.1.3-nightly',
   readarr: 'linuxserver/readarr:0.4.19-nightly',
   prowlarr: 'linuxserver/prowlarr:2.4.0-nightly',
