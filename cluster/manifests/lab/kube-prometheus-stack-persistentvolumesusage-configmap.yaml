@@ -1,7 +1,7 @@
 apiVersion: v1
 data:
   persistentvolumesusage.json: '{"editable":true,"links":[{"asDropdown":true,"includeVars":true,"keepTime":true,"tags":["kubernetes-mixin"],"targetBlank":false,"title":"Kubernetes","type":"dashboards"}],"panels":[{"datasource":{"type":"datasource","uid":"--
-    Mixed --"},"fieldConfig":{"defaults":{"custom":{"fillOpacity":10,"showPoints":"never","spanNulls":true},"unit":"bytes"}},"gridPos":{"h":7,"w":18,"y":0},"id":1,"interval":"1m","options":{"legend":{"asTable":true,"calcs":["lastNotNull"],"displayMode":"table","placement":"right","showLegend":true},"tooltip":{"mode":"single"}},"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"(\n  sum
+    Mixed --"},"fieldConfig":{"defaults":{"custom":{"fillOpacity":10,"showPoints":"never","spanNulls":true},"unit":"bytes"}},"gridPos":{"h":7,"w":18,"y":0},"id":1,"interval":"1m","options":{"legend":{"asTable":true,"calcs":["lastNotNull"],"displayMode":"table","placement":"right","showLegend":true},"tooltip":{"mode":"single"}},"pluginVersion":"v13.0.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"(\n  sum
     without(instance, node) (topk(1, (kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\",
     job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})))\n  -\n  sum
     without(instance, node) (topk(1, (kubelet_volume_stats_available_bytes{cluster=\"$cluster\",
@@ -10,14 +10,14 @@ data:
     without(instance, node) (topk(1, (kubelet_volume_stats_available_bytes{cluster=\"$cluster\",
     job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})))\n","legendFormat":"Free
     Space"}],"title":"Volume Space Usage","type":"timeseries"},{"datasource":{"type":"datasource","uid":"--
-    Mixed --"},"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"max":100,"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"orange","value":80},{"color":"red","value":90}]},"unit":"percent"}},"gridPos":{"h":7,"w":6,"x":18,"y":0},"id":2,"interval":"1m","pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"max
+    Mixed --"},"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"max":100,"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"orange","value":80},{"color":"red","value":90}]},"unit":"percent"}},"gridPos":{"h":7,"w":6,"x":18,"y":0},"id":2,"interval":"1m","pluginVersion":"v13.0.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"max
     without(instance,node) (\n(\n  topk(1, kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\",
     job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})\n  -\n  topk(1,
     kubelet_volume_stats_available_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\",
     namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})\n)\n/\ntopk(1, kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\",
     job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})\n*
     100)\n","instant":true}],"title":"Volume Space Usage","type":"gauge"},{"datasource":{"type":"datasource","uid":"--
-    Mixed --"},"fieldConfig":{"defaults":{"custom":{"fillOpacity":10,"showPoints":"never","spanNulls":true},"unit":"none"}},"gridPos":{"h":7,"w":18,"y":7},"id":3,"interval":"1m","options":{"legend":{"asTable":true,"calcs":["lastNotNull"],"displayMode":"table","placement":"right","showLegend":true},"tooltip":{"mode":"single"}},"pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum
+    Mixed --"},"fieldConfig":{"defaults":{"custom":{"fillOpacity":10,"showPoints":"never","spanNulls":true},"unit":"none"}},"gridPos":{"h":7,"w":18,"y":7},"id":3,"interval":"1m","options":{"legend":{"asTable":true,"calcs":["lastNotNull"],"displayMode":"table","placement":"right","showLegend":true},"tooltip":{"mode":"single"}},"pluginVersion":"v13.0.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"sum
     without(instance, node) (topk(1, (kubelet_volume_stats_inodes_used{cluster=\"$cluster\",
     job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})))","legendFormat":"Used
     inodes"},{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"(\n  sum
@@ -26,7 +26,7 @@ data:
     without(instance, node) (topk(1, (kubelet_volume_stats_inodes_used{cluster=\"$cluster\",
     job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})))\n)\n","legendFormat":"Free
     inodes"}],"title":"Volume inodes Usage","type":"timeseries"},{"datasource":{"type":"datasource","uid":"--
-    Mixed --"},"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"max":100,"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"orange","value":80},{"color":"red","value":90}]},"unit":"percent"}},"gridPos":{"h":7,"w":6,"x":18,"y":7},"id":4,"interval":"1m","pluginVersion":"v11.4.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"max
+    Mixed --"},"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"max":100,"min":0,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"orange","value":80},{"color":"red","value":90}]},"unit":"percent"}},"gridPos":{"h":7,"w":6,"x":18,"y":7},"id":4,"interval":"1m","pluginVersion":"v13.0.0","targets":[{"datasource":{"type":"prometheus","uid":"${datasource}"},"expr":"max
     without(instance,node) (\ntopk(1, kubelet_volume_stats_inodes_used{cluster=\"$cluster\",
     job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})\n/\ntopk(1,
     kubelet_volume_stats_inodes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\",
@@ -44,8 +44,8 @@ metadata:
     app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/part-of: kube-prometheus-stack
-    app.kubernetes.io/version: 86.1.0
-    chart: kube-prometheus-stack-86.1.0
+    app.kubernetes.io/version: 87.17.0
+    chart: kube-prometheus-stack-87.17.0
     grafana_dashboard: "1"
     heritage: Helm
     release: kube-prometheus-stack
