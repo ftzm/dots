@@ -142,11 +142,9 @@ local withNamespace(resources, ns) = {
         namespace: ns,
         values: {
           // Enable access logs (collected by Alloy -> Loki)
-          logs: {
-            access: {
-              enabled: true,
-              format: 'json',  // Easier to parse in Loki
-            },
+          accessLog: {
+            enabled: true,
+            format: 'json',  // Easier to parse in Loki
           },
 
           // Use host network to bind directly to specific IPs
@@ -204,7 +202,9 @@ local withNamespace(resources, ns) = {
             },
           },
 
-          local fileProviderContent = std.manifestYamlDoc({
+          // Chart >= 41 takes the file-provider config as an object and
+          // YAML-formats it itself; the checksum hashes the rendered form.
+          local fileProviderContent = ({
             local privateEP = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
             local publicEP = ['web', 'websecure'],
             local hostRouter(name, domain, entryPoints=privateEP) = {
@@ -241,7 +241,7 @@ local withNamespace(resources, ns) = {
           deployment: {
             dnsPolicy: 'ClusterFirstWithHostNet',
             podAnnotations: {
-              'checksum/file-provider': std.md5(fileProviderContent),
+              'checksum/file-provider': std.md5(std.manifestYamlDoc(fileProviderContent)),
             },
           },
 
