@@ -24,14 +24,29 @@ tests:
       path: metadata.name
       value: sops-sops-secrets-operator
   - equal:
+      path: metadata.namespace
+      value: sops
+  - equal:
       path: metadata.labels
       # UPDATE_HERE
       value:
         app.kubernetes.io/instance: sops
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: sops-secrets-operator
-        app.kubernetes.io/version: 0.21.0
-        helm.sh/chart: sops-secrets-operator-0.27.1
+        app.kubernetes.io/version: 0.21.1
+        helm.sh/chart: sops-secrets-operator-0.28.0
+
+# namespace override
+- it: should render namespaceOverride into metadata.namespace
+  release:
+    name: sops
+    namespace: sops
+  set:
+    namespaceOverride: custom-ns
+  asserts:
+  - equal:
+      path: metadata.namespace
+      value: custom-ns
 
 # custom name
 - it: should correctly render custome name
@@ -169,7 +184,7 @@ tests:
   # UPDATE_HERE
   - equal:
       path: spec.template.spec.containers[0].image
-      value: quay.io/isindir/sops-secrets-operator:0.21.0
+      value: quay.io/isindir/sops-secrets-operator:0.21.1
   - equal:
       path: spec.template.spec.containers[0].imagePullPolicy
       value: Always

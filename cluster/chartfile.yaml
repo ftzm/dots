@@ -35,17 +35,17 @@ requires:
   - chart: prometheus-community/kube-prometheus-stack
     version: "86.1.0"
   - chart: grafana/loki
-    version: "7.0.0"
+    version: "7.1.0"
   - chart: grafana-community/tempo
-    version: "2.2.0"
+    version: "2.2.3"
   - chart: grafana/alloy
-    version: "1.8.2"
+    version: "1.10.1"
   - chart: sealed-secrets/sealed-secrets
     version: "2.18.6"
   - chart: jetstack/cert-manager
-    version: "v1.20.2"
+    version: "v1.21.0"
   - chart: sops-secrets-operator/sops-secrets-operator
-    version: "0.27.1"
+    version: "0.28.0"
   - chart: immich/immich
     version: "0.12.0"
   - chart: cloudnative-pg/cloudnative-pg
