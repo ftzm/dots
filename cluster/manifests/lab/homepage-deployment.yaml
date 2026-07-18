@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    values-checksum: b210ae23e8aaf2ffabc35af44c0ada033e7cd7a213d28aa613c2e8107f8db5f0
+  labels:
+    app.kubernetes.io/instance: homepage
+    app.kubernetes.io/managed-by: Helmraiser
+    app.kubernetes.io/name: homepage
+    app.kubernetes.io/version: v1.2.0
+    helm.sh/chart: homepage-2.1.0
+  name: homepage
+  namespace: homepage
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: homepage
+      app.kubernetes.io/name: homepage
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: 4141e6981f3b767e75a4e744858b9ff414dba5d0ef6afd761f7700061fb6e32e
+        values-checksum: b210ae23e8aaf2ffabc35af44c0ada033e7cd7a213d28aa613c2e8107f8db5f0
+      labels:
+        app.kubernetes.io/instance: homepage
+        app.kubernetes.io/name: homepage
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - env:
+        - name: HOMEPAGE_ALLOWED_HOSTS
+          value: home.lan.ftzmlab.xyz
+        envFrom:
+        - secretRef:
+            name: homepage-api-keys
+        image: ghcr.io/gethomepage/homepage:v1.2.0
+        imagePullPolicy: null
+        livenessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          tcpSocket:
+            port: 3000
+          timeoutSeconds: 1
+        name: homepage
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          tcpSocket:
+            port: 3000
+          timeoutSeconds: 1
+        startupProbe:
+          failureThreshold: 30
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          tcpSocket:
+            port: 3000
+          timeoutSeconds: 1
+        volumeMounts:
+        - mountPath: /app/config
+          name: homepage-base-config
+        - mountPath: /app/config/bookmarks.yaml
+          name: homepage-config
+          subPath: bookmarks.yaml
+        - mountPath: /app/config/docker.yaml
+          name: homepage-config
+          subPath: docker.yaml
+        - mountPath: /app/config/kubernetes.yaml
+          name: homepage-config
+          subPath: kubernetes.yaml
+        - mountPath: /app/config/services.yaml
+          name: homepage-config
+          subPath: services.yaml
+        - mountPath: /app/config/settings.yaml
+          name: homepage-config
+          subPath: settings.yaml
+        - mountPath: /app/config/widgets.yaml
+          name: homepage-config
+          subPath: widgets.yaml
+        - mountPath: /app/config/logs
+          name: logs
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      serviceAccountName: homepage
+      volumes:
+      - emptyDir: {}
+        name: homepage-base-config
+      - configMap:
+          name: homepage
+        name: homepage-config
+      - emptyDir: {}
+        name: logs

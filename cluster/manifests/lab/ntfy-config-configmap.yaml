@@ -1,0 +1,12 @@
+apiVersion: v1
+data:
+  server.yml: |
+    base-url: "https://ntfy.lan.ftzmlab.xyz"
+    listen-http: ":80"
+    cache-file: "/var/cache/ntfy/cache.db"
+    cache-duration: "12h"
+    auth-default-access: "read-write"
+kind: ConfigMap
+metadata:
+  name: ntfy-config
+  namespace: ntfy

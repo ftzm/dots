@@ -1,0 +1,12 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: blocky
+  namespace: blocky
+spec:
+  podMetricsEndpoints:
+  - path: /metrics
+    port: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: blocky

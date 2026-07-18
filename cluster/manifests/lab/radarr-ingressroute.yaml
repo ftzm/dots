@@ -1,0 +1,18 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: radarr
+  namespace: media
+spec:
+  entryPoints:
+  - privateweb
+  - privatesecure
+  - wgweb
+  - wgsecure
+  routes:
+  - kind: Rule
+    match: Host(`radarr.lan.ftzmlab.xyz`)
+    services:
+    - name: radarr
+      port: 7878
+  tls: {}
