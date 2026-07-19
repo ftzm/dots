@@ -1049,6 +1049,11 @@ See `eval-after-load' for the possible formats of FORM."
   )
 
 
+;; GitHub issues/PRs inside magit. Auth: uses the github.user from gitconfig
+;; plus a token from ~/.authinfo(.gpg) (machine api.github.com login ftzm^forge).
+(use-package forge
+  :after magit)
+
 (use-package autorevert
   :diminish auto-revert-mode
   :ensure nil
