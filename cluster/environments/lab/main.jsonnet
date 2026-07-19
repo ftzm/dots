@@ -1870,12 +1870,15 @@ local withNamespace(resources, ns) = {
   // the trusted instance; the runner dials in over the private ingress.
   forgejo: {
     local ns = 'forgejo',
-    // Static NFS mount for a stable backup path (repos + sqlite db + config all
-    // live under /data), matching the vaultwarden approach.
-    local dataMount = storage.nfsMount('forgejo', ns, '/pool-1/forgejo', '20Gi'),
-
-    dataPv: dataMount.pv,
-    dataPvc: dataMount.pvc,
+    // Data (git repos + sqlite db + config, all under /data) lives on node-local
+    // storage. The pod is pinned to nuc regardless, and SQLite/git over NFS carry
+    // real file-locking hazards. Durability comes from proper `forgejo dump`
+    // archives (scheduled → NAS/borg), NOT from copying a live sqlite file.
+    dataPvc: k.core.v1.persistentVolumeClaim.new('forgejo-data')
+      + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
+      + k.core.v1.persistentVolumeClaim.spec.withAccessModes(['ReadWriteOnce'])
+      + k.core.v1.persistentVolumeClaim.spec.resources.withRequests({ storage: '20Gi' })
+      + k.core.v1.persistentVolumeClaim.spec.withStorageClassName('local-path'),
 
     // Git-over-SSH via NodePort so clone URLs resolve from the LAN.
     // SSH_PORT below must match nodePort so Forgejo advertises the right URL.
@@ -1904,8 +1907,6 @@ local withNamespace(resources, ns) = {
           k.core.v1.containerPort.newNamed(22, 'ssh'),
         ])
         + k.core.v1.container.withEnvMixin([
-          k.core.v1.envVar.new('USER_UID', '1000'),
-          k.core.v1.envVar.new('USER_GID', '1000'),
           k.core.v1.envVar.new('FORGEJO__server__DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
           k.core.v1.envVar.new('FORGEJO__server__ROOT_URL', 'https://forgejo.lan.ftzmlab.xyz/'),
           k.core.v1.envVar.new('FORGEJO__server__SSH_DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
@@ -1918,7 +1919,7 @@ local withNamespace(resources, ns) = {
         ]),
       ] } } },
     } + k.apps.v1.deployment.spec.template.spec.withVolumes([
-      k.core.v1.volume.fromPersistentVolumeClaim('data', 'forgejo'),
+      k.core.v1.volume.fromPersistentVolumeClaim('data', 'forgejo-data'),
     ]),
   },
 

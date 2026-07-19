@@ -17,10 +17,6 @@ spec:
     spec:
       containers:
       - env:
-        - name: USER_UID
-          value: "1000"
-        - name: USER_GID
-          value: "1000"
         - name: FORGEJO__server__DOMAIN
           value: forgejo.lan.ftzmlab.xyz
         - name: FORGEJO__server__ROOT_URL
@@ -52,4 +48,4 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: forgejo
+          claimName: forgejo-data
