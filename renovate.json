@@ -123,12 +123,48 @@
       },
       {
          "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "immich",
+         "managerFilePatterns": [
+            "/cluster/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: immich/immich\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://immich-app.github.io/immich-charts"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "cloudnative-pg",
+         "managerFilePatterns": [
+            "/cluster/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: cloudnative-pg/cloudnative-pg\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://cloudnative-pg.github.io/charts"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "homepage",
+         "managerFilePatterns": [
+            "/cluster/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: jameswynn/homepage\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://jameswynn.github.io/helm-charts"
+      },
+      {
+         "customType": "regex",
          "datasourceTemplate": "docker",
          "managerFilePatterns": [
             "/cluster/lib/images\\.libsonnet$/"
          ],
          "matchStrings": [
-            "'(?<depName>[a-z0-9/-]+):(?<currentValue>[^']+)'"
+            "'(?<depName>[a-z0-9._/-]+):(?<currentValue>[^']+)'"
          ]
       }
    ],

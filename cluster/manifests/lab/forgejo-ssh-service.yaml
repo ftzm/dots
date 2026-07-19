@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: forgejo-ssh
+  namespace: forgejo
+spec:
+  ports:
+  - name: ssh
+    nodePort: 30022
+    port: 22
+    targetPort: 22
+  selector:
+    app.kubernetes.io/name: forgejo
+  type: NodePort

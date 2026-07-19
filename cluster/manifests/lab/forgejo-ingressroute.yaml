@@ -1,0 +1,18 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: forgejo
+  namespace: forgejo
+spec:
+  entryPoints:
+  - privateweb
+  - privatesecure
+  - wgweb
+  - wgsecure
+  routes:
+  - kind: Rule
+    match: Host(`forgejo.lan.ftzmlab.xyz`)
+    services:
+    - name: forgejo
+      port: 3000
+  tls: {}

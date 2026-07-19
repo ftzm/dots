@@ -1864,4 +1864,62 @@ local withNamespace(resources, ns) = {
     },
   },
 
+  // Forgejo: self-hosted git forge with Actions enabled.
+  // The Actions *runner* is NOT here — it runs in an isolated microVM on nuc
+  // (untrusted job code must not share a kernel with the cluster). This is only
+  // the trusted instance; the runner dials in over the private ingress.
+  forgejo: {
+    local ns = 'forgejo',
+    // Static NFS mount for a stable backup path (repos + sqlite db + config all
+    // live under /data), matching the vaultwarden approach.
+    local dataMount = storage.nfsMount('forgejo', ns, '/pool-1/forgejo', '20Gi'),
+
+    dataPv: dataMount.pv,
+    dataPvc: dataMount.pvc,
+
+    // Git-over-SSH via NodePort so clone URLs resolve from the LAN.
+    // SSH_PORT below must match nodePort so Forgejo advertises the right URL.
+    sshService: {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: { name: 'forgejo-ssh', namespace: ns },
+      spec: {
+        type: 'NodePort',
+        selector: { 'app.kubernetes.io/name': 'forgejo' },
+        ports: [{ name: 'ssh', port: 22, targetPort: 22, nodePort: 30022 }],
+      },
+    },
+  } + selfhosted.new('forgejo', images.forgejo, 3000, 'forgejo.lan.ftzmlab.xyz') {
+    // Use the static NFS data mount instead of the default config PVC.
+    configPvc:: null,
+    deployment+: {
+      spec+: { template+: { spec+: { containers: [
+        super.containers[0] {
+          volumeMounts: [
+            if v.mountPath == '/config' then v { mountPath: '/data', name: 'data' } else v
+            for v in super.volumeMounts
+          ],
+        }
+        + k.core.v1.container.withPortsMixin([
+          k.core.v1.containerPort.newNamed(22, 'ssh'),
+        ])
+        + k.core.v1.container.withEnvMixin([
+          k.core.v1.envVar.new('USER_UID', '1000'),
+          k.core.v1.envVar.new('USER_GID', '1000'),
+          k.core.v1.envVar.new('FORGEJO__server__DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
+          k.core.v1.envVar.new('FORGEJO__server__ROOT_URL', 'https://forgejo.lan.ftzmlab.xyz/'),
+          k.core.v1.envVar.new('FORGEJO__server__SSH_DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
+          k.core.v1.envVar.new('FORGEJO__server__SSH_PORT', '30022'),
+          k.core.v1.envVar.new('FORGEJO__server__SSH_LISTEN_PORT', '22'),
+          k.core.v1.envVar.new('FORGEJO__database__DB_TYPE', 'sqlite3'),
+          k.core.v1.envVar.new('FORGEJO__service__DISABLE_REGISTRATION', 'true'),
+          k.core.v1.envVar.new('FORGEJO__security__INSTALL_LOCK', 'true'),
+          k.core.v1.envVar.new('FORGEJO__actions__ENABLED', 'true'),
+        ]),
+      ] } } },
+    } + k.apps.v1.deployment.spec.template.spec.withVolumes([
+      k.core.v1.volume.fromPersistentVolumeClaim('data', 'forgejo'),
+    ]),
+  },
+
 }

@@ -26,7 +26,7 @@ local imageManager = {
   customType: 'regex',
   managerFilePatterns: ['/cluster/lib/images\\.libsonnet$/'],
   matchStrings: [
-    "'(?<depName>[a-z0-9/-]+):(?<currentValue>[^']+)'",
+    "'(?<depName>[a-z0-9._/-]+):(?<currentValue>[^']+)'",
   ],
   datasourceTemplate: 'docker',
 };
