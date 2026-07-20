@@ -1868,59 +1868,122 @@ local withNamespace(resources, ns) = {
   // The Actions *runner* is NOT here — it runs in an isolated microVM on nuc
   // (untrusted job code must not share a kernel with the cluster). This is only
   // the trusted instance; the runner dials in over the private ingress.
-  forgejo: {
-    local ns = 'forgejo',
-    // Data (git repos + sqlite db + config, all under /data) lives on node-local
-    // storage. The pod is pinned to nuc regardless, and SQLite/git over NFS carry
-    // real file-locking hazards. Durability comes from proper `forgejo dump`
-    // archives (scheduled → NAS/borg), NOT from copying a live sqlite file.
-    dataPvc: k.core.v1.persistentVolumeClaim.new('forgejo-data')
-      + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
-      + k.core.v1.persistentVolumeClaim.spec.withAccessModes(['ReadWriteOnce'])
-      + k.core.v1.persistentVolumeClaim.spec.resources.withRequests({ storage: '20Gi' })
-      + k.core.v1.persistentVolumeClaim.spec.withStorageClassName('local-path'),
+  forgejo:
+    local ns = 'forgejo';
+    // Env shared by the app container and the admin-bootstrap init container, so
+    // both render an identical app.ini (via the image's environment-to-ini step).
+    local secretRef(name, key) = {
+      name: name,
+      valueFrom: { secretKeyRef: { name: 'forgejo-secrets', key: key } },
+    };
+    local appEnv = [
+      k.core.v1.envVar.new('FORGEJO__server__DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
+      k.core.v1.envVar.new('FORGEJO__server__ROOT_URL', 'https://forgejo.lan.ftzmlab.xyz/'),
+      k.core.v1.envVar.new('FORGEJO__server__SSH_DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
+      k.core.v1.envVar.new('FORGEJO__server__SSH_PORT', '30022'),
+      k.core.v1.envVar.new('FORGEJO__server__SSH_LISTEN_PORT', '22'),
+      k.core.v1.envVar.new('FORGEJO__database__DB_TYPE', 'sqlite3'),
+      k.core.v1.envVar.new('FORGEJO__service__DISABLE_REGISTRATION', 'true'),
+      k.core.v1.envVar.new('FORGEJO__security__INSTALL_LOCK', 'true'),
+      k.core.v1.envVar.new('FORGEJO__actions__ENABLED', 'true'),
+      // Pinned crypto keys (sealed). Without these Forgejo self-mints a transient
+      // SECRET_KEY each boot; pinning makes a fresh PVC reproducible.
+      secretRef('FORGEJO__security__SECRET_KEY', 'SECRET_KEY'),
+      secretRef('FORGEJO__security__INTERNAL_TOKEN', 'INTERNAL_TOKEN'),
+      secretRef('FORGEJO__oauth2__JWT_SECRET', 'JWT_SECRET'),
+    ];
+    {
+      // Data (git repos + sqlite db + config, all under /data) lives on node-local
+      // storage. The pod is pinned to nuc regardless, and SQLite/git over NFS carry
+      // real file-locking hazards. Durability comes from proper `forgejo dump`
+      // archives (scheduled → NAS/borg), NOT from copying a live sqlite file.
+      dataPvc: k.core.v1.persistentVolumeClaim.new('forgejo-data')
+               + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
+               + k.core.v1.persistentVolumeClaim.spec.withAccessModes(['ReadWriteOnce'])
+               + k.core.v1.persistentVolumeClaim.spec.resources.withRequests({ storage: '20Gi' })
+               + k.core.v1.persistentVolumeClaim.spec.withStorageClassName('local-path'),
 
-    // Git-over-SSH via NodePort so clone URLs resolve from the LAN.
-    // SSH_PORT below must match nodePort so Forgejo advertises the right URL.
-    sshService: {
-      apiVersion: 'v1',
-      kind: 'Service',
-      metadata: { name: 'forgejo-ssh', namespace: ns },
-      spec: {
-        type: 'NodePort',
-        selector: { 'app.kubernetes.io/name': 'forgejo' },
-        ports: [{ name: 'ssh', port: 22, targetPort: 22, nodePort: 30022 }],
+      // Git-over-SSH via NodePort so clone URLs resolve from the LAN.
+      // SSH_PORT below must match nodePort so Forgejo advertises the right URL.
+      sshService: {
+        apiVersion: 'v1',
+        kind: 'Service',
+        metadata: { name: 'forgejo-ssh', namespace: ns },
+        spec: {
+          type: 'NodePort',
+          selector: { 'app.kubernetes.io/name': 'forgejo' },
+          ports: [{ name: 'ssh', port: 22, targetPort: 22, nodePort: 30022 }],
+        },
       },
-    },
-  } + selfhosted.new('forgejo', images.forgejo, 3000, 'forgejo.lan.ftzmlab.xyz') {
-    // Use the static NFS data mount instead of the default config PVC.
-    configPvc:: null,
-    deployment+: {
-      spec+: { template+: { spec+: { containers: [
-        super.containers[0] {
-          volumeMounts: [
-            if v.mountPath == '/config' then v { mountPath: '/data', name: 'data' } else v
-            for v in super.volumeMounts
+
+      // Instance crypto keys + admin bootstrap creds (kubeseal, decrypted
+      // in-cluster by the sealed-secrets controller). Consumed by env above and
+      // the init container below. Regenerate with cluster/scripts/create-sealed-secret.sh.
+      sealedSecret: {
+        apiVersion: 'bitnami.com/v1alpha1',
+        kind: 'SealedSecret',
+        metadata: { name: 'forgejo-secrets', namespace: ns },
+        spec: {
+          encryptedData: {
+            SECRET_KEY: 'AgA8EUM3kOABz66x5TOIK0d3coVE88C5XiH9/ZF7268aDwrc5fGXpvfd2sMRivdMEovwHeUKHj9VEHiu9YNxFBkV4kFqFE9K9GZdlIGuMaOPlp7eoZsOt4AKIEq6v+PsTf4qsjP02k5fm79VLfaSxMQtlMhpr82C+EGo0x9H5mlcM7phwm9l+Xp1wHiMIfwkSnAadHxcwXZSNl2FK0Ppi6G+Gbx7UWg4Adi0Lmv5ZGf9K+kx70N3RZYcKRslcjLJD4d7I65hSYJkbFiDOHZfaFReDJ6wgK8e2WuWqIBgllsfMEhFjTnTFrounmoIAJEQMi4Daffp33Cozpx5blL2loDmxc5CJ7hFLjmpW7wMCwEsNUCjuEiGxUPi2/Jc66gE43PqPBAXelZeGOgcnwVqvf2NupgXONNIfce2o6MZY8CCzSbyReUSRvny9FXZZ5syXo03iY18BjpAOl5yQIoFuc+WA7NuzQsV7rEKz8nOZPxKBnkuQw4OYIKwNimc2znvpqaw0jQYeRWanit6AQuEPAMFnnqE8maOTV5m+h/CCTBDFjcC1d47ZhUhj+R4NfcDOzVFGED8Ow/D/pRrXQvQSyl6QmXe5v9xpVN4ZqDLte23fU0a/qqDXV5p7rORQ7ic2MnnOefcqv2PtlqDh8h3PcdlsyDkrwEd9Vr9zQQTYc0fPPrYE0nQczNpmddaJssr96LIJTmVb4+aOy6QvT1RLVYE0CD+uFbuoYRRnBd4/jiGC5VZpVrGJoAc2LTb',
+            INTERNAL_TOKEN: 'AgAJCIKnEg0aFqC/CBSUuYKifBt7COgv3BJUsEufqEmkk67rzuPoBPgFVFJYDC1FUDPzkZnKxD8jiLRK/D/JDzj+8bmcaJJHIDQOMY9p429l1n7giqFpfFaDCEUcW9662mILJEeMyyVMMnRy4WS8L6v24y6e5x0tFjDaJ43jf6Tu6pr3J8+jqC/FV5SnWFZV5kPVU5wIUzA6oSwlTeGelVSeJCcUvDPGqYr7MNGKplXFXVqWSB7MgYrvrmlXWqPYSgnE4KF/sGDiMSfQY1ljLkaWtnoXCxrHnPelMOk36fOuYi9jLKNh4lclL1MjD+QhQ/gO7KFQQ+LYebmF+W6PI6+0BkM5LVTzL2YZixClVwSXa/MaxZrMjZJ8Y1yiMauU4n1Dk3/Zq4N4p1wvte77FnsVPqHg66l05Jbkwg7v685LJKbBs1+Kq0N3MzlJ6jYuI3JaWWo0dYcs9gf0RPqyhptYynKHchh1rvxxEpFEjzXkXwisiWpp6KHvzVuWm2iOR2XrwYttS+C3U/gT/1ALAEaq2xUkRjr+EmEHfASmlaR2s0k9N5qyDKGoYF62ktwFSt9YcmjUj92JRDazfmve/QGZLsZqU2qQBxev8mBs+QzCj2Ql/oxnPCYcv2kMgchgcPSE8I7DJlQ46+OMnmolUKYMWMI3eQ65RwmSr3oLyuPG6xXKVnU97ZxvwyTFBVLQPcDhMiumHERRE3kwPiDl+UXYXCEAOm+HBv9bgwoVsyyvJCks4ypaN1W1kjsa9kaZq5fFVlG5debf+T11fqXT7UcUrFQYadzG6XdsM/Shr8U81jsA9KougLQUMly2aq9PYSOzsoB7YGQgvqg=',
+            JWT_SECRET: 'AgB5PluOwoXOFxqsBINzFFZIfWD5LU0sXCoTJE7Mfq1Cf05wOTIFikbWbANlYabJY8wTzqXfBnSSRcCwTb5Zx2nt+wNy3TQjz+7LGSfbntT1UihTyicRxna0a1jY9RVs0o3U1b6ZLauyqc1emGB6NUnOQZP1/y1wA2cRUYXNOTH5BSkb8Wt8piNWaPzcQESbkdq0EuPwQpTngc/lBOR6VI8fL8EIyjRAuea3Sy7uJ0FH5NwYNl6msd2QxTI/ziDSwHJQKNsVJ7VWcZBAwmqV/T6Iax7IA2swKrKTN38UzS+L5A8fk2rIEUeF8YZjNj3De82B0PkvTT1vocJ5j/B/6+bVre30Ehjhb/iqDPDPA5LpquA0fbWxzXwIGDvGKYSMEdw3EFTUOc8+3pfjgTCza6aDYFOKBVe8awHH8n3MXd2ut1/83r7kaY1UjjLB0yZJOlbje8qF9ZPBKoTz5J3FU23QsH3W9JHmF/ZnLtuPQexlSS60gMrJ2KvMd+WfUQiT5AprmqBKaFCfE3eIlxUzIHDwyMgx8J7KNklcVjhiFiRUAJUF/gIykiEKrQQluveG+VjVg6LjNbxGh3qr5auG9xY2+0NPqnhUFUVx7FHiYY/z9rKppaMzTMzKKLJRhYplOE8T+wBAizDKgTsX4XRnE1yMkKmhM9rYuuu8e8WwSvV5YAVzBC3Bjz1NR2pJ/0WGs4LY3b7085IT5oXvjoF9dzg49ibF/M8jO+SyF/eZ9288W6MpGAZ++wX9vLnI',
+            'admin-username': 'AgCKJOg1l9t8Z23TASf8wca6ZEejCvq9hQ0yGLGKQMtmC57V2HBC0nTjETKK+UfVs5tLNIDGZCcCcgIYmBD9+zMReQC+zyQafPqgTIMy1RMUFnWdwTQJrDfgbXrH4v2a+mQZCBYPcEpm8mD2NDNzgCRRMJVx3v+x2IUQdMNpFg3Au1j7gYOLZf7Ix98PE3qiuWw/l0CSDxtop+j8vhdJUVDHbDSm2QAOUL50cJc02Aqiy9KsBuylVNu5mQ9Qj9Yn4UWIYpfw4EZ8T/KDxn3q92/mdGaBuPVlGvlHRXnsmT6zftu33dgjSTKnVx9H3obXDraOfkr8gPyd0A47Bs8UGHIn2JjCue9wDY/ArsfRbCFYz4/BLTzKgl8WKT0zzzgL2Rmk2nBBh1RZqdZiJf3hfvyM5Y/OCQOyWiz4fA1tRcFKYANiBQgC87hMWTimA9j8+VZFPGp03Z4NQ1phN7eZXK2IOx+raJSo7VNcQzD+uAST7Z4K4Rhb70sQPej3QZKABceBOgcU0YOC45658ajiNYKOLG8aTKlB+3pmyjZum1D5tHsRWVePyKma8Za2uCX2ULJraWNzfunVgIyGNMY20i4sx3pHdyKO/J/F8NIOdocBZiRZrAFtAeYsHWs4YgE3huAr0c11TxiIqlpMk1v6mtq6SbqIEBnZtBNthvU2/tHgk9NWdGDjCP5zs++yFYijGN+n834H',
+            'admin-password': 'AgCPVswvWsyKNskel0+V7HeyfTyE4xjIAP0qwp6HV5ZQQP6su/SXmpBHVqWamXPpIJ+1Y42VQVCWZCPv8LMAZynMRUplsNmDIj31Tnjvd4x/v/M6rCnXVME1OBWxayjXubMNrboE6ke/lX8wbMl/S1E4YNAxC5gwubIC3u+V63liWi/60358Bl1Ia3siop91+Gc8WYuxChORCUqXp+Z+eXP7XRg6wgc7MXVNnEGqXVMbzdqvvxMUHbFrZSKalBoGOLwi0HJ2OYyFhaWX/jdw7v233K7fQX1ClDtoo3+fY1+LK7tNPbP0X94ZH8f/CqpNPlqMsNV5Tk1B7lGByesORA/ySR8b5t3rgD4FQS2HgsZX/o5j1D/qds0Ptjsk6hhVqe15wZvpL0uC7COR9gMDo+DGOZ0oqsyg73TUcEXDzORYlNCgfx/VHyVn1K6AdZINFnndHXWBXo2Uhpgl/S1A/p7rIySeGbmEYzQMQRURPZH3n4HEX9fFxk0n9sBJgrbc9kbvs9CJBTDuzoUsdXoagwSA8Ycr2qiloMTJ9DYYXYY4I4JxAqF/DJcFC+qI7NeWm8IWf8mkgDYSF/hnIeOblloOe45tFAjzMmN6Z53+znekSaYl/SWGdCJYQvpvSaPZKcZ6SUwibG9tEM9uOqTl47ZJdayLsUM5u3h4AZU+2OK9ySI1MZGt5j5jTDOdm1UHnHVv+I+3gKPj7BU5Xtk5cz1vCpiltg==',
+            'admin-email': 'AgAfFQ0ZGCbwTRvz6MUPEhBFp0kW4AQtyTMKPLOVuT2T2cwAq82X3TCXVfexT4DEvxqCOITueZVfp+Zp234yh4o5ZunzPadlZOJRE3ciEdDkhlgYkSfwWEjRYSJcNg38GE2g+2rqUAzcrNqLWwsEQUhDdKBSt5AOQDwmO/zlQx1PGOEiE4zOJ8BhmoyWgW3e4PcrdonVPFYebN9SqkgkdH+1exnCkD3BkUxPoQUL48yNfHJ/KOtLBZLnoei+a9yvA2lMfcM7M02mcX306cbMSOZvkEFouxRvsl8TAul63bOcwy+Mu9fw3TJpeKFXZIaruOhwua02hmgECSzNsac149/3Q2Bsw1PbZU6bP5i7ymirc6r5nRZ+1C0DNmMLaZtwzrKnkL7F8EP3NRbgOEnIQJT+wk9cAX+WX85MfzK/P5RHfN2rwd44n8xTosOS9AeckfqA+CXEINZIRCwRE6DvdO8HZlkg9nObei9OUbPQrhSIv90LFZdLir4K7o5DzTiiZHs4pC9lKgUDpzVaBOY+LHaHS9rgbsQW5dqLwxcwZvH/Alt5ULhBX/tP+E5WSuWWDPAlZ7mLkWH+SktB76ZHpV6Z2lMAJC1GbDzyIoEeC3P3xnEIV9nPIGzej9ScZhenEsKg3lYbQCL/j4o/nTqa/0a3y7baZG3gK14S+Qei5WV/U7ZFAcCFBsYg2T9z/N+cP0UYJ/jdGppBZmDL',
+          },
+          template: { metadata: { name: 'forgejo-secrets', namespace: ns } },
+        },
+      },
+    } + selfhosted.new('forgejo', images.forgejo, 3000, 'forgejo.lan.ftzmlab.xyz') {
+      // Use the node-local data mount instead of the default config PVC.
+      configPvc:: null,
+      deployment+: {
+        spec+: { template+: { spec+: {
+          // Reconcile the admin account to the sealed creds on every start
+          // (secret-authoritative). Reuses the image's own setup so app.ini +
+          // schema exist and are git-owned in both fresh and existing volumes.
+          initContainers: [{
+            name: 'bootstrap-admin',
+            image: images.forgejo,
+            env: appEnv + [
+              secretRef('ADMIN_USERNAME', 'admin-username'),
+              secretRef('ADMIN_PASSWORD', 'admin-password'),
+              secretRef('ADMIN_EMAIL', 'admin-email'),
+            ],
+            command: ['/bin/bash', '-c'],
+            args: [
+              |||
+                set -e
+                export GITEA_CUSTOM=/data/gitea
+                bash /etc/s6/gitea/setup
+                CONF=/data/gitea/conf/app.ini
+                su-exec git forgejo migrate --config "$CONF"
+                if su-exec git forgejo admin user list --config "$CONF" | awk 'NR>1{print $2}' | grep -qx "$ADMIN_USERNAME"; then
+                  su-exec git forgejo admin user change-password --config "$CONF" --username "$ADMIN_USERNAME" --password "$ADMIN_PASSWORD" --must-change-password=false
+                else
+                  su-exec git forgejo admin user create --config "$CONF" --admin --username "$ADMIN_USERNAME" --password "$ADMIN_PASSWORD" --email "$ADMIN_EMAIL" --must-change-password=false
+                fi
+              |||,
+            ],
+            volumeMounts: [{ name: 'data', mountPath: '/data' }],
+          }],
+          containers: [
+            super.containers[0] {
+              volumeMounts: [
+                if v.mountPath == '/config' then v { mountPath: '/data', name: 'data' } else v
+                for v in super.volumeMounts
+              ],
+            }
+            + k.core.v1.container.withPortsMixin([
+              k.core.v1.containerPort.newNamed(22, 'ssh'),
+            ])
+            + k.core.v1.container.withEnvMixin(appEnv),
           ],
-        }
-        + k.core.v1.container.withPortsMixin([
-          k.core.v1.containerPort.newNamed(22, 'ssh'),
-        ])
-        + k.core.v1.container.withEnvMixin([
-          k.core.v1.envVar.new('FORGEJO__server__DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
-          k.core.v1.envVar.new('FORGEJO__server__ROOT_URL', 'https://forgejo.lan.ftzmlab.xyz/'),
-          k.core.v1.envVar.new('FORGEJO__server__SSH_DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
-          k.core.v1.envVar.new('FORGEJO__server__SSH_PORT', '30022'),
-          k.core.v1.envVar.new('FORGEJO__server__SSH_LISTEN_PORT', '22'),
-          k.core.v1.envVar.new('FORGEJO__database__DB_TYPE', 'sqlite3'),
-          k.core.v1.envVar.new('FORGEJO__service__DISABLE_REGISTRATION', 'true'),
-          k.core.v1.envVar.new('FORGEJO__security__INSTALL_LOCK', 'true'),
-          k.core.v1.envVar.new('FORGEJO__actions__ENABLED', 'true'),
-        ]),
-      ] } } },
-    } + k.apps.v1.deployment.spec.template.spec.withVolumes([
-      k.core.v1.volume.fromPersistentVolumeClaim('data', 'forgejo-data'),
-    ]),
-  },
+        } } },
+      } + k.apps.v1.deployment.spec.template.spec.withVolumes([
+        k.core.v1.volume.fromPersistentVolumeClaim('data', 'forgejo-data'),
+      ]),
+    },
 
 }

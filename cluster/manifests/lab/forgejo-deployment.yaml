@@ -35,6 +35,21 @@ spec:
           value: "true"
         - name: FORGEJO__actions__ENABLED
           value: "true"
+        - name: FORGEJO__security__SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: SECRET_KEY
+              name: forgejo-secrets
+        - name: FORGEJO__security__INTERNAL_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: INTERNAL_TOKEN
+              name: forgejo-secrets
+        - name: FORGEJO__oauth2__JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: JWT_SECRET
+              name: forgejo-secrets
         image: codeberg.org/forgejo/forgejo:15.0.3
         name: forgejo
         ports:
@@ -42,6 +57,76 @@ spec:
           name: http
         - containerPort: 22
           name: ssh
+        volumeMounts:
+        - mountPath: /data
+          name: data
+      initContainers:
+      - args:
+        - |
+          set -e
+          export GITEA_CUSTOM=/data/gitea
+          bash /etc/s6/gitea/setup
+          CONF=/data/gitea/conf/app.ini
+          su-exec git forgejo migrate --config "$CONF"
+          if su-exec git forgejo admin user list --config "$CONF" | awk 'NR>1{print $2}' | grep -qx "$ADMIN_USERNAME"; then
+            su-exec git forgejo admin user change-password --config "$CONF" --username "$ADMIN_USERNAME" --password "$ADMIN_PASSWORD" --must-change-password=false
+          else
+            su-exec git forgejo admin user create --config "$CONF" --admin --username "$ADMIN_USERNAME" --password "$ADMIN_PASSWORD" --email "$ADMIN_EMAIL" --must-change-password=false
+          fi
+        command:
+        - /bin/bash
+        - -c
+        env:
+        - name: FORGEJO__server__DOMAIN
+          value: forgejo.lan.ftzmlab.xyz
+        - name: FORGEJO__server__ROOT_URL
+          value: https://forgejo.lan.ftzmlab.xyz/
+        - name: FORGEJO__server__SSH_DOMAIN
+          value: forgejo.lan.ftzmlab.xyz
+        - name: FORGEJO__server__SSH_PORT
+          value: "30022"
+        - name: FORGEJO__server__SSH_LISTEN_PORT
+          value: "22"
+        - name: FORGEJO__database__DB_TYPE
+          value: sqlite3
+        - name: FORGEJO__service__DISABLE_REGISTRATION
+          value: "true"
+        - name: FORGEJO__security__INSTALL_LOCK
+          value: "true"
+        - name: FORGEJO__actions__ENABLED
+          value: "true"
+        - name: FORGEJO__security__SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: SECRET_KEY
+              name: forgejo-secrets
+        - name: FORGEJO__security__INTERNAL_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: INTERNAL_TOKEN
+              name: forgejo-secrets
+        - name: FORGEJO__oauth2__JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: JWT_SECRET
+              name: forgejo-secrets
+        - name: ADMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: admin-username
+              name: forgejo-secrets
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: admin-password
+              name: forgejo-secrets
+        - name: ADMIN_EMAIL
+          valueFrom:
+            secretKeyRef:
+              key: admin-email
+              name: forgejo-secrets
+        image: codeberg.org/forgejo/forgejo:15.0.3
+        name: bootstrap-admin
         volumeMounts:
         - mountPath: /data
           name: data
