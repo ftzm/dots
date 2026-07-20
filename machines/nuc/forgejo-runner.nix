@@ -117,9 +117,13 @@ in {
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
+          # The guest has no interactive shell; mirror this unit's output to the
+          # serial console so it lands in the host journal (microvm@…) for debugging.
+          StandardOutput = "journal+console";
+          StandardError = "journal+console";
         };
         script = ''
-          set -eu
+          set -eux
           if [ ! -f /var/lib/forgejo-runner/.runner ]; then
             ${pkgs.podman}/bin/podman run --rm \
               --user 0:0 \
