@@ -49,6 +49,6 @@ requires:
   - chart: immich/immich
     version: "0.12.0"
   - chart: cloudnative-pg/cloudnative-pg
-    version: "0.28.2"
+    version: "0.29.0"
   - chart: jameswynn/homepage
     version: "2.1.0"
