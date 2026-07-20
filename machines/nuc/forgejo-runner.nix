@@ -102,6 +102,12 @@ in {
       # One-time registration: create /var/lib/forgejo-runner/.runner from the
       # token if it doesn't exist yet. Runs the pinned image so the register
       # binary matches the daemon. podman run needs no persistent daemon.
+      #
+      # --user 0:0: the image runs as uid 1000, but /data (the volume) is
+      # root-owned and the daemon must also drive the root:podman podman.sock —
+      # so both containers run as root. The microVM is the trust boundary here,
+      # not the in-guest uid, so a root runner inside this single-purpose VM is
+      # the coherent choice.
       systemd.services.forgejo-runner-register = {
         description = "Register forgejo-runner (once)";
         wantedBy = ["multi-user.target"];
@@ -116,9 +122,10 @@ in {
           set -eu
           if [ ! -f /var/lib/forgejo-runner/.runner ]; then
             ${pkgs.podman}/bin/podman run --rm \
+              --user 0:0 \
               -v /var/lib/forgejo-runner:/data \
               ${runnerImage} \
-              forgejo-runner register --no-interactive \
+              /bin/forgejo-runner register --no-interactive \
               --instance ${instanceUrl} \
               --token "$(cat ${tokenHostDir}/token)" \
               --name ${runnerName} \
@@ -138,16 +145,20 @@ in {
             "/var/lib/forgejo-runner:/data"
             "/run/podman/podman.sock:/var/run/docker.sock"
           ];
-          cmd = ["daemon"];
-          extraOptions = ["--pull=always"];
+          # Image has no entrypoint (Cmd = /bin/forgejo-runner), so name the
+          # binary explicitly — a bare "daemon" would be exec'd as a command.
+          cmd = ["/bin/forgejo-runner" "daemon"];
+          # --user=0:0: read the root-owned .runner and drive the root:podman
+          # podman.sock (see the register service for the rationale).
+          extraOptions = ["--pull=always" "--user=0:0"];
         };
       };
 
-      # Give the runner room; jobs can be heavy. It also needs the podman API
-      # socket live so the mounted socket is real when a job launches.
+      # The daemon needs a successful registration (.runner) and the podman API
+      # socket live before it starts; Restart=always keeps it up for heavy jobs.
       systemd.services."podman-forgejo-runner" = {
-        requires = ["podman.socket"];
-        after = ["podman.socket"];
+        requires = ["podman.socket" "forgejo-runner-register.service"];
+        after = ["podman.socket" "forgejo-runner-register.service"];
         serviceConfig.Restart = lib.mkForce "always";
       };
     };
