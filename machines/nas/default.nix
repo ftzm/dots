@@ -144,6 +144,7 @@ in {
       "/pool-1/cloud/photos"
       "/pool-1/vaultwarden"
       "/pool-1/k8s/immich-db-backup"
+      "/pool-1/k8s/forgejo-backup"
     ];
     exclude = [];
     repo = "d6hr008k@d6hr008k.repo.borgbase.com:repo";
@@ -174,6 +175,9 @@ in {
     "d /pool-1/cloud 0775 root storage -"
     "d /pool-1/vaultwarden 0775 root storage -"
     "d /pool-1/k8s/immich-db-backup 0775 root storage -"
+    # Forgejo dumps are written by the git user (uid 1000) inside the CronJob;
+    # own the dir 1000:1000 so it can write over NFS (no_root_squash preserves uid).
+    "d /pool-1/k8s/forgejo-backup 0755 1000 1000 -"
     # Recursive permission fix on download dirs (files arrive with varying perms)
     "Z /pool-1/mediastack/downloads 0775 root storage -"
     # Legacy symlinks — nuc services still reference old paths via /mnt/nas.

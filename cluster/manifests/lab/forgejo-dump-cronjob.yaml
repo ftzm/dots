@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: forgejo-dump
+  namespace: forgejo
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - args:
+            - |
+              set -eu
+              TS=$(date +%Y%m%d-%H%M%S)
+              su-exec git forgejo dump --config /data/gitea/conf/app.ini --type tar --tempdir /tmp --file /backup/forgejo-$TS.tar
+              find /backup -name 'forgejo-*.tar' -mtime +7 -delete
+            command:
+            - /bin/bash
+            - -c
+            image: codeberg.org/forgejo/forgejo:15.0.3
+            name: dump
+            volumeMounts:
+            - mountPath: /data
+              name: data
+            - mountPath: /backup
+              name: backup
+          restartPolicy: OnFailure
+          volumes:
+          - name: data
+            persistentVolumeClaim:
+              claimName: forgejo-data
+          - name: backup
+            persistentVolumeClaim:
+              claimName: forgejo-backup
+  schedule: 0 2 * * *
+  successfulJobsHistoryLimit: 3

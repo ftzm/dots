@@ -1892,6 +1892,8 @@ local withNamespace(resources, ns) = {
       secretRef('FORGEJO__security__INTERNAL_TOKEN', 'INTERNAL_TOKEN'),
       secretRef('FORGEJO__oauth2__JWT_SECRET', 'JWT_SECRET'),
     ];
+    // NFS-backed volume for scheduled dumps (shipped off-box by the NAS borg job).
+    local backup = storage.nfsMount('forgejo-backup', ns, '/pool-1/k8s/forgejo-backup', '10Gi');
     {
       // Data (git repos + sqlite db + config, all under /data) lives on node-local
       // storage. The pod is pinned to nuc regardless, and SQLite/git over NFS carry
@@ -1933,6 +1935,48 @@ local withNamespace(resources, ns) = {
             'admin-email': 'AgAfFQ0ZGCbwTRvz6MUPEhBFp0kW4AQtyTMKPLOVuT2T2cwAq82X3TCXVfexT4DEvxqCOITueZVfp+Zp234yh4o5ZunzPadlZOJRE3ciEdDkhlgYkSfwWEjRYSJcNg38GE2g+2rqUAzcrNqLWwsEQUhDdKBSt5AOQDwmO/zlQx1PGOEiE4zOJ8BhmoyWgW3e4PcrdonVPFYebN9SqkgkdH+1exnCkD3BkUxPoQUL48yNfHJ/KOtLBZLnoei+a9yvA2lMfcM7M02mcX306cbMSOZvkEFouxRvsl8TAul63bOcwy+Mu9fw3TJpeKFXZIaruOhwua02hmgECSzNsac149/3Q2Bsw1PbZU6bP5i7ymirc6r5nRZ+1C0DNmMLaZtwzrKnkL7F8EP3NRbgOEnIQJT+wk9cAX+WX85MfzK/P5RHfN2rwd44n8xTosOS9AeckfqA+CXEINZIRCwRE6DvdO8HZlkg9nObei9OUbPQrhSIv90LFZdLir4K7o5DzTiiZHs4pC9lKgUDpzVaBOY+LHaHS9rgbsQW5dqLwxcwZvH/Alt5ULhBX/tP+E5WSuWWDPAlZ7mLkWH+SktB76ZHpV6Z2lMAJC1GbDzyIoEeC3P3xnEIV9nPIGzej9ScZhenEsKg3lYbQCL/j4o/nTqa/0a3y7baZG3gK14S+Qei5WV/U7ZFAcCFBsYg2T9z/N+cP0UYJ/jdGppBZmDL',
           },
           template: { metadata: { name: 'forgejo-secrets', namespace: ns } },
+        },
+      },
+
+      // Daily `forgejo dump` → NFS volume; the NAS borg job ships it off-box.
+      // Runs as git (uid 1000, the server user) and writes uncompressed tar so
+      // borg can dedup unchanged repos across days. The NFS dir is owned
+      // 1000:1000 on the NAS so the git-uid job can write it (no_root_squash).
+      backupPv: backup.pv,
+      backupPvc: backup.pvc,
+      dumpCronJob: {
+        apiVersion: 'batch/v1',
+        kind: 'CronJob',
+        metadata: { name: 'forgejo-dump', namespace: ns },
+        spec: {
+          schedule: '0 2 * * *',
+          concurrencyPolicy: 'Forbid',
+          successfulJobsHistoryLimit: 3,
+          failedJobsHistoryLimit: 3,
+          jobTemplate: { spec: { template: { spec: {
+            restartPolicy: 'OnFailure',
+            containers: [{
+              name: 'dump',
+              image: images.forgejo,
+              command: ['/bin/bash', '-c'],
+              args: [
+                |||
+                  set -eu
+                  TS=$(date +%Y%m%d-%H%M%S)
+                  su-exec git forgejo dump --config /data/gitea/conf/app.ini --type tar --tempdir /tmp --file /backup/forgejo-$TS.tar
+                  find /backup -name 'forgejo-*.tar' -mtime +7 -delete
+                |||,
+              ],
+              volumeMounts: [
+                { name: 'data', mountPath: '/data' },
+                { name: 'backup', mountPath: '/backup' },
+              ],
+            }],
+            volumes: [
+              { name: 'data', persistentVolumeClaim: { claimName: 'forgejo-data' } },
+              { name: 'backup', persistentVolumeClaim: { claimName: 'forgejo-backup' } },
+            ],
+          } } } },
         },
       },
     } + selfhosted.new('forgejo', images.forgejo, 3000, 'forgejo.lan.ftzmlab.xyz') {
