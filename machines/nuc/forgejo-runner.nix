@@ -28,9 +28,13 @@ in {
   imports = [inputs.microvm.nixosModules.host];
 
   # Decrypt the runner registration token on nuc into its own dir.
+  # symlink = false is essential: by default agenix places `path` as a symlink
+  # into /run/agenix.d, which isn't shared into the guest — so through virtiofs
+  # it dangles and the guest reads an empty token. false writes a real file here.
   age.secrets.forgejo-runner-token = {
     file = ../../secrets/forgejo-runner-token.age;
     path = "${tokenHostDir}/token";
+    symlink = false;
     mode = "0444"; # readable by virtiofs → guest; token is low-value (registration only)
   };
 
@@ -123,7 +127,7 @@ in {
           StandardError = "journal+console";
         };
         script = ''
-          set -eux
+          set -eu
           if [ ! -f /var/lib/forgejo-runner/.runner ]; then
             ${pkgs.podman}/bin/podman run --rm \
               --user 0:0 \
