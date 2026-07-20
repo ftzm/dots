@@ -31,10 +31,22 @@ local imageManager = {
   datasourceTemplate: 'docker',
 };
 
+// Forgejo Actions runner image, pinned in the microVM guest module on nuc.
+// Kept on the same Renovate flow as the cluster images so the runner version
+// tracks with the rest of the fleet (comin deploys it, not ArgoCD).
+local runnerImageManager = {
+  customType: 'regex',
+  managerFilePatterns: ['/machines/nuc/forgejo-runner\\.nix$/'],
+  matchStrings: [
+    'runnerImage = "(?<depName>[a-z0-9._/-]+):(?<currentValue>[^"]+)"',
+  ],
+  datasourceTemplate: 'docker',
+};
+
 {
   '$schema': 'https://docs.renovatebot.com/renovate-schema.json',
   extends: ['config:recommended'],
-  customManagers: chartManagers + [imageManager],
+  customManagers: chartManagers + [imageManager, runnerImageManager],
   enabledManagers: ['custom.regex', 'github-actions', 'jsonnet-bundler'],
   prHourlyLimit: 10,
   prConcurrentLimit: 20,

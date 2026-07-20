@@ -25,5 +25,6 @@ in {
   "borgbase_passphrase.age".publicKeys = [personal leigheas saoiste nuc nas];
   "vaultwarden.age".publicKeys = [personal saoiste eachtrai nuc];
   "k3s.age".publicKeys = [personal saoiste eachtrai nuc];
+  "forgejo-runner-token.age".publicKeys = [personal nuc];
   "cloudflare-api.age".publicKeys = [personal saoiste eachtrai nuc pi];
 }

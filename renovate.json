@@ -166,6 +166,16 @@
          "matchStrings": [
             "'(?<depName>[a-z0-9._/-]+):(?<currentValue>[^']+)'"
          ]
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "docker",
+         "managerFilePatterns": [
+            "/machines/nuc/forgejo-runner\\.nix$/"
+         ],
+         "matchStrings": [
+            "runnerImage = \"(?<depName>[a-z0-9._/-]+):(?<currentValue>[^\"]+)\""
+         ]
       }
    ],
    "enabledManagers": [

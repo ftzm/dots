@@ -78,6 +78,7 @@ in {
     ../../role/network.nix
     ./mqtt2prometheus-service.nix
     ./k3s.nix
+    ./forgejo-runner.nix
     ../../role/comin.nix
   ];
 
