@@ -8,7 +8,7 @@ spec:
   capacity:
     storage: 10Gi
   nfs:
-    path: /pool-1/k8s/pinepods/downloads
+    path: /pool-1/k8s/pinepods-downloads
     server: 192.168.1.3
   persistentVolumeReclaimPolicy: Retain
   storageClassName: pinepods-downloads-pinepods

@@ -1831,7 +1831,7 @@ local withNamespace(resources, ns) = {
     local host = 'pinepods.lan.ftzmlab.xyz',
     local labels = { app: 'pinepods' },
     // Static NFS mounts at known paths so both are covered by the NAS borg job.
-    local downloadsMount = storage.nfsMount('pinepods-downloads', ns, '/pool-1/k8s/pinepods/downloads', '10Gi'),
+    local downloadsMount = storage.nfsMount('pinepods-downloads', ns, '/pool-1/k8s/pinepods-downloads', '10Gi'),
     local dbBackupMount = storage.nfsMount('pinepods-db-backup', ns, '/pool-1/k8s/pinepods-db-backup', '5Gi'),
 
     namespace: k.core.v1.namespace.new(ns),

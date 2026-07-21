@@ -145,7 +145,7 @@ in {
       "/pool-1/vaultwarden"
       "/pool-1/k8s/immich-db-backup"
       "/pool-1/k8s/forgejo-backup"
-      "/pool-1/k8s/pinepods/downloads"
+      "/pool-1/k8s/pinepods-downloads"
       "/pool-1/k8s/pinepods-db-backup"
     ];
     exclude = [];
@@ -180,12 +180,12 @@ in {
     # Forgejo dumps are written by the git user (uid 1000) inside the CronJob;
     # own the dir 1000:1000 so it can write over NFS (no_root_squash preserves uid).
     "d /pool-1/k8s/forgejo-backup 0755 1000 1000 -"
-    # PinePods downloads + DB dumps. Both write over NFS via the storage group
-    # (the app runs as root/PUID 0; the pg_dump pod joins gid 1001 through
-    # supplementalGroups — see cluster/lib/backup.libsonnet), so these stay the
-    # same root:storage 0775 as every other NFS dir.
-    "d /pool-1/k8s/pinepods 0775 root storage -"
-    "d /pool-1/k8s/pinepods/downloads 0775 root storage -"
+    # PinePods downloads + DB dumps. Kept single-level (not nested): on a `switch`,
+    # systemd-tmpfiles does not create a newly-added nested dir whose parent is also
+    # brand-new, so these mirror the other flat /pool-1/k8s dirs. Both are written
+    # over NFS via the storage group (app as root/PUID 0; pg_dump joins gid 1001 via
+    # supplementalGroups — see cluster/lib/backup.libsonnet).
+    "d /pool-1/k8s/pinepods-downloads 0775 root storage -"
     "d /pool-1/k8s/pinepods-db-backup 0775 root storage -"
     # Recursive permission fix on download dirs (files arrive with varying perms)
     "Z /pool-1/mediastack/downloads 0775 root storage -"
