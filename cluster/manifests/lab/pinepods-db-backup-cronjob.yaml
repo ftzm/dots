@@ -1,8 +1,8 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: immich-db-backup
-  namespace: immich
+  name: pinepods-db-backup
+  namespace: pinepods
 spec:
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 3
@@ -12,24 +12,24 @@ spec:
         spec:
           containers:
           - args:
-            - pg_dump --format=custom --file=/backup/immich-db-backup-$(date +%Y%m%d-%H%M%S).dump
+            - pg_dump --format=custom --file=/backup/pinepods-db-backup-$(date +%Y%m%d-%H%M%S).dump
               && find /backup -name "*.dump" -mtime +7 -delete
             command:
             - /bin/sh
             - -c
             env:
             - name: PGHOST
-              value: immich-database-rw
+              value: pinepods-database-rw
             - name: PGUSER
-              value: immich
+              value: postgres
             - name: PGDATABASE
-              value: immich
+              value: pinepods_database
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
                   key: password
-                  name: immich-database-app
-            image: ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+                  name: pinepods-database-superuser
+            image: ghcr.io/cloudnative-pg/postgresql:18.2
             name: pg-dump
             volumeMounts:
             - mountPath: /backup
@@ -41,6 +41,6 @@ spec:
           volumes:
           - name: backup
             persistentVolumeClaim:
-              claimName: immich-db-backup
+              claimName: pinepods-db-backup
   schedule: 0 3 * * *
   successfulJobsHistoryLimit: 3

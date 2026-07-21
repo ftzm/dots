@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pinepods
+  namespace: pinepods
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pinepods
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: pinepods
+    spec:
+      containers:
+      - env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: pinepods-database-superuser
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: PASSWORD
+              name: pinepods-admin
+        envFrom:
+        - configMapRef:
+            name: pinepods-env
+        image: madeofpendletonwool/pinepods:0.9.0
+        name: pinepods
+        ports:
+        - containerPort: 8040
+          name: http
+        volumeMounts:
+        - mountPath: /opt/pinepods/downloads
+          name: downloads
+      volumes:
+      - name: downloads
+        persistentVolumeClaim:
+          claimName: pinepods-downloads

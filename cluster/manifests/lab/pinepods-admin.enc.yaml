@@ -1,0 +1,25 @@
+apiVersion: isindir.github.com/v1alpha3
+kind: SopsSecret
+metadata:
+    name: pinepods-admin
+    namespace: pinepods
+spec:
+    secretTemplates:
+        - name: pinepods-admin
+          stringData:
+            PASSWORD: ENC[AES256_GCM,data:pDWBqDR3M+z4XaeCrmAAAsSeTqb/vlSd,iv:T2RoVdqWkms7hZbhiIh6fWQz3O1+qFp1UOnnlxLlxWw=,tag:O92Xhf7iinYrc+6ahJwH3g==,type:str]
+sops:
+    age:
+        - recipient: age1v3vw5n45s7cn3jy9g2duh969a9e22nvnt53m3wxpmmlnna3sls7szvwk7c
+          enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBTQWkyWS9pK2srV282b0dk
+            ZHhTS2s5aGZRT0gvOWxKdFdVaENmUmMyWjBjClRrS3VpTjVIRGtUTTBTdWxqWW5L
+            T01vY3oxck55YVVYSEhQaU85Z3I5Q2cKLS0tIFB2d1pncVhFQWZBSGdWbm1qaHEy
+            MXRpNGs4RmtnSjlXYjZJRnZnVW9JU00KUlt7mE6auZa5oKZRXpmcza+upH3pNHLo
+            prgEOCJgcv5sDZ45sqPSoOH+u+Nl8Du+AydDhEF4kgXNooBEjwReuQ==
+            -----END AGE ENCRYPTED FILE-----
+    lastmodified: "2026-07-21T17:34:03Z"
+    mac: ENC[AES256_GCM,data:r4Jviu+458G6S1fxfwet6ZaOjWU81/BsNwqyHjdAZHqqLZFb+W/lxq7xltU275mkg1DEhFkG8S1LrJ08ICLnvIS59gUq3BQOncEQqGxLLssuKOGQyy6VkGupOSMsCoJMw3GBg1YcWamF1CIsnRLyLyXLbAABIlEGGFTOze41VSk=,iv:pRBjHmc57SA8wPtpRn3z2V4hOc8f0qxAzuUsfpkx46Q=,tag:LeeorjsdnnJpOD3Gw1Is7Q==,type:str]
+    encrypted_regex: ^(data|stringData)$
+    version: 3.11.0

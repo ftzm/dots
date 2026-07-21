@@ -1,3 +1,4 @@
+local backup = import '../../lib/backup.libsonnet';
 local config = import '../../lib/config.libsonnet';
 local images = import '../../lib/images.libsonnet';
 local selfhosted = import '../../lib/selfhosted.libsonnet';
@@ -1813,55 +1814,138 @@ local withNamespace(resources, ns) = {
       },
     },
 
-    // Daily pg_dump backup
-    dbBackupCronJob: {
-      apiVersion: 'batch/v1',
-      kind: 'CronJob',
-      metadata: {
-        name: 'immich-db-backup',
-        namespace: ns,
-      },
+    // Daily pg_dump backup. Runs via the shared helper, which joins the storage
+    // group so the uid-26 dump pod can actually write to NFS — the inline version
+    // here silently failed with EACCES for months (verified + fixed 2026-07-21).
+    dbBackupCronJob: backup.pgDumpCronJob(
+      'immich-db-backup', ns, images.cloudnativeVectorchord,
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
+    ),
+  },
+
+  // PinePods: self-hosted podcast ecosystem (Rust backend + Postgres + Valkey).
+  // Keeps its own auth (native mobile/desktop apps hit the API), so it is NOT
+  // behind forwardAuth — its own login is the leak protection.
+  pinepods: {
+    local ns = 'pinepods',
+    local host = 'pinepods.lan.ftzmlab.xyz',
+    local labels = { app: 'pinepods' },
+    // Static NFS mounts at known paths so both are covered by the NAS borg job.
+    local downloadsMount = storage.nfsMount('pinepods-downloads', ns, '/pool-1/k8s/pinepods/downloads', '10Gi'),
+    local dbBackupMount = storage.nfsMount('pinepods-db-backup', ns, '/pool-1/k8s/pinepods-db-backup', '5Gi'),
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    // PostgreSQL via CloudNativePG. PinePods' setup script assumes the `postgres`
+    // superuser and runs CREATE DATABASE, so superuser access is enabled and the
+    // app points at it (matches upstream compose). The operator generates the
+    // superuser password in the `pinepods-database-superuser` secret.
+    database: {
+      apiVersion: 'postgresql.cnpg.io/v1',
+      kind: 'Cluster',
+      metadata: { name: 'pinepods-database', namespace: ns },
       spec: {
-        schedule: '0 3 * * *',
-        concurrencyPolicy: 'Forbid',
-        successfulJobsHistoryLimit: 3,
-        failedJobsHistoryLimit: 3,
-        jobTemplate: {
-          spec: {
-            template: {
-              spec: {
-                restartPolicy: 'OnFailure',
-                containers: [{
-                  name: 'pg-dump',
-                  image: images.cloudnativeVectorchord,
-                  command: ['/bin/sh', '-c'],
-                  args: ['pg_dump --format=custom --file=/backup/immich-$(date +%Y%m%d-%H%M%S).dump "$DB_URL" && find /backup -name "*.dump" -mtime +7 -delete'],
-                  env: [{
-                    name: 'DB_URL',
-                    valueFrom: {
-                      secretKeyRef: {
-                        name: 'immich-database-app',
-                        key: 'uri',
-                      },
-                    },
-                  }],
-                  volumeMounts: [{
-                    name: 'backup',
-                    mountPath: '/backup',
-                  }],
-                }],
-                volumes: [{
-                  name: 'backup',
-                  persistentVolumeClaim: {
-                    claimName: 'immich-db-backup',
-                  },
-                }],
-              },
-            },
-          },
-        },
+        instances: 1,
+        imageName: images.cnpgPostgres,
+        enableSuperuserAccess: true,
+        storage: { size: '5Gi', storageClass: 'nfs' },
+        bootstrap: { initdb: { database: 'pinepods_database', owner: 'pinepods' } },
       },
     },
+
+    // Valkey cache — ephemeral, no persistence needed.
+    valkeyDeployment: k.apps.v1.deployment.new('valkey')
+                      + k.apps.v1.deployment.metadata.withNamespace(ns)
+                      + k.apps.v1.deployment.spec.selector.withMatchLabels({ app: 'valkey' })
+                      + k.apps.v1.deployment.spec.template.metadata.withLabels({ app: 'valkey' })
+                      + k.apps.v1.deployment.spec.template.spec.withContainers([
+                        k.core.v1.container.new('valkey', images.valkey)
+                        + k.core.v1.container.withPorts([k.core.v1.containerPort.new(6379)]),
+                      ]),
+    valkeyService: k.core.v1.service.new('valkey', { app: 'valkey' }, [k.core.v1.servicePort.new(6379, 6379)])
+                   + k.core.v1.service.metadata.withNamespace(ns),
+
+    // Occasional downloads of at-risk / obscure episodes (streaming is the
+    // default). These saved files are the only irreplaceable thing here, so the
+    // volume is a static NFS path included in borg.
+    downloadsPv: downloadsMount.pv,
+    downloadsPvc: downloadsMount.pvc,
+
+    // pg_dump target — static NFS path, also borg'd.
+    dbBackupPv: dbBackupMount.pv,
+    dbBackupPvc: dbBackupMount.pvc,
+
+    // Non-secret env (admin PASSWORD comes from the SopsSecret; DB_PASSWORD from
+    // the CNPG-generated superuser secret).
+    config: k.core.v1.configMap.new('pinepods-env', {
+              SEARCH_API_URL: 'https://search.pinepods.online/api/search',
+              PEOPLE_API_URL: 'https://people.pinepods.online',
+              HOSTNAME: 'https://' + host,
+              DB_TYPE: 'postgresql',
+              DB_HOST: 'pinepods-database-rw',
+              DB_PORT: '5432',
+              DB_USER: 'postgres',
+              DB_NAME: 'pinepods_database',
+              VALKEY_HOST: 'valkey',
+              VALKEY_PORT: '6379',
+              DEBUG_MODE: 'false',
+              TZ: 'Europe/Copenhagen',
+              DEFAULT_LANGUAGE: 'en',
+              PUID: '0',
+              PGID: '1001',
+              USERNAME: 'ftzm',
+              FULLNAME: 'ftzm',
+              EMAIL: 'm@ftzm.org',
+            })
+            + k.core.v1.configMap.metadata.withNamespace(ns),
+
+    deployment: k.apps.v1.deployment.new('pinepods')
+                + k.apps.v1.deployment.metadata.withNamespace(ns)
+                + k.apps.v1.deployment.spec.withReplicas(1)
+                + k.apps.v1.deployment.spec.selector.withMatchLabels(labels)
+                + k.apps.v1.deployment.spec.strategy.withType('Recreate')
+                + k.apps.v1.deployment.spec.template.metadata.withLabels(labels)
+                + k.apps.v1.deployment.spec.template.spec.withContainers([
+                  k.core.v1.container.new('pinepods', images.pinepods)
+                  + k.core.v1.container.withPorts([k.core.v1.containerPort.newNamed(8040, 'http')])
+                  + k.core.v1.container.withEnvFrom([{ configMapRef: { name: 'pinepods-env' } }])
+                  + k.core.v1.container.withEnv([
+                    { name: 'DB_PASSWORD', valueFrom: { secretKeyRef: { name: 'pinepods-database-superuser', key: 'password' } } },
+                    { name: 'PASSWORD', valueFrom: { secretKeyRef: { name: 'pinepods-admin', key: 'PASSWORD' } } },
+                  ])
+                  + k.core.v1.container.withVolumeMounts([
+                    k.core.v1.volumeMount.new('downloads', '/opt/pinepods/downloads'),
+                  ]),
+                ])
+                + k.apps.v1.deployment.spec.template.spec.withVolumes([
+                  k.core.v1.volume.fromPersistentVolumeClaim('downloads', 'pinepods-downloads'),
+                ]),
+
+    service: k.core.v1.service.new('pinepods', labels, [k.core.v1.servicePort.new(8040, 8040)])
+             + k.core.v1.service.metadata.withNamespace(ns),
+
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'pinepods', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: 'Host(`' + host + '`)',
+          kind: 'Rule',
+          services: [{ name: 'pinepods', port: 8040 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // Daily pg_dump → static NFS path (borg'd off-box). The DB is re-derivable
+    // (subscriptions + positions), but with no ZFS snapshot safety net a cheap
+    // dump is the durability floor. Same shared helper as Immich.
+    dbBackupCronJob: backup.pgDumpCronJob(
+      'pinepods-db-backup', ns, images.cnpgPostgres,
+      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup'
+    ),
   },
 
   // Forgejo: self-hosted git forge with Actions enabled.
