@@ -17,5 +17,5 @@
   filestash: 'machines/filestash:latest',
   pinepods: 'madeofpendletonwool/pinepods:0.9.0',
   valkey: 'valkey/valkey:8-alpine',
-  cnpgPostgres: 'ghcr.io/cloudnative-pg/postgresql:18.2',
+  cnpgPostgres: 'ghcr.io/cloudnative-pg/postgresql:18.4',
 }

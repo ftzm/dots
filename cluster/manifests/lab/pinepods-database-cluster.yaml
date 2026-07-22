@@ -9,7 +9,7 @@ spec:
       database: pinepods_database
       owner: pinepods
   enableSuperuserAccess: true
-  imageName: ghcr.io/cloudnative-pg/postgresql:18.2
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4
   instances: 1
   storage:
     size: 5Gi
