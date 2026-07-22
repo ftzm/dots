@@ -8,7 +8,7 @@
   jellyseerr: 'fallenbagel/jellyseerr:develop',
   vaultwarden: 'vaultwarden/server:1.36.0',
   forgejo: 'codeberg.org/forgejo/forgejo:15.0.3',
-  cloudnativeVectorchord: 'ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3',
+  cloudnativeVectorchord: 'ghcr.io/tensorchord/cloudnative-vectorchord:17.5-0.4.3',
   blocky: 'spx01/blocky:latest',
   ntfy: 'binwiederhier/ntfy',
   navidrome: 'ghcr.io/navidrome/navidrome:0.61.2',
