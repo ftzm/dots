@@ -50,7 +50,7 @@ spec:
             secretKeyRef:
               key: JWT_SECRET
               name: forgejo-secrets
-        image: codeberg.org/forgejo/forgejo:15.0.3
+        image: codeberg.org/forgejo/forgejo:16.0.1
         name: forgejo
         ports:
         - containerPort: 3000
@@ -125,7 +125,7 @@ spec:
             secretKeyRef:
               key: admin-email
               name: forgejo-secrets
-        image: codeberg.org/forgejo/forgejo:15.0.3
+        image: codeberg.org/forgejo/forgejo:16.0.1
         name: bootstrap-admin
         volumeMounts:
         - mountPath: /data
