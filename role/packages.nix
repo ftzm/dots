@@ -165,6 +165,7 @@
 
     inputs.claude-code-nix.packages.${pkgs.system}.default
     inputs.kimi-code.packages.${pkgs.system}.kimi-code
+    codex
   ];
 
   programs.thunar.enable = true;
