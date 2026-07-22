@@ -173,8 +173,8 @@ metadata:
     app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/part-of: kube-prometheus-stack
-    app.kubernetes.io/version: 87.17.0
-    chart: kube-prometheus-stack-87.17.0
+    app.kubernetes.io/version: 87.19.0
+    chart: kube-prometheus-stack-87.19.0
     grafana_dashboard: "1"
     heritage: Helm
     release: kube-prometheus-stack
