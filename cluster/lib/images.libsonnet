@@ -11,7 +11,7 @@
   cloudnativeVectorchord: 'ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3',
   blocky: 'spx01/blocky:latest',
   ntfy: 'binwiederhier/ntfy',
-  navidrome: 'ghcr.io/navidrome/navidrome:0.61.2',
+  navidrome: 'ghcr.io/navidrome/navidrome:0.63.2',
   audiobookshelf: 'advplyr/audiobookshelf:2.35.1',
   thelounge: 'thelounge/thelounge:4.5.2',
   filestash: 'machines/filestash:latest',
