@@ -29,7 +29,7 @@ spec:
                 secretKeyRef:
                   key: password
                   name: immich-database-app
-            image: ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+            image: ghcr.io/tensorchord/cloudnative-vectorchord:17.5-0.4.3
             name: pg-dump
             volumeMounts:
             - mountPath: /backup
