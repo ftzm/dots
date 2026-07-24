@@ -165,6 +165,7 @@
 
     inputs.claude-code-nix.packages.${pkgs.system}.default
     inputs.kimi-code.packages.${pkgs.system}.kimi-code
+    inputs.pi.packages.${pkgs.system}.default
     codex
   ];
 

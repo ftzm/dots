@@ -7,6 +7,7 @@
       #   "https://cache.zw3rk.com"
       "https://nixos-raspberrypi.cachix.org"
       "https://claude-code.cachix.org"
+      "https://pi.cachix.org"
     ];
     extra-trusted-public-keys = [
       #   "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
@@ -14,6 +15,7 @@
       #   "loony-tools:pr9m4BkM/5/eSTZlkQyRt57Jz7OMBxNSUiMC4FkcNfk="
       "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
       "claude-code.cachix.org-1:YeXf2aNu7UTX8Vwrze0za1WEDS+4DuI2kVeWEE4fsRk="
+      "pi.cachix.org-1:lGeoGJaZ5ZDabuRzkcD5EBTNnDM4HJ1vqeOxlWk1Flk="
     ];
   };
 
@@ -43,6 +45,9 @@
     };
     kimi-code = {
       url = "github:MoonshotAI/kimi-code";
+    };
+    pi = {
+      url = "github:lukasl-dev/pi.nix";
     };
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
     comin = {
