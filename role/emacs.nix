@@ -17,6 +17,17 @@
   archiveScript = pkgs.writeShellScript "org-archive" ''
     ${emacs}/bin/emacsclient --eval "(ftzm/org-archive-old-tasks)"
   '';
+  # Weekly controlled Elpaca update: fetch + merge + rebuild every package, then
+  # re-pin the lockfile ONLY if the result is clean (see ftzm/elpaca-update-and-relock
+  # in init.el). A broken upstream leaves the committed pins intact and rolls back
+  # on restart. Result is surfaced as a desktop notification to review + commit.
+  elpacaUpdateScript = pkgs.writeShellScript "elpaca-update" ''
+    set -u
+    summary="$(${emacs}/bin/emacsclient --eval '(ftzm/elpaca-update-and-relock)' 2>&1 \
+      | ${pkgs.gnused}/bin/sed -e 's/^"//' -e 's/"$//' | tail -1)"
+    ${pkgs.libnotify}/bin/notify-send -a Emacs "Emacs package update" "$summary" || true
+    echo "$summary"
+  '';
 in {
   environment.systemPackages = [
     emacs
@@ -73,6 +84,28 @@ in {
     description = "Daily org-mode archive";
     timerConfig = {
       OnCalendar = "daily";
+      Persistent = true;
+    };
+    wantedBy = ["timers.target"];
+  };
+
+  systemd.user.services.elpaca-update = {
+    description = "Update Emacs (Elpaca) packages and re-pin lockfile";
+    requires = ["emacs.service"];
+    after = ["emacs.service"];
+    serviceConfig = {
+      Type = "oneshot";
+      # A full fetch + merge + rebuild of every package can take several minutes.
+      TimeoutStartSec = "30min";
+      ExecStart = "${elpacaUpdateScript}";
+    };
+  };
+
+  systemd.user.timers.elpaca-update = {
+    description = "Weekly Emacs package update";
+    timerConfig = {
+      # Off-hours so the mid-session rebuild never disrupts active work.
+      OnCalendar = "Mon 04:00";
       Persistent = true;
     };
     wantedBy = ["timers.target"];

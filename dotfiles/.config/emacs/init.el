@@ -50,6 +50,19 @@
 
 ;; post recipe setup
 (setq package-enable-at-startup nil)
+
+;; Pin package versions declaratively. `elpaca-menu-lock-file' is already first
+;; in `elpaca-menu-functions', so pointing `elpaca-lock-file' at our committed
+;; lockfile makes it authoritative: every package resolves to the exact commit
+;; recorded in elpaca-lock.el, reproducible on a fresh checkout. Without this,
+;; clones drift to whatever commit they were first fetched at (the cause of the
+;; magit/forge/compat version-cascade breakage). Set before any order resolves.
+;; To bump versions: M-x elpaca-fetch-all, elpaca-merge-all, then regenerate with
+;;   (elpaca-write-lock-file (expand-file-name "elpaca-lock.el" user-emacs-directory))
+;; and commit the result.
+(setq elpaca-lock-file (expand-file-name "elpaca-lock.el" user-emacs-directory))
+(cl-pushnew 'elpaca-menu-lock-file elpaca-menu-functions)
+
 ;; Block until current queue processed.
 (elpaca-wait)
 
@@ -60,9 +73,55 @@
   (setq use-package-always-ensure t)
   )
 
-;; Override built-in compat (30.x) with latest from MELPA — many packages now require >= 31
+;; Override built-in compat (30.x) with latest from MELPA — many packages now require >= 31.
+;; The explicit `(elpaca (compat ...))' form installs compat regardless of
+;; `elpaca-ignored-dependencies', so the elpaca copy shadows the Emacs 30 built-in
+;; on the load-path before magit/forge/ghub are queued.
 (elpaca (compat :depth treeless))
 (elpaca-wait)
+
+;; Daemon resilience: a single package's build failure must never abort startup.
+;; An `elpaca-build-error' signalled while processing queues during startup makes
+;; --fg-daemon exit 255, which trips systemd's start-limit ("can't start emacs").
+;; In daemon mode, demote such errors to messages so the daemon always comes up;
+;; a broken package simply won't load (see *elpaca-log*) instead of taking the
+;; whole editor down. Interactive sessions keep the normal error behaviour.
+(when (daemonp)
+  (advice-add 'elpaca-process-queues :around
+              (lambda (fn &rest args)
+                (with-demoted-errors "Elpaca (demoted during daemon startup): %S"
+                  (apply fn args)))))
+
+(defun ftzm/elpaca--failed-packages ()
+  "Return the list of package ids currently in a `failed' Elpaca state."
+  (let (failed)
+    (dolist (cell (elpaca--queued))
+      (when (eq (elpaca--status (cdr cell)) 'failed)
+        (push (car cell) failed)))
+    failed))
+
+(defun ftzm/elpaca-update-and-relock ()
+  "Fetch, merge and rebuild every Elpaca package, then re-pin the lockfile.
+The lockfile is only rewritten when the post-update state is clean: if any
+package ends up `failed', the committed pins in `elpaca-lock-file' are left
+untouched, so restarting Emacs rolls every package back to the known-good
+commit. Returns a one-line summary (used by the weekly maintenance timer).
+Run interactively, then review `git diff' on the lockfile and commit."
+  (interactive)
+  (condition-case err
+      (progn
+        (elpaca-merge-all t t)          ; fetch + merge + rebuild, process queue
+        (elpaca-wait)
+        (let ((failed (ftzm/elpaca--failed-packages)))
+          (if failed
+              (format "Elpaca update: %d package(s) FAILED (%s) — lockfile left unchanged; restart Emacs to roll back to committed pins."
+                      (length failed)
+                      (mapconcat #'symbol-name failed ", "))
+            (elpaca-write-lock-file elpaca-lock-file)
+            (format "Elpaca update: %d packages healthy — %s regenerated; review `git diff' and commit."
+                    (length (elpaca--queued))
+                    (file-name-nondirectory elpaca-lock-file)))))
+    (error (format "Elpaca update errored: %S — lockfile left unchanged." err))))
 
 ;; ----------------------------------------------------------------------------
 
