@@ -2453,6 +2453,87 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
   )
 
 ;; ==============================================================================
+;; Ghostel
+;; ==============================================================================
+
+;; Terminal emulator powered by libghostty-vt (the VT engine behind Ghostty).
+;; Ships a Zig native module; a prebuilt binary auto-downloads on first use
+;; (M-x ghostel) -- no toolchain required. Explicit recipe mirrors the MELPA
+;; one: sources live in lisp/, and the extra dirs are needed for the optional
+;; compile-from-source path.
+(use-package ghostel
+  :ensure (:host github :repo "dakra/ghostel"
+	   :files (:defaults "etc" "src" "vendor"
+			     "build.zig" "build.zig.zon" "symbols.map"))
+  :commands (ghostel)
+  :config
+  ;; By default ghostel sends C-r straight to the shell in semi-char mode.
+  ;; Add it to the exceptions so it passes through to Emacs (evil) instead,
+  ;; letting the evil-ghostel C-r -> atuin binding below fire. The defcustom's
+  ;; :set rebuilds the semi-char keymap. Idempotent so re-evaluating is safe.
+  (unless (member "C-r" ghostel-keymap-exceptions)
+    (setopt ghostel-keymap-exceptions (cons "C-r" ghostel-keymap-exceptions))))
+
+;; evil-mode integration for ghostel. Separate MELPA package living in the
+;; same repo under extensions/; recipe mirrors the MELPA one.
+(use-package evil-ghostel
+  :ensure (:host github :repo "dakra/ghostel"
+	   :files ("extensions/evil-ghostel/evil-ghostel.el"))
+  :after (evil ghostel consult-atuin)
+  :hook (ghostel-mode . evil-ghostel-mode)
+  :config
+  ;; C-r: atuin history search modeled on the shell's own atuin binding.
+  ;; Unlike the eat version (which inserts buffer text at point), this is
+  ;; PTY-driven via evil-ghostel: the current input line seeds the search
+  ;; query, and on select the *entire* input line is replaced through
+  ;; bracketed paste. Only meaningful in semi-char mode -- which is exactly
+  ;; where evil-ghostel operates.
+  (defun ftzm/ghostel-atuin ()
+    "Search atuin history via consult, seeded with the current shell input.
+Replaces the entire input line with the selected command over the PTY."
+    (interactive)
+    (let* ((beg (or (evil-ghostel--input-start) (ghostel-input-start-point)))
+           (end (or (evil-ghostel--input-end) (point)))
+           (current (when (and beg end (< beg end))
+                      (string-trim (ghostel--filter-soft-wraps
+                                    (buffer-substring-no-properties beg end)))))
+           (consult-async-refresh-delay .0001)
+           (consult-async-input-throttle .001)
+           (consult-async-input-debounce .001)
+           ;; 0 so an empty query still runs (full history); `atuin-builder'
+           ;; handles the blank case.
+           (consult-async-min-input 0)
+           ;; Exiting the minibuffer runs `ghostel--minibuffer-exit-maybe-leave'
+           ;; (on `minibuffer-exit-hook'), which *defers* `ghostel-maybe-leave-input'
+           ;; via `run-at-time'. That deferred call fires after this command has
+           ;; already returned, sees point != the live cursor, and flips the buffer
+           ;; into copy mode ("Copy mode: Press any key to exit") with redraws
+           ;; paused -- so the PTY paste is clobbered by a spurious copy-mode
+           ;; switch. Drop that hook entry for the duration of the search so the
+           ;; deferred switch is never scheduled. The `let*' extent still covers
+           ;; the minibuffer teardown where the hook runs.
+           (minibuffer-exit-hook
+            (remq 'ghostel--minibuffer-exit-maybe-leave minibuffer-exit-hook))
+           (selected (consult--atuin
+                      "Atuin: " #'atuin-builder
+                      (or current ""))))
+      (when (and selected (not (string-empty-p selected)))
+        ;; Belt-and-braces: if some other path still left us out of semi-char,
+        ;; return to it (and recompute the input region) before pasting.
+        (unless (eq ghostel--input-mode 'semi-char)
+          (ghostel-semi-char-mode))
+        (let ((beg (or (evil-ghostel--input-start) (ghostel-input-start-point)))
+              (end (or (evil-ghostel--input-end) (point))))
+          (if (and beg end (< beg end))
+              (evil-ghostel-replace-input-region beg end selected)
+            (ghostel-paste-string selected))))))
+
+  ;; Override evil-ghostel's built-in C-r PTY passthrough in insert state,
+  ;; and bind normal state too (matches the eat C-r workflow).
+  (evil-define-key* '(normal insert) evil-ghostel-mode-map
+                    (kbd "C-r") #'ftzm/ghostel-atuin))
+
+;; ==============================================================================
 ;; C(++)
 ;; ==============================================================================
 

@@ -63,12 +63,16 @@
   :group 'consult-atuin)
 
 (defun atuin-builder (input)
-  "Build command line from INPUT."
+  "Build command line from INPUT.
+A blank INPUT runs `atuin search' with no search term, which returns the
+full history (most-recent-first via -r) rather than no results.  This is
+cheap (a local sqlite lookup) and mirrors the shell binding, where an
+empty prompt lists everything and you type to filter."
   (pcase-let ((`(,arg . ,opts) (consult--command-split input)))
-    (unless (string-blank-p arg)
-      (cons (append (consult--build-args consult-atuin-args)
-                    (consult--split-escaped arg) opts)
-            (cdr (consult--default-regexp-compiler input 'basic t))))))
+    (cons (append (consult--build-args consult-atuin-args)
+                  (unless (string-blank-p arg) (consult--split-escaped arg))
+                  opts)
+          (cdr (consult--default-regexp-compiler input 'basic t)))))
 
 
 (defun consult-atuin--format-line (str)
@@ -162,13 +166,17 @@
 ;; https://jao.io/blog/consulting-spotify-in-a-better-way.html
 ;; for an overview of how the async consult--read function actually works
 (defun consult-atuin (&optional initial)
+  "Search atuin history via consult and insert the choice at point.
+Optional INITIAL seeds the search query (e.g. the current shell input)."
   (interactive)
   (let ((consult-async-refresh-delay .0001)
 	(consult-async-input-throttle .001)
 	(consult-async-input-debounce .001)
-	(consult-async-min-input 1))
+	;; 0 so an empty query still runs and lists the full history;
+	;; `atuin-builder' handles the blank case.
+	(consult-async-min-input 0))
     (goto-char (point-max))
-    (insert (consult--atuin "Atuin: " #'atuin-builder "* "))))
+    (insert (consult--atuin "Atuin: " #'atuin-builder (or initial "")))))
 
 (provide 'consult-atuin)
 ;;; consult-atuin.el ends here
