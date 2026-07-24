@@ -1307,6 +1307,17 @@ in which case does avy-goto-char with the first char."
 
 (use-package direnv
   :config
+  ;; nix `nix develop` devShells rebuild PATH from stdenv and omit NixOS's
+  ;; setuid-wrapper dir (/run/wrappers/bin), so subprocesses spawned from a
+  ;; devShell buffer (e.g. a terminal running sudo/mount/ping, or claude) lose
+  ;; those wrappers. direnv-update-environment replaces exec-path on every
+  ;; devShell switch, so re-prepend the wrapper dir after each update.
+  (defun my/direnv-keep-wrappers (&rest _)
+    (let ((w "/run/wrappers/bin"))
+      (unless (member w exec-path)
+        (add-to-list 'exec-path w)
+        (setenv "PATH" (concat w ":" (getenv "PATH"))))))
+  (advice-add 'direnv-update-environment :after #'my/direnv-keep-wrappers)
   (advice-add 'lsp :before #'direnv-update-environment)
   (direnv-mode)
   )
