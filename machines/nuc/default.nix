@@ -145,6 +145,7 @@ in {
 
     #for nzbget
     python3
+    unrar
   ];
 
   services = {
