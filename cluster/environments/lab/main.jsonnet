@@ -2035,8 +2035,13 @@ local withNamespace(resources, ns) = {
                   + k.core.v1.container.readinessProbe.httpGet.withPort(8080),
                 ]),
 
+    // withLabels is load-bearing: service.new() only sets spec.selector, and the
+    // ServiceMonitor below selects on the Service's *metadata* labels. Without it
+    // Prometheus discovers the endpoint and then drops it on the generated
+    // `__meta_kubernetes_service_label_app` keep rule.
     service: k.core.v1.service.new('miniflux', labels, [k.core.v1.servicePort.newNamed('http', 8080, 8080)])
-             + k.core.v1.service.metadata.withNamespace(ns),
+             + k.core.v1.service.metadata.withNamespace(ns)
+             + k.core.v1.service.metadata.withLabels(labels),
 
     ingressRoute: {
       apiVersion: 'traefik.io/v1alpha1',
