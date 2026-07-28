@@ -80,6 +80,7 @@ in {
     ./k3s.nix
     ./forgejo-runner.nix
     ../../role/comin.nix
+    ../../role/mailsort.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
