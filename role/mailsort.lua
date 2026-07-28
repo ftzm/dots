@@ -69,7 +69,10 @@ local NEWSLETTERS = {
 local KEEP_SENDERS = {
     'No_replymail@gjensidige.dk',
     'noreply@wise.com',
-    'noreply@rejsekort.dk',
+    -- rejsekort is deliberately absent: it sends 171 travel receipts, which
+    -- RECEIPT_SUBJECTS files properly. Anything it sends that isn't a receipt
+    -- has no receipt word in the subject and falls through to the inbox on
+    -- its own, so pinning the sender bought nothing and blocked the folder.
     'noreply@ucplus.dk',
     'klinik@tandnini.dk',
     'nordaccount.com',
@@ -84,8 +87,23 @@ local KEEP_SENDERS = {
 -- (OpenAI) send login codes and product marketing from the same address.
 local AUTH_SUBJECTS = {
     'verification code', 'verify your', 'sign in', 'sign-in', 'log ind',
-    'login code', 'password', 'authentication', 'two-factor',
+    'login', 'password', 'authentication', 'two-factor',
     'security alert', 'authorization code', 'secure link',
+    'new device', 'unusual activity',
+}
+
+-- Receipts. Deliberately matched on subject, never on sender: sampling
+-- showed that four of the five biggest "receipt" senders also send genuinely
+-- actionable mail from the same address. Filing by sender would have hidden
+-- a past-due invoice from Anthropic, a new-device login alert from PayPal, a
+-- card-expiry warning from Greentel that would have killed a phone
+-- subscription, and commuter travel days with a deadline from DSB.
+--
+-- These words separate cleanly because the actionable items avoid them
+-- entirely: "Reminder: Your *invoice* ... past due" is not a receipt,
+-- "Login from a new device" is not a kvittering.
+local RECEIPT_SUBJECTS = {
+    'receipt', 'kvittering', 'optankning',
 }
 
 -- Property alerts. Boligsiden saved-search hits alone were ~420 messages,
@@ -158,6 +176,9 @@ local AGE_OUT = {
     { 'Dev', 30 },
     { 'Property', 30 },
     { 'Newsletters', 60 },
+    -- Records rather than noise: a year keeps the current tax year to hand.
+    -- Nothing is lost either way, Archive stays searchable.
+    { 'Receipts', 365 },
 }
 
 -- Helpers ----------------------------------------------------------------
@@ -229,17 +250,24 @@ local function sort_mailbox(name)
                  + any_from(mbox, MARKETING_SENDERS))
                 - news - dev - property - keep
 
+    -- Before Orders: the receipt words are the more specific of the two, and
+    -- an order confirmation that also calls itself a kvittering is a record
+    -- rather than a lifecycle notification.
+    local receipts = any_subject(mbox, RECEIPT_SUBJECTS)
+                   - promo - news - dev - property - keep
+
     -- After the marketing test on purpose: order-ish words turn up in sale
     -- mail ("Company Gifts Ordered Before Aug 1st"), and by this point
     -- anything promotional has already been claimed above.
     local orders = (any_from(mbox, ORDER_SENDERS)
                   + any_subject(mbox, ORDER_SUBJECTS))
-                 - promo - news - dev - property - keep
+                 - receipts - promo - news - dev - property - keep
 
     dev:move_messages(account['Dev'])
     news:move_messages(account['Newsletters'])
     property:move_messages(account['Property'])
     promo:move_messages(account['Promotions'])
+    receipts:move_messages(account['Receipts'])
     orders:move_messages(account['Orders'])
 end
 

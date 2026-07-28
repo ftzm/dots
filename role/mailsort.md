@@ -49,6 +49,7 @@ Dry run:
 | Promotions | Marketing: retail, travel/loyalty, service | 30d → Archive |
 | Orders | Carriers, e-commerce platforms, order/shipping subjects | 30d → Archive |
 | Property | Boligsiden and estate-agent saved-search alerts | 30d → Archive |
+| Receipts | Subjects containing receipt / kvittering / optankning | 365d → Archive |
 | Newsletters | Sampson Boat Co, Forbrugerrådet, Haskell Weekly, Substack | 60d → Archive |
 | Dev | GitHub CI | 30d → Archive |
 | *(Inbox, Gmail)* | Humans, receipts, banking, insurance, official | — |
@@ -93,6 +94,15 @@ thousands of shops under one identity. Enumerating individual merchants was
 measured at 50 messages out of 1,370 and grows without bound, so it's out.
 Unrecognised shop mail stays visible in the inbox, which is the safe
 direction.
+
+**Receipts must be matched by subject, never by sender.** Sampling the five
+biggest receipt senders showed four of them also send genuinely actionable
+mail from the same address. A sender rule would have hidden a past-due
+Anthropic invoice, a PayPal new-device login alert, a Greentel card-expiry
+warning that would have killed a phone subscription, and DSB commuter travel
+days with a deadline. The subject words separate cleanly because the
+actionable items avoid them: "Reminder: your *invoice* … past due" is not a
+receipt, "Login from a new device" is not a kvittering.
 
 **Bare stems beat phrases.** `ordre` subsumes `din ordre` *and* repairs
 `ordrebekr`, which matched literally nothing; `pakke` subsumes `din pakke`;
