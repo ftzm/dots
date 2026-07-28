@@ -51,7 +51,12 @@ Dry run:
 | Property | Boligsiden and estate-agent saved-search alerts | 30d → Archive |
 | Newsletters | Sampson Boat Co, Forbrugerrådet, Haskell Weekly, Substack | never |
 | Dev | GitHub CI | 30d → Archive |
-| *(Inbox)* | Humans, receipts, banking, insurance, official | — |
+| *(Inbox, Gmail)* | Humans, receipts, banking, insurance, official | — |
+
+Two source mailboxes, not one: `Gmail` holds mail forwarded from the gmail
+account, so it's a second inbox and gets identical treatment — same rules,
+same destination folders. Whatever the rules don't claim stays put, leaving
+each mailbox working as the inbox for its own account.
 
 Ordering is expressed as set difference, not by sequencing the moves:
 

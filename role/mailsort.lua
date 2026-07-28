@@ -184,47 +184,60 @@ local account = IMAP {
     ssl = 'auto',
 }
 
-local inbox = account.INBOX
+-- Both of these are inboxes. 'Gmail' holds mail forwarded from the gmail
+-- account, so it gets identical treatment -- same rules, same destination
+-- folders. Whatever the rules don't claim stays put, which leaves each one
+-- working as the inbox for its own account.
+local SOURCES = { 'INBOX', 'Gmail' }
 
 -- Sorting ----------------------------------------------------------------
 -- Every set is computed before anything moves, so the ordering below is
 -- expressed as set difference rather than by sequencing the moves.
 
-local keep = any_from(inbox, KEEP_SENDERS)
-           + any_subject(inbox, AUTH_SUBJECTS)
+local function sort_mailbox(name)
+    local mbox = account[name]
 
-local dev = any_from(inbox, DEV) - keep
+    local keep = any_from(mbox, KEEP_SENDERS)
+               + any_subject(mbox, AUTH_SUBJECTS)
 
-local news = any_from(inbox, NEWSLETTERS) - keep
+    local dev = any_from(mbox, DEV) - keep
 
-local property = any_from(inbox, PROPERTY) - keep
+    local news = any_from(mbox, NEWSLETTERS) - keep
 
--- RFC 8058 one-click unsubscribe. Bulk senders are required to set it and
--- transactional mail is exempt, which is a far sharper line than plain
--- List-Unsubscribe (receipts carry that too). Per RFC 3501 a zero-length
--- search string matches any message that merely *has* the header.
---
--- MARKETING_SENDERS covers the small retailers that market without setting
--- it, since the one-click mandate only binds high-volume senders.
-local promo = (inbox:contain_field('list-unsubscribe-post', '')
-             + any_from(inbox, MARKETING_SENDERS))
-            - news - dev - property - keep
+    local property = any_from(mbox, PROPERTY) - keep
 
--- After the marketing test on purpose: order-ish words turn up in sale mail
--- ("Company Gifts Ordered Before Aug 1st"), and by this point anything
--- promotional has already been claimed above.
-local orders = (any_from(inbox, ORDER_SENDERS)
-              + any_subject(inbox, ORDER_SUBJECTS))
-             - promo - news - dev - property - keep
+    -- RFC 8058 one-click unsubscribe. Bulk senders are required to set it
+    -- and transactional mail is exempt, which is a far sharper line than
+    -- plain List-Unsubscribe (receipts carry that too). Per RFC 3501 a
+    -- zero-length search string matches any message that merely *has* the
+    -- header.
+    --
+    -- MARKETING_SENDERS covers the small retailers that market without
+    -- setting it, since the one-click mandate only binds high-volume senders.
+    local promo = (mbox:contain_field('list-unsubscribe-post', '')
+                 + any_from(mbox, MARKETING_SENDERS))
+                - news - dev - property - keep
 
-dev:move_messages(account['Dev'])
-news:move_messages(account['Newsletters'])
-property:move_messages(account['Property'])
-promo:move_messages(account['Promotions'])
-orders:move_messages(account['Orders'])
+    -- After the marketing test on purpose: order-ish words turn up in sale
+    -- mail ("Company Gifts Ordered Before Aug 1st"), and by this point
+    -- anything promotional has already been claimed above.
+    local orders = (any_from(mbox, ORDER_SENDERS)
+                  + any_subject(mbox, ORDER_SUBJECTS))
+                 - promo - news - dev - property - keep
+
+    dev:move_messages(account['Dev'])
+    news:move_messages(account['Newsletters'])
+    property:move_messages(account['Property'])
+    promo:move_messages(account['Promotions'])
+    orders:move_messages(account['Orders'])
+end
+
+for _, name in ipairs(SOURCES) do
+    sort_mailbox(name)
+end
 
 -- Anything with no bulk markers at all -- humans, receipts, official mail --
--- is never selected here and simply stays in the inbox. Reaching you is the
+-- is never selected here and simply stays where it was. Reaching you is the
 -- default path, not a listed exception.
 
 -- Retention --------------------------------------------------------------
