@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: miniflux-db-backup
+  namespace: miniflux
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - args:
+            - pg_dump --format=custom --file=/backup/miniflux-db-backup-$(date +%Y%m%d-%H%M%S).dump
+              && find /backup -name "*.dump" -mtime +7 -delete
+            command:
+            - /bin/sh
+            - -c
+            env:
+            - name: PGHOST
+              value: miniflux-database-rw
+            - name: PGUSER
+              value: miniflux
+            - name: PGDATABASE
+              value: miniflux
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: miniflux-database-app
+            image: ghcr.io/cloudnative-pg/postgresql:18.2
+            name: pg-dump
+            volumeMounts:
+            - mountPath: /backup
+              name: backup
+          restartPolicy: OnFailure
+          securityContext:
+            supplementalGroups:
+            - 1001
+          volumes:
+          - name: backup
+            persistentVolumeClaim:
+              claimName: miniflux-db-backup
+  schedule: 0 3 * * *
+  successfulJobsHistoryLimit: 3

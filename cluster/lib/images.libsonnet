@@ -16,6 +16,7 @@
   thelounge: 'thelounge/thelounge:4.5.2',
   filestash: 'machines/filestash:latest',
   pinepods: 'madeofpendletonwool/pinepods:0.9.0',
+  miniflux: 'miniflux/miniflux:2.3.3',
   valkey: 'valkey/valkey:8-alpine',
   cnpgPostgres: 'ghcr.io/cloudnative-pg/postgresql:18.2',
 }

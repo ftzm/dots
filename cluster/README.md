@@ -487,6 +487,21 @@ All observability components live in the `monitoring` namespace.
 - 1Gi NFS-backed cache with 12h history.
 - Accessible at `ntfy.lan.ftzmlab.xyz`.
 
+### Miniflux — Feed Reader
+
+- `miniflux/miniflux`, backed by its own CloudNativePG cluster (`miniflux-database`).
+  No superuser and no extensions required; it connects as the database owner via
+  the operator-generated `miniflux-database-app` secret.
+- Read/unread and starred state lives server-side and is exposed over the Google
+  Reader and Fever APIs, so native clients on every device stay in sync. Auth is
+  Miniflux's own (the mobile apps hit the API directly), same as PinePods.
+- Admin password comes from the `miniflux-admin` SopsSecret; `CREATE_ADMIN` is
+  idempotent, so it stays enabled.
+- `/metrics` is exported to Prometheus via a ServiceMonitor (feed polling fails
+  quietly, so the collector is the only signal that a feed has died).
+- Daily `pg_dump` to `/pool-1/k8s/miniflux-db-backup`, which the NAS borg job covers.
+- Accessible at `miniflux.lan.ftzmlab.xyz`.
+
 ### Hello World — Test App
 
 - Minimal nginx deployment used to verify ingress and DNS are working.

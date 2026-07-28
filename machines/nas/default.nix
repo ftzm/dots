@@ -147,6 +147,7 @@ in {
       "/pool-1/k8s/forgejo-backup"
       "/pool-1/k8s/pinepods-downloads"
       "/pool-1/k8s/pinepods-db-backup"
+      "/pool-1/k8s/miniflux-db-backup"
     ];
     exclude = [];
     repo = "d6hr008k@d6hr008k.repo.borgbase.com:repo";
@@ -187,6 +188,9 @@ in {
     # supplementalGroups — see cluster/lib/backup.libsonnet).
     "d /pool-1/k8s/pinepods-downloads 0775 root storage -"
     "d /pool-1/k8s/pinepods-db-backup 0775 root storage -"
+    # Miniflux DB dumps. Read history is the only irreplaceable state (feeds are
+    # re-derivable from an OPML export), and it lives entirely in Postgres.
+    "d /pool-1/k8s/miniflux-db-backup 0775 root storage -"
     # Recursive permission fix on download dirs (files arrive with varying perms)
     "Z /pool-1/mediastack/downloads 0775 root storage -"
     # Legacy symlinks — nuc services still reference old paths via /mnt/nas.

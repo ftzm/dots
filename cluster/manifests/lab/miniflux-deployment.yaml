@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: miniflux
+  namespace: miniflux
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: miniflux
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: miniflux
+    spec:
+      containers:
+      - env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: uri
+              name: miniflux-database-app
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: ADMIN_PASSWORD
+              name: miniflux-admin
+        envFrom:
+        - configMapRef:
+            name: miniflux-env
+        image: miniflux/miniflux:2.3.3
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        name: miniflux
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080

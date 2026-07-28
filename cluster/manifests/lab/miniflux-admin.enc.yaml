@@ -1,0 +1,25 @@
+apiVersion: isindir.github.com/v1alpha3
+kind: SopsSecret
+metadata:
+    name: miniflux-admin
+    namespace: miniflux
+spec:
+    secretTemplates:
+        - name: miniflux-admin
+          stringData:
+            ADMIN_PASSWORD: ENC[AES256_GCM,data:ta6Gbzqy5x9XibpDQiccybGOxstOISJ3,iv:cb+FhDKaUHQRD7y28RDja/HBDitP9e4tRuxd4LouPSQ=,tag:KtA8D9dDMviquQdNy1GUFQ==,type:str]
+sops:
+    age:
+        - recipient: age1v3vw5n45s7cn3jy9g2duh969a9e22nvnt53m3wxpmmlnna3sls7szvwk7c
+          enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB2ZDlRL2JoTkpONWcxSldM
+            Vmc0eTlNUG5sWnluVEx1QzB1OTNrRHFwQnkwCjlpemZJandmenVOcWsvbzV3VVNl
+            bFdkMlhHM2FaK3MyY3VMQ0NPRkZLTW8KLS0tIHZUcW5MVGNZR0FDYXIrcThONVJt
+            b3E3aFFjdkZQQ1YrN2RjMEhJVndWVzAKAUr+UIBN/UxwFWxv6qUaQOyPR283M6zU
+            Tn0rPDBgG6aw2VRzT2ifTk+/StGoX53sl1CpJXs2Pu0r8/GcC+9ofg==
+            -----END AGE ENCRYPTED FILE-----
+    lastmodified: "2026-07-28T16:36:02Z"
+    mac: ENC[AES256_GCM,data:FKbma1Wcw+5gap5+BeqhOhPokrRgIn9s0kGhWCNcnaSuaBIOwe2JID2WbjS2MumGVCSbiiMhjF+Hh5a7AX3uhtcFqKfykTg8ET/ZDD0wezfBvd3moBdmdKXPcng54TeaMDJeXU4TdRACWIoEGL40Zb+wkEIkHSaD8IN3PJsJefE=,iv:75HrgOCeal21plT80xkUHxwyx8CQT6O6KLf6ZXyZoho=,tag:sA2SdHlCf2p6dw4kytGHzg==,type:str]
+    encrypted_regex: ^(data|stringData)$
+    version: 3.11.0

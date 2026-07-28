@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: miniflux-db-backup-miniflux
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 5Gi
+  nfs:
+    path: /pool-1/k8s/miniflux-db-backup
+    server: 192.168.1.3
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: miniflux-db-backup-miniflux

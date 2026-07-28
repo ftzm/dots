@@ -134,6 +134,10 @@ data:
           href: https://audiobookshelf.lan.ftzmlab.xyz
           icon: audiobookshelf
           ping: https://audiobookshelf.lan.ftzmlab.xyz
+      - Miniflux:
+          href: https://miniflux.lan.ftzmlab.xyz
+          icon: miniflux
+          ping: https://miniflux.lan.ftzmlab.xyz
       - Vaultwarden:
           href: https://vaultwarden.lan.ftzmlab.xyz
           icon: vaultwarden

@@ -1,0 +1,15 @@
+apiVersion: v1
+data:
+  ADMIN_USERNAME: ftzm
+  BASE_URL: https://miniflux.lan.ftzmlab.xyz/
+  CREATE_ADMIN: "1"
+  FETCH_YOUTUBE_WATCH_TIME: "1"
+  METRICS_ALLOWED_NETWORKS: 10.42.0.0/16
+  METRICS_COLLECTOR: "1"
+  POLLING_FREQUENCY: "30"
+  RUN_MIGRATIONS: "1"
+  TZ: Europe/Copenhagen
+kind: ConfigMap
+metadata:
+  name: miniflux-env
+  namespace: miniflux

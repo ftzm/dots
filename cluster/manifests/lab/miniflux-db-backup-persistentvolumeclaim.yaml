@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: miniflux-db-backup
+  namespace: miniflux
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: miniflux-db-backup-miniflux
+  volumeName: miniflux-db-backup-miniflux

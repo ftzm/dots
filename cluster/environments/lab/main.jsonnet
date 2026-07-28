@@ -1258,6 +1258,13 @@ local withNamespace(resources, ns) = {
                     },
                   },
                   {
+                    Miniflux: {
+                      href: 'https://miniflux.lan.ftzmlab.xyz',
+                      icon: 'miniflux',
+                      ping: 'https://miniflux.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
                     Vaultwarden: {
                       href: 'https://vaultwarden.lan.ftzmlab.xyz',
                       icon: 'vaultwarden',
@@ -1945,6 +1952,126 @@ local withNamespace(resources, ns) = {
     dbBackupCronJob: backup.pgDumpCronJob(
       'pinepods-db-backup', ns, images.cnpgPostgres,
       'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup'
+    ),
+  },
+
+  // Miniflux: feed reader. Read/unread state lives server-side in Postgres and
+  // is exposed over the Google Reader and Fever APIs, so native clients on every
+  // device (NetNewsWire, Reeder, Readrops, …) stay in sync. Like PinePods it
+  // keeps its own auth for exactly that reason — the mobile apps hit the API
+  // directly, so it cannot sit behind an ingress-level auth middleware.
+  miniflux: {
+    local ns = 'miniflux',
+    local host = 'miniflux.lan.ftzmlab.xyz',
+    local labels = { app: 'miniflux' },
+    // Static NFS mount at a known path so the NAS borg job covers it.
+    local dbBackupMount = storage.nfsMount('miniflux-db-backup', ns, '/pool-1/k8s/miniflux-db-backup', '5Gi'),
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    // PostgreSQL via CloudNativePG. Miniflux needs no superuser and no
+    // extensions (HSTORE stopped being a requirement in 2.0.27), so it connects
+    // as the database owner that CNPG creates, using the operator-generated
+    // `miniflux-database-app` secret.
+    database: {
+      apiVersion: 'postgresql.cnpg.io/v1',
+      kind: 'Cluster',
+      metadata: { name: 'miniflux-database', namespace: ns },
+      spec: {
+        instances: 1,
+        imageName: images.cnpgPostgres,
+        storage: { size: '5Gi', storageClass: 'nfs' },
+        bootstrap: { initdb: { database: 'miniflux', owner: 'miniflux' } },
+      },
+    },
+
+    // pg_dump target — static NFS path, also borg'd.
+    dbBackupPv: dbBackupMount.pv,
+    dbBackupPvc: dbBackupMount.pvc,
+
+    // Non-secret env. The image already sets LISTEN_ADDR=0.0.0.0:8080.
+    // CREATE_ADMIN is idempotent: on every restart Miniflux skips creation when
+    // the user already exists, so it can stay on permanently.
+    config: k.core.v1.configMap.new('miniflux-env', {
+              BASE_URL: 'https://' + host + '/',
+              RUN_MIGRATIONS: '1',
+              CREATE_ADMIN: '1',
+              ADMIN_USERNAME: 'ftzm',
+              // Prometheus scrapes /metrics from inside the pod network; the
+              // default allow-list is loopback only, which would 403 the scrape.
+              METRICS_COLLECTOR: '1',
+              METRICS_ALLOWED_NETWORKS: '10.42.0.0/16',
+              // YouTube channel feeds carry no duration; scrape it so the entry
+              // list shows real watch time instead of a bogus reading time.
+              FETCH_YOUTUBE_WATCH_TIME: '1',
+              // Scheduler interval in minutes (default 60).
+              POLLING_FREQUENCY: '30',
+              TZ: 'Europe/Copenhagen',
+            })
+            + k.core.v1.configMap.metadata.withNamespace(ns),
+
+    deployment: k.apps.v1.deployment.new('miniflux')
+                + k.apps.v1.deployment.metadata.withNamespace(ns)
+                + k.apps.v1.deployment.spec.withReplicas(1)
+                + k.apps.v1.deployment.spec.selector.withMatchLabels(labels)
+                + k.apps.v1.deployment.spec.strategy.withType('Recreate')
+                + k.apps.v1.deployment.spec.template.metadata.withLabels(labels)
+                + k.apps.v1.deployment.spec.template.spec.withContainers([
+                  k.core.v1.container.new('miniflux', images.miniflux)
+                  + k.core.v1.container.withPorts([k.core.v1.containerPort.newNamed(8080, 'http')])
+                  + k.core.v1.container.withEnvFrom([{ configMapRef: { name: 'miniflux-env' } }])
+                  + k.core.v1.container.withEnv([
+                    // CNPG writes a ready-made connection URI into the app secret
+                    // (same pattern as Immich). The server has ssl=on, which lib/pq's
+                    // default sslmode=require needs.
+                    { name: 'DATABASE_URL', valueFrom: { secretKeyRef: { name: 'miniflux-database-app', key: 'uri' } } },
+                    { name: 'ADMIN_PASSWORD', valueFrom: { secretKeyRef: { name: 'miniflux-admin', key: 'ADMIN_PASSWORD' } } },
+                  ])
+                  // /healthz and /readyz are served at the server root, outside
+                  // BASE_URL's path prefix and outside the auth middleware.
+                  + k.core.v1.container.livenessProbe.httpGet.withPath('/healthz')
+                  + k.core.v1.container.livenessProbe.httpGet.withPort(8080)
+                  + k.core.v1.container.readinessProbe.httpGet.withPath('/readyz')
+                  + k.core.v1.container.readinessProbe.httpGet.withPort(8080),
+                ]),
+
+    service: k.core.v1.service.new('miniflux', labels, [k.core.v1.servicePort.newNamed('http', 8080, 8080)])
+             + k.core.v1.service.metadata.withNamespace(ns),
+
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'miniflux', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: 'Host(`' + host + '`)',
+          kind: 'Rule',
+          services: [{ name: 'miniflux', port: 8080 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // Feed polling fails silently by design (a dead feed just stops producing
+    // entries), so the collector is worth having — kube-prometheus-stack picks
+    // up ServiceMonitors from every namespace.
+    serviceMonitor: {
+      apiVersion: 'monitoring.coreos.com/v1',
+      kind: 'ServiceMonitor',
+      metadata: { name: 'miniflux', namespace: ns },
+      spec: {
+        selector: { matchLabels: labels },
+        endpoints: [{ port: 'http', path: '/metrics', interval: '60s' }],
+      },
+    },
+
+    // Daily pg_dump → static NFS path (borg'd off-box). Subscriptions are
+    // re-derivable from an OPML export, but read history is not. Dumped as the
+    // database owner; no superuser role exists on this cluster.
+    dbBackupCronJob: backup.pgDumpCronJob(
+      'miniflux-db-backup', ns, images.cnpgPostgres,
+      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup'
     ),
   },
 
