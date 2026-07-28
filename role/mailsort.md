@@ -59,6 +59,20 @@ account, so it's a second inbox and gets identical treatment — same rules,
 same destination folders. Whatever the rules don't claim stays put, leaving
 each mailbox working as the inbox for its own account.
 
+## Expiry in place
+
+Some mail should stay in the inbox where you'll see it, then disappear once
+it's stale — filing it on arrival would defeat the point. `EXPIRE_IN_PLACE`
+maps sender → days for that case, and applies to both source mailboxes.
+
+Currently just Digital Post, at 7 days. Those notifications only tell you
+something is waiting on the portal; the content is never in the mail itself,
+so once you've been told the message has no further value. Read state is
+deliberately not considered — an unread Digital Post notice from last month
+is no more useful than a read one.
+
+## Ordering
+
 Ordering is expressed as set difference, not by sequencing the moves:
 
 - **Newsletters and Property subtracted from Promotions** — they're

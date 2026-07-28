@@ -181,6 +181,18 @@ local AGE_OUT = {
     { 'Receipts', 365 },
 }
 
+-- Sender -> days, for mail that expires *in place* rather than being filed.
+-- It stays in the inbox where you will see it, then goes to Archive once
+-- it is stale.
+--
+-- Digital Post notifications only tell you that something is waiting on the
+-- portal; the content is never in the mail itself. Once you have been told,
+-- the message has no further value -- but filing it on arrival would defeat
+-- the point of being told.
+local EXPIRE_IN_PLACE = {
+    { 'digitalpost.dk', 7 },
+}
+
 -- Helpers ----------------------------------------------------------------
 
 local function union(sets)
@@ -280,6 +292,15 @@ end
 -- default path, not a listed exception.
 
 -- Retention --------------------------------------------------------------
+
+for _, rule in ipairs(EXPIRE_IN_PLACE) do
+    local sender, days = rule[1], rule[2]
+    for _, src in ipairs(SOURCES) do
+        local mbox = account[src]
+        local stale = mbox:contain_field('from', sender) * mbox:is_older(days)
+        stale:move_messages(account['Archive'])
+    end
+end
 
 for _, rule in ipairs(AGE_OUT) do
     local name, days = rule[1], rule[2]
