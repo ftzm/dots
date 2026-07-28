@@ -49,7 +49,7 @@ Dry run:
 | Promotions | Marketing: retail, travel/loyalty, service | 30d → Archive |
 | Orders | Carriers, e-commerce platforms, order/shipping subjects | 30d → Archive |
 | Property | Boligsiden and estate-agent saved-search alerts | 30d → Archive |
-| Newsletters | Sampson Boat Co, Forbrugerrådet, Haskell Weekly, Substack | never |
+| Newsletters | Sampson Boat Co, Forbrugerrådet, Haskell Weekly, Substack | 60d → Archive |
 | Dev | GitHub CI | 30d → Archive |
 | *(Inbox, Gmail)* | Humans, receipts, banking, insurance, official | — |
 

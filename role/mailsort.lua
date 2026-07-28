@@ -146,8 +146,19 @@ local ORDER_SUBJECTS = {
     'delivery', 'tracking', 'on its way',
 }
 
-local ARCHIVE_AFTER_DAYS = 30
-local AGE_OUT = { 'Promotions', 'Orders', 'Dev', 'Property' }
+-- Folder -> days before it is swept to Archive. Ordered, because Lua tables
+-- with string keys have no defined iteration order and the log should read
+-- the same way every run.
+--
+-- Newsletters gets a longer window than the rest: it holds things you mean
+-- to get back to, not noise to be got out of the way.
+local AGE_OUT = {
+    { 'Promotions', 30 },
+    { 'Orders', 30 },
+    { 'Dev', 30 },
+    { 'Property', 30 },
+    { 'Newsletters', 60 },
+}
 
 -- Helpers ----------------------------------------------------------------
 
@@ -241,9 +252,9 @@ end
 -- default path, not a listed exception.
 
 -- Retention --------------------------------------------------------------
--- Newsletters are deliberately absent: they age out only when you read them.
 
-for _, name in ipairs(AGE_OUT) do
-    account[name]:is_older(ARCHIVE_AFTER_DAYS)
+for _, rule in ipairs(AGE_OUT) do
+    local name, days = rule[1], rule[2]
+    account[name]:is_older(days)
                  :move_messages(account['Archive'])
 end
