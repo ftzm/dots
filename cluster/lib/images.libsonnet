@@ -7,7 +7,7 @@
   flaresolverr: 'flaresolverr/flaresolverr:v3.5.0',
   jellyseerr: 'fallenbagel/jellyseerr:develop',
   vaultwarden: 'vaultwarden/server:1.36.0',
-  forgejo: 'codeberg.org/forgejo/forgejo:15.0.3',
+  forgejo: 'codeberg.org/forgejo/forgejo:15.0.5',
   cloudnativeVectorchord: 'ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3',
   blocky: 'spx01/blocky:latest',
   ntfy: 'binwiederhier/ntfy',

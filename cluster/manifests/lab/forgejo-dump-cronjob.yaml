@@ -20,7 +20,7 @@ spec:
             command:
             - /bin/bash
             - -c
-            image: codeberg.org/forgejo/forgejo:15.0.3
+            image: codeberg.org/forgejo/forgejo:15.0.5
             name: dump
             volumeMounts:
             - mountPath: /data
