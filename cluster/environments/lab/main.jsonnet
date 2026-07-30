@@ -1872,20 +1872,26 @@ local withNamespace(resources, ns) = {
     // pg_trgm, unaccent and uuid-ossp are deliberately absent: Immich's own
     // migrations create and own those, and listing them here would put the
     // operator and the application in competition.
-    // vchord carries an explicit version, taken from the image tag, because
-    // that is the only thing that makes the operator run ALTER EXTENSION
-    // UPDATE TO. Left implicit, it created the extension once and then sat
-    // there while the image moved underneath it -- which is how 0.4.3 ended
-    // up running against a 1.1.1 library and broke every vector query.
+    // An explicit version is the only thing that makes the operator run
+    // ALTER EXTENSION UPDATE TO. Left implicit, an extension is created once
+    // and then sits there while the image moves underneath it -- which is how
+    // vchord ended up at 0.4.3 against a 1.1.1 library and broke every vector
+    // query.
     //
-    // cube, earthdistance and vector are version-free on purpose: nothing
-    // reads their on-disk format the way vchordrq does, and pgvector is
-    // pinned inside Immich's own supported range.
+    // cube and earthdistance stay version-free: they are contrib extensions
+    // that move with PostgreSQL itself, and nothing reads their on-disk
+    // format the way vchordrq does.
     dbExtensions: postgres.managedExtensions(
       'immich-database-extensions', ns, 'immich-database', 'immich', 'immich',
       [
         { name: 'vchord', version: postgres.vchordVersionOf(images.cloudnativeVectorchord) },
-        { name: 'vector' },
+        // pgvector has the same problem vchord had: left version-free it was
+        // created once and never moved, sitting at 0.8.0 while the image
+        // offered 0.8.3. Immich requires >=0.5 <1, and nothing here uses
+        // pgvector's own index types (ivfflat/hnsw) -- only its vector type,
+        // whose representation is unchanged across 0.8.x. Revisit the pin when
+        // the image crosses that range.
+        { name: 'vector', version: '0.8.3' },
         { name: 'cube' },
         { name: 'earthdistance' },
       ]
