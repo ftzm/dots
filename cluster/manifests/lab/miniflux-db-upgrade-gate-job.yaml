@@ -16,12 +16,12 @@ spec:
           set -eu
           running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
           major=$(( running / 10000 ))
-          if [ "$major" = "19" ]; then
-            echo "running PostgreSQL major $major already matches target 19 - no upgrade pending"
+          if [ "$major" = "18" ]; then
+            echo "running PostgreSQL major $major already matches target 18 - no upgrade pending"
             exit 0
           fi
-          echo "MAJOR UPGRADE PENDING: PostgreSQL $major -> 19"
-          out="/backup/miniflux-db-upgrade-gate-pg$major-to-19-$(date +%Y%m%d-%H%M%S).dump"
+          echo "MAJOR UPGRADE PENDING: PostgreSQL $major -> 18"
+          out="/backup/miniflux-db-upgrade-gate-pg$major-to-18-$(date +%Y%m%d-%H%M%S).dump"
           echo "taking pre-upgrade dump to $out"
           pg_dump --format=custom --file="$out"
           [ -s "$out" ] || { echo "FATAL: pre-upgrade dump is empty"; exit 1; }
