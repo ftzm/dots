@@ -1,0 +1,21 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: immich-database-extensions
+  namespace: immich
+spec:
+  cluster:
+    name: immich-database
+  databaseReclaimPolicy: retain
+  ensure: present
+  extensions:
+  - ensure: present
+    name: vchord
+  - ensure: present
+    name: vector
+  - ensure: present
+    name: cube
+  - ensure: present
+    name: earthdistance
+  name: immich
+  owner: immich

@@ -1849,6 +1849,30 @@ local withNamespace(resources, ns) = {
       'immich-db-backup', ns, images.cloudnativeVectorchord,
       'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
     ),
+
+    // Major upgrade harness — see lib/postgres.libsonnet. The target major
+    // here must track the `major` in the Cluster's imageCatalogRef above.
+    dbUpgradeGate: postgres.majorUpgradeGate(
+      'immich-db-upgrade-gate', ns, images.cloudnativeVectorchord,
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup', 16
+    ),
+    dbUpgradeFinalize: postgres.majorUpgradeFinalize(
+      'immich-db-upgrade-finalize', ns, images.cloudnativeVectorchord,
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
+    ),
+
+    // vchord and vector come from the vectorchord image; cube and earthdistance
+    // arrive via `CREATE EXTENSION earthdistance CASCADE` in the bootstrap
+    // above. All four are postgres-owned, so the immich role cannot update
+    // them after a major upgrade — the operator does it instead.
+    //
+    // pg_trgm, unaccent and uuid-ossp are deliberately absent: Immich's own
+    // migrations create and own those, and listing them here would put the
+    // operator and the application in competition.
+    dbExtensions: postgres.managedExtensions(
+      'immich-database-extensions', ns, 'immich-database', 'immich', 'immich',
+      ['vchord', 'vector', 'cube', 'earthdistance']
+    ),
   },
 
   // PinePods: self-hosted podcast ecosystem (Rust backend + Postgres + Valkey).
@@ -1974,6 +1998,18 @@ local withNamespace(resources, ns) = {
       'pinepods-db-backup', ns, images.cnpgPostgres,
       'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup'
     ),
+
+    // Major upgrade harness — see lib/postgres.libsonnet. The target major
+    // here must track the `major` in the Cluster's imageCatalogRef above.
+    // No managed extensions: this database has only plpgsql, which is builtin.
+    dbUpgradeGate: postgres.majorUpgradeGate(
+      'pinepods-db-upgrade-gate', ns, images.cnpgPostgres,
+      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup', 18
+    ),
+    dbUpgradeFinalize: postgres.majorUpgradeFinalize(
+      'pinepods-db-upgrade-finalize', ns, images.cnpgPostgres,
+      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup'
+    ),
   },
 
   // Miniflux: feed reader. Read/unread state lives server-side in Postgres and
@@ -2097,6 +2133,18 @@ local withNamespace(resources, ns) = {
     // database owner; no superuser role exists on this cluster.
     dbBackupCronJob: backup.pgDumpCronJob(
       'miniflux-db-backup', ns, images.cnpgPostgres,
+      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup'
+    ),
+
+    // Major upgrade harness — see lib/postgres.libsonnet. The target major
+    // here must track the `major` in the Cluster's imageCatalogRef above.
+    // No managed extensions: this database has only plpgsql, which is builtin.
+    dbUpgradeGate: postgres.majorUpgradeGate(
+      'miniflux-db-upgrade-gate', ns, images.cnpgPostgres,
+      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup', 18
+    ),
+    dbUpgradeFinalize: postgres.majorUpgradeFinalize(
+      'miniflux-db-upgrade-finalize', ns, images.cnpgPostgres,
       'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup'
     ),
   },

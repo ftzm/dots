@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  name: miniflux-db-upgrade-gate
+  namespace: miniflux
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - args:
+        - |
+          set -eu
+          running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
+          major=$(( running / 10000 ))
+          if [ "$major" = "18" ]; then
+            echo "running PostgreSQL major $major already matches target 18 - no upgrade pending"
+            exit 0
+          fi
+          echo "MAJOR UPGRADE PENDING: PostgreSQL $major -> 18"
+          out="/backup/miniflux-db-upgrade-gate-pg$major-to-18-$(date +%Y%m%d-%H%M%S).dump"
+          echo "taking pre-upgrade dump to $out"
+          pg_dump --format=custom --file="$out"
+          [ -s "$out" ] || { echo "FATAL: pre-upgrade dump is empty"; exit 1; }
+          pg_restore --list "$out" > /dev/null || { echo "FATAL: pre-upgrade dump is not readable"; exit 1; }
+          echo "pre-upgrade dump verified: $(wc -c < "$out") bytes"
+        command:
+        - /bin/sh
+        - -c
+        env:
+        - name: PGHOST
+          value: miniflux-database-rw
+        - name: PGUSER
+          value: miniflux
+        - name: PGDATABASE
+          value: miniflux
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: miniflux-database-app
+        image: ghcr.io/cloudnative-pg/postgresql:18.2
+        name: miniflux-db-upgrade-gate
+        volumeMounts:
+        - mountPath: /backup
+          name: backup
+      restartPolicy: Never
+      securityContext:
+        supplementalGroups:
+        - 1001
+      volumes:
+      - name: backup
+        persistentVolumeClaim:
+          claimName: miniflux-db-backup

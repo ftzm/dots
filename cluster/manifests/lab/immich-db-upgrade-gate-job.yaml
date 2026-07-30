@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  name: immich-db-upgrade-gate
+  namespace: immich
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - args:
+        - |
+          set -eu
+          running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
+          major=$(( running / 10000 ))
+          if [ "$major" = "16" ]; then
+            echo "running PostgreSQL major $major already matches target 16 - no upgrade pending"
+            exit 0
+          fi
+          echo "MAJOR UPGRADE PENDING: PostgreSQL $major -> 16"
+          out="/backup/immich-db-upgrade-gate-pg$major-to-16-$(date +%Y%m%d-%H%M%S).dump"
+          echo "taking pre-upgrade dump to $out"
+          pg_dump --format=custom --file="$out"
+          [ -s "$out" ] || { echo "FATAL: pre-upgrade dump is empty"; exit 1; }
+          pg_restore --list "$out" > /dev/null || { echo "FATAL: pre-upgrade dump is not readable"; exit 1; }
+          echo "pre-upgrade dump verified: $(wc -c < "$out") bytes"
+        command:
+        - /bin/sh
+        - -c
+        env:
+        - name: PGHOST
+          value: immich-database-rw
+        - name: PGUSER
+          value: immich
+        - name: PGDATABASE
+          value: immich
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: immich-database-app
+        image: ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+        name: immich-db-upgrade-gate
+        volumeMounts:
+        - mountPath: /backup
+          name: backup
+      restartPolicy: Never
+      securityContext:
+        supplementalGroups:
+        - 1001
+      volumes:
+      - name: backup
+        persistentVolumeClaim:
+          claimName: immich-db-backup
