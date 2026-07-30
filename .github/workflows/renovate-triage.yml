@@ -299,6 +299,13 @@ jobs:
             note: does it touch our usage? Cite the concrete evidence --
             `file:line` for repo usage, the release-note text for the claim.
 
+            Every `file:line` you cite must be re-read and confirmed to point
+            at the exact construct you are describing before you write it
+            down. Prefer citing the single most specific line (the command,
+            the key, the image ref) over a range. A citation that lands on
+            the wrong block is worse than no citation -- it sends the review
+            to the wrong place.
+
             NEVER speculate. No "likely", "probably", "should be fine". If
             you have not verified something, you have not verified it, and
             that alone blocks a merge.
