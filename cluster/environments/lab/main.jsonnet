@@ -1885,7 +1885,13 @@ local withNamespace(resources, ns) = {
       'immich-database-extensions', ns, 'immich-database', 'immich', 'immich',
       [
         { name: 'vchord', version: postgres.vchordVersionOf(images.cloudnativeVectorchord) },
-        { name: 'vector' },
+        // pgvector has the same problem vchord had: left version-free it was
+        // created once and never moved, sitting at 0.8.0 while the image
+        // offered 0.8.3. Immich requires >=0.5 <1, and nothing here uses
+        // pgvector's own index types (ivfflat/hnsw) -- only its vector type,
+        // whose representation is unchanged across 0.8.x. Revisit the pin when
+        // the image crosses that range.
+        { name: 'vector', version: '0.8.3' },
         { name: 'cube' },
         { name: 'earthdistance' },
       ]
