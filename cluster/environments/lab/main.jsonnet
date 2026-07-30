@@ -2237,7 +2237,7 @@ local withNamespace(resources, ns) = {
       secretRef('FORGEJO__oauth2__JWT_SECRET', 'JWT_SECRET'),
     ];
     // NFS-backed volume for scheduled dumps (shipped off-box by the NAS borg job).
-    local backup = storage.nfsMount('forgejo-backup', ns, '/pool-1/k8s/forgejo-backup', '10Gi');
+    local backupMount = storage.nfsMount('forgejo-backup', ns, '/pool-1/k8s/forgejo-backup', '10Gi');
     {
       // Data (git repos + sqlite db + config, all under /data) lives on node-local
       // storage. The pod is pinned to nuc regardless, and SQLite/git over NFS carry
@@ -2286,8 +2286,28 @@ local withNamespace(resources, ns) = {
       // Runs as git (uid 1000, the server user) and writes uncompressed tar so
       // borg can dedup unchanged repos across days. The NFS dir is owned
       // 1000:1000 on the NAS so the git-uid job can write it (no_root_squash).
-      backupPv: backup.pv,
-      backupPvc: backup.pvc,
+      backupPv: backupMount.pv,
+      backupPvc: backupMount.pvc,
+
+      // Gate on a fresh dump before an image change lands. `forgejo migrate`
+      // runs in an initContainer on every pod start, so the schema migration
+      // fires as soon as a new image rolls and reverting the image does not
+      // undo it. The nightly dump above can be nearly a day old by then.
+      // See lib/backup.libsonnet.
+      dumpGate: backup.forgejoDumpGate(
+        'forgejo-dump-gate', ns, images.forgejo, 'forgejo', 'forgejo-data', 'forgejo-backup'
+      ),
+
+      // ArgoCD leaves hook resources out of its diff, so a hook-only edit
+      // never produces the sync that would run it. Same reasoning, and the
+      // same remedy, as immich's dbHookRevision.
+      dumpGateRevision: {
+        apiVersion: 'v1',
+        kind: 'ConfigMap',
+        metadata: { name: 'forgejo-dump-gate-revision', namespace: ns },
+        data: { digest: std.md5(std.manifestJsonEx($.forgejo.dumpGate, '')) },
+      },
+
       dumpCronJob: {
         apiVersion: 'batch/v1',
         kind: 'CronJob',
