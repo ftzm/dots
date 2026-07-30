@@ -546,22 +546,60 @@ an image across majors, the catalog would stop offering the major a Cluster
 asks for; the operator reports an error and leaves the running database alone
 rather than quietly migrating it.
 
-### Before changing a major
+### The upgrade harness
 
-CloudNativePG will do the upgrade, but it explicitly does **not** handle
-extensions: *"CloudNativePG is not responsible for PostgreSQL extensions. You
-must ensure that extensions in the source PostgreSQL image are compatible with
-those in the target image."* Things to settle first:
+Two ArgoCD hooks bracket the sync that performs an upgrade, built by
+`lib/postgres.libsonnet`. ArgoCD runs hooks on *every* sync, so both decide
+what to do by comparing the running server to the target rather than assuming
+an upgrade is underway — on an ordinary sync each is a single query and an
+exit.
 
-- Take a fresh dump. The nightly `pgDumpCronJob` (`lib/backup.libsonnet`) is
-  the restore path — `pg_upgrade --link` hard-links the old data directory, so
-  once the new server starts the pre-upgrade copy is *not* a safe fallback.
-  Rollback by reverting the image only works while the upgrade job is failing.
-- Avoid PostgreSQL 17.0–17.5 as a target: a known bug blocks upgrades unless
-  `max_slot_wal_keep_size = -1`. Go to 17.6+ instead.
-- Source and target images must share an OS distribution base.
-- Afterwards, run the `update_extensions.sql` that `pg_upgrade` emits, then
-  `ANALYZE` — `pg_upgrade` does not carry optimizer statistics across.
+**`majorUpgradeGate` (PreSync).** If the running major already equals the
+target, it exits immediately. If they differ, it takes a dedicated
+pre-upgrade dump and verifies the result is non-empty *and* readable by
+`pg_restore`. Failing that fails the sync, so the image change never reaches
+the cluster without a good dump behind it.
+
+This is the gate that matters. Once `pg_upgrade --link` succeeds, the old data
+directory shares inodes with the new one and is no longer a fallback —
+reverting the image only helps while the upgrade job is still failing. That
+dump is the way back.
+
+**`majorUpgradeFinalize` (PostSync).** Compares the running major against a
+marker on the backup volume, so it reacts to what actually happened rather
+than to what was intended. On a change it runs `vacuumdb --analyze-in-stages`,
+because `pg_upgrade` does not carry optimizer statistics across and the first
+queries afterwards would otherwise plan against nothing. On first run it just
+records the baseline, so it never analyzes a database that was never upgraded.
+
+**Extensions** are handled by a `Database` resource (`managedExtensions`).
+CloudNativePG is explicit that it will not do this for you — *"CloudNativePG
+is not responsible for PostgreSQL extensions. You must ensure that extensions
+in the source PostgreSQL image are compatible with those in the target
+image."* Declaring an extension without a `version` means "the default version
+in the image's control file", so a major upgrade brings a newer build and the
+operator issues the `ALTER EXTENSION UPDATE` itself — with its own privileges,
+which matters because these are `postgres`-owned and the application role
+cannot update them.
+
+Only Immich has managed extensions: `vchord`, `vector`, `cube`, and
+`earthdistance`. `pg_trgm`, `unaccent` and `uuid-ossp` are deliberately
+excluded — Immich's own migrations own those, and listing them would put the
+operator and the application in competition. Miniflux and Pinepods have only
+`plpgsql`, which is builtin and needs no management.
+
+### Still on you, before changing a major
+
+- **Avoid PostgreSQL 17.0–17.5 as a target.** A known bug blocks upgrades
+  unless `max_slot_wal_keep_size = -1`. Go to 17.6+ instead. The harness does
+  not check this.
+- **Source and target images must share an OS distribution base.**
+- **Judge the extension jump.** The operator will run `ALTER EXTENSION UPDATE`,
+  but whether a new extension major changes an on-disk index format is a
+  changelog question. If it does, indexes need a `REINDEX` that no health
+  check will catch — the cluster comes up ready and queries merely get slow or
+  wrong. `vchord` 0.4.x → 1.1.x is exactly this case.
+- **Expect downtime.** Every cluster here is `instances: 1`.
 
 ---
 

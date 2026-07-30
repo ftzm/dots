@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  name: immich-db-upgrade-finalize
+  namespace: immich
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - args:
+        - |
+          set -eu
+          running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
+          major=$(( running / 10000 ))
+          marker="/backup/.pg-major-immich"
+          if [ ! -f "$marker" ]; then
+            echo "$major" > "$marker"
+            echo "baseline recorded: PostgreSQL $major (nothing to finalize)"
+            exit 0
+          fi
+          last=$(cat "$marker")
+          if [ "$last" = "$major" ]; then
+            echo "PostgreSQL major unchanged ($major) - nothing to finalize"
+            exit 0
+          fi
+          echo "PostgreSQL major changed $last -> $major; finalizing"
+          # pg_upgrade does not carry optimizer statistics across. Staged so the
+          # database becomes usable quickly rather than after one long pass.
+          vacuumdb --analyze-in-stages --dbname="$PGDATABASE"
+          echo "$major" > "$marker"
+          echo "finalized: statistics rebuilt for PostgreSQL $major"
+        command:
+        - /bin/sh
+        - -c
+        env:
+        - name: PGHOST
+          value: immich-database-rw
+        - name: PGUSER
+          value: immich
+        - name: PGDATABASE
+          value: immich
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: immich-database-app
+        image: ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+        name: immich-db-upgrade-finalize
+        volumeMounts:
+        - mountPath: /backup
+          name: backup
+      restartPolicy: Never
+      securityContext:
+        supplementalGroups:
+        - 1001
+      volumes:
+      - name: backup
+        persistentVolumeClaim:
+          claimName: immich-db-backup
