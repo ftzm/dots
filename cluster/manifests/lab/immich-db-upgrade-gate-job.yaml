@@ -14,13 +14,37 @@ spec:
       - args:
         - |
           set -eu
+          reason=""
+
           running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
           major=$(( running / 10000 ))
-          if [ "$major" = "16" ]; then
-            echo "running PostgreSQL major $major already matches target 16 - no upgrade pending"
+          if [ "$major" != "16" ]; then
+            reason="PostgreSQL $major -> 16"
+          fi
+
+          # An extension upgrade is one-way in practice: ALTER EXTENSION cannot
+          # walk backwards, and reverting the image leaves the library older than
+          # the catalog. Immich refuses to start in that state
+          # ("invalidDowngrade"), so restore-from-dump is the only way back --
+          # which makes this every bit as much a gated change as a major upgrade.
+          expected_vchord="0.4.3"
+          if [ -n "$expected_vchord" ]; then
+            installed_vchord=$(psql -tAc "SELECT extversion FROM pg_extension WHERE extname = 'vchord'" | tr -d '[:space:]')
+            if [ -n "$installed_vchord" ] && [ "$installed_vchord" != "$expected_vchord" ]; then
+              if [ -n "$reason" ]; then
+                reason="$reason, vchord $installed_vchord -> $expected_vchord"
+              else
+                reason="vchord $installed_vchord -> $expected_vchord"
+              fi
+            fi
+          fi
+
+          if [ -z "$reason" ]; then
+            echo "PostgreSQL major $major matches target, extension matches image - no upgrade pending"
             exit 0
           fi
-          echo "MAJOR UPGRADE PENDING: PostgreSQL $major -> 16"
+
+          echo "UPGRADE PENDING: $reason"
           out="/backup/immich-db-upgrade-gate-pg$major-to-16-$(date +%Y%m%d-%H%M%S).dump"
           echo "taking pre-upgrade dump to $out"
           pg_dump --format=custom --file="$out"

@@ -590,16 +590,32 @@ operator and the application in competition. Miniflux and Pinepods have only
 
 ### Still on you, before changing a major
 
-- **Avoid PostgreSQL 17.0–17.5 as a target.** A known bug blocks upgrades
-  unless `max_slot_wal_keep_size = -1`. Go to 17.6+ instead. The harness does
-  not check this.
-- **Source and target images must share an OS distribution base.**
-- **Judge the extension jump.** The operator will run `ALTER EXTENSION UPDATE`,
-  but whether a new extension major changes an on-disk index format is a
-  changelog question. If it does, indexes need a `REINDEX` that no health
-  check will catch — the cluster comes up ready and queries merely get slow or
-  wrong. `vchord` 0.4.x → 1.1.x is exactly this case.
+- **Source and target images must share an OS distribution base.** This is the
+  one prerequisite CloudNativePG states outright and does not check for you.
+- **Check the application's own version ranges.** Immich declares
+  `POSTGRES_VERSION_RANGE` and `VECTORCHORD_VERSION_RANGE` in
+  `server/src/constants.ts` and refuses to start outside them.
+- **Extension upgrades are one-way.** `ALTER EXTENSION` cannot walk backwards,
+  so reverting the image leaves the library older than the catalog — Immich
+  rejects that outright as `invalidDowngrade`. Restore-from-dump is the only
+  way back, which is why the gate treats an extension change as seriously as a
+  major upgrade.
 - **Expect downtime.** Every cluster here is `instances: 1`.
+
+Two things that are *not* on you, corrected from an earlier version of this
+document:
+
+- **PostgreSQL 17.0–17.5** had a bug blocking upgrades unless
+  `max_slot_wal_keep_size = -1`. CloudNativePG works around it: the upgrade job
+  forces that value itself, citing upstream commit `f36e5774`
+  (`internal/cmd/manager/instance/upgrade/execute/cmd.go`). No need to avoid
+  those versions.
+- **Skipping majors** is allowed. The operator rejects only *downgrades*
+  ("cannot downgrade the PostgreSQL major version"), and `pg_upgrade` handles
+  multi-major jumps, so 16 → 18 in one step is supported. Whether it is *wise*
+  is separate: doing it in one step conflates a PostgreSQL upgrade with an
+  extension format change, and if the result misbehaves you cannot tell which
+  caused it.
 
 ---
 
