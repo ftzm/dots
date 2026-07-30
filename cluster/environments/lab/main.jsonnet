@@ -1717,6 +1717,9 @@ local withNamespace(resources, ns) = {
   // Immich: photo management with ML search
   immich: {
     local ns = 'immich',
+    // Single source for this database's PostgreSQL major: the Cluster's
+    // catalog ref and the upgrade gate must never disagree about it.
+    local pgMajor = 16,
     local libraryMount = storage.nfsMount('immich-library', ns, '/pool-1/cloud/photos', '500Gi'),
     local dbBackupMount = storage.nfsMount('immich-db-backup', ns, '/pool-1/k8s/immich-db-backup', '5Gi'),
 
@@ -1740,7 +1743,7 @@ local withNamespace(resources, ns) = {
       },
       spec: {
         instances: 1,
-        imageCatalogRef: postgres.catalogRef('vectorchord', 16),
+        imageCatalogRef: postgres.catalogRef('vectorchord', pgMajor),
         storage: {
           size: '5Gi',
           storageClass: 'nfs',
@@ -1850,11 +1853,11 @@ local withNamespace(resources, ns) = {
       'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
     ),
 
-    // Major upgrade harness — see lib/postgres.libsonnet. The target major
-    // here must track the `major` in the Cluster's imageCatalogRef above.
+    // Major upgrade harness — see lib/postgres.libsonnet. Gate and catalog
+    // ref both read pgMajor, so they cannot disagree.
     dbUpgradeGate: postgres.majorUpgradeGate(
       'immich-db-upgrade-gate', ns, images.cloudnativeVectorchord,
-      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup', 16
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup', pgMajor
     ),
     dbUpgradeFinalize: postgres.majorUpgradeFinalize(
       'immich-db-upgrade-finalize', ns, images.cloudnativeVectorchord,
@@ -1880,6 +1883,9 @@ local withNamespace(resources, ns) = {
   // behind forwardAuth — its own login is the leak protection.
   pinepods: {
     local ns = 'pinepods',
+    // Single source for this database's PostgreSQL major: the Cluster's
+    // catalog ref and the upgrade gate must never disagree about it.
+    local pgMajor = 18,
     local host = 'pinepods.lan.ftzmlab.xyz',
     local labels = { app: 'pinepods' },
     // Static NFS mounts at known paths so both are covered by the NAS borg job.
@@ -1898,7 +1904,7 @@ local withNamespace(resources, ns) = {
       metadata: { name: 'pinepods-database', namespace: ns },
       spec: {
         instances: 1,
-        imageCatalogRef: postgres.catalogRef('postgresql', 18),
+        imageCatalogRef: postgres.catalogRef('postgresql', pgMajor),
         enableSuperuserAccess: true,
         storage: { size: '5Gi', storageClass: 'nfs' },
         bootstrap: { initdb: { database: 'pinepods_database', owner: 'pinepods' } },
@@ -1999,12 +2005,12 @@ local withNamespace(resources, ns) = {
       'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup'
     ),
 
-    // Major upgrade harness — see lib/postgres.libsonnet. The target major
-    // here must track the `major` in the Cluster's imageCatalogRef above.
+    // Major upgrade harness — see lib/postgres.libsonnet. Gate and catalog
+    // ref both read pgMajor, so they cannot disagree.
     // No managed extensions: this database has only plpgsql, which is builtin.
     dbUpgradeGate: postgres.majorUpgradeGate(
       'pinepods-db-upgrade-gate', ns, images.cnpgPostgres,
-      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup', 18
+      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup', pgMajor
     ),
     dbUpgradeFinalize: postgres.majorUpgradeFinalize(
       'pinepods-db-upgrade-finalize', ns, images.cnpgPostgres,
@@ -2019,16 +2025,15 @@ local withNamespace(resources, ns) = {
   // directly, so it cannot sit behind an ingress-level auth middleware.
   miniflux: {
     local ns = 'miniflux',
+    // Single source for this database's PostgreSQL major: the Cluster's
+    // catalog ref and the upgrade gate must never disagree about it.
+    local pgMajor = 18,
     local host = 'miniflux.lan.ftzmlab.xyz',
     local labels = { app: 'miniflux' },
     // Static NFS mount at a known path so the NAS borg job covers it.
     local dbBackupMount = storage.nfsMount('miniflux-db-backup', ns, '/pool-1/k8s/miniflux-db-backup', '5Gi'),
 
-    // TEMPORARY: a non-hook change, purely to make ArgoCD run a sync
-    // operation. ArgoCD excludes hook resources from its diff, so a
-    // hook-only edit never triggers the sync that would run the hook.
-    namespace: k.core.v1.namespace.new(ns)
-                + k.core.v1.namespace.metadata.withAnnotationsMixin({ 'test/force-sync': 'gate-dump-branch' }),
+    namespace: k.core.v1.namespace.new(ns),
 
     // PostgreSQL via CloudNativePG. Miniflux needs no superuser and no
     // extensions (HSTORE stopped being a requirement in 2.0.27), so it connects
@@ -2040,7 +2045,7 @@ local withNamespace(resources, ns) = {
       metadata: { name: 'miniflux-database', namespace: ns },
       spec: {
         instances: 1,
-        imageCatalogRef: postgres.catalogRef('postgresql', 18),
+        imageCatalogRef: postgres.catalogRef('postgresql', pgMajor),
         storage: { size: '5Gi', storageClass: 'nfs' },
         bootstrap: { initdb: { database: 'miniflux', owner: 'miniflux' } },
       },
@@ -2140,12 +2145,12 @@ local withNamespace(resources, ns) = {
       'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup'
     ),
 
-    // Major upgrade harness — see lib/postgres.libsonnet. The target major
-    // here must track the `major` in the Cluster's imageCatalogRef above.
+    // Major upgrade harness — see lib/postgres.libsonnet. Gate and catalog
+    // ref both read pgMajor, so they cannot disagree.
     // No managed extensions: this database has only plpgsql, which is builtin.
     dbUpgradeGate: postgres.majorUpgradeGate(
       'miniflux-db-upgrade-gate', ns, images.cnpgPostgres,
-      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup', 19
+      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup', pgMajor
     ),
     dbUpgradeFinalize: postgres.majorUpgradeFinalize(
       'miniflux-db-upgrade-finalize', ns, images.cnpgPostgres,
