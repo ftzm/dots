@@ -37,7 +37,7 @@ spec:
       - args:
         - run
         - /etc/alloy/config.alloy
-        - --storage.path=/tmp/alloy
+        - --storage.path=/var/lib/alloy
         - --server.http.listen-addr=0.0.0.0:12345
         - --server.http.ui-path-prefix=/
         - --stability.level=generally-available
@@ -74,6 +74,8 @@ spec:
         - mountPath: /etc/machine-id
           name: machine-id
           readOnly: true
+        - mountPath: /var/lib/alloy
+          name: storage
       - args:
         - --watched-dir=/etc/alloy
         - --reload-url=http://localhost:12345/-/reload
@@ -101,3 +103,7 @@ spec:
           path: /etc/machine-id
           type: File
         name: machine-id
+      - hostPath:
+          path: /var/lib/alloy
+          type: DirectoryOrCreate
+        name: storage

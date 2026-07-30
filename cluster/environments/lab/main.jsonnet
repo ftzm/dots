@@ -813,10 +813,19 @@ local withNamespace(resources, ns) = {
         namespace: ns,
         values: {
           alloy: {
+            // The chart defaults storagePath to /tmp/alloy and mounts nothing
+            // there ("By default, data is lost between reboots" -- upstream
+            // values.yaml). Both log sources checkpoint under this path, so on
+            // an ephemeral path every pod restart loses their read offsets and
+            // they re-ship days of already-ingested logs, which Loki then
+            // rejects with 400 "entry too far behind". Back it with a hostPath
+            // so offsets survive a restart.
+            storagePath: '/var/lib/alloy',
             mounts: {
               extra: [
                 { name: 'journal', mountPath: '/var/log/journal', readOnly: true },
                 { name: 'machine-id', mountPath: '/etc/machine-id', readOnly: true },
+                { name: 'storage', mountPath: '/var/lib/alloy' },
               ],
             },
             configMap: {
@@ -974,6 +983,9 @@ local withNamespace(resources, ns) = {
               extra: [
                 { name: 'journal', hostPath: { path: '/var/log/journal', type: 'Directory' } },
                 { name: 'machine-id', hostPath: { path: '/etc/machine-id', type: 'File' } },
+                // Per-node, matching the DaemonSet: each node's offsets track
+                // that node's own pods and journal.
+                { name: 'storage', hostPath: { path: '/var/lib/alloy', type: 'DirectoryOrCreate' } },
               ],
             },
             affinity: {
