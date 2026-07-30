@@ -1,0 +1,9 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ClusterImageCatalog
+metadata:
+  name: vectorchord
+  namespace: default
+spec:
+  images:
+  - image: ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+    major: 16

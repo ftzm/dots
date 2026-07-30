@@ -11,7 +11,11 @@ spec:
       postInitApplicationSQL:
       - CREATE EXTENSION vchord CASCADE;
       - CREATE EXTENSION earthdistance CASCADE;
-  imageName: ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ClusterImageCatalog
+    major: 16
+    name: vectorchord
   instances: 1
   postgresql:
     shared_preload_libraries:

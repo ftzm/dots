@@ -513,6 +513,58 @@ All observability components live in the `monitoring` namespace.
 
 ---
 
+## PostgreSQL Images and Major Versions
+
+Three CloudNativePG clusters run here, all single-instance on NFS:
+
+| Cluster | Namespace | Catalog | Major |
+|---|---|---|---|
+| `immich-database` | `immich` | `vectorchord` | 16 |
+| `miniflux-database` | `miniflux` | `postgresql` | 18 |
+| `pinepods-database` | `pinepods` | `postgresql` | 18 |
+
+None of them set `imageName` directly. They reference a cluster-scoped
+`ClusterImageCatalog` by major, built by `lib/postgres.libsonnet`.
+
+The reason is that a bare image tag makes two very different things look the
+same:
+
+- **patch within a major** — routine, and safe to take unattended;
+- **change of major** — the operator shuts the whole cluster down and runs
+  `pg_upgrade --link`, destroying and re-cloning replica PVCs. With
+  `instances: 1` there is no replica to absorb it, so it is hard downtime.
+
+With a catalog, moving majors is an explicit edit of `major:` at the Cluster,
+and can never happen as a side effect of a version bump. Each catalog lists
+only the majors actually in use, so an upgrade means adding the new image to
+the catalog *and* changing the Cluster's `major` — two deliberate edits.
+
+`majorOf()` derives each catalog entry's major from its own tag, so the
+declared major and the image cannot drift. It handles vectorchord's coupled
+`<postgres>-<extension>` form too (`16.9-0.4.3` → `16`). If a bump ever moved
+an image across majors, the catalog would stop offering the major a Cluster
+asks for; the operator reports an error and leaves the running database alone
+rather than quietly migrating it.
+
+### Before changing a major
+
+CloudNativePG will do the upgrade, but it explicitly does **not** handle
+extensions: *"CloudNativePG is not responsible for PostgreSQL extensions. You
+must ensure that extensions in the source PostgreSQL image are compatible with
+those in the target image."* Things to settle first:
+
+- Take a fresh dump. The nightly `pgDumpCronJob` (`lib/backup.libsonnet`) is
+  the restore path — `pg_upgrade --link` hard-links the old data directory, so
+  once the new server starts the pre-upgrade copy is *not* a safe fallback.
+  Rollback by reverting the image only works while the upgrade job is failing.
+- Avoid PostgreSQL 17.0–17.5 as a target: a known bug blocks upgrades unless
+  `max_slot_wal_keep_size = -1`. Go to 17.6+ instead.
+- Source and target images must share an OS distribution base.
+- Afterwards, run the `update_extensions.sql` that `pg_upgrade` emits, then
+  `ANALYZE` — `pg_upgrade` does not carry optimizer statistics across.
+
+---
+
 ## Dependency Automation (Renovate)
 
 Renovate runs daily at 04:00 UTC via GitHub Actions (`.github/workflows/renovate.yaml`).
