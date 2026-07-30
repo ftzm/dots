@@ -1876,6 +1876,16 @@ local withNamespace(resources, ns) = {
       'immich-database-extensions', ns, 'immich-database', 'immich', 'immich',
       ['vchord', 'vector', 'cube', 'earthdistance']
     ),
+
+    // face_index and clip_index are vchordrq, and VectorChord hard-errors on
+    // an index written by a different format version. Updating the extension
+    // without rebuilding them breaks Immich's face and CLIP search outright.
+    // Both indexes are owned by the immich role, so this connection can
+    // rebuild them without superuser.
+    dbVchordReindex: postgres.vchordReindex(
+      'immich-db-vchord-reindex', ns, images.cloudnativeVectorchord,
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
+    ),
   },
 
   // PinePods: self-hosted podcast ecosystem (Rust backend + Postgres + Valkey).
