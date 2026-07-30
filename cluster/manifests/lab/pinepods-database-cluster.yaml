@@ -9,7 +9,11 @@ spec:
       database: pinepods_database
       owner: pinepods
   enableSuperuserAccess: true
-  imageName: ghcr.io/cloudnative-pg/postgresql:18.2
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ClusterImageCatalog
+    major: 18
+    name: postgresql
   instances: 1
   storage:
     size: 5Gi

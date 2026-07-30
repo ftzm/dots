@@ -1,6 +1,7 @@
 local backup = import '../../lib/backup.libsonnet';
 local config = import '../../lib/config.libsonnet';
 local images = import '../../lib/images.libsonnet';
+local postgres = import '../../lib/postgres.libsonnet';
 local selfhosted = import '../../lib/selfhosted.libsonnet';
 local storage = import '../../lib/storage.libsonnet';
 local helm = (import 'tanka-util/helm.libsonnet').new(std.thisFile);
@@ -15,6 +16,7 @@ local clusterScoped = [
   'IngressClass',
   'CustomResourceDefinition',
   'GatewayClass',
+  'ClusterImageCatalog',
 ];
 
 // Add namespace to all namespaced resources
@@ -490,6 +492,13 @@ local withNamespace(resources, ns) = {
       }),
       ns
     ),
+
+    // Cluster-scoped, so one catalog serves Clusters in any namespace.
+    // Each catalog lists only the majors actually in use — moving a database
+    // to a new major means adding its image here and changing that Cluster's
+    // `major`, both of which are deliberate edits. See lib/postgres.libsonnet.
+    postgresCatalog: postgres.clusterImageCatalog('postgresql', [images.cnpgPostgres]),
+    vectorchordCatalog: postgres.clusterImageCatalog('vectorchord', [images.cloudnativeVectorchord]),
   },
 
   // cert-manager: TLS certificate management with Let's Encrypt
@@ -1731,7 +1740,7 @@ local withNamespace(resources, ns) = {
       },
       spec: {
         instances: 1,
-        imageName: images.cloudnativeVectorchord,
+        imageCatalogRef: postgres.catalogRef('vectorchord', 16),
         storage: {
           size: '5Gi',
           storageClass: 'nfs',
@@ -1865,7 +1874,7 @@ local withNamespace(resources, ns) = {
       metadata: { name: 'pinepods-database', namespace: ns },
       spec: {
         instances: 1,
-        imageName: images.cnpgPostgres,
+        imageCatalogRef: postgres.catalogRef('postgresql', 18),
         enableSuperuserAccess: true,
         storage: { size: '5Gi', storageClass: 'nfs' },
         bootstrap: { initdb: { database: 'pinepods_database', owner: 'pinepods' } },
@@ -1991,7 +2000,7 @@ local withNamespace(resources, ns) = {
       metadata: { name: 'miniflux-database', namespace: ns },
       spec: {
         instances: 1,
-        imageName: images.cnpgPostgres,
+        imageCatalogRef: postgres.catalogRef('postgresql', 18),
         storage: { size: '5Gi', storageClass: 'nfs' },
         bootstrap: { initdb: { database: 'miniflux', owner: 'miniflux' } },
       },
