@@ -24,6 +24,16 @@
     local tag = parts[std.length(parts) - 1];
     std.parseInt(std.split(std.split(tag, '.')[0], '-')[0]),
 
+  // The VectorChord version a vectorchord image carries, from the second half
+  // of its coupled '<postgres>-<extension>' tag ('16.9-0.4.3' -> '0.4.3').
+  // Empty for plain CNPG images, which have no such suffix -- callers use that
+  // to mean "this database has no VectorChord to worry about".
+  vchordVersionOf(image)::
+    local parts = std.split(image, ':');
+    local tag = parts[std.length(parts) - 1];
+    local halves = std.split(tag, '-');
+    if std.length(halves) > 1 then halves[1] else '',
+
   // A cluster-scoped catalog, so one definition serves Clusters in any
   // namespace. `imageList` is a plain array of image refs; each entry's major
   // is derived from its own tag, so the declared major and the image can
@@ -120,20 +130,44 @@
       name, ns, image,
       |||
         set -eu
+        reason=""
+
         running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
         major=$(( running / 10000 ))
-        if [ "$major" = "%(target)s" ]; then
-          echo "running PostgreSQL major $major already matches target %(target)s - no upgrade pending"
+        if [ "$major" != "%(target)s" ]; then
+          reason="PostgreSQL $major -> %(target)s"
+        fi
+
+        # An extension upgrade is one-way in practice: ALTER EXTENSION cannot
+        # walk backwards, and reverting the image leaves the library older than
+        # the catalog. Immich refuses to start in that state
+        # ("invalidDowngrade"), so restore-from-dump is the only way back --
+        # which makes this every bit as much a gated change as a major upgrade.
+        expected_vchord="%(vchord)s"
+        if [ -n "$expected_vchord" ]; then
+          installed_vchord=$(psql -tAc "SELECT extversion FROM pg_extension WHERE extname = 'vchord'" | tr -d '[:space:]')
+          if [ -n "$installed_vchord" ] && [ "$installed_vchord" != "$expected_vchord" ]; then
+            if [ -n "$reason" ]; then
+              reason="$reason, vchord $installed_vchord -> $expected_vchord"
+            else
+              reason="vchord $installed_vchord -> $expected_vchord"
+            fi
+          fi
+        fi
+
+        if [ -z "$reason" ]; then
+          echo "PostgreSQL major $major matches target, extension matches image - no upgrade pending"
           exit 0
         fi
-        echo "MAJOR UPGRADE PENDING: PostgreSQL $major -> %(target)s"
+
+        echo "UPGRADE PENDING: $reason"
         out="/backup/%(name)s-pg$major-to-%(target)s-$(date +%%Y%%m%%d-%%H%%M%%S).dump"
         echo "taking pre-upgrade dump to $out"
         pg_dump --format=custom --file="$out"
         [ -s "$out" ] || { echo "FATAL: pre-upgrade dump is empty"; exit 1; }
         pg_restore --list "$out" > /dev/null || { echo "FATAL: pre-upgrade dump is not readable"; exit 1; }
         echo "pre-upgrade dump verified: $(wc -c < "$out") bytes"
-      ||| % { target: std.toString(targetMajor), name: name },
+      ||| % { target: std.toString(targetMajor), name: name, vchord: $.vchordVersionOf(image) },
       pgEnv(host, user, database, secretName, secretKey),
       pvcName,
       {
