@@ -2141,7 +2141,7 @@ local withNamespace(resources, ns) = {
     // No managed extensions: this database has only plpgsql, which is builtin.
     dbUpgradeGate: postgres.majorUpgradeGate(
       'miniflux-db-upgrade-gate', ns, images.cnpgPostgres,
-      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup', 18
+      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup', 19
     ),
     dbUpgradeFinalize: postgres.majorUpgradeFinalize(
       'miniflux-db-upgrade-finalize', ns, images.cnpgPostgres,
