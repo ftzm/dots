@@ -498,7 +498,7 @@ local withNamespace(resources, ns) = {
     // to a new major means adding its image here and changing that Cluster's
     // `major`, both of which are deliberate edits. See lib/postgres.libsonnet.
     postgresCatalog: postgres.clusterImageCatalog('postgresql', [images.cnpgPostgres]),
-    vectorchordCatalog: postgres.clusterImageCatalog('vectorchord', [images.cloudnativeVectorchord16, images.cloudnativeVectorchord18]),
+    vectorchordCatalog: postgres.clusterImageCatalog('vectorchord', [images.cloudnativeVectorchord18]),
   },
 
   // cert-manager: TLS certificate management with Let's Encrypt
