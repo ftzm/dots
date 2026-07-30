@@ -541,6 +541,30 @@ which `build` satisfies.
 
 Major updates deliberately do **not** automerge.
 
+#### vectorchord: a coupled tag
+
+`ghcr.io/tensorchord/cloudnative-vectorchord` tags are
+`<postgres-version>-<vchord-version>` (e.g. `16.9-0.4.3`). Renovate's default
+docker versioning reads everything after the `-` as an immutable compatibility
+suffix, exactly as it would for `-alpine`. That had two invisible effects:
+
+- it only ever offered tags carrying our exact `-0.4.3`, so the newest
+  candidate was `17.5-0.4.3` — a PostgreSQL **major** jump, to a stale patch
+  level at that (the PG 17 line is on 17.10); and
+- it could never offer a vchord upgrade at all, because every extension bump
+  changes the suffix. We sat on 0.4.3 while upstream shipped 1.1.1, and no PR
+  would ever have said so.
+
+A `versioning: regex:` rule parses both halves, so the PG major lands in
+`major` and extension updates become visible. Renovate now proposes
+`16.14-1.1.1` and `18.4-1.1.1` instead of `17.5-0.4.3`.
+
+The image also sets `automerge: false` unconditionally. A CNPG `imageName`
+change across PG majors triggers an offline in-place `pg_upgrade`, and the
+`16.14-1.1.1` candidate — typed *minor*, since PG only moves 16.9→16.14 —
+still carries a vchord major (0.4→1.1) needing its own `ALTER EXTENSION`.
+Neither is judgeable from the tag, so this image always goes through review.
+
 ### Triage of what doesn't automerge
 
 `.github/workflows/renovate-triage.yml` picks up every Renovate PR that the
