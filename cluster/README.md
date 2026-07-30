@@ -527,6 +527,41 @@ Renovate runs daily at 04:00 UTC via GitHub Actions (`.github/workflows/renovate
    - Commits the updated chart source and re-rendered manifests.
 4. The GitHub Actions workflow installs Nix to get all required tools.
 
+### Automerge
+
+Minor, patch, and digest updates automerge once the required `build` check
+passes. This mirrors the `flake.lock` posture in
+`.github/workflows/update-flake-lock.yml`, which has merged nixpkgs bumps
+unattended since PR #65 — these updates are strictly narrower than that.
+
+`platformAutomerge: true` hands the merge to GitHub rather than Renovate, so a
+PR that goes green at 04:10 merges immediately instead of waiting ~24h for the
+next Renovate run. It requires at least one required status check on `master`,
+which `build` satisfies.
+
+Major updates deliberately do **not** automerge.
+
+### Triage of what doesn't automerge
+
+`.github/workflows/renovate-triage.yml` picks up every Renovate PR that the
+automerge rule leaves behind. It runs on CI completion for `renovate/*`
+branches, and on `workflow_dispatch` (optionally with a single PR number) to
+work through a backlog.
+
+| Situation | Mode | What happens |
+|---|---|---|
+| CI failed | `fix` | Claude diagnoses the breakage and opens a repair PR **against the Renovate branch** — not `master` — so merging it lets the original PR go green and automerge. Renovate force-pushes its own branches on rebase, which is why the fix is not committed directly onto it. |
+| CI passed, won't automerge | `review` | Claude fetches the release notes for the full version span, works out how this repo actually uses the component, and either merges it or posts structured investigation notes and applies the `needs-review` label. |
+
+The review path never merges a data-bearing component (CloudNativePG,
+vectorchord, valkey with persistence, forgejo, immich, audiobookshelf,
+navidrome) regardless of how clean the notes look — a major bump there can
+force an on-disk migration that CI cannot see and `git revert` cannot undo.
+
+Note that container-image PRs frequently arrive with **no** release notes in
+the PR body (`Some dependencies could not be looked up`), so the reviewer is
+told to go fetch them from upstream rather than trust the body.
+
 ### Managed dependency types
 
 - Helm chart versions (`chartfile.yaml`)

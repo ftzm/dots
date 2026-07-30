@@ -50,6 +50,22 @@ local runnerImageManager = {
   enabledManagers: ['custom.regex', 'github-actions', 'jsonnet-bundler'],
   prHourlyLimit: 10,
   prConcurrentLimit: 20,
+  // Mirror the flake.lock posture (.github/workflows/update-flake-lock.yml):
+  // anything short of a major merges itself once the required `build` check
+  // passes. These updates are strictly narrower than a nixpkgs bump, which
+  // has auto-merged unattended since #65.
+  //
+  // platformAutomerge hands the merge to GitHub rather than Renovate, which
+  // only wakes at 04:00 UTC -- without it a PR going green at 04:10 would
+  // wait ~24h for the next run. Same mechanism as the flake path's
+  // `gh pr merge --auto`.
+  platformAutomerge: true,
+  packageRules: [
+    {
+      matchUpdateTypes: ['minor', 'patch', 'digest'],
+      automerge: true,
+    },
+  ],
   postUpgradeTasks: {
     commands: ['cd cluster && tk tool charts vendor --prune', 'cd cluster && just render-lab'],
     fileFilters: ['cluster/charts/**', 'cluster/manifests/**'],
