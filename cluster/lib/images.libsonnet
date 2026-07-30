@@ -7,7 +7,7 @@
   flaresolverr: 'flaresolverr/flaresolverr:v3.5.0',
   jellyseerr: 'fallenbagel/jellyseerr:develop',
   vaultwarden: 'vaultwarden/server:1.36.0',
-  forgejo: 'codeberg.org/forgejo/forgejo:15.0.3',
+  forgejo: 'codeberg.org/forgejo/forgejo:16.0.1',
   // Immich's database. Both majors stay listed while the 16 -> 18 upgrade is
   // in flight: CloudNativePG's rollback for a failed pg_upgrade is to put the
   // Cluster's major back, and that only resolves while the catalog still
