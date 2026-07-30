@@ -181,6 +181,75 @@
       },
     ),
 
+  // PostSync: rebuild VectorChord indexes after an extension upgrade.
+  //
+  // VectorChord stamps a format version into each index's meta page and
+  // checks it on read (crates/vchordrq/src/tuples.rs):
+  //
+  //   if VERSION != *checker.prefix::<u64>(size_of::<Tag>()) {
+  //       panic!("deserialization: bad version number; {}",
+  //              "after upgrading VectorChord, please use REINDEX to rebuild the index.");
+  //   }
+  //
+  // That is a panic, which pgrx surfaces as a PostgreSQL ERROR -- queries
+  // against a stale index fail outright rather than returning worse results.
+  // The constant moved 9 (0.4.3) -> 11 (0.5.0) -> 1000 (1.0.0) -> 1001
+  // (1.1.0), so an extension upgrade invalidates every vchordrq index until
+  // it is rebuilt, and Immich's face and CLIP search break until it is.
+  //
+  // Keyed on the extension version, not the PostgreSQL major: an image bump
+  // can move VectorChord without touching the major at all, which is exactly
+  // what 16.9-0.4.3 -> 16.14-1.1.1 would do.
+  //
+  // Plain REINDEX rather than CONCURRENTLY: it rebuilds from the heap without
+  // reading the stale index, which is the point when the stale index is
+  // precisely what cannot be deserialized. It takes a stronger lock, but these
+  // indexes are a few MB.
+  vchordReindex(name, ns, image, host, user, database, secretName, pvcName, secretKey='password')::
+    backupJob(
+      name, ns, image,
+      |||
+        set -eu
+        ver=$(psql -tAc "SELECT extversion FROM pg_extension WHERE extname = 'vchord'" | tr -d '[:space:]')
+        if [ -z "$ver" ]; then
+          echo "vchord is not installed - nothing to rebuild"
+          exit 0
+        fi
+        marker="/backup/.vchord-version-%(db)s"
+        if [ ! -f "$marker" ]; then
+          echo "$ver" > "$marker"
+          echo "baseline recorded: vchord $ver (nothing to rebuild)"
+          exit 0
+        fi
+        last=$(cat "$marker")
+        if [ "$last" = "$ver" ]; then
+          echo "vchord unchanged ($ver) - nothing to rebuild"
+          exit 0
+        fi
+        echo "vchord changed $last -> $ver; rebuilding VectorChord indexes"
+        psql -v ON_ERROR_STOP=1 -tAc \
+          "SELECT format('REINDEX INDEX %%I.%%I', n.nspname, c.relname)
+             FROM pg_index i
+             JOIN pg_class c ON c.oid = i.indexrelid
+             JOIN pg_namespace n ON n.oid = c.relnamespace
+             JOIN pg_am a ON a.oid = c.relam
+            WHERE a.amname IN ('vchordrq', 'vchordg')" \
+        | while read -r stmt; do
+            [ -n "$stmt" ] || continue
+            echo "  $stmt"
+            psql -v ON_ERROR_STOP=1 -c "$stmt"
+          done
+        echo "$ver" > "$marker"
+        echo "VectorChord indexes rebuilt for $ver"
+      ||| % { db: database },
+      pgEnv(host, user, database, secretName, secretKey),
+      pvcName,
+      {
+        'argocd.argoproj.io/hook': 'PostSync',
+        'argocd.argoproj.io/hook-delete-policy': 'BeforeHookCreation',
+      },
+    ),
+
   // Extensions the operator should keep current, for the ones this repo
   // created rather than the application. Omitting `version` means "the default
   // version in the image's control file", so after a major upgrade brings a

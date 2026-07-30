@@ -1,0 +1,75 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  name: immich-db-vchord-reindex
+  namespace: immich
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - args:
+        - |
+          set -eu
+          ver=$(psql -tAc "SELECT extversion FROM pg_extension WHERE extname = 'vchord'" | tr -d '[:space:]')
+          if [ -z "$ver" ]; then
+            echo "vchord is not installed - nothing to rebuild"
+            exit 0
+          fi
+          marker="/backup/.vchord-version-immich"
+          if [ ! -f "$marker" ]; then
+            echo "$ver" > "$marker"
+            echo "baseline recorded: vchord $ver (nothing to rebuild)"
+            exit 0
+          fi
+          last=$(cat "$marker")
+          if [ "$last" = "$ver" ]; then
+            echo "vchord unchanged ($ver) - nothing to rebuild"
+            exit 0
+          fi
+          echo "vchord changed $last -> $ver; rebuilding VectorChord indexes"
+          psql -v ON_ERROR_STOP=1 -tAc \
+            "SELECT format('REINDEX INDEX %I.%I', n.nspname, c.relname)
+               FROM pg_index i
+               JOIN pg_class c ON c.oid = i.indexrelid
+               JOIN pg_namespace n ON n.oid = c.relnamespace
+               JOIN pg_am a ON a.oid = c.relam
+              WHERE a.amname IN ('vchordrq', 'vchordg')" \
+          | while read -r stmt; do
+              [ -n "$stmt" ] || continue
+              echo "  $stmt"
+              psql -v ON_ERROR_STOP=1 -c "$stmt"
+            done
+          echo "$ver" > "$marker"
+          echo "VectorChord indexes rebuilt for $ver"
+        command:
+        - /bin/sh
+        - -c
+        env:
+        - name: PGHOST
+          value: immich-database-rw
+        - name: PGUSER
+          value: immich
+        - name: PGDATABASE
+          value: immich
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: immich-database-app
+        image: ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+        name: immich-db-vchord-reindex
+        volumeMounts:
+        - mountPath: /backup
+          name: backup
+      restartPolicy: Never
+      securityContext:
+        supplementalGroups:
+        - 1001
+      volumes:
+      - name: backup
+        persistentVolumeClaim:
+          claimName: immich-db-backup
