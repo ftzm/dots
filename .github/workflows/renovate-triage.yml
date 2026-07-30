@@ -315,10 +315,25 @@ jobs:
             Merge ONLY if all of these hold:
             - You found and read the actual release notes for the full
               version span.
-            - No breaking change touches anything this repo uses.
+            - Every breaking change is either (a) not touched by this repo
+              at all, or (b) touches it, but you can show concretely from
+              the notes and our config that the new behaviour is compatible
+              with how we use it. Make that argument explicitly -- "we set
+              X at file:line, the new default is Y, and Y is equivalent for
+              our usage because Z". If you cannot state it concretely, treat
+              it as incompatible.
+            - You rated no touching change above low severity. Medium or
+              high goes to needs-review.
             - The notes document no manual migration step, no CRD change
               needing a manual apply, no data/schema migration.
             - The component is stateless.
+
+            A breaking change merely naming a component we run is not by
+            itself a blocker -- weigh the actual behavioural delta against
+            our config. Refusing every release that mentions something in
+            use would send all of them to manual review, which defeats the
+            point of this job. Refuse for real uncertainty, not for the mere
+            existence of a changelog entry.
 
             NEVER merge, regardless of how clean the notes look, when the
             component is data-bearing or stateful -- anything backed by a
