@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  digest: d6971a9bc941639021d019926106f994
+kind: ConfigMap
+metadata:
+  name: forgejo-dump-gate-revision
+  namespace: forgejo

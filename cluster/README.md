@@ -619,6 +619,35 @@ document:
 
 ---
 
+## Forgejo Upgrades
+
+Forgejo needs the same protection as the PostgreSQL clusters, by a different
+route. It keeps its database in SQLite on `forgejo-data`, and the deployment
+runs `forgejo migrate` in an initContainer on **every** pod start — so a schema
+migration fires the moment a new image rolls, with nothing in front of it.
+Reverting the image does not undo a migration that has already run.
+
+`forgejoDumpGate` (`lib/backup.libsonnet`) is a PreSync hook that asks the
+running instance what version it is, via `/api/v1/version`, and compares that
+to the tag of the image about to be deployed. When they differ it takes a
+`forgejo dump` and checks the tar is readable before letting the sync proceed.
+On an ordinary sync it is one HTTP request.
+
+This exists because the nightly dump is not a substitute. It runs at 02:00 and
+can be nearly a day old when an upgrade lands, so restoring it would lose a
+day of activity — and "the backup is probably fine" is the assumption worth
+removing in front of a one-way migration.
+
+What the gate does **not** do is judge the release. Forgejo 16.0.0 removed the
+`REVERSE_PROXY_TRUSTED_PROXIES = *` default (CVE-2026-20896), stopped git
+mirrors following HTTP redirects, and changed scheduled Actions syntax. The
+first does not apply here — reverse-proxy authentication is not enabled — but
+the other two live in instance data on the PVC rather than in git, so nothing
+in this repo can confirm them. They need checking against the running
+instance.
+
+---
+
 ## Dependency Automation (Renovate)
 
 Renovate runs daily at 04:00 UTC via GitHub Actions (`.github/workflows/renovate.yaml`).

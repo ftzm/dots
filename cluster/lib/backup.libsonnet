@@ -40,4 +40,98 @@
       } } } },
     },
   },
+
+  // Tag half of an image ref, taking the last colon-separated segment so a
+  // registry port cannot confuse it.
+  local tagOf(image) =
+    local parts = std.split(image, ':');
+    parts[std.length(parts) - 1],
+
+  // PreSync gate for Forgejo -- the counterpart to the CloudNativePG gate in
+  // lib/postgres.libsonnet, for a service that needs the same protection by a
+  // different route.
+  //
+  // Forgejo keeps its database in SQLite on the data PVC, and the deployment
+  // runs `forgejo migrate` in an initContainer on *every* pod start. A schema
+  // migration therefore fires the moment a new image rolls, with nothing in
+  // front of it. Reverting the image does not undo a migration that has
+  // already run, so restoring a dump is the only way back -- which makes a
+  // fresh, verified dump the precondition for changing the image at all.
+  //
+  // The nightly dump is not that. It can be almost a day old, and "the backup
+  // is probably fine" is exactly the assumption worth removing here.
+  //
+  // Asks the running instance what version it is, rather than inferring it
+  // from anything on disk, and takes a dump only when that differs from the
+  // image about to be deployed. On an ordinary sync it is one HTTP request.
+  forgejoDumpGate(name, ns, image, service, dataPvc, backupPvc):: {
+    apiVersion: 'batch/v1',
+    kind: 'Job',
+    metadata: {
+      name: name,
+      namespace: ns,
+      annotations: {
+        'argocd.argoproj.io/hook': 'PreSync',
+        'argocd.argoproj.io/hook-delete-policy': 'BeforeHookCreation',
+      },
+    },
+    spec: {
+      // Transience is handled by the wait below, so a failure here is real.
+      backoffLimit: 0,
+      template: { spec: {
+        restartPolicy: 'Never',
+        containers: [{
+          name: 'dump-gate',
+          image: image,
+          command: ['/bin/bash', '-c'],
+          args: [|||
+            set -eu
+            expected="%(expected)s"
+            url="http://%(service)s:3000/api/v1/version"
+
+            # An ArgoCD retry can land while the pod is rolling from a change
+            # an earlier attempt made, so tolerate that rather than failing a
+            # sync over a service that is merely restarting. Being unable to
+            # ask is different from getting an answer we do not like.
+            deadline=$(( $(date +%%s) + 300 ))
+            until curl -sf "$url" > /dev/null 2>&1; do
+              if [ "$(date +%%s)" -ge "$deadline" ]; then
+                echo "FATAL: forgejo did not answer within 300s; the check did not run"
+                exit 1
+              fi
+              echo "waiting for forgejo to answer..."
+              sleep 5
+            done
+
+            running=$(curl -sf "$url" | sed -n 's/.*"version":"\([0-9][0-9.]*\).*/\1/p')
+            if [ -z "$running" ]; then
+              echo "FATAL: could not read a version from $url; the check did not run"
+              exit 1
+            fi
+
+            if [ "$running" = "$expected" ]; then
+              echo "forgejo $running already matches the image - no upgrade pending"
+              exit 0
+            fi
+
+            echo "UPGRADE PENDING: forgejo $running -> $expected"
+            out="/backup/forgejo-preupgrade-$running-to-$expected-$(date +%%Y%%m%%d-%%H%%M%%S).tar"
+            echo "taking pre-upgrade dump to $out"
+            su-exec git forgejo dump --config /data/gitea/conf/app.ini --type tar --tempdir /tmp --file "$out"
+            [ -s "$out" ] || { echo "FATAL: pre-upgrade dump is empty"; exit 1; }
+            tar -tf "$out" > /dev/null || { echo "FATAL: pre-upgrade dump is not readable"; exit 1; }
+            echo "pre-upgrade dump verified: $(wc -c < "$out") bytes"
+          ||| % { expected: tagOf(image), service: service }],
+          volumeMounts: [
+            { name: 'data', mountPath: '/data' },
+            { name: 'backup', mountPath: '/backup' },
+          ],
+        }],
+        volumes: [
+          { name: 'data', persistentVolumeClaim: { claimName: dataPvc } },
+          { name: 'backup', persistentVolumeClaim: { claimName: backupPvc } },
+        ],
+      } },
+    },
+  },
 }
