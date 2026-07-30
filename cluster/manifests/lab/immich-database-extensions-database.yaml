@@ -11,6 +11,7 @@ spec:
   extensions:
   - ensure: present
     name: vchord
+    version: 1.1.1
   - ensure: present
     name: vector
   - ensure: present

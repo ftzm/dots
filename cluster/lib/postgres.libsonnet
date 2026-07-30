@@ -304,7 +304,22 @@
       ensure: 'present',
       // Default, but state it: this must never be able to drop the database.
       databaseReclaimPolicy: 'retain',
-      extensions: [{ name: e, ensure: 'present' } for e in extensions],
+      // `version` is what makes the operator issue ALTER EXTENSION UPDATE TO.
+      // Without it it only ever creates a missing extension:
+      //
+      //   if len(spec.Version) > 0 && spec.Version != info.Version {
+      //       ... "ALTER EXTENSION %s UPDATE TO %v" ...
+      //   }
+      //   -- internal/management/controller/database_controller_sql.go
+      //
+      // Entries are {name, version?}; omitting version means "leave whatever
+      // is installed alone", which is only ever right for extensions nothing
+      // depends on being current.
+      extensions: [
+        { name: e.name, ensure: 'present' }
+        + (if std.objectHas(e, 'version') && e.version != '' then { version: e.version } else {})
+        for e in extensions
+      ],
     },
   },
 }
