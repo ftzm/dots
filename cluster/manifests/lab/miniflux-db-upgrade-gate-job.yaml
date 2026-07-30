@@ -7,13 +7,22 @@ metadata:
   name: miniflux-db-upgrade-gate
   namespace: miniflux
 spec:
-  backoffLimit: 2
+  backoffLimit: 0
   template:
     spec:
       containers:
       - args:
         - |
           set -eu
+          deadline=$(( $(date +%s) + 300 ))
+          until psql -tAc 'SELECT 1' > /dev/null 2>&1; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "FATAL: database did not accept connections within 300s; the check did not run"
+              exit 1
+            fi
+            echo "waiting for the database to accept connections..."
+            sleep 5
+          done
           reason=""
 
           running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')

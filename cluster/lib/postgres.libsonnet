@@ -90,6 +90,37 @@
     { name: 'PGPASSWORD', valueFrom: { secretKeyRef: { name: secretName, key: secretKey } } },
   ],
 
+  // Every hook waits for the database before deciding anything.
+  //
+  // An ArgoCD retry can land while the pod is still rolling from the change an
+  // earlier attempt made, so a hook has to tolerate downtime it effectively
+  // caused itself. That is what wedged the VectorChord 1.1.1 rollout: the
+  // first attempt took its dump and applied the image, the database began
+  // rolling, ArgoCD retried, and PreSync ran again while the pod was still
+  // failing its readiness probe.
+  //
+  // Waiting here rather than leaning on the Job's backoffLimit keeps the two
+  // outcomes distinct, which is the whole point of a gate:
+  //
+  //   could not connect  ->  the check never ran; say so and stop
+  //   connected, bad dump ->  the check ran and failed; stop immediately,
+  //                           with no retry to paper over it
+  //
+  // A Job-level retry cannot tell those apart -- it would re-run a genuinely
+  // failed dump as readily as an unreachable one -- so backoffLimit stays 0
+  // and the tolerance lives here, bounded against a real pod roll.
+  local waitForDatabase = |||
+    deadline=$(( $(date +%s) + 300 ))
+    until psql -tAc 'SELECT 1' > /dev/null 2>&1; do
+      if [ "$(date +%s)" -ge "$deadline" ]; then
+        echo "FATAL: database did not accept connections within 300s; the check did not run"
+        exit 1
+      fi
+      echo "waiting for the database to accept connections..."
+      sleep 5
+    done
+  |||,
+
   // uid 26 (the CNPG image's user) needs the storage group to write to the
   // NFS backup dir. Same reasoning as lib/backup.libsonnet -- omitting it
   // fails with EACCES.
@@ -98,17 +129,9 @@
     kind: 'Job',
     metadata: { name: name, namespace: ns, annotations: annotations },
     spec: {
-      // Retry a couple of times. A failed dump and an unreachable database
-      // are different things: the first must not be masked, but the second
-      // means the check never ran, and hard-failing there takes the whole
-      // app's sync down for a database that was merely restarting. That is
-      // exactly what happened during the VectorChord 1.1.1 rollout -- the
-      // gate landed while the pod was still failing its readiness probe.
-      //
-      // Retrying cannot turn a bad dump into a good one: each attempt writes
-      // its own timestamped file and re-checks it with pg_restore --list, so
-      // a genuinely broken dump still fails the sync after the retries.
-      backoffLimit: 2,
+      // See waitForDatabase: transience is handled in the script, so a
+      // failure here is a real one and must not be retried into passing.
+      backoffLimit: 0,
       template: { spec: {
         restartPolicy: 'Never',
         securityContext: { supplementalGroups: [1001] },
@@ -116,7 +139,7 @@
           name: name,
           image: image,
           command: ['/bin/sh', '-c'],
-          args: [script],
+          args: ['set -eu\n' + waitForDatabase + script],
           env: env,
           volumeMounts: [{ name: 'backup', mountPath: '/backup' }],
         }],
@@ -138,7 +161,6 @@
     backupJob(
       name, ns, image,
       |||
-        set -eu
         reason=""
 
         running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
@@ -195,7 +217,6 @@
     backupJob(
       name, ns, image,
       |||
-        set -eu
         running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
         major=$(( running / 10000 ))
         marker="/backup/.pg-major-%(db)s"
@@ -252,38 +273,62 @@
     backupJob(
       name, ns, image,
       |||
-        set -eu
         ver=$(psql -tAc "SELECT extversion FROM pg_extension WHERE extname = 'vchord'" | tr -d '[:space:]')
         if [ -z "$ver" ]; then
           echo "vchord is not installed - nothing to rebuild"
           exit 0
         fi
-        marker="/backup/.vchord-version-%(db)s"
-        if [ ! -f "$marker" ]; then
-          echo "$ver" > "$marker"
-          echo "baseline recorded: vchord $ver (nothing to rebuild)"
-          exit 0
-        fi
-        last=$(cat "$marker")
-        if [ "$last" = "$ver" ]; then
-          echo "vchord unchanged ($ver) - nothing to rebuild"
-          exit 0
-        fi
-        echo "vchord changed $last -> $ver; rebuilding VectorChord indexes"
-        psql -v ON_ERROR_STOP=1 -tAc \
-          "SELECT format('REINDEX INDEX %%I.%%I', n.nspname, c.relname)
-             FROM pg_index i
-             JOIN pg_class c ON c.oid = i.indexrelid
-             JOIN pg_namespace n ON n.oid = c.relnamespace
-             JOIN pg_am a ON a.oid = c.relam
-            WHERE a.amname IN ('vchordrq', 'vchordg')" \
-        | while read -r stmt; do
-            [ -n "$stmt" ] || continue
-            echo "  $stmt"
-            psql -v ON_ERROR_STOP=1 -c "$stmt"
-          done
-        echo "$ver" > "$marker"
-        echo "VectorChord indexes rebuilt for $ver"
+
+        # Probe each index by actually reading it. A stale on-disk format
+        # raises "bad version number" on read, and that -- not a recorded
+        # version number -- is the condition worth acting on.
+        #
+        # An earlier version of this hook compared the extension version
+        # against a marker file, and missed the very upgrade it was written
+        # for: its first run landed after the extension had already moved, so
+        # it recorded the post-change version as its baseline and skipped the
+        # rebuild. Bookkeeping can be wrong about the past. The index either
+        # reads or it does not.
+        #
+        # The probe forces an index scan, deriving the distance operator from
+        # the opclass so it works for whichever one an index was built with.
+        probes=$(psql -tAc "
+          SELECT format(
+                   '%%I.%%I|SET enable_seqscan=off; SELECT 1 FROM %%I.%%I ORDER BY %%I %%s (SELECT %%I FROM %%I.%%I WHERE %%I IS NOT NULL LIMIT 1) LIMIT 1',
+                   n.nspname, c.relname,
+                   n.nspname, t.relname, a.attname,
+                   CASE
+                     WHEN o.opcname LIKE '%%\_cosine\_ops' THEN '<=>'
+                     WHEN o.opcname LIKE '%%\_ip\_ops'     THEN '<#>'
+                     ELSE '<->'
+                   END,
+                   a.attname, n.nspname, t.relname, a.attname)
+            FROM pg_index i
+            JOIN pg_class c ON c.oid = i.indexrelid
+            JOIN pg_class t ON t.oid = i.indrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_am am ON am.oid = c.relam
+            JOIN pg_opclass o ON o.oid = i.indclass[0]
+            JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0]
+           WHERE am.amname IN ('vchordrq', 'vchordg')")
+
+        rebuilt=0
+        echo "$probes" | while read -r line; do
+          [ -n "$line" ] || continue
+          idx=${line%%%%|*}
+          probe=${line#*|}
+          if psql -v ON_ERROR_STOP=1 -c "$probe" > /dev/null 2>&1; then
+            echo "$idx reads cleanly"
+          else
+            echo "$idx is unreadable at vchord $ver; rebuilding"
+            psql -v ON_ERROR_STOP=1 -c "REINDEX INDEX $idx"
+            psql -v ON_ERROR_STOP=1 -c "$probe" > /dev/null
+            echo "$idx rebuilt and verified"
+            rebuilt=$(( rebuilt + 1 ))
+          fi
+        done
+
+        echo "VectorChord index check complete at vchord $ver"
       ||| % { db: database },
       pgEnv(host, user, database, secretName, secretKey),
       pvcName,
