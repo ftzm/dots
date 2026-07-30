@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  digest: e010a70fc44b43d874b99d88aef26092
+kind: ConfigMap
+metadata:
+  name: immich-db-hook-revision
+  namespace: immich

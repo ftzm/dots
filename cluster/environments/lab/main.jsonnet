@@ -1906,6 +1906,26 @@ local withNamespace(resources, ns) = {
       'immich-db-vchord-reindex', ns, images.cloudnativeVectorchord,
       'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
     ),
+
+    // ArgoCD excludes hook resources from its desired-state diff, so editing a
+    // hook alone produces no diff, no sync, and therefore no run: the new hook
+    // sits in git doing nothing until some unrelated resource happens to
+    // change. That has bitten three times now -- #99 tested nothing, #103 did
+    // not take effect, and a corrected reindex hook could not deploy while it
+    // was the only thing that had changed.
+    //
+    // Carrying a digest of the hooks in a ConfigMap makes editing one a
+    // visible change to a resource ArgoCD does diff.
+    dbHookRevision: {
+      apiVersion: 'v1',
+      kind: 'ConfigMap',
+      metadata: { name: 'immich-db-hook-revision', namespace: ns },
+      data: {
+        digest: std.md5(std.manifestJsonEx(
+          [$.immich.dbUpgradeGate, $.immich.dbUpgradeFinalize, $.immich.dbVchordReindex], ''
+        )),
+      },
+    },
   },
 
   // PinePods: self-hosted podcast ecosystem (Rust backend + Postgres + Valkey).

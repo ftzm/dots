@@ -62,20 +62,46 @@ spec:
               JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0]
              WHERE am.amname IN ('vchordrq', 'vchordg')")
 
-          rebuilt=0
-          echo "$probes" | while read -r line; do
+          # Only a deserialization failure means the index is unreadable. A probe
+          # can fail for reasons that say nothing about the on-disk format --
+          # "need 1 probes, but 0 probes provided" is one, since VectorChord
+          # wants vchordrq.probes set for a scan and its depth depends on how the
+          # index was built. That error in fact proves the opposite of a problem:
+          # to know how many probes it needs, it had to read the meta page.
+          #
+          # Treating any failure as fatal is what stopped an earlier run of this
+          # hook after it had rebuilt the first of two indexes -- the rebuild
+          # worked, the verification tripped over the probes setting, and
+          # clip_index was left broken.
+          run_probe() {
+            psql -c "SET vchordrq.probes='1'; $1" 2>&1 > /dev/null || true
+          }
+
+          echo "$probes" | while IFS= read -r line; do
             [ -n "$line" ] || continue
             idx=${line%%|*}
             probe=${line#*|}
-            if psql -v ON_ERROR_STOP=1 -c "$probe" > /dev/null 2>&1; then
-              echo "$idx reads cleanly"
-            else
-              echo "$idx is unreadable at vchord $ver; rebuilding"
-              psql -v ON_ERROR_STOP=1 -c "REINDEX INDEX $idx"
-              psql -v ON_ERROR_STOP=1 -c "$probe" > /dev/null
-              echo "$idx rebuilt and verified"
-              rebuilt=$(( rebuilt + 1 ))
-            fi
+
+            err=$(run_probe "$probe")
+            case "$err" in
+              *"bad version number"*)
+                echo "$idx is unreadable at vchord $ver; rebuilding"
+                psql -v ON_ERROR_STOP=1 -c "REINDEX INDEX $idx"
+                err=$(run_probe "$probe")
+                case "$err" in
+                  *"bad version number"*)
+                    echo "FATAL: $idx still unreadable after REINDEX"
+                    exit 1
+                    ;;
+                  *)
+                    echo "$idx rebuilt and verified"
+                    ;;
+                esac
+                ;;
+              *)
+                echo "$idx reads cleanly"
+                ;;
+            esac
           done
 
           echo "VectorChord index check complete at vchord $ver"
