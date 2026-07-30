@@ -26,20 +26,43 @@ spec:
           running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
           major=$(( running / 10000 ))
           marker="/backup/.pg-major-immich"
+
+          # A missing marker means "unknown", not "nothing happened".
+          #
+          # Recording the current state and exiting looks harmless and is not:
+          # if this hook's first run lands *after* an upgrade, it writes the
+          # post-upgrade major as its baseline and skips the work it exists to
+          # do. That is not hypothetical -- the VectorChord reindex hook, built
+          # on the same pattern, missed the exact upgrade it was written for
+          # because a failed sync meant its first run came after the change.
+          #
+          # Analyzing when the history is unknown costs one redundant pass on a
+          # database that did not need it. Skipping when the history is unknown
+          # costs an upgraded database running on no statistics at all, which
+          # nothing downstream will report as wrong -- queries just quietly get
+          # bad plans. Prefer the cheap mistake.
           if [ ! -f "$marker" ]; then
-            echo "$major" > "$marker"
-            echo "baseline recorded: PostgreSQL $major (nothing to finalize)"
-            exit 0
+            echo "no recorded PostgreSQL major for this database; assuming statistics may be stale"
+            last="unknown"
+          else
+            last=$(cat "$marker")
           fi
-          last=$(cat "$marker")
+
           if [ "$last" = "$major" ]; then
             echo "PostgreSQL major unchanged ($major) - nothing to finalize"
             exit 0
           fi
-          echo "PostgreSQL major changed $last -> $major; finalizing"
+
+          echo "finalizing: recorded major $last, running $major"
           # pg_upgrade does not carry optimizer statistics across. Staged so the
           # database becomes usable quickly rather than after one long pass.
           vacuumdb --analyze-in-stages --dbname="$PGDATABASE"
+
+          # Confirm the pass actually produced statistics rather than assuming
+          # the exit code says so.
+          stats=$(psql -tAc "SELECT count(*) FROM pg_stats WHERE schemaname NOT IN ('pg_catalog','information_schema')" | tr -d '[:space:]')
+          echo "statistics rows for user tables after ANALYZE: $stats"
+
           echo "$major" > "$marker"
           echo "finalized: statistics rebuilt for PostgreSQL $major"
         command:
