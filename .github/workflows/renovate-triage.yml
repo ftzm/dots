@@ -1,0 +1,370 @@
+name: Renovate triage
+
+# Renovate automerges minor/patch/digest on its own once `build` goes green
+# (see cluster/renovate.jsonnet). This workflow handles everything that falls
+# out of that path:
+#
+#   fix     CI failed on a Renovate PR -> diagnose the breakage and open a
+#           repair PR against the Renovate branch, mirroring
+#           auto-fix-flake-update.yml.
+#   review  CI passed but the PR will not automerge itself (a major, or
+#           automerge was never armed) -> read the release notes, judge them
+#           against how this repo actually uses the component, and either
+#           merge or leave targeted investigation notes.
+#
+# Merging here deploys: comin picks up the NixOS side, ArgoCD syncs the
+# cluster manifests. The review prompt is written with that bar in mind.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to triage (blank = every open renovate/* PR)"
+        required: false
+        type: string
+
+concurrency:
+  group: renovate-triage
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    # workflow_run fires for every CI completion; only renovate/* is ours.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'pull_request' &&
+       startsWith(github.event.workflow_run.head_branch, 'renovate/'))
+    outputs:
+      prs: ${{ steps.select.outputs.prs }}
+    steps:
+      - name: Select PRs and decide mode
+        id: select
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          INPUT_PR: ${{ inputs.pr }}
+        run: |
+          set -euo pipefail
+
+          # Candidate PR numbers.
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ -n "$INPUT_PR" ]; then
+              candidates="$INPUT_PR"
+            else
+              candidates=$(gh pr list --state open --limit 100 \
+                --json number,headRefName \
+                | jq -r '.[] | select(.headRefName | startswith("renovate/")) | .number')
+            fi
+          else
+            candidates=$(gh pr list --state open --limit 100 \
+              --json number,headRefName \
+              | jq -r --arg b "$HEAD_BRANCH" '.[] | select(.headRefName == $b) | .number')
+          fi
+
+          selected='[]'
+          for n in $candidates; do
+            data=$(gh pr view "$n" --json number,state,body,autoMergeRequest,statusCheckRollup,isCrossRepository)
+
+            state=$(jq -r '.state' <<<"$data")
+            fork=$(jq -r '.isCrossRepository' <<<"$data")
+            # Renovate stamps every PR body with this marker. The PRs are
+            # authored by the repo owner's PAT, not a bot account, so the
+            # author field cannot be used to prove provenance.
+            marker=$(jq -r '.body | test("renovate-debug")' <<<"$data")
+
+            if [ "$state" != "OPEN" ] || [ "$fork" != "false" ] || [ "$marker" != "true" ]; then
+              echo "#$n skip (state=$state fork=$fork renovate=$marker)"
+              continue
+            fi
+
+            # CI verdict. For workflow_run the event conclusion is
+            # authoritative and race-free; for a manual dispatch fall back to
+            # the check rollup.
+            if [ "$EVENT" = "workflow_run" ]; then
+              build="$RUN_CONCLUSION"
+            else
+              build=$(jq -r '[.statusCheckRollup[]? | select(.name=="build") | .conclusion] | first // "none"' <<<"$data" \
+                | tr '[:upper:]' '[:lower:]')
+            fi
+
+            armed=$(jq -r 'if .autoMergeRequest == null then "no" else "yes" end' <<<"$data")
+            # Any dependency in the PR being a major sends it to review even
+            # if automerge somehow got armed.
+            major=$(jq -r 'if (.body | test("\\| major \\|")) then "yes" else "no" end' <<<"$data")
+
+            if [ "$build" = "failure" ]; then
+              mode=fix
+            elif [ "$build" = "success" ] && { [ "$armed" = "no" ] || [ "$major" = "yes" ]; }; then
+              mode=review
+            else
+              echo "#$n skip (build=$build armed=$armed major=$major)"
+              continue
+            fi
+
+            echo "#$n -> $mode (build=$build armed=$armed major=$major)"
+            selected=$(jq -c --argjson n "$n" --arg m "$mode" '. + [{number: $n, mode: $m}]' <<<"$selected")
+          done
+
+          echo "prs=$selected" >> "$GITHUB_OUTPUT"
+          echo "selected: $selected"
+
+  triage:
+    needs: discover
+    if: needs.discover.outputs.prs != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      # Serial: each merge lands on master and triggers a deploy, and a merge
+      # makes every other PR's base stale.
+      max-parallel: 1
+      matrix:
+        pr: ${{ fromJSON(needs.discover.outputs.prs) }}
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ matrix.pr.number }}/head
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+
+      # Only the fix path builds anything; a review reads source and release
+      # notes, so it skips the (slow) Nix setup entirely.
+      - uses: DeterminateSystems/determinate-nix-action@v3
+        if: matrix.pr.mode == 'fix'
+
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+        if: matrix.pr.mode == 'fix'
+        with:
+          use-flakehub: false
+
+      - name: Ensure needs-review label exists
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create needs-review \
+            --color FBCA04 \
+            --description "Automated triage found risk worth a targeted human review" \
+            --force
+
+      - name: Collect failed CI logs
+        if: matrix.pr.mode == 'fix'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ci
+          # Must exist before the tail below even if both lookups come up dry.
+          : > /tmp/ci/failed.log
+          if [ -n "${RUN_ID:-}" ]; then
+            gh run view "$RUN_ID" --log-failed > /tmp/ci/failed.log || true
+          else
+            # Manual dispatch: find the most recent failed CI run for this PR.
+            sha=$(gh pr view "${{ matrix.pr.number }}" --json headRefOid --jq .headRefOid)
+            run_id=$(gh run list --workflow CI --commit "$sha" --limit 1 --json databaseId --jq '.[0].databaseId')
+            [ -n "$run_id" ] && gh run view "$run_id" --log-failed > /tmp/ci/failed.log || true
+          fi
+          # Bound token usage by keeping only the tail.
+          tail -c 200000 /tmp/ci/failed.log > /tmp/ci/failed.trimmed.log
+          mv /tmp/ci/failed.trimmed.log /tmp/ci/failed.log
+          wc -l /tmp/ci/failed.log
+
+      - name: Claude auto-fix
+        if: matrix.pr.mode == 'fix'
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.PAT_TOKEN }}
+          prompt: |
+            CI failed on Renovate PR #${{ matrix.pr.number }} in
+            ${{ github.repository }}. The working tree is already checked out
+            at that PR's head commit. Get its head branch with
+            `gh pr view ${{ matrix.pr.number }} --json headRefName`.
+
+            The failed CI log is at /tmp/ci/failed.log. Read it, diagnose the
+            breakage caused by the dependency bump in this PR, and fix the
+            config so CI passes.
+
+            Context on what CI checks:
+            - `nix build .#nixosConfigurations.<host>.config.system.build.toplevel`
+              for saoiste, eachtrai, nuc, nas.
+            - `cd cluster && nix develop . -c just render-lab` renders the
+              cluster manifests via Tanka.
+
+            If the bump is a Helm chart or container image, the fix usually
+            belongs in `cluster/` Jsonnet or chart values. If it is the
+            forgejo runner image, see `machines/nuc/forgejo-runner.nix`.
+
+            After fixing, regenerate anything derived so the committed tree is
+            consistent:
+            - charts changed: `cd cluster && nix develop . -c tk tool charts vendor --prune`
+            - always re-render: `cd cluster && nix develop . -c just render-lab`
+            Commit the regenerated `cluster/charts/**` and `cluster/manifests/**`.
+
+            Verify locally before opening anything: run the relevant
+            `nix build` for each affected host and the render command.
+
+            Constraints:
+            - Only adapt config to upstream changes. Do NOT add features,
+              refactor unrelated code, or modify `flake.lock`.
+            - Do NOT change the dependency version this PR is bumping --
+              that is the whole point of the PR.
+            - Never run `kubectl apply`, `systemctl`, or any imperative fix.
+              Every change is declarative and flows through git.
+            - If the failure is transient (network, cache, registry, infra)
+              and not a real config break, comment on the PR saying so and
+              exit without opening a PR.
+            - Create a branch off the current HEAD named
+              `claude/fix-renovate-${{ matrix.pr.number }}`.
+            - Open a PR via `gh pr create` targeting the Renovate branch
+              (NOT master), so merging the fix lets the Renovate PR pass CI
+              and automerge. Renovate force-pushes its own branches on
+              rebase, which is why the fix goes in a separate branch rather
+              than directly onto it.
+            - Title: `fix: adapt config to Renovate bump (#${{ matrix.pr.number }})`
+            - Body: what upstream changed and what you changed in response.
+          claude_args: |
+            --max-turns 40
+            --allowedTools Read,Edit,Write,Bash,Grep,Glob
+
+      - name: Claude release-note risk review
+        if: matrix.pr.mode == 'review'
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.PAT_TOKEN }}
+          prompt: |
+            Renovate PR #${{ matrix.pr.number }} in ${{ github.repository }}
+            passed CI but will not automerge itself, so it needs a judgement
+            call. The working tree is checked out at the PR head.
+
+            Decide whether this upgrade is safe to merge **given how this
+            specific repo actually uses the component**, then either merge it
+            or leave notes precise enough for a targeted human review.
+
+            Merging is deploying. master is continuously delivered: comin
+            deploys the NixOS hosts, ArgoCD syncs the cluster manifests. CI
+            proves the configs evaluate, build, and render -- it proves
+            nothing about runtime behaviour. Set your bar accordingly.
+
+            ## Step 1 -- establish what is changing
+
+            `gh pr view ${{ matrix.pr.number }}` and
+            `gh pr diff ${{ matrix.pr.number }}`. Record every dependency
+            with its exact from-version and to-version.
+
+            ## Step 2 -- get the real release notes
+
+            The PR body sometimes has a "Release Notes" section (Helm chart
+            PRs usually do). Container-image PRs frequently do NOT -- the
+            body will say "Some dependencies could not be looked up". When
+            notes are missing, go find them yourself:
+            `gh api repos/OWNER/REPO/releases`, the project's CHANGELOG, or
+            WebFetch the release page.
+
+            Read the notes for EVERY intermediate version between from and
+            to, not just the target. A breaking change three patches back
+            still lands in this merge.
+
+            ## Step 3 -- establish how this repo actually uses it
+
+            Grep the repo. Read the manifests, the chart values in
+            `cluster/`, `cluster/chartfile.yaml`, `cluster/lib/images.libsonnet`,
+            and any NixOS module under `machines/`. Work out which features,
+            APIs, config keys, and CRDs are genuinely in use here.
+
+            ## Step 4 -- judge each breaking change
+
+            For every breaking change, removal, deprecation, or migration
+            note: does it touch our usage? Cite the concrete evidence --
+            `file:line` for repo usage, the release-note text for the claim.
+
+            NEVER speculate. No "likely", "probably", "should be fine". If
+            you have not verified something, you have not verified it, and
+            that alone blocks a merge.
+
+            ## Step 5 -- decide
+
+            Merge ONLY if all of these hold:
+            - You found and read the actual release notes for the full
+              version span.
+            - No breaking change touches anything this repo uses.
+            - The notes document no manual migration step, no CRD change
+              needing a manual apply, no data/schema migration.
+            - The component is stateless.
+
+            NEVER merge, regardless of how clean the notes look, when the
+            component is data-bearing or stateful -- anything backed by a
+            PVC or holding data a rollback cannot restore. That includes
+            CloudNativePG/PostgreSQL, vectorchord, valkey with persistence
+            enabled, forgejo, immich, audiobookshelf, navidrome. A major
+            bump on those can force an irreversible on-disk migration that
+            CI cannot see and `git revert` cannot undo.
+
+            If every condition holds:
+              `gh pr merge ${{ matrix.pr.number }} --squash`
+            then comment recording the versions, the notes you read with
+            their URLs, and why each breaking change does not apply.
+
+            Otherwise do NOT merge. Comment using exactly this structure and
+            add the label:
+              `gh pr edit ${{ matrix.pr.number }} --add-label needs-review`
+
+            ```
+            ## Risk review: <dep> <from> -> <to>
+
+            **Verdict:** needs manual review -- <one-line reason>
+
+            ### What changed
+            <short summary of the release span>
+
+            ### Risk points that touch this repo
+            | Change | Where it hits us | Severity |
+            |---|---|---|
+            | <breaking change> | `path/to/file.jsonnet:42` | high/medium/low |
+
+            ### Reviewed and not applicable
+            - <change> -- not used here (<evidence>)
+
+            ### What to check before merging
+            1. <specific, actionable check>
+
+            ### Sources
+            - <release notes URLs actually read>
+            ```
+
+            Keep "What to check before merging" genuinely targeted -- the
+            point is to spend review attention only on the parts that carry
+            real risk, not to restate the changelog.
+
+            Constraints:
+            - Do not modify any file, and do not push commits. This is a
+              read-and-decide task.
+            - Never run `kubectl`, `systemctl`, or touch the cluster. Read
+              the repo, read the notes, decide.
+            - If you cannot find release notes at all, that is a
+              needs-review verdict, not a merge.
+            - Always leave a comment, whichever way you decide.
+          claude_args: |
+            --max-turns 50
+            --allowedTools Read,Bash,Grep,Glob,WebFetch

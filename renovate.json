@@ -186,6 +186,17 @@
    "extends": [
       "config:recommended"
    ],
+   "packageRules": [
+      {
+         "automerge": true,
+         "matchUpdateTypes": [
+            "minor",
+            "patch",
+            "digest"
+         ]
+      }
+   ],
+   "platformAutomerge": true,
    "postUpgradeTasks": {
       "commands": [
          "cd cluster && tk tool charts vendor --prune",
