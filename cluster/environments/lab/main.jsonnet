@@ -2024,7 +2024,11 @@ local withNamespace(resources, ns) = {
     // Static NFS mount at a known path so the NAS borg job covers it.
     local dbBackupMount = storage.nfsMount('miniflux-db-backup', ns, '/pool-1/k8s/miniflux-db-backup', '5Gi'),
 
-    namespace: k.core.v1.namespace.new(ns),
+    // TEMPORARY: a non-hook change, purely to make ArgoCD run a sync
+    // operation. ArgoCD excludes hook resources from its diff, so a
+    // hook-only edit never triggers the sync that would run the hook.
+    namespace: k.core.v1.namespace.new(ns)
+                + k.core.v1.namespace.metadata.withAnnotationsMixin({ 'test/force-sync': 'gate-dump-branch' }),
 
     // PostgreSQL via CloudNativePG. Miniflux needs no superuser and no
     // extensions (HSTORE stopped being a requirement in 2.0.27), so it connects
