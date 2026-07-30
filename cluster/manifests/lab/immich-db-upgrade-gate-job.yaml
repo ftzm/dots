@@ -27,8 +27,8 @@ spec:
 
           running=$(psql -tAc 'SHOW server_version_num' | tr -d '[:space:]')
           major=$(( running / 10000 ))
-          if [ "$major" != "16" ]; then
-            reason="PostgreSQL $major -> 16"
+          if [ "$major" != "18" ]; then
+            reason="PostgreSQL $major -> 18"
           fi
 
           # An extension upgrade is one-way in practice: ALTER EXTENSION cannot
@@ -54,7 +54,7 @@ spec:
           fi
 
           echo "UPGRADE PENDING: $reason"
-          out="/backup/immich-db-upgrade-gate-pg$major-to-16-$(date +%Y%m%d-%H%M%S).dump"
+          out="/backup/immich-db-upgrade-gate-pg$major-to-18-$(date +%Y%m%d-%H%M%S).dump"
           echo "taking pre-upgrade dump to $out"
           pg_dump --format=custom --file="$out"
           [ -s "$out" ] || { echo "FATAL: pre-upgrade dump is empty"; exit 1; }
@@ -75,7 +75,7 @@ spec:
             secretKeyRef:
               key: password
               name: immich-database-app
-        image: ghcr.io/tensorchord/cloudnative-vectorchord:16.14-1.1.1
+        image: ghcr.io/tensorchord/cloudnative-vectorchord:18.4-1.1.1
         name: immich-db-upgrade-gate
         volumeMounts:
         - mountPath: /backup

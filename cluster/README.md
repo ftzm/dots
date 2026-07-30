@@ -519,7 +519,7 @@ Three CloudNativePG clusters run here, all single-instance on NFS:
 
 | Cluster | Namespace | Catalog | Major |
 |---|---|---|---|
-| `immich-database` | `immich` | `vectorchord` | 16 |
+| `immich-database` | `immich` | `vectorchord` | 18 |
 | `miniflux-database` | `miniflux` | `postgresql` | 18 |
 | `pinepods-database` | `pinepods` | `postgresql` | 18 |
 

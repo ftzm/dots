@@ -7,3 +7,5 @@ spec:
   images:
   - image: ghcr.io/tensorchord/cloudnative-vectorchord:16.14-1.1.1
     major: 16
+  - image: ghcr.io/tensorchord/cloudnative-vectorchord:18.4-1.1.1
+    major: 18

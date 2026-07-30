@@ -8,7 +8,12 @@
   jellyseerr: 'fallenbagel/jellyseerr:develop',
   vaultwarden: 'vaultwarden/server:1.36.0',
   forgejo: 'codeberg.org/forgejo/forgejo:15.0.3',
-  cloudnativeVectorchord: 'ghcr.io/tensorchord/cloudnative-vectorchord:16.14-1.1.1',
+  // Immich's database. Both majors stay listed while the 16 -> 18 upgrade is
+  // in flight: CloudNativePG's rollback for a failed pg_upgrade is to put the
+  // Cluster's major back, and that only resolves while the catalog still
+  // offers the old one. Drop the 16 entry once 18 has proven itself.
+  cloudnativeVectorchord16: 'ghcr.io/tensorchord/cloudnative-vectorchord:16.14-1.1.1',
+  cloudnativeVectorchord18: 'ghcr.io/tensorchord/cloudnative-vectorchord:18.4-1.1.1',
   blocky: 'spx01/blocky:latest',
   ntfy: 'binwiederhier/ntfy',
   navidrome: 'ghcr.io/navidrome/navidrome:0.61.2',

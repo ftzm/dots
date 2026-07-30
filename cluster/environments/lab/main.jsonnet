@@ -498,7 +498,7 @@ local withNamespace(resources, ns) = {
     // to a new major means adding its image here and changing that Cluster's
     // `major`, both of which are deliberate edits. See lib/postgres.libsonnet.
     postgresCatalog: postgres.clusterImageCatalog('postgresql', [images.cnpgPostgres]),
-    vectorchordCatalog: postgres.clusterImageCatalog('vectorchord', [images.cloudnativeVectorchord]),
+    vectorchordCatalog: postgres.clusterImageCatalog('vectorchord', [images.cloudnativeVectorchord16, images.cloudnativeVectorchord18]),
   },
 
   // cert-manager: TLS certificate management with Let's Encrypt
@@ -1719,7 +1719,7 @@ local withNamespace(resources, ns) = {
     local ns = 'immich',
     // Single source for this database's PostgreSQL major: the Cluster's
     // catalog ref and the upgrade gate must never disagree about it.
-    local pgMajor = 16,
+    local pgMajor = 18,
     local libraryMount = storage.nfsMount('immich-library', ns, '/pool-1/cloud/photos', '500Gi'),
     local dbBackupMount = storage.nfsMount('immich-db-backup', ns, '/pool-1/k8s/immich-db-backup', '5Gi'),
 
@@ -1849,18 +1849,18 @@ local withNamespace(resources, ns) = {
     // group so the uid-26 dump pod can actually write to NFS — the inline version
     // here silently failed with EACCES for months (verified + fixed 2026-07-21).
     dbBackupCronJob: backup.pgDumpCronJob(
-      'immich-db-backup', ns, images.cloudnativeVectorchord,
+      'immich-db-backup', ns, images.cloudnativeVectorchord18,
       'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
     ),
 
     // Major upgrade harness — see lib/postgres.libsonnet. Gate and catalog
     // ref both read pgMajor, so they cannot disagree.
     dbUpgradeGate: postgres.majorUpgradeGate(
-      'immich-db-upgrade-gate', ns, images.cloudnativeVectorchord,
+      'immich-db-upgrade-gate', ns, images.cloudnativeVectorchord18,
       'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup', pgMajor
     ),
     dbUpgradeFinalize: postgres.majorUpgradeFinalize(
-      'immich-db-upgrade-finalize', ns, images.cloudnativeVectorchord,
+      'immich-db-upgrade-finalize', ns, images.cloudnativeVectorchord18,
       'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
     ),
 
@@ -1884,7 +1884,7 @@ local withNamespace(resources, ns) = {
     dbExtensions: postgres.managedExtensions(
       'immich-database-extensions', ns, 'immich-database', 'immich', 'immich',
       [
-        { name: 'vchord', version: postgres.vchordVersionOf(images.cloudnativeVectorchord) },
+        { name: 'vchord', version: postgres.vchordVersionOf(images.cloudnativeVectorchord18) },
         // pgvector has the same problem vchord had: left version-free it was
         // created once and never moved, sitting at 0.8.0 while the image
         // offered 0.8.3. Immich requires >=0.5 <1, and nothing here uses
@@ -1903,7 +1903,7 @@ local withNamespace(resources, ns) = {
     // Both indexes are owned by the immich role, so this connection can
     // rebuild them without superuser.
     dbVchordReindex: postgres.vchordReindex(
-      'immich-db-vchord-reindex', ns, images.cloudnativeVectorchord,
+      'immich-db-vchord-reindex', ns, images.cloudnativeVectorchord18,
       'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
     ),
 
