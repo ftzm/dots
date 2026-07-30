@@ -98,8 +98,17 @@
     kind: 'Job',
     metadata: { name: name, namespace: ns, annotations: annotations },
     spec: {
-      // A safety gate must not be retried into passing.
-      backoffLimit: 0,
+      // Retry a couple of times. A failed dump and an unreachable database
+      // are different things: the first must not be masked, but the second
+      // means the check never ran, and hard-failing there takes the whole
+      // app's sync down for a database that was merely restarting. That is
+      // exactly what happened during the VectorChord 1.1.1 rollout -- the
+      // gate landed while the pod was still failing its readiness probe.
+      //
+      // Retrying cannot turn a bad dump into a good one: each attempt writes
+      // its own timestamped file and re-checks it with pg_restore --list, so
+      // a genuinely broken dump still fails the sync after the retries.
+      backoffLimit: 2,
       template: { spec: {
         restartPolicy: 'Never',
         securityContext: { supplementalGroups: [1001] },
@@ -304,7 +313,22 @@
       ensure: 'present',
       // Default, but state it: this must never be able to drop the database.
       databaseReclaimPolicy: 'retain',
-      extensions: [{ name: e, ensure: 'present' } for e in extensions],
+      // `version` is what makes the operator issue ALTER EXTENSION UPDATE TO.
+      // Without it it only ever creates a missing extension:
+      //
+      //   if len(spec.Version) > 0 && spec.Version != info.Version {
+      //       ... "ALTER EXTENSION %s UPDATE TO %v" ...
+      //   }
+      //   -- internal/management/controller/database_controller_sql.go
+      //
+      // Entries are {name, version?}; omitting version means "leave whatever
+      // is installed alone", which is only ever right for extensions nothing
+      // depends on being current.
+      extensions: [
+        { name: e.name, ensure: 'present' }
+        + (if std.objectHas(e, 'version') && e.version != '' then { version: e.version } else {})
+        for e in extensions
+      ],
     },
   },
 }

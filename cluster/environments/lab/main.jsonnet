@@ -1872,9 +1872,23 @@ local withNamespace(resources, ns) = {
     // pg_trgm, unaccent and uuid-ossp are deliberately absent: Immich's own
     // migrations create and own those, and listing them here would put the
     // operator and the application in competition.
+    // vchord carries an explicit version, taken from the image tag, because
+    // that is the only thing that makes the operator run ALTER EXTENSION
+    // UPDATE TO. Left implicit, it created the extension once and then sat
+    // there while the image moved underneath it -- which is how 0.4.3 ended
+    // up running against a 1.1.1 library and broke every vector query.
+    //
+    // cube, earthdistance and vector are version-free on purpose: nothing
+    // reads their on-disk format the way vchordrq does, and pgvector is
+    // pinned inside Immich's own supported range.
     dbExtensions: postgres.managedExtensions(
       'immich-database-extensions', ns, 'immich-database', 'immich', 'immich',
-      ['vchord', 'vector', 'cube', 'earthdistance']
+      [
+        { name: 'vchord', version: postgres.vchordVersionOf(images.cloudnativeVectorchord) },
+        { name: 'vector' },
+        { name: 'cube' },
+        { name: 'earthdistance' },
+      ]
     ),
 
     // face_index and clip_index are vchordrq, and VectorChord hard-errors on
