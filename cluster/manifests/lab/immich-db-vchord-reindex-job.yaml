@@ -7,7 +7,7 @@ metadata:
   name: immich-db-vchord-reindex
   namespace: immich
 spec:
-  backoffLimit: 0
+  backoffLimit: 2
   template:
     spec:
       containers:

@@ -98,8 +98,17 @@
     kind: 'Job',
     metadata: { name: name, namespace: ns, annotations: annotations },
     spec: {
-      // A safety gate must not be retried into passing.
-      backoffLimit: 0,
+      // Retry a couple of times. A failed dump and an unreachable database
+      // are different things: the first must not be masked, but the second
+      // means the check never ran, and hard-failing there takes the whole
+      // app's sync down for a database that was merely restarting. That is
+      // exactly what happened during the VectorChord 1.1.1 rollout -- the
+      // gate landed while the pod was still failing its readiness probe.
+      //
+      // Retrying cannot turn a bad dump into a good one: each attempt writes
+      // its own timestamped file and re-checks it with pg_restore --list, so
+      // a genuinely broken dump still fails the sync after the retries.
+      backoffLimit: 2,
       template: { spec: {
         restartPolicy: 'Never',
         securityContext: { supplementalGroups: [1001] },
