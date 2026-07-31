@@ -650,7 +650,17 @@ instance.
 
 ## Dependency Automation (Renovate)
 
-Renovate runs daily at 04:00 UTC via GitHub Actions (`.github/workflows/renovate.yaml`).
+Renovate runs daily at 04:00 UTC via GitHub Actions
+(`.github/workflows/renovate.yaml`), and again whenever a file it manages lands
+on `master`.
+
+That second trigger exists because every docker-tag PR edits
+`lib/images.libsonnet`, so the moment one merges the rest are behind it and go
+conflicted. Renovate already knows to rebase them — with automerge enabled its
+`rebaseWhen=auto` resolves to `behind-base-branch` — but it can only act during
+a run. On a daily schedule a straggler waited until the next morning, which is
+how #87 and #89 sat overnight while nine siblings merged without them. Running
+on the managed files lets the queue drain itself.
 
 ### How it works
 
