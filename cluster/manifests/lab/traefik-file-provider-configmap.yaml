@@ -73,6 +73,6 @@ metadata:
     app.kubernetes.io/instance: traefik-traefik
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: traefik
-    helm.sh/chart: traefik-41.0.2
+    helm.sh/chart: traefik-41.1.0
   name: traefik-file-provider
   namespace: traefik
