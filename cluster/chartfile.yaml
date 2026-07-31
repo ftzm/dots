@@ -31,7 +31,7 @@ requires:
   - chart: traefik/traefik
     version: "41.0.2"
   - chart: argo/argo-cd
-    version: "10.1.4"
+    version: "10.2.1"
   - chart: prometheus-community/kube-prometheus-stack
     version: "87.17.0"
   - chart: grafana/loki
