@@ -2,8 +2,34 @@ name: Renovate
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # Daily at 4am UTC
+    - cron: '0 4 * * *'  # Daily at 4am UTC — finds new updates
   workflow_dispatch:      # Manual trigger
+  # Re-run after anything Renovate manages lands on master.
+  #
+  # Every docker-tag PR edits cluster/lib/images.libsonnet, so the moment one
+  # merges the rest are behind it and go conflicted. Renovate already knows to
+  # fix that -- with automerge enabled its rebaseWhen=auto resolves to
+  # behind-base-branch -- but it can only act during a run, and running once a
+  # day meant a straggler waited until the next morning. That is what stranded
+  # #87 and #89 overnight while nine siblings merged without them.
+  #
+  # Triggering on the managed files instead lets the queue drain itself: a
+  # merge rebases whatever it just invalidated, and the cascade stops on its
+  # own once nothing is left to merge.
+  push:
+    branches: [master]
+    paths:
+      - 'cluster/lib/images.libsonnet'
+      - 'cluster/chartfile.yaml'
+      - 'cluster/jsonnetfile.json'
+      - 'machines/nuc/forgejo-runner.nix'
+      - 'renovate.json'
+      - '.github/workflows/**'
+
+# Two Renovate runs at once would race on the same branches.
+concurrency:
+  group: renovate
+  cancel-in-progress: false
 
 jobs:
   renovate:
