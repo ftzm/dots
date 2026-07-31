@@ -19,7 +19,7 @@ spec:
       - env:
         - name: ND_MUSICFOLDER
           value: /music
-        image: ghcr.io/navidrome/navidrome:0.61.2
+        image: ghcr.io/navidrome/navidrome:0.63.2
         name: navidrome
         ports:
         - containerPort: 4533
