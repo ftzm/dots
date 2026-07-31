@@ -129,7 +129,7 @@ testFramework:
     # -- The Docker registry
     registry: docker.io
     repository: bats/bats
-    tag: "1.13.0"
+    tag: "1.14.0"
   imagePullPolicy: IfNotPresent
   securityContext: {}
   containerSecurityContext: {}
@@ -1038,7 +1038,7 @@ sidecar:
     # -- The Docker registry
     registry: quay.io
     repository: kiwigrid/k8s-sidecar
-    tag: 2.8.1
+    tag: 2.10.0
     sha: ""
   imagePullPolicy: IfNotPresent
   resources: {}
