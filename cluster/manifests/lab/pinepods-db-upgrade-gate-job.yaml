@@ -75,7 +75,7 @@ spec:
             secretKeyRef:
               key: password
               name: pinepods-database-superuser
-        image: ghcr.io/cloudnative-pg/postgresql:18.2
+        image: ghcr.io/cloudnative-pg/postgresql:18.4
         name: pinepods-db-upgrade-gate
         volumeMounts:
         - mountPath: /backup
