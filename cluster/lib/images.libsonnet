@@ -6,7 +6,7 @@
   prowlarr: 'linuxserver/prowlarr:2.6.1-nightly',
   flaresolverr: 'flaresolverr/flaresolverr:v3.5.0',
   jellyseerr: 'fallenbagel/jellyseerr:develop',
-  vaultwarden: 'vaultwarden/server:1.36.0',
+  vaultwarden: 'vaultwarden/server:1.37.1',
   forgejo: 'codeberg.org/forgejo/forgejo:16.0.2',
   // Immich's database. Only the major actually in use is listed: a catalog
   // entry for a major nothing runs is an invitation to set a Cluster back to
