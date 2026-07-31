@@ -3127,7 +3127,7 @@ prometheusOperator:
       image:
         registry: ghcr.io
         repository: jkroepke/kube-webhook-certgen
-        tag: 1.8.4
+        tag: 1.8.5
         sha: ""
         pullPolicy: IfNotPresent
       resources: {}
@@ -3569,7 +3569,7 @@ prometheusOperator:
   thanosImage:
     registry: quay.io
     repository: thanos/thanos
-    tag: v0.42.0
+    tag: v0.42.2
     sha: ""
 
   ## Set a Label Selector to filter watched prometheus and prometheusAgent
@@ -5536,7 +5536,7 @@ thanosRuler:
     image:
       registry: quay.io
       repository: thanos/thanos
-      tag: v0.42.0
+      tag: v0.42.2
       sha: ""
 
     ## Namespaces to be selected for PrometheusRules discovery.
