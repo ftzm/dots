@@ -782,6 +782,22 @@ local withNamespace(resources, ns) = {
               nodePort: 30100,
             },
           },
+          // Right-sized for this cluster. The chart defaults assume Loki is
+          // fronting a large object store; here it is SingleBinary on a 20Gi
+          // filesystem volume, so the chunk cache's default 8192MB ceiling was
+          // 40% the size of the entire dataset.
+          //
+          // The chart requests round(allocatedMemory * 1.2) from Kubernetes
+          // (memcached/_memcached-statefulset.tpl), so the defaults reserved
+          // 9830Mi + 1229Mi = ~11GB — 96% of every memory request on the node
+          // — to hold 181Mi and 4Mi respectively after 171 days. Requests
+          // drive scheduling, so that was held unavailable rather than merely
+          // unused.
+          //
+          // These still leave roughly 5x headroom on chunks and far more on
+          // results. Raise them if either cache starts evicting.
+          chunksCache: { allocatedMemory: 1024 },
+          resultsCache: { allocatedMemory: 256 },
           minio: { enabled: false },
           test: { enabled: false },
           lokiCanary: { enabled: false },
