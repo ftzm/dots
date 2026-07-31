@@ -35,7 +35,7 @@ requires:
   - chart: prometheus-community/kube-prometheus-stack
     version: "87.17.0"
   - chart: grafana/loki
-    version: "7.1.0"
+    version: "7.2.0"
   - chart: grafana-community/tempo
     version: "2.2.3"
   - chart: grafana/alloy
