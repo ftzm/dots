@@ -75,7 +75,7 @@ spec:
             secretKeyRef:
               key: password
               name: miniflux-database-app
-        image: ghcr.io/cloudnative-pg/postgresql:18.2
+        image: ghcr.io/cloudnative-pg/postgresql:18.4
         name: miniflux-db-upgrade-gate
         volumeMounts:
         - mountPath: /backup
