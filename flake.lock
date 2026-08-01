@@ -154,11 +154,11 @@
         "nixpkgs-stable": "nixpkgs-stable"
       },
       "locked": {
-        "lastModified": 1785465809,
-        "narHash": "sha256-E2TsuPeh2GmWlZpv7quRU6zvPd1lCLEYwSk5CRFDRBA=",
+        "lastModified": 1785552108,
+        "narHash": "sha256-wlqyRjPtlUXpn/7yhU0GeNZi2dLkhT6DMExTUZpdFz0=",
         "owner": "nix-community",
         "repo": "emacs-overlay",
-        "rev": "6f25b30cf5a1e76a94f67997957aa67362350701",
+        "rev": "3f758cb4f614c5ad9d6bc6b2c9b59558cbb9fa9e",
         "type": "github"
       },
       "original": {
@@ -321,11 +321,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1785306346,
-        "narHash": "sha256-DScBkW0fOgpGPK2trNoX3ryLTlaC14+gglFo/BhGJ4g=",
+        "lastModified": 1785531816,
+        "narHash": "sha256-vkMnV0JIyw+g/NmcfoajlGaAO+9a0ezia+FZohQJrik=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "e705714e918c3b11affcdd15db2cbe3a070420a0",
+        "rev": "bf9ce9fec78f95f374e8dd3b503863a3ec128ebe",
         "type": "github"
       },
       "original": {
@@ -394,11 +394,11 @@
         "nixpkgs": "nixpkgs_6"
       },
       "locked": {
-        "lastModified": 1785429491,
-        "narHash": "sha256-BKvVMCSL70pONZ+l11amtgHw1duAIWwKcRkh3ceWJVo=",
+        "lastModified": 1785550943,
+        "narHash": "sha256-orD4OjKs1terhuYmTj6whzxeVaf8J1jj+Gt0WazR46U=",
         "owner": "MoonshotAI",
         "repo": "kimi-code",
-        "rev": "17dfd49768f753a4f0fe97d8e7d3317dab560575",
+        "rev": "e22479a62eed9c3b78a67b313f4332c2c0ba9670",
         "type": "github"
       },
       "original": {
@@ -415,11 +415,11 @@
         "spectrum": "spectrum"
       },
       "locked": {
-        "lastModified": 1785448594,
-        "narHash": "sha256-6N2XtF9PFD3rlwIH2ZQCd+0FszzD4YJJ2jV2/a546wo=",
+        "lastModified": 1785510331,
+        "narHash": "sha256-d/AR1r5guAk52ZWM0sAd3O8Fd2jQbyGwxU+e6flTiUk=",
         "owner": "microvm-nix",
         "repo": "microvm.nix",
-        "rev": "e5c08ae7c52d4e1066c430fa9ce8abdda241db69",
+        "rev": "06544a68599a0e0721760af442000204e57e3937",
         "type": "github"
       },
       "original": {
@@ -548,11 +548,11 @@
     },
     "nixpkgs-iosevka": {
       "locked": {
-        "lastModified": 1785301185,
-        "narHash": "sha256-eoS3KQTO0aPWXZvIaRbRAzSSHW3l5wdMFXtT1ISfoKA=",
+        "lastModified": 1785452004,
+        "narHash": "sha256-k94ksv7XmaLeK5sE1ST/TTdu2aDEO9sfbcgEaNJPTXA=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "9bc02893134c733dd85de46ee4fb2fac696b5529",
+        "rev": "a5e9f2fd9ef6011c6886d6935f3ef678c81385fa",
         "type": "github"
       },
       "original": {
@@ -596,11 +596,11 @@
     },
     "nixpkgs_10": {
       "locked": {
-        "lastModified": 1785301185,
-        "narHash": "sha256-eoS3KQTO0aPWXZvIaRbRAzSSHW3l5wdMFXtT1ISfoKA=",
+        "lastModified": 1785452004,
+        "narHash": "sha256-k94ksv7XmaLeK5sE1ST/TTdu2aDEO9sfbcgEaNJPTXA=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "9bc02893134c733dd85de46ee4fb2fac696b5529",
+        "rev": "a5e9f2fd9ef6011c6886d6935f3ef678c81385fa",
         "type": "github"
       },
       "original": {
@@ -674,11 +674,11 @@
     },
     "nixpkgs_4": {
       "locked": {
-        "lastModified": 1785318670,
-        "narHash": "sha256-dN6Ou5x/+23FZLEpYP3IffO+NyJFzUlGumt1uu3MMaY=",
+        "lastModified": 1785454630,
+        "narHash": "sha256-LQy14TZp77TwbQf40gg1V3jo8FwJG0jGDkAH+zRHqg8=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "0954f7ee2f6bb3dc7d4e3d0d8bcb8fd4bde4cfc5",
+        "rev": "1559d3daa3ecc813a650b79375ea61b6741b8746",
         "type": "github"
       },
       "original": {
@@ -772,11 +772,11 @@
         "systems": "systems_4"
       },
       "locked": {
-        "lastModified": 1785425050,
-        "narHash": "sha256-qgZFY+50Urp1IFYauNGIFw1ipQqgTmECAYwPtuWfh6U=",
+        "lastModified": 1785511290,
+        "narHash": "sha256-oz9nu9DUlq657V8Lhb+jsSmRhjzHOQ8ty3oAw158+f4=",
         "owner": "lukasl-dev",
         "repo": "pi.nix",
-        "rev": "3b8eaf70667e27ac4711a30938e9a98866304e8c",
+        "rev": "3d2bd32b017a0e55a072d74963443ab97eab9a27",
         "type": "github"
       },
       "original": {
