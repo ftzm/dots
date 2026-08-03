@@ -68,6 +68,21 @@ jobs:
           mv /tmp/ci/failed.trimmed.log /tmp/ci/failed.log
           wc -l /tmp/ci/failed.log
 
+      # Baseline for the outcome guard below: a run that neither opens a repair
+      # PR nor says anything on the PR has done nothing, and must not report
+      # success.
+      - name: Snapshot PR comment count
+        id: before
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          n=$(gh pr view "${{ steps.pr.outputs.pr_number }}" --json comments --jq '.comments | length')
+          echo "comments=$n" >> "$GITHUB_OUTPUT"
+          echo "baseline: $n comments"
+
       - name: Claude auto-fix
         if: steps.pr.outputs.skip != 'true'
         uses: anthropics/claude-code-action@v1
@@ -91,7 +106,9 @@ jobs:
             - Only adapt the config to upstream API changes. Do NOT add
               features, refactor unrelated code, or modify flake.lock.
             - If the failure is transient (network, cache, infra) and not a
-              real config break, exit without opening a PR.
+              real config break, comment on the PR saying so and exit without
+              opening a repair PR. Never exit silently: whatever you conclude,
+              this run must leave either a repair PR or a comment behind.
             - Create a new branch off the current HEAD named
               `claude/fix-flake-update-${{ steps.pr.outputs.pr_number }}`.
             - Open a PR via `gh pr create` targeting
@@ -103,4 +120,37 @@ jobs:
               changed in response.
           claude_args: |
             --max-turns 40
-            --allowedTools Read,Edit,Write,Bash
+            --allowedTools Read,Edit,Write,Bash,Grep,Glob
+
+      # The agent's own transcript is the only record of why it decided what it
+      # decided; the job log keeps just the init and result envelopes.
+      - name: Upload Claude transcript
+        if: always() && steps.pr.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-execution-output
+          path: ${{ runner.temp }}/claude-execution-output.json
+          if-no-files-found: warn
+
+      - name: Require a visible outcome
+        if: always() && steps.pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          FIX_BRANCH: claude/fix-flake-update-${{ steps.pr.outputs.pr_number }}
+          BEFORE: ${{ steps.before.outputs.comments }}
+        run: |
+          set -euo pipefail
+          if [ -n "$(gh pr list --head "$FIX_BRANCH" --state all --json number --jq '.[0].number // empty')" ]; then
+            echo "repair PR exists for $FIX_BRANCH"
+            exit 0
+          fi
+          after=$(gh pr view "$PR_NUMBER" --json comments --jq '.comments | length')
+          if [ "$after" -gt "${BEFORE:-0}" ]; then
+            echo "no repair PR, but the run explained itself on #$PR_NUMBER"
+            exit 0
+          fi
+          gh pr comment "$PR_NUMBER" --body "Automated flake-update repair produced nothing: no \`$FIX_BRANCH\` branch and no explanation. CI on this PR is still red and needs a human. Transcript: the \`claude-execution-output\` artifact on [run ${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+          echo "::error::auto-fix left no repair PR and no comment on #$PR_NUMBER"
+          exit 1

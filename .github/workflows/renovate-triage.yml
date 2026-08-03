@@ -159,6 +159,20 @@ jobs:
             --description "Automated triage found risk worth a targeted human review" \
             --force
 
+      # Baseline for the outcome guard below. Both modes are required to leave a
+      # trace -- fix opens a repair PR or explains why it did not, review merges
+      # or comments -- so a run that changes nothing must not report success.
+      - name: Snapshot PR comment count
+        id: before
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          n=$(gh pr view "${{ matrix.pr.number }}" --json comments --jq '.comments | length')
+          echo "comments=$n" >> "$GITHUB_OUTPUT"
+          echo "baseline: $n comments"
+
       - name: Collect failed CI logs
         if: matrix.pr.mode == 'fix'
         env:
@@ -390,3 +404,42 @@ jobs:
           claude_args: |
             --max-turns 50
             --allowedTools Read,Bash,Grep,Glob,WebFetch
+
+      # The agent's own transcript is the only record of why it decided what it
+      # decided; the job log keeps just the init and result envelopes.
+      - name: Upload Claude transcript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-execution-output-${{ matrix.pr.number }}
+          path: ${{ runner.temp }}/claude-execution-output.json
+          if-no-files-found: warn
+
+      - name: Require a visible outcome
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ matrix.pr.number }}
+          MODE: ${{ matrix.pr.mode }}
+          FIX_BRANCH: claude/fix-renovate-${{ matrix.pr.number }}
+          BEFORE: ${{ steps.before.outputs.comments }}
+        run: |
+          set -euo pipefail
+          if [ "$MODE" = "fix" ] && \
+             [ -n "$(gh pr list --head "$FIX_BRANCH" --state all --json number --jq '.[0].number // empty')" ]; then
+            echo "repair PR exists for $FIX_BRANCH"
+            exit 0
+          fi
+          if [ "$(gh pr view "$PR_NUMBER" --json state --jq .state)" = "MERGED" ]; then
+            echo "#$PR_NUMBER was merged"
+            exit 0
+          fi
+          after=$(gh pr view "$PR_NUMBER" --json comments --jq '.comments | length')
+          if [ "$after" -gt "${BEFORE:-0}" ]; then
+            echo "triage explained itself on #$PR_NUMBER"
+            exit 0
+          fi
+          gh pr comment "$PR_NUMBER" --body "Automated \`$MODE\` triage produced nothing: no repair PR, no merge, no explanation. This PR still needs a human. Transcript: the \`claude-execution-output-$PR_NUMBER\` artifact on [run ${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+          echo "::error::$MODE triage left no trace on #$PR_NUMBER"
+          exit 1
