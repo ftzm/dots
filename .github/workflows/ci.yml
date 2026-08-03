@@ -1,8 +1,10 @@
 name: CI
 
+# No `branches:` filter: the repair PRs opened by auto-fix-flake-update.yml and
+# renovate-triage.yml target the broken PR's branch, not master. Filtering on
+# master meant those never got built, so they merged with nothing checking them.
 on:
   pull_request:
-    branches: [master]
 
 jobs:
   build:
