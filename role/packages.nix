@@ -73,7 +73,6 @@
     # appearance
     hsetroot
     lxappearance
-    arc-theme
     xorg.xcursorthemes
     adwaita-icon-theme
     vanilla-dmz
