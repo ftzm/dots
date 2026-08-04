@@ -16,7 +16,7 @@
 }: let
   # Renovate bumps this tag via the runnerImageManager in cluster/renovate.jsonnet
   # (regex-matches this assignment); comin then deploys the update.
-  runnerImage = "code.forgejo.org/forgejo/runner:12.13.2";
+  runnerImage = "code.forgejo.org/forgejo/runner:13.0.0";
   instanceUrl = "https://forgejo.lan.ftzmlab.xyz";
   runnerName = "nuc-microvm";
   # Jobs run as containers in the guest's own podman (contained in the VM).
