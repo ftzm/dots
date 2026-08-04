@@ -29,7 +29,7 @@ requires:
   - chart: nfs-subdir-external-provisioner/nfs-subdir-external-provisioner
     version: "4.0.18"
   - chart: traefik/traefik
-    version: "41.1.0"
+    version: "41.1.1"
   - chart: argo/argo-cd
     version: "10.2.2"
   - chart: prometheus-community/kube-prometheus-stack
