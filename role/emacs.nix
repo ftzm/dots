@@ -51,21 +51,6 @@ in {
         "COLORTERM=truecolor"
         "PATH=/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin"
       ];
-      # Bound the emacs.service cgroup. Subprocesses launched under the daemon
-      # (LSP servers, terminals, build/test jobs, AI assistants) have their RAM
-      # and page cache charged here; left unbounded, one can grow until it
-      # triggers a system-wide OOM that kills the daemon along with everything
-      # else. These limits keep any such blowup contained to this cgroup:
-      #   MemoryHigh    - soft: reclaim (drops reclaimable page cache) + throttle.
-      #   MemoryMax     - hard: a runaway is OOM-killed within this cgroup, where
-      #                   the kernel targets the largest process rather than the
-      #                   small daemon -- the session survives instead of the
-      #                   whole machine OOMing.
-      #   MemorySwapMax - bounds swap so a runaway can't thrash the system.
-      # Sized for this host's RAM; revisit if the hardware changes.
-      MemoryHigh = "24G";
-      MemoryMax = "40G";
-      MemorySwapMax = "8G";
     };
     wantedBy = ["default.target"];
   };
