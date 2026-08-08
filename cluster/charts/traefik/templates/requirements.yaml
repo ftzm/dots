@@ -34,8 +34,8 @@
   {{- if and .Values.providers.kubernetesIngressNGINX.enabled .Values.providers.kubernetesIngressNGINX.watchNamespaceSelector }}
     {{- fail "ERROR: Kubernetes Ingress NGINX watchNamespaceSelector requires ClusterRole. RBAC cannot be namespaced." }}
   {{- end }}
-  {{- if and (not .Values.providers.kubernetesIngress.enabled) (not .Values.providers.kubernetesCRD.enabled) (not .Values.providers.kubernetesIngressNGINX.enabled) }}
-    {{- fail "ERROR: namespaced rbac requires Kubernetes CRD, Kubernetes Ingress NGINX, or Kubernetes Ingress provider." }}
+  {{- if and (not .Values.providers.kubernetesIngress.enabled) (not .Values.providers.kubernetesCRD.enabled) (not .Values.providers.kubernetesIngressNGINX.enabled) (not .Values.providers.knative.enabled) }}
+    {{- fail "ERROR: namespaced rbac requires Kubernetes CRD, Kubernetes Ingress NGINX, Kubernetes Ingress, or Knative provider." }}
   {{- end }}
 {{- end }}
 
@@ -218,6 +218,29 @@
     {{- range $childName, $childConfig := $.Values.hub.providers.multicluster.children }}
       {{- if or (($childConfig.serversTransport).forwardingTimeouts).readTimeout (($childConfig.serversTransport).forwardingTimeouts).writeTimeout }}
         {{ fail "ERROR: hub.providers.multicluster.children.<name>.serversTransport.forwardingTimeouts.readTimeout and .writeTimeout are only available for Traefik Hub >= v3.20.0-ea.7." }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+
+  {{- if and $.Values.hub.providers.ec2.enabled (semverCompare "<v3.21.0-0" $hubVersion) }}
+    {{ fail "ERROR: hub.providers.ec2 is only available for Traefik Hub >= v3.21.0." }}
+  {{- end }}
+
+  {{- if $.Values.hub.providers.ec2.enabled }}
+    {{- range $idx, $filter := $.Values.hub.providers.ec2.filters }}
+      {{- if not $filter.name }}
+        {{ fail (printf "ERROR: hub.providers.ec2.filters[%d] requires a non-empty name." $idx) }}
+      {{- end }}
+      {{- if not $filter.values }}
+        {{ fail (printf "ERROR: hub.providers.ec2.filters[%d] requires a non-empty values list." $idx) }}
+      {{- end }}
+      {{- if eq $filter.name "instance-state-name" }}
+        {{ fail (printf "ERROR: hub.providers.ec2.filters[%d] uses instance-state-name, which is reserved by the provider." $idx) }}
+      {{- end }}
+      {{- range $field, $_ := $filter }}
+        {{- if not (has $field (list "name" "values")) }}
+          {{ fail (printf "ERROR: hub.providers.ec2.filters[%d] does not support field %s, only name and values are allowed." $idx $field) }}
+        {{- end }}
       {{- end }}
     {{- end }}
   {{- end }}
