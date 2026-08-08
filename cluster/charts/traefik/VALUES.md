@@ -1,6 +1,6 @@
 # traefik
 
-![Version: 41.1.1](https://img.shields.io/badge/Version-41.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.7.9](https://img.shields.io/badge/AppVersion-v3.7.9-informational?style=flat-square)
+![Version: 41.2.0](https://img.shields.io/badge/Version-41.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.7.10](https://img.shields.io/badge/AppVersion-v3.7.10-informational?style=flat-square)
 
 A Traefik based Kubernetes ingress controller
 
@@ -104,6 +104,7 @@ Kubernetes: `>=1.25.0-0`
 | deployment.runtimeClassName | string | `""` | Set a runtimeClassName on pod |
 | deployment.shareProcessNamespace | bool | `false` | Use process namespace sharing |
 | deployment.terminationGracePeriodSeconds | int | `60` | Amount of time (in seconds) before Kubernetes will send the SIGKILL signal if Traefik does not shut down |
+| deployment.tmpVolume.emptyDir | object | `{}` | [EmptyDir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) options for the tmp volume. |
 | enabled | bool | `true` | Allow the Helm chart to be used as optional subchart. |
 | env | list | `[]` | Additional Environment variables to be passed to Traefik's binary |
 | envFrom | list | `[]` | Environment variables to be passed to Traefik's binary from configMaps or secrets |
@@ -179,6 +180,18 @@ Kubernetes: `>=1.25.0-0`
 | hub.providers.consulCatalogEnterprise.stale | bool | `false` | Use stale consistency for catalog reads. |
 | hub.providers.consulCatalogEnterprise.strictChecks | string | `"passing, warning"` | A list of service health statuses to allow taking traffic. |
 | hub.providers.consulCatalogEnterprise.watch | bool | `false` | Watch Consul API events. |
+| hub.providers.ec2.accessKeyID | string | `""` | AWS access key ID, set together with secretAccessKey. Readable from the Pod spec: prefer IRSA, the instance role or `env`. |
+| hub.providers.ec2.constraints | string | `""` | Expression matched against instance tags to determine whether to create routes for an instance. |
+| hub.providers.ec2.defaultRule | string | `""` | Default rule applied to instances that do not define a router rule tag. |
+| hub.providers.ec2.enabled | bool | `false` | Enable AWS EC2 provider. |
+| hub.providers.ec2.exposedByDefault | bool | `true` | Expose instances by default. When false, only instances with the `traefik.enable=true` tag are exposed. |
+| hub.providers.ec2.filters | list | `[]` | EC2 API filters used to scope instance discovery. List of `{ name: "<filter>", values: ["<value>"] }` entries. |
+| hub.providers.ec2.ipMode | string | `""` | Default backend IP mode: private, public or ipv6. Overridable per instance with the `traefik.ec2.ipmode` tag. |
+| hub.providers.ec2.refreshSeconds | int | `15` | Polling interval, in seconds, for the EC2 API. |
+| hub.providers.ec2.region | string | `""` | AWS region used for EC2 API requests. When empty, the region is retrieved from the EC2 Instance Metadata Service. |
+| hub.providers.ec2.secretAccessKey | string | `""` | AWS secret access key, set together with accessKeyID. Readable from the Pod spec: prefer IRSA, the instance role or `env`. |
+| hub.providers.ec2.securityGroupPortDiscovery.enabled | bool | `false` | Derive the backend port from the instance security-group rules when no port tag is set. |
+| hub.providers.ec2.securityGroupPortDiscovery.excludedPorts | list | `[]` | Ports excluded from security-group port discovery. When empty, the provider excludes privileged ports except 80 and 443. |
 | hub.providers.microcks.auth.clientId | string | `""` | Microcks API client ID. |
 | hub.providers.microcks.auth.clientSecret | string | `""` | Microcks API client secret. |
 | hub.providers.microcks.auth.endpoint | string | `""` | Microcks API endpoint. |
@@ -364,6 +377,7 @@ Kubernetes: `>=1.25.0-0`
 | offering_version | string | `""` | Required for IBM Cloud Marketplace integration. Injected by IBM Cloud Catalog when deploying via IBM Cloud Schematics. This value is not used by the chart. |
 | persistence.accessMode | string | `"ReadWriteOnce"` |  |
 | persistence.annotations | object | `{}` |  |
+| persistence.emptyDir | object | `{}` | [EmptyDir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) options when persistence is disabled |
 | persistence.enabled | bool | `false` | Enable persistence using Persistent Volume Claims ref: http://kubernetes.io/docs/user-guide/persistent-volumes/. It can be used to store TLS certificates along with `certificatesResolvers.<name>.acme.storage`  option |
 | persistence.existingClaim | string | `""` |  |
 | persistence.name | string | `"data"` |  |
