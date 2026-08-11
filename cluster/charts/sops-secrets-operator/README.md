@@ -135,7 +135,7 @@ The following table lists the configurable parameters of the Sops-secrets-operat
 | healthProbes.readiness | object | `{"initialDelaySeconds":5,"periodSeconds":10}` | Readiness probe configuration |
 | image.pullPolicy | string | `"Always"` | Operator image pull policy |
 | image.repository | string | `"quay.io/isindir/sops-secrets-operator"` | Operator image name |
-| image.tag | string | `"0.21.1"` | Operator image tag |
+| image.tag | string | `"0.21.2"` | Operator image tag |
 | imagePullSecrets | list | `[]` | Secrets to pull image from private docker repository |
 | initImage.pullPolicy | string | `"Always"` | Init container image pull policy |
 | initImage.repository | string | `"public.ecr.aws/ubuntu/ubuntu"` | Init container image name |
@@ -149,6 +149,7 @@ The following table lists the configurable parameters of the Sops-secrets-operat
 | metrics.additionalLabels | object | `{}` | Additional labels for ServiceMonitor |
 | metrics.enabled | bool | `false` | Enable prometheus metrics |
 | nameOverride | string | `""` | Overrides auto-generated short resource name |
+| namespaceOverride | string | `""` | Overrides the release namespace rendered into metadata. Defaults to the release namespace when empty. Useful for GitOps tooling (e.g. Kustomize/ArgoCD) that consumes `helm template` output. |
 | namespaced | bool | `false` | If set - operator will watch SopsSecret resources only in operator namespace |
 | nodeSelector | object | `{}` | Node selector to use for pod configuration |
 | podAnnotations | object | `{}` | Annotations to be added to operator pod |
