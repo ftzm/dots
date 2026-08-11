@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: loki
     app.kubernetes.io/version: 3.6.11
-    helm.sh/chart: loki-7.2.0
+    helm.sh/chart: loki-7.3.0
   name: loki-clusterrole
 rules:
 - apiGroups:
