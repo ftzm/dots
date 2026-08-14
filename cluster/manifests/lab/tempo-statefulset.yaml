@@ -5,8 +5,8 @@ metadata:
     app.kubernetes.io/instance: tempo
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: tempo
-    app.kubernetes.io/version: 2.10.7
-    helm.sh/chart: tempo-2.2.3
+    app.kubernetes.io/version: 2.10.8
+    helm.sh/chart: tempo-2.2.4
   name: tempo
   namespace: monitoring
 spec:
@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 13f3be43d0f3ab741bb409db645ba32227bf77d459a5626100dc34b84d099eb3
+        checksum/config: 352855383e9c5758b05bf52a7f4417ef17bb63453250b103a6888565b0b10ec3
       labels:
         app.kubernetes.io/instance: tempo
         app.kubernetes.io/name: tempo
@@ -30,7 +30,7 @@ spec:
         - -config.file=/conf/tempo.yaml
         - -mem-ballast-size-mbs=1024
         env: null
-        image: docker.io/grafana/tempo:2.10.7
+        image: docker.io/grafana/tempo:2.10.8
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
