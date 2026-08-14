@@ -23,5 +23,5 @@
   pinepods: 'madeofpendletonwool/pinepods:0.9.0',
   miniflux: 'miniflux/miniflux:2.3.3',
   valkey: 'valkey/valkey:9-alpine',
-  cnpgPostgres: 'ghcr.io/cloudnative-pg/postgresql:18.4',
+  cnpgPostgres: 'ghcr.io/cloudnative-pg/postgresql:18.6',
 }
