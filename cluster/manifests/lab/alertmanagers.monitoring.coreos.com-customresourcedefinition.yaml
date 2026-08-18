@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.21.0
-    operator.prometheus.io/version: 0.93.0
+    operator.prometheus.io/version: 0.93.1
   labels:
     app.kubernetes.io/managed-by: Helmraiser
   name: alertmanagers.monitoring.coreos.com
