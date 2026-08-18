@@ -132,30 +132,16 @@ jobs:
             gh run view "$RUN_ID" --log-failed > /tmp/ci/raw.log || true
           fi
 
-          # Every line arrives as "job<TAB>step<TAB>timestamp<TAB>text", some of
-          # them with a UTF-8 BOM wedged in front of the timestamp; strip both
-          # so the distillation below and the model see plain build output.
-          tr -d '\357\273\277' < /tmp/ci/raw.log \
-            | sed -E 's/^[^\t]*\t[^\t]*\t[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z ?//' \
-            > /tmp/ci/failed.full.log
-
-          # Drop the noise first, so the context lines around each error are
-          # worth reading: per-derivation "building/copying" chatter, and the
-          # magic-nix-cache throttling ("HTTP error 418", "rate limit
-          # exceeded", "substituter is disabled") that prints hundreds of
-          # error: lines on every run and is never the cause. On #147 that
-          # noise is what a whole 40-turn repair run was spent grepping past.
-          grep -avE "^(building |copying path |\s+/nix/store/|Post job cleanup|\[command\]|##\[(start-action|end-action|group|endgroup))|narinfo|HTTP error 418|rate limit exceeded|Twirp|magic.nix.cache|Magic Nix Cache|substituter '[^']*' is disabled|Node(\.js)? 20 (is|are) (being )?deprecat" \
-            /tmp/ci/failed.full.log > /tmp/ci/failed.quiet.log || true
-
-          grep -aE -B 2 -A 15 \
-            'error: |hash mismatch|builder for .* failed|Cannot build |last 10 log lines|assertion .* failed|attribute .* missing|^❌' \
-            /tmp/ci/failed.quiet.log \
-            | head -300 | head -c 12000 > /tmp/ci/diagnosis.log || true
-
-          # Full-log tail for the model to fall back on, bounded for tokens.
-          tail -c 200000 /tmp/ci/failed.full.log > /tmp/ci/failed.log
-          wc -l /tmp/ci/failed.log /tmp/ci/diagnosis.log
+          # The checked-out branch was cut before this script landed on master
+          # (#147 is exactly that case), so fall back to master's copy rather
+          # than failing the repair over a missing helper.
+          distil=.github/scripts/distil-ci-failure.sh
+          if [ ! -x "$distil" ]; then
+            git show "origin/master:.github/scripts/distil-ci-failure.sh" > /tmp/distil-ci-failure.sh
+            chmod +x /tmp/distil-ci-failure.sh
+            distil=/tmp/distil-ci-failure.sh
+          fi
+          "$distil" /tmp/ci/raw.log /tmp/ci
 
           {
             echo 'text<<CI_DIAGNOSIS_EOF'
@@ -324,7 +310,7 @@ jobs:
             - Body: what upstream changed, what you changed in response, and
               the build commands you ran to verify it.
           claude_args: |
-            --max-turns 150
+            --max-turns 100
             --allowedTools Read,Edit,Write,Bash,Grep,Glob
 
       # The agent's own transcript is the only record of why it decided what it
@@ -353,12 +339,22 @@ jobs:
             exit 0
           fi
 
+          # The checked-out branch was cut before this script landed on master
+          # (#147 is exactly that case), so fall back to master's copy rather
+          # than failing the repair over a missing helper.
+          lockcheck=.github/scripts/check-lock-forward-only.sh
+          if [ ! -x "$lockcheck" ]; then
+            git show "origin/master:.github/scripts/check-lock-forward-only.sh" > /tmp/check-lock-forward-only.sh
+            chmod +x /tmp/check-lock-forward-only.sh
+            lockcheck=/tmp/check-lock-forward-only.sh
+          fi
+
           git show "$HEAD_SHA":flake.lock > /tmp/base.lock
           git show FETCH_HEAD:flake.lock > /tmp/fix.lock
           git show "$(git merge-base origin/master "$HEAD_SHA")":flake.lock > /tmp/preupdate.lock
 
-          if .github/scripts/check-lock-forward-only.sh \
-               /tmp/base.lock /tmp/fix.lock /tmp/preupdate.lock > /tmp/lockcheck.out 2>&1; then
+          if "$lockcheck" /tmp/base.lock /tmp/fix.lock /tmp/preupdate.lock \
+               > /tmp/lockcheck.out 2>&1; then
             cat /tmp/lockcheck.out
             exit 0
           fi

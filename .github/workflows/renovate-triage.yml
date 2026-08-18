@@ -6,7 +6,11 @@ name: Renovate triage
 #
 #   fix     CI failed on a Renovate PR -> diagnose the breakage and open a
 #           repair PR against the Renovate branch, mirroring
-#           auto-fix-flake-update.yml.
+#           auto-fix-flake-update.yml. The failure is distilled by
+#           .github/scripts/distil-ci-failure.sh before the agent sees it:
+#           the equivalent run on #147 burned all 40 of its turns finding
+#           the error in the raw log and died at the ceiling, so the log is
+#           filtered once here and the ceiling is 100.
 #   review  CI passed but the PR will not automerge itself (a major, or
 #           automerge was never armed) -> read the release notes, judge them
 #           against how this repo actually uses the component, and either
@@ -173,7 +177,8 @@ jobs:
           echo "comments=$n" >> "$GITHUB_OUTPUT"
           echo "baseline: $n comments"
 
-      - name: Collect failed CI logs
+      - name: Collect and distil the failure
+        id: diagnose
         if: matrix.pr.mode == 'fix'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -182,20 +187,37 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/ci
-          # Must exist before the tail below even if both lookups come up dry.
-          : > /tmp/ci/failed.log
+          # Must exist even if both lookups come up dry.
+          : > /tmp/ci/raw.log
           if [ -n "${RUN_ID:-}" ]; then
-            gh run view "$RUN_ID" --log-failed > /tmp/ci/failed.log || true
+            gh run view "$RUN_ID" --log-failed > /tmp/ci/raw.log || true
           else
             # Manual dispatch: find the most recent failed CI run for this PR.
             sha=$(gh pr view "${{ matrix.pr.number }}" --json headRefOid --jq .headRefOid)
             run_id=$(gh run list --workflow CI --commit "$sha" --limit 1 --json databaseId --jq '.[0].databaseId')
-            [ -n "$run_id" ] && gh run view "$run_id" --log-failed > /tmp/ci/failed.log || true
+            [ -n "$run_id" ] && gh run view "$run_id" --log-failed > /tmp/ci/raw.log || true
           fi
-          # Bound token usage by keeping only the tail.
-          tail -c 200000 /tmp/ci/failed.log > /tmp/ci/failed.trimmed.log
-          mv /tmp/ci/failed.trimmed.log /tmp/ci/failed.log
-          wc -l /tmp/ci/failed.log
+
+          # The checked-out branch was cut before this script landed on master
+          # (#147 is exactly that case), so fall back to master's copy rather
+          # than failing the repair over a missing helper.
+          distil=.github/scripts/distil-ci-failure.sh
+          if [ ! -x "$distil" ]; then
+            git show "origin/master:.github/scripts/distil-ci-failure.sh" > /tmp/distil-ci-failure.sh
+            chmod +x /tmp/distil-ci-failure.sh
+            distil=/tmp/distil-ci-failure.sh
+          fi
+          "$distil" /tmp/ci/raw.log /tmp/ci
+
+          {
+            echo 'text<<CI_DIAGNOSIS_EOF'
+            if [ -s /tmp/ci/diagnosis.log ]; then
+              cat /tmp/ci/diagnosis.log
+            else
+              echo '(nothing matched the error patterns -- read /tmp/ci/failed.log yourself)'
+            fi
+            echo 'CI_DIAGNOSIS_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Claude auto-fix
         if: matrix.pr.mode == 'fix'
@@ -212,9 +234,20 @@ jobs:
             at that PR's head commit. Get its head branch with
             `gh pr view ${{ matrix.pr.number }} --json headRefName`.
 
-            The failed CI log is at /tmp/ci/failed.log. Read it, diagnose the
-            breakage caused by the dependency bump in this PR, and fix the
-            config so CI passes.
+            Diagnose the breakage caused by the dependency bump in this PR
+            and fix the config so CI passes.
+
+            ## What CI reported
+
+            ```
+            ${{ steps.diagnose.outputs.text }}
+            ```
+
+            That block is distilled from the failed run: every error, failed
+            builder and its log tail, with the per-derivation and cache
+            chatter removed. Start from what it names -- do not re-derive the
+            diagnosis by grepping. The full log tail is at /tmp/ci/failed.log
+            and the whole log at /tmp/ci/failed.full.log.
 
             Context on what CI checks:
             - `nix build .#nixosConfigurations.<host>.config.system.build.toplevel`
@@ -244,7 +277,9 @@ jobs:
               Every change is declarative and flows through git.
             - If the failure is transient (network, cache, registry, infra)
               and not a real config break, comment on the PR saying so and
-              exit without opening a PR.
+              exit without opening a PR. Never exit silently. If you are
+              running out of room to finish the fix, spend what is left
+              commenting with your diagnosis so the next run starts there.
             - Create a branch off the current HEAD named
               `claude/fix-renovate-${{ matrix.pr.number }}`.
             - Open a PR via `gh pr create` targeting the Renovate branch
@@ -255,7 +290,7 @@ jobs:
             - Title: `fix: adapt config to Renovate bump (#${{ matrix.pr.number }})`
             - Body: what upstream changed and what you changed in response.
           claude_args: |
-            --max-turns 40
+            --max-turns 100
             --allowedTools Read,Edit,Write,Bash,Grep,Glob
 
       - name: Claude release-note risk review
