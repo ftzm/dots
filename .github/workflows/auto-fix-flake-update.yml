@@ -1,46 +1,109 @@
 name: Auto-fix flake update failures
 
+# Repair the automated flake.lock PR in two stages, cheapest first.
+#
+#   stage 1  refresh   Most of these failures are not our bug: an input got
+#                      pinned while it was broken upstream. #147 was exactly
+#                      that -- nixpkgs 6b5e5b7 still expected the pre-retag
+#                      googlefonts/nanoemoji v0.16.0 tarball, and nixpkgs
+#                      master had already corrected the hash. Upstream fixes
+#                      land within hours, so re-lock the inputs and let CI
+#                      judge. No model, no tokens, one CI cycle.
+#
+#   stage 2  Claude    HEAD already carries the [auto-retry] marker, so the
+#                      newest inputs are red too and the breakage is ours to
+#                      adapt to. Claude gets the failure pre-distilled (the
+#                      run that produced nothing on #147 spent all 40 of its
+#                      turns just finding the error in 20k lines of magic-nix-
+#                      cache noise, then died at the ceiling) and is allowed
+#                      to move inputs forward, which the old prompt forbade
+#                      outright -- leaving it no legal fix for a stale pin.
+#
+# check-lock-forward-only.sh keeps that permission honest: forward moves and
+# explicit hold-backs pass, rolling the update back does not.
+
 on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "flake-update PR number to repair (blank = find the open one)"
+        required: false
+        type: string
+
+concurrency:
+  group: auto-fix-flake-update
+  cancel-in-progress: false
 
 jobs:
   auto-fix:
     if: >
-      github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.head_branch == 'update_flake_lock_action'
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.head_branch == 'update_flake_lock_action')
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
       actions: read
       id-token: write
+    env:
+      BRANCH: update_flake_lock_action
     steps:
-      - name: Find triggering PR
+      - name: Resolve the failing PR and run
         id: pr
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          INPUT_PR: ${{ inputs.pr }}
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          pr_number=$(gh pr list \
-            --repo "${{ github.repository }}" \
-            --head "${{ github.event.workflow_run.head_branch }}" \
-            --state open \
-            --json number,labels \
-            --jq '[.[] | select(.labels[].name == "automated")][0].number')
+          set -euo pipefail
+
+          if [ "$EVENT" = "workflow_dispatch" ] && [ -n "$INPUT_PR" ]; then
+            pr_number="$INPUT_PR"
+          else
+            pr_number=$(gh pr list \
+              --head "$BRANCH" \
+              --state open \
+              --json number,labels \
+              --jq '[.[] | select(.labels[].name == "automated")][0].number')
+          fi
+
           if [ -z "$pr_number" ] || [ "$pr_number" = "null" ]; then
-            echo "No automated PR found for branch ${{ github.event.workflow_run.head_branch }}"
+            echo "No automated PR found for branch $BRANCH"
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+          # workflow_run hands us the exact commit CI failed on. A manual
+          # dispatch has to look up the PR head and its latest failed run.
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            head_sha=$(gh pr view "$pr_number" --json headRefOid --jq .headRefOid)
+            run_id=$(gh run list --workflow CI --commit "$head_sha" --status failure \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          else
+            head_sha="$EVENT_SHA"
+            run_id="$EVENT_RUN_ID"
+          fi
+
+          {
+            echo "pr_number=$pr_number"
+            echo "head_sha=$head_sha"
+            echo "run_id=$run_id"
+          } >> "$GITHUB_OUTPUT"
+          echo "repairing #$pr_number at $head_sha (CI run ${run_id:-none})"
 
       - name: Checkout failing commit
         if: steps.pr.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ steps.pr.outputs.head_sha }}
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
 
@@ -54,19 +117,55 @@ jobs:
         with:
           use-flakehub: false
 
-      - name: Collect failed CI logs
+      - name: Collect and distil the failure
+        id: diagnose
         if: steps.pr.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ steps.pr.outputs.run_id }}
         run: |
+          set -euo pipefail
           mkdir -p /tmp/ci
-          gh run view ${{ github.event.workflow_run.id }} \
-            --repo "${{ github.repository }}" \
-            --log-failed > /tmp/ci/failed.log || true
-          # Bound token usage by keeping only the tail
-          tail -c 200000 /tmp/ci/failed.log > /tmp/ci/failed.trimmed.log
-          mv /tmp/ci/failed.trimmed.log /tmp/ci/failed.log
-          wc -l /tmp/ci/failed.log
+          : > /tmp/ci/raw.log
+          if [ -n "${RUN_ID:-}" ]; then
+            gh run view "$RUN_ID" --log-failed > /tmp/ci/raw.log || true
+          fi
+
+          # Every line arrives as "job<TAB>step<TAB>timestamp<TAB>text", some of
+          # them with a UTF-8 BOM wedged in front of the timestamp; strip both
+          # so the distillation below and the model see plain build output.
+          tr -d '\357\273\277' < /tmp/ci/raw.log \
+            | sed -E 's/^[^\t]*\t[^\t]*\t[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z ?//' \
+            > /tmp/ci/failed.full.log
+
+          # Drop the noise first, so the context lines around each error are
+          # worth reading: per-derivation "building/copying" chatter, and the
+          # magic-nix-cache throttling ("HTTP error 418", "rate limit
+          # exceeded", "substituter is disabled") that prints hundreds of
+          # error: lines on every run and is never the cause. On #147 that
+          # noise is what a whole 40-turn repair run was spent grepping past.
+          grep -avE "^(building |copying path |\s+/nix/store/|Post job cleanup|\[command\]|##\[(start-action|end-action|group|endgroup))|narinfo|HTTP error 418|rate limit exceeded|Twirp|magic.nix.cache|Magic Nix Cache|substituter '[^']*' is disabled|Node(\.js)? 20 (is|are) (being )?deprecat" \
+            /tmp/ci/failed.full.log > /tmp/ci/failed.quiet.log || true
+
+          grep -aE -B 2 -A 15 \
+            'error: |hash mismatch|builder for .* failed|Cannot build |last 10 log lines|assertion .* failed|attribute .* missing|^❌' \
+            /tmp/ci/failed.quiet.log \
+            | head -300 | head -c 12000 > /tmp/ci/diagnosis.log || true
+
+          # Full-log tail for the model to fall back on, bounded for tokens.
+          tail -c 200000 /tmp/ci/failed.full.log > /tmp/ci/failed.log
+          wc -l /tmp/ci/failed.log /tmp/ci/diagnosis.log
+
+          {
+            echo 'text<<CI_DIAGNOSIS_EOF'
+            if [ -s /tmp/ci/diagnosis.log ]; then
+              cat /tmp/ci/diagnosis.log
+            else
+              echo '(nothing matched the error patterns -- read /tmp/ci/failed.log yourself)'
+            fi
+            echo 'CI_DIAGNOSIS_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       # Baseline for the outcome guard below: a run that neither opens a repair
       # PR nor says anything on the PR has done nothing, and must not report
@@ -83,54 +182,198 @@ jobs:
           echo "comments=$n" >> "$GITHUB_OUTPUT"
           echo "baseline: $n comments"
 
-      - name: Claude auto-fix
+      # Stage 1. Re-lock and let CI decide, before spending a model on a
+      # breakage upstream may already have fixed.
+      - name: Refresh inputs and retry
+        id: retry
         if: steps.pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          finish() { echo "pushed=$1" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          # One refresh per update cycle. The marker lives on the commit, and
+          # update-flake-lock force-pushes a fresh branch every cycle, so it
+          # clears itself without any state kept here.
+          if git log -1 --format=%B | grep -qF '[auto-retry]'; then
+            echo "HEAD is already a refresh: the newest inputs are red too, hand it to Claude"
+            finish false
+          fi
+
+          before=$(sha256sum flake.lock | cut -d' ' -f1)
+          nix flake update
+          if [ "$before" = "$(sha256sum flake.lock | cut -d' ' -f1)" ]; then
+            echo "inputs have not moved since this PR was cut; nothing to retry"
+            git checkout -- flake.lock
+            finish false
+          fi
+
+          moved=$(jq -n \
+            --slurpfile old <(git show HEAD:flake.lock) \
+            --slurpfile new flake.lock -r '
+            def ident: (.locked.rev // .locked.narHash // "");
+            ($old[0].nodes) as $o | ($new[0].nodes) as $n
+            | [ $n | keys_unsorted[]
+                | select($n[.].locked != null and $o[.] != null and $o[.].locked != null)
+                | select(($o[.]|ident) != ($n[.]|ident))
+                | "- \(.): \(($o[.]|ident)[0:9]) -> \(($n[.]|ident)[0:9])" ]
+            | join("\n")')
+          echo "$moved"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flake.lock
+          git commit -m "flake.lock: refresh inputs after CI failure [auto-retry]" -m "$moved"
+
+          # No --force: if the branch moved, that newer commit has its own CI
+          # run and its own repair attempt. Reset so a fall-through to Claude
+          # starts from the commit CI actually failed on.
+          if ! git push origin HEAD:"$BRANCH"; then
+            echo "$BRANCH moved under us; leaving the repair to the run for that commit"
+            git reset --hard "$HEAD_SHA"
+            finish false
+          fi
+
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+          gh pr comment "$PR_NUMBER" --body "$(printf '%s\n' \
+            "CI failed on inputs pinned $(git log -1 --format=%cr "$HEAD_SHA"). Before diagnosing that as a config break, I re-locked every input to its current upstream revision and pushed it here -- upstream frequently fixes its own breakage between the pin and the failure." \
+            "" \
+            "$moved" \
+            "" \
+            "CI is re-running. If it stays red, the next auto-fix run treats it as a real config break and hands it to Claude.")"
+
+      # Stage 2. Only reached when refreshed inputs are still red.
+      - name: Claude auto-fix
+        if: steps.pr.outputs.skip != 'true' && steps.retry.outputs.pushed != 'true'
         uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.PAT_TOKEN }}
           prompt: |
             CI failed on the automated flake.lock update PR
-            #${{ steps.pr.outputs.pr_number }} (branch
-            `${{ github.event.workflow_run.head_branch }}`,
-            commit ${{ github.event.workflow_run.head_sha }}).
+            #${{ steps.pr.outputs.pr_number }} (branch `update_flake_lock_action`,
+            commit ${{ steps.pr.outputs.head_sha }}). The working tree is
+            checked out at that commit.
 
-            The failed CI log is at /tmp/ci/failed.log. Read it, diagnose the
-            breakage caused by the new flake inputs, and fix the Nix config so
-            each affected NixOS configuration builds again. Hosts built in CI:
-            saoiste, eachtrai, nuc, nas. Verify locally with
-            `nix build .#nixosConfigurations.<host>.config.system.build.toplevel`
-            before opening the PR.
+            The inputs have already been re-locked to their newest upstream
+            revisions and CI is still red (or they had not moved at all), so
+            this is not a pin that upstream has since fixed. It needs either a
+            config adaptation or one input held back.
 
-            Constraints:
-            - Only adapt the config to upstream API changes. Do NOT add
-              features, refactor unrelated code, or modify flake.lock.
+            ## What CI reported
+
+            ```
+            ${{ steps.diagnose.outputs.text }}
+            ```
+
+            That block is distilled from the failed run: every `error:`,
+            `hash mismatch`, failed builder and its log tail, with the
+            magic-nix-cache throttling noise removed. The full log tail is at
+            /tmp/ci/failed.log and the whole log at /tmp/ci/failed.full.log.
+
+            Start from the failing derivation named above -- do not re-derive
+            the diagnosis from scratch. Read the package definition in the
+            locked nixpkgs (`nix eval --raw <flakeref>#<attr>.meta.position`)
+            and check whether a newer revision of the input that owns it
+            already fixes the problem before touching our config.
+
+            ## What you may change
+
+            - Our Nix config, to adapt to an upstream API change.
+            - `flake.lock`, but only forwards: an input may move to a NEWER
+              revision than this PR pinned (`nix flake update <input>`).
+            - As a last resort, hold ONE input back to exactly the revision on
+              master -- i.e. drop it from this update -- when the breakage is
+              inside that input and cannot be adapted to. Say so explicitly in
+              the PR body, naming the input and what is broken in it.
+
+            `.github/scripts/check-lock-forward-only.sh` runs after you and
+            fails the job if a lock change is neither of those. Pinning an
+            input to some other older revision, or reverting the update
+            wholesale, is a failure, not a fix.
+
+            ## Constraints
+
+            - Do NOT add features, refactor unrelated code, or weaken CI
+              (never drop a host from the build, never disable a check).
+            - Never run `kubectl apply`, `systemctl`, or any imperative fix.
+              Every change is declarative and flows through git.
+            - Hosts built in CI: saoiste, eachtrai, nuc, nas. Verify with
+              `nix build .#nixosConfigurations.<host>.config.system.build.toplevel`
+              for each host your change affects, before opening the PR. The
+              Nix cache is warm, so start with saoiste.
             - If the failure is transient (network, cache, infra) and not a
-              real config break, comment on the PR saying so and exit without
-              opening a repair PR. Never exit silently: whatever you conclude,
-              this run must leave either a repair PR or a comment behind.
+              real break, comment on the PR saying so and exit without opening
+              a repair PR. Never exit silently: whatever you conclude, this run
+              must leave either a repair PR or a comment behind. If you are
+              running out of room to finish the fix, spend what is left
+              commenting with your diagnosis so the next run starts there.
             - Create a new branch off the current HEAD named
               `claude/fix-flake-update-${{ steps.pr.outputs.pr_number }}`.
-            - Open a PR via `gh pr create` targeting
-              `${{ github.event.workflow_run.head_branch }}` (NOT master), so
-              merging the fix lets the existing flake-update PR pass CI and
-              auto-merge.
+            - Open a PR via `gh pr create` targeting `update_flake_lock_action`
+              (NOT master), so merging the fix lets the existing flake-update PR
+              pass CI and auto-merge.
             - Title: `fix: adapt config to flake.lock update (#${{ steps.pr.outputs.pr_number }})`
-            - Body: short explanation of what upstream changed and what you
-              changed in response.
+            - Body: what upstream changed, what you changed in response, and
+              the build commands you ran to verify it.
           claude_args: |
-            --max-turns 40
+            --max-turns 150
             --allowedTools Read,Edit,Write,Bash,Grep,Glob
 
       # The agent's own transcript is the only record of why it decided what it
-      # decided; the job log keeps just the init and result envelopes.
+      # decided; the job log keeps just the init and result envelopes. It is
+      # also where a max-turns death shows up, which is what happened on #147.
       - name: Upload Claude transcript
-        if: always() && steps.pr.outputs.skip != 'true'
+        if: always() && steps.pr.outputs.skip != 'true' && steps.retry.outputs.pushed != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: claude-execution-output
           path: ${{ runner.temp }}/claude-execution-output.json
           if-no-files-found: warn
+
+      - name: Verify the repair only moves inputs forward
+        if: always() && steps.pr.outputs.skip != 'true' && steps.retry.outputs.pushed != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          FIX_BRANCH: claude/fix-flake-update-${{ steps.pr.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          if ! git fetch --quiet origin "$FIX_BRANCH" 2>/dev/null; then
+            echo "no repair branch to check"
+            exit 0
+          fi
+
+          git show "$HEAD_SHA":flake.lock > /tmp/base.lock
+          git show FETCH_HEAD:flake.lock > /tmp/fix.lock
+          git show "$(git merge-base origin/master "$HEAD_SHA")":flake.lock > /tmp/preupdate.lock
+
+          if .github/scripts/check-lock-forward-only.sh \
+               /tmp/base.lock /tmp/fix.lock /tmp/preupdate.lock > /tmp/lockcheck.out 2>&1; then
+            cat /tmp/lockcheck.out
+            exit 0
+          fi
+
+          cat /tmp/lockcheck.out
+          gh pr comment "$PR_NUMBER" --body "$(printf '%s\n' \
+            "The repair branch \`$FIX_BRANCH\` rolls flake.lock backwards, which would turn this update into a partial or total no-op while making CI green. Not merging it as-is." \
+            "" \
+            '```' \
+            "$(cat /tmp/lockcheck.out)" \
+            '```' \
+            "" \
+            "Needs a human: either fix it forwards, or hold the offending input back explicitly.")"
+          echo "::error::repair branch $FIX_BRANCH moves flake.lock backwards"
+          exit 1
 
       - name: Require a visible outcome
         if: always() && steps.pr.outputs.skip != 'true'
