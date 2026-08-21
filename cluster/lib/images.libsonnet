@@ -7,7 +7,7 @@
   flaresolverr: 'flaresolverr/flaresolverr:v3.5.0',
   jellyseerr: 'fallenbagel/jellyseerr:develop',
   vaultwarden: 'vaultwarden/server:1.37.1',
-  forgejo: 'codeberg.org/forgejo/forgejo:16.0.2',
+  forgejo: 'codeberg.org/forgejo/forgejo:16.0.3',
   // Immich's database. Only the major actually in use is listed: a catalog
   // entry for a major nothing runs is an invitation to set a Cluster back to
   // it, and CloudNativePG rejects a downgrade only after the operator has
