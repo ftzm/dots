@@ -14,7 +14,7 @@ spec:
       - args:
         - |
           set -eu
-          expected="16.0.2"
+          expected="16.0.3"
           url="http://forgejo:3000/api/v1/version"
 
           # An ArgoCD retry can land while the pod is rolling from a change
@@ -52,7 +52,7 @@ spec:
         command:
         - /bin/bash
         - -c
-        image: codeberg.org/forgejo/forgejo:16.0.2
+        image: codeberg.org/forgejo/forgejo:16.0.3
         name: dump-gate
         volumeMounts:
         - mountPath: /data
