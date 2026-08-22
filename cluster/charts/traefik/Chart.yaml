@@ -1,21 +1,17 @@
 annotations:
-  artifacthub.io/changes: "- kind: changed\n  description: \"test(service): LoadBalancer
-    node port opt-out\"\n- kind: fixed\n  description: \"fix(rbac): allow namespaced
-    rbac with only the knative provider\"\n- kind: fixed\n  description: \"fix(hub):
-    \U0001F41B enable providers with default config\"\n- kind: fixed\n  description:
-    \"fix(crds/middleware): add missing ErrorRequestHeaders field\"\n- kind: added\n
-    \ description: \"feat: allow setting emptyDir options for data and tmp volumes\"\n-
-    kind: added\n  description: \"feat(hub): support AWS EC2 provider\"\n- kind: added\n
-    \ description: \"feat(deps): update traefik docker tag to v3.7.10\"\n- kind: added\n
-    \ description: \"feat(deps): update ghcr.io/traefik/traefik-hub docker tag to
-    v3.20.8\"\n- kind: changed\n  description: \"ci(renovate): scope updates per chart
-    on VALUES.md & AppVersion\"\n"
-  traefik.io/hub-max-version: v3.20.8
+  artifacthub.io/changes: |
+    - kind: added
+      description: "feat: add new options for traefik v3.7.11"
+    - kind: added
+      description: "feat(deps): ✨ update traefik-hub to v3.20.11"
+    - kind: added
+      description: "feat(deps): update traefik to v3.7.11 and traefik-hub to v3.20.10"
+  traefik.io/hub-max-version: v3.20.11
   traefik.io/hub-min-version: v3.19.3
-  traefik.io/proxy-max-version: v3.7.10
+  traefik.io/proxy-max-version: v3.7.11
   traefik.io/proxy-min-version: v3.6.0
 apiVersion: v2
-appVersion: v3.7.10
+appVersion: v3.7.11
 description: A Traefik based Kubernetes ingress controller
 home: https://traefik.io/
 icon: https://raw.githubusercontent.com/traefik/traefik/master/docs/content/assets/img/traefik.logo.png
@@ -35,4 +31,4 @@ sources:
 - https://github.com/traefik/traefik-helm-chart
 - https://github.com/traefik/traefik
 type: application
-version: 41.2.0
+version: 41.3.0
