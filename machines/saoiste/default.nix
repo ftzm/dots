@@ -217,6 +217,14 @@
       set -g xterm-keys on
       set -s extended-keys on
       set -as terminal-features ',*:extkeys'
+
+      # Let terminal applications set the clipboard via OSC 52.  The DCS
+      # passthrough is used by Emacs/clipetty; SSH and mosh then carry the
+      # unwrapped OSC 52 sequence to the terminal on the connecting machine.
+      set -s set-clipboard external
+      set -g allow-passthrough on
+      set -ag update-environment "SSH_TTY"
+
       set -g default-terminal "xterm-256color"
       set -sg terminal-overrides ",*:RGB"
       set -g escape-time 0

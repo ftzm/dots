@@ -118,6 +118,19 @@
 		      github :repo "cpoile/claudemacs" :type git
 		      :protocol https :inherit t :depth treeless :ref
 		      "639b5a7986e10b8812bf987d39a21fe603879bea"))
+ (clipetty :source "elpaca-menu-lock-file" :recipe
+           (:package "clipetty" :repo "spudlyo/clipetty" :fetcher github
+                     :files
+                     ("*.el" "*.el.in" "dir" "*.info" "*.texi"
+                      "*.texinfo" "doc/dir" "doc/*.info" "doc/*.texi"
+                      "doc/*.texinfo" "lisp/*.el" "docs/dir"
+                      "docs/*.info" "docs/*.texi" "docs/*.texinfo"
+                      (:exclude ".dir-locals.el" "test.el" "tests.el"
+                                "*-test.el" "*-tests.el" "LICENSE"
+                                "README*" "*-pkg.el"))
+                     :source "MELPA" :id clipetty :type git :protocol
+                     https :inherit t :depth treeless :ref
+                     "01b39044b9b65fa4ea7d3166f8b1ffab6f740362"))
  (closql :source "elpaca-menu-lock-file" :recipe
 	 (:package "closql" :fetcher github :repo "magit/closql"
 		   :files

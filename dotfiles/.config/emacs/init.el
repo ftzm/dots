@@ -256,6 +256,36 @@ See `eval-after-load' for the possible formats of FORM."
   :config
   (global-kkp-mode +1))
 
+;; Send kills from terminal frames to the clipboard of the terminal running the
+;; SSH/mosh client.  clipetty wraps OSC 52 for tmux; tmux unwraps it, mosh
+;; transports it, and foot writes it to the connecting machine's clipboard.
+(use-package clipetty
+  :hook (after-init . global-clipetty-mode)
+  :config
+  ;; Mosh 1.4 accepts OSC strings smaller than 16 KiB.  After the OSC 52
+  ;; prefix and base64 expansion, 12,000 input bytes fit safely; rejecting a
+  ;; larger kill with a message is better than mosh silently dropping it.
+  (setq clipetty--max-cut 12000)
+
+  (defun ftzm/clipetty--emit-via-pane (string)
+    "Emit STRING through the selected frame's tmux pane.
+Clipetty normally writes directly to SSH_TTY.  That variable goes stale when
+this daemon-backed Emacs and its tmux session outlive an SSH/mosh connection;
+it also chooses only one client when several clients view the same pane.
+Writing to the pane lets tmux pass OSC 52 to every currently attached client."
+    (let ((tmux (getenv "TMUX" (selected-frame)))
+          (term (getenv "TERM" (selected-frame))))
+      (if (<= (length string) clipetty--max-cut)
+          (write-region
+           (clipetty--dcs-wrap string tmux term nil)
+           nil (terminal-name (selected-frame)) t 0)
+        (message "Selection too long to send through mosh: %d bytes (max %d)"
+                 (length string) clipetty--max-cut)
+        (sit-for 1))))
+
+  (advice-remove 'clipetty--emit #'ftzm/clipetty--emit-via-pane)
+  (advice-add 'clipetty--emit :override #'ftzm/clipetty--emit-via-pane))
+
 ;; Camel Case recognition, works with evil mode movement
 (use-package subword
   :diminish subword-mode
