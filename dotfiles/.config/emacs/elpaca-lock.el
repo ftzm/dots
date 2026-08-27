@@ -779,6 +779,39 @@
 			  :protocol https :inherit t :depth treeless
 			  :ref
 			  "182640f79c3ed66f82f0419f130dffc173ee9464"))
+ (markdown-table-wrap :source "elpaca-menu-lock-file" :recipe
+                      (:package "markdown-table-wrap" :fetcher github
+                                :repo "dnouri/markdown-table-wrap"
+                                :files
+                                ("*.el" "*.el.in" "dir" "*.info"
+                                 "*.texi" "*.texinfo" "doc/dir"
+                                 "doc/*.info" "doc/*.texi"
+                                 "doc/*.texinfo" "lisp/*.el"
+                                 "docs/dir" "docs/*.info"
+                                 "docs/*.texi" "docs/*.texinfo"
+                                 (:exclude ".dir-locals.el" "test.el"
+                                           "tests.el" "*-test.el"
+                                           "*-tests.el" "LICENSE"
+                                           "README*" "*-pkg.el"))
+                                :source "MELPA" :id
+                                markdown-table-wrap :type git
+                                :protocol https :inherit t :depth
+                                treeless :ref
+                                "f846b77d13f34fba57c80214c1a61e00c94048a3"))
+ (md-ts-mode :source "elpaca-menu-lock-file" :recipe
+             (:package "md-ts-mode" :fetcher github :repo
+                       "dnouri/md-ts-mode" :files
+                       ("*.el" "*.el.in" "dir" "*.info" "*.texi"
+                        "*.texinfo" "doc/dir" "doc/*.info"
+                        "doc/*.texi" "doc/*.texinfo" "lisp/*.el"
+                        "docs/dir" "docs/*.info" "docs/*.texi"
+                        "docs/*.texinfo"
+                        (:exclude ".dir-locals.el" "test.el"
+                                  "tests.el" "*-test.el" "*-tests.el"
+                                  "LICENSE" "README*" "*-pkg.el"))
+                       :source "MELPA" :id md-ts-mode :type git
+                       :protocol https :inherit t :depth treeless :ref
+                       "13e175beebe3ab2cbfa65186949b990bb26e1fd4"))
  (mpdel :source "elpaca-menu-lock-file" :recipe
 	(:package "mpdel" :fetcher github :repo "mpdel/mpdel" :files
 		  ("*.el" "*.el.in" "dir" "*.info" "*.texi"
@@ -964,6 +997,22 @@
 		     :source "MELPA" :id php-mode :type git :protocol
 		     https :inherit t :depth treeless :ref
 		     "d9858333e42f42c1486a84bc5277e9d8e37e40cc"))
+ (pi-coding-agent :source "elpaca-menu-lock-file" :recipe
+                  (:package "pi-coding-agent" :fetcher github :repo
+                            "dnouri/pi-coding-agent" :files
+                            ("*.el" "*.el.in" "dir" "*.info" "*.texi"
+                             "*.texinfo" "doc/dir" "doc/*.info"
+                             "doc/*.texi" "doc/*.texinfo" "lisp/*.el"
+                             "docs/dir" "docs/*.info" "docs/*.texi"
+                             "docs/*.texinfo"
+                             (:exclude ".dir-locals.el" "test.el"
+                                       "tests.el" "*-test.el"
+                                       "*-tests.el" "LICENSE"
+                                       "README*" "*-pkg.el"))
+                            :source "MELPA" :id pi-coding-agent :type
+                            git :protocol https :inherit t :depth
+                            treeless :ref
+                            "f8b20de764b9b3429ba2c281991b6012515c7319"))
  (popper :source "elpaca-menu-lock-file" :recipe
 	 (:package "popper" :fetcher github :repo "karthink/popper"
 		   :files

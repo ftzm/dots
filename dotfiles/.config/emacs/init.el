@@ -3000,6 +3000,111 @@ Positive values scroll down, negative values scroll up."
 (general-nmap "C-y" (lambda () (interactive) (scroll-by-percent -20)))
 (general-nmap "C-e" (lambda () (interactive) (scroll-by-percent 20)))
 
+;; Emacs frontend for the Pi coding agent.  `M-x pi' starts or focuses the
+;; session for the current project.
+(use-package pi-coding-agent
+  :ensure t
+  :after evil
+  :init (defalias 'pi 'pi-coding-agent)
+  :custom
+  ;; Keep the prompt compact and rebalance it as the frame is resized.
+  (pi-coding-agent-input-window-height 0.25)
+  (pi-coding-agent-evil-integration t)
+  ;; Motion state leaves ESC unbound as a Meta prefix, which makes which-key
+  ;; open when ESC is used defensively before the leader.  Normal state keeps
+  ;; all chat bindings while giving ESC its standard Evil behavior.
+  (pi-coding-agent-evil-chat-state 'normal)
+  :config
+  ;; The integration ships with pi-coding-agent; loading it installs the
+  ;; motion-state chat bindings and insert-state input behavior immediately.
+  (require 'pi-coding-agent-evil)
+
+  ;; The frontend exposes phase changes but, unlike Pi's TUI, does not include
+  ;; elapsed time in its header.  Track each busy phase and render it as, for
+  ;; example, "thinking 0:12" or "running 1:03".
+  (defvar-local ftzm/pi-activity-phase-start-time nil)
+  (defvar ftzm/pi-activity-clock-timer nil)
+
+  (defun ftzm/pi-activity-clock-string (elapsed)
+    "Format ELAPSED seconds as M:SS, or H:MM:SS after one hour."
+    (let* ((total (max 0 (floor elapsed)))
+           (hours (/ total 3600))
+           (minutes (% (/ total 60) 60))
+           (seconds (% total 60)))
+      (if (> hours 0)
+          (format "%d:%02d:%02d" hours minutes seconds)
+        (format "%d:%02d" minutes seconds))))
+
+  (defun ftzm/pi-activity-chat-buffer ()
+    "Return the Pi chat buffer associated with the current buffer."
+    (cond
+     ((derived-mode-p 'pi-coding-agent-chat-mode) (current-buffer))
+     ((and (boundp 'pi-coding-agent--chat-buffer)
+           (buffer-live-p pi-coding-agent--chat-buffer))
+      pi-coding-agent--chat-buffer)))
+
+  (defun ftzm/pi-activity-clock-refresh ()
+    "Refresh Pi headers once a second while any session is busy."
+    (let ((busy nil))
+      (dolist (buf (buffer-list))
+        (when (and (buffer-live-p buf)
+                   (with-current-buffer buf
+                     (and (derived-mode-p 'pi-coding-agent-chat-mode)
+                          ftzm/pi-activity-phase-start-time
+                          (not (equal pi-coding-agent--activity-phase "idle")))))
+          (setq busy t)))
+      (if busy
+          (force-mode-line-update t)
+        (when (timerp ftzm/pi-activity-clock-timer)
+          (cancel-timer ftzm/pi-activity-clock-timer))
+        (setq ftzm/pi-activity-clock-timer nil))))
+
+  (defun ftzm/pi-activity-clock-start ()
+    "Start the shared Pi header clock when it is not already running."
+    (unless (timerp ftzm/pi-activity-clock-timer)
+      (setq ftzm/pi-activity-clock-timer
+            (run-at-time 1 1 #'ftzm/pi-activity-clock-refresh))))
+
+  (defun ftzm/pi-track-activity-time (chat _input old new _reason)
+    "Track in CHAT when the activity phase changes from OLD to NEW."
+    (when (buffer-live-p chat)
+      (with-current-buffer chat
+        (cond
+         ((equal new "idle")
+          (setq ftzm/pi-activity-phase-start-time nil))
+         ((or (null ftzm/pi-activity-phase-start-time)
+              (not (equal old new)))
+          (setq ftzm/pi-activity-phase-start-time (float-time))))))
+    (unless (equal new "idle")
+      (ftzm/pi-activity-clock-start))
+    (force-mode-line-update t))
+
+  (defun ftzm/pi-header-with-activity-time (fn model thinking phase-str)
+    "Call FN with MODEL, THINKING and a timed replacement for PHASE-STR."
+    (let* ((chat (ftzm/pi-activity-chat-buffer))
+           (start (and chat
+                       (buffer-local-value
+                        'ftzm/pi-activity-phase-start-time chat)))
+           (phase (and chat
+                       (buffer-local-value
+                        'pi-coding-agent--activity-phase chat))))
+      (funcall
+       fn model thinking
+       (if (and start phase (not (equal phase "idle")))
+           (propertize
+            (format "%s %s" phase
+                    (ftzm/pi-activity-clock-string
+                     (- (float-time) start)))
+            'face 'pi-coding-agent-activity-phase)
+         phase-str))))
+
+  (add-hook 'pi-coding-agent-activity-phase-functions
+            #'ftzm/pi-track-activity-time)
+  (advice-remove 'pi-coding-agent--header-format-identity
+                 #'ftzm/pi-header-with-activity-time)
+  (advice-add 'pi-coding-agent--header-format-identity :around
+              #'ftzm/pi-header-with-activity-time))
+
 (use-package claude-code-ide
   :ensure (:host github :repo "manzaltu/claude-code-ide.el")
   :bind ("C-c C-'" . claude-code-ide-menu) ; Set your favorite keybinding
