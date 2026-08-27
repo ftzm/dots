@@ -76,6 +76,7 @@ in {
     inputs.agenix.nixosModules.age
     ./hardware.nix
     ../../role/network.nix
+    ../../role/nfs-automount.nix
     ./mqtt2prometheus-service.nix
     ./k3s.nix
     ./forgejo-runner.nix
@@ -186,10 +187,9 @@ in {
   # --------------------------
 
   services.nfs.server.enable = true;
-  fileSystems."/mnt/nas" = {
+  nfsAutomounts."/mnt/nas" = {
     device = "192.168.1.3:/pool-1";
-    fsType = "nfs";
-    options = ["nfsvers=3" "noatime" "nodiratime" "rsize=32768" "async" "nofail"];
+    options = ["nfsvers=3" "noatime" "nodiratime" "rsize=32768" "async"];
   };
 
   services.mpd = {
