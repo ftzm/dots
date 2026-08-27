@@ -27,6 +27,7 @@
     ../../role/interface.nix
     ../../role/iosevka.nix
     ../../role/comin.nix
+    ../../role/resilience.nix
   ];
 
   nix = {

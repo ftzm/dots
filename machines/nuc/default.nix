@@ -80,6 +80,7 @@ in {
     ./k3s.nix
     ./forgejo-runner.nix
     ../../role/comin.nix
+    ../../role/resilience.nix
     ../../role/mailsort.nix
   ];
 

@@ -29,6 +29,7 @@
     ../../role/emacs.nix
 
     ../../role/comin.nix
+    ../../role/resilience.nix
     ../../role/packages.nix
     ../../role/iosevka.nix
   ];
