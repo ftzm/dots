@@ -1,4 +1,6 @@
 {pkgs, ...}: {
+  imports = [./nfs-automount.nix];
+
   environment.systemPackages = with pkgs; [
     nfs-utils
     libnfs
@@ -12,19 +14,9 @@
   };
 
   # Mount music from nas
-  fileSystems."/mnt/music" = {
+  nfsAutomounts."/mnt/music" = {
     device = "10.0.100.3:/pool-1/music";
-    fsType = "nfs";
-    options = [
-      "nfsvers=3"
-      "x-systemd.automount"
-      "noauto"
-      "noatime"
-      "nodiratime"
-      "rsize=32768"
-      "async"
-      "ro"
-    ];
+    options = ["nfsvers=3" "noatime" "nodiratime" "rsize=32768" "async" "ro"];
   };
 
   home-manager.users.ftzm = {
