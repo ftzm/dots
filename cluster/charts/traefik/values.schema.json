@@ -773,6 +773,10 @@
                         "openApi": {
                             "type": "object",
                             "properties": {
+                                "refreshInterval": {
+                                    "description": "Interval to refresh the OpenAPI specification, as a Go duration. Must be at least `1m`.",
+                                    "type": "string"
+                                },
                                 "validateRequestMethodAndPath": {
                                     "description": "When set to true, it will only accept paths and methods that are explicitly defined in its OpenAPI specification",
                                     "type": "boolean"
@@ -2303,6 +2307,19 @@
                     "http": {
                         "type": "object",
                         "properties": {
+                            "aliasHeadersStrategy": {
+                                "description": "Defines how request headers with non-alphanumeric characters in their names are handled (v3.7.12+). See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#aliasheadersstrategy)",
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "enum": [
+                                    "keep",
+                                    "delete",
+                                    "reject",
+                                    null
+                                ]
+                            },
                             "encodedCharacters": {
                                 "description": "See [upstream documentation](https://doc.traefik.io/traefik/security/request-path/#encoded-character-filtering)",
                                 "type": "object",
@@ -2402,7 +2419,8 @@
                                 }
                             },
                             "underscoreHeadersStrategy": {
-                                "description": "Defines how request headers with underscores in their names are handled (v3.7.6+). See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#underscoreheadersstrategy)",
+                                "description": "Defines how request headers with underscores in their names are handled (v3.7.6-v3.7.11). Replaced by the aliasHeadersStrategy option for Traefik v3.7.12+. See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#underscoreheadersstrategy)",
+                                "deprecated": true,
                                 "type": [
                                     "string",
                                     "null"
@@ -3099,6 +3117,10 @@
                 "namespaced": {
                     "description": "When set to true: \u003cbr /\u003e 1. It switches respectively the use of `ClusterRole` and `ClusterRoleBinding` to `Role` and `RoleBinding`.\u003cbr /\u003e 2. It adds `disableClusterScopeResources` on Ingress and CRD (Kubernetes) providers\u003cbr /\u003e **NOTE**: `IngressClass`, `NodePortLB` and **Gateway** provider cannot be used with namespaced RBAC. \u003cbr /\u003e See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-ingress/#opt-providers-kubernetesIngress-disableClusterScopeResources) for more details.",
                     "type": "boolean"
+                },
+                "secretResourceNames": {
+                    "description": "List of Kubernetes secrets that are accessible for Traefik when `rbac.namespaced` is true. If empty, then access is granted to every secret. Ignored when `rbac.namespaced` is false (ClusterRole), since Kubernetes RBAC does not support `resourceNames` on cluster-scoped list/watch rules.",
+                    "type": "array"
                 }
             },
             "additionalProperties": false

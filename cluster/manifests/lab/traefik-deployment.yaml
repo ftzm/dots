@@ -2,12 +2,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    checksum/traefik-dynamic-conf: 0860e33a9e335512a4d8b8c110f2aa71d861a9e667179bb1e6f9e8f3840fa5ba
+    checksum/traefik-dynamic-conf: 289914a446ae2073a22b421824d8afec833c2a1565a55affb03b9f95afd1bad8
   labels:
     app.kubernetes.io/instance: traefik-traefik
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: traefik
-    helm.sh/chart: traefik-41.3.0
+    helm.sh/chart: traefik-41.4.0
   name: traefik
   namespace: traefik
 spec:
@@ -30,7 +30,7 @@ spec:
         app.kubernetes.io/instance: traefik-traefik
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: traefik
-        helm.sh/chart: traefik-41.3.0
+        helm.sh/chart: traefik-41.4.0
     spec:
       automountServiceAccountToken: true
       containers:
@@ -76,7 +76,7 @@ spec:
               fieldPath: metadata.namespace
         - name: USER
           value: traefik
-        image: docker.io/traefik:v3.7.11
+        image: docker.io/traefik:v3.7.12
         imagePullPolicy: IfNotPresent
         lifecycle: null
         livenessProbe:

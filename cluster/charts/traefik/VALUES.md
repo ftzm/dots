@@ -1,6 +1,6 @@
 # traefik
 
-![Version: 41.3.0](https://img.shields.io/badge/Version-41.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.7.11](https://img.shields.io/badge/AppVersion-v3.7.11-informational?style=flat-square)
+![Version: 41.4.0](https://img.shields.io/badge/Version-41.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.7.12](https://img.shields.io/badge/AppVersion-v3.7.12-informational?style=flat-square)
 
 A Traefik based Kubernetes ingress controller
 
@@ -146,6 +146,7 @@ Kubernetes: `>=1.25.0-0`
 | hub.apimanagement.admission.secretName | string | `"hub-agent-cert"` | Certificate name of the WebHook admission server. Default: "hub-agent-cert". |
 | hub.apimanagement.admission.selfManagedCertificate | bool | `false` | By default, this chart handles directly the tls certificate required for the admission webhook. It's possible to disable this behavior and handle it outside of the chart. See EXAMPLES.md for more details. |
 | hub.apimanagement.enabled | bool | `false` | Set to true in order to enable API Management. Requires a valid license token. |
+| hub.apimanagement.openApi.refreshInterval | string | `1m` when unset | Interval to refresh the OpenAPI specification, as a Go duration. Must be at least `1m`. |
 | hub.apimanagement.openApi.validateRequestMethodAndPath | bool | `false` | When set to true, it will only accept paths and methods that are explicitly defined in its OpenAPI specification |
 | hub.enabled | bool | `true` when `hub.token` is set | Install Traefik Hub. Without `hub.token`, it runs in proxy mode: a drop-in Traefik Proxy, which requires Traefik Hub >= v3.21.0-ea. |
 | hub.hardened | bool | `false` | Use the hardened image variant. It appends `-hardened` to the tag and defaults the image to `registry.traefik.io/traefik-hub`. Requires `hub.enabled` and Traefik Hub >= v3.21.0-ea. |
@@ -436,6 +437,7 @@ Kubernetes: `>=1.25.0-0`
 | ports.websecure.forwardedHeaders.notAppendXForwardedFor | bool | `false` | Disable appending RemoteAddr to X-Forwarded-For header (v3.7+). |
 | ports.websecure.forwardedHeaders.trustedIPs | list | `[]` | Trust forwarded headers information (X-Forwarded-*). |
 | ports.websecure.hostPort | int | `nil` | Use hostPort if set. |
+| ports.websecure.http.aliasHeadersStrategy | string | `nil` | Defines how request headers with non-alphanumeric characters in their names are handled (v3.7.12+). See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#aliasheadersstrategy) |
 | ports.websecure.http.encodedCharacters | object | nil | See [upstream documentation](https://doc.traefik.io/traefik/security/request-path/#encoded-character-filtering) |
 | ports.websecure.http.maxHeaderBytes | int | `nil` | Maximum size of request headers in bytes. Default: 1048576 (1 MB) |
 | ports.websecure.http.middlewares | list | `[]` | See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#httpmiddlewares) |
@@ -444,7 +446,7 @@ Kubernetes: `>=1.25.0-0`
 | ports.websecure.http.tls.domains | list | `[]` |  |
 | ports.websecure.http.tls.enabled | bool | true | See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#opt-http-tls) |
 | ports.websecure.http.tls.options | string | `""` |  |
-| ports.websecure.http.underscoreHeadersStrategy | string | `nil` | Defines how request headers with underscores in their names are handled (v3.7.6+). See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#underscoreheadersstrategy) |
+| ports.websecure.http.underscoreHeadersStrategy | string | `nil` | Defines how request headers with underscores in their names are handled (v3.7.6-v3.7.11). Replaced by the aliasHeadersStrategy option for Traefik v3.7.12+. See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#underscoreheadersstrategy) |
 | ports.websecure.http3.advertisedPort | int | `nil` | Defines the UDP port to advertise as the HTTP/3 authority. |
 | ports.websecure.http3.enabled | bool | `false` | Enable HTTP/3 on the entrypoint. It also enables the http3 experimental feature. See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#opt-http3). There are known limitations when trying to listen on same ports for TCP & UDP ([kubernetes#47249](https://github.com/kubernetes/kubernetes/issues/47249#issuecomment-587960741)): this chart works around it using a dual Service. |
 | ports.websecure.nodePort | int | `nil` | See [upstream documentation](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport) |
@@ -551,6 +553,7 @@ Kubernetes: `>=1.25.0-0`
 | rbac.aggregateTo | list | `[]` | Enable user-facing roles https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles |
 | rbac.enabled | bool | `true` | Whether Role Based Access Control objects like roles and rolebindings should be created |
 | rbac.namespaced | bool | `false` | When set to true: <br /> 1. It switches respectively the use of `ClusterRole` and `ClusterRoleBinding` to `Role` and `RoleBinding`.<br /> 2. It adds `disableClusterScopeResources` on Ingress and CRD (Kubernetes) providers<br /> **NOTE**: `IngressClass`, `NodePortLB` and **Gateway** provider cannot be used with namespaced RBAC. <br /> See [upstream documentation](https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-ingress/#opt-providers-kubernetesIngress-disableClusterScopeResources) for more details. |
+| rbac.secretResourceNames | list | `[]` | List of Kubernetes secrets that are accessible for Traefik when `rbac.namespaced` is true. If empty, then access is granted to every secret. Ignored when `rbac.namespaced` is false (ClusterRole), since Kubernetes RBAC does not support `resourceNames` on cluster-scoped list/watch rules. |
 | readinessProbe.failureThreshold | int | `1` | The number of consecutive failures allowed before considering the probe as failed. |
 | readinessProbe.initialDelaySeconds | int | `2` | The number of seconds to wait before starting the first probe. |
 | readinessProbe.periodSeconds | int | `10` | The number of seconds to wait between consecutive probes. |
