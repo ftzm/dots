@@ -6,8 +6,8 @@ metadata:
     app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/part-of: kube-prometheus-stack
-    app.kubernetes.io/version: 88.5.4
-    chart: kube-prometheus-stack-88.5.4
+    app.kubernetes.io/version: 88.6.1
+    chart: kube-prometheus-stack-88.6.1
     heritage: Helm
     release: kube-prometheus-stack
   name: kube-prometheus-stack-kubelet
