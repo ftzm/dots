@@ -115,12 +115,19 @@
             fi
 
             echo "UPGRADE PENDING: forgejo $running -> $expected"
-            out="/backup/forgejo-preupgrade-$running-to-$expected-$(date +%%Y%%m%%d-%%H%%M%%S).tar"
-            echo "taking pre-upgrade dump to $out"
-            su-exec git forgejo dump --config /data/gitea/conf/app.ini --type tar --tempdir /tmp --file "$out"
-            [ -s "$out" ] || { echo "FATAL: pre-upgrade dump is empty"; exit 1; }
-            tar -tf "$out" > /dev/null || { echo "FATAL: pre-upgrade dump is not readable"; exit 1; }
-            echo "pre-upgrade dump verified: $(wc -c < "$out") bytes"
+            out="/backup/forgejo-preupgrade-$running-to-$expected-$(date +%%Y%%m%%d-%%H%%M%%S).tar.gz"
+            echo "taking pre-upgrade snapshot of /data to $out"
+            # Raw snapshot rather than `forgejo dump`: forgejo's dump is not
+            # forward-compatible, so the target binary cannot dump a database
+            # that predates it (16.0.3's dump fails on the 16.0.2 schema with
+            # "no such column: workflow_source_commit", which only exists after
+            # 16.0.3's own migration runs -- and dump does not migrate). The
+            # snapshot captures the exact pre-upgrade state at any version and
+            # restores by extracting over the data volume.
+            tar -czf "$out" -C /data .
+            [ -s "$out" ] || { echo "FATAL: pre-upgrade snapshot is empty"; exit 1; }
+            tar -tzf "$out" > /dev/null || { echo "FATAL: pre-upgrade snapshot is not readable"; exit 1; }
+            echo "pre-upgrade snapshot verified: $(wc -c < "$out") bytes"
           ||| % { expected: tagOf(image), service: service }],
           volumeMounts: [
             { name: 'data', mountPath: '/data' },
