@@ -19,6 +19,8 @@ spec:
       - env:
         - name: ND_MUSICFOLDER
           value: /music
+        - name: ND_SCANSCHEDULER
+          value: 15m
         image: ghcr.io/navidrome/navidrome:0.63.2
         name: navidrome
         ports:
