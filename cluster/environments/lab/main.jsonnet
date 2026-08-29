@@ -1656,8 +1656,8 @@ local withNamespace(resources, ns) = {
           k.core.v1.envVar.new('ND_MUSICFOLDER', '/music'),
           // The music library is on NFS, where inotify/fsnotify does not work, so
           // Navidrome never sees new files. A periodic scan is the only change detector:
-          // scan every 15 minutes.
-          k.core.v1.envVar.new('ND_SCANSCHEDULER', '15m'),
+          // scan every 15 minutes (Scanner.Schedule env is ND_SCANNER_SCHEDULE).
+          k.core.v1.envVar.new('ND_SCANNER_SCHEDULE', '15m'),
         ]),
       ] } } },
     },
