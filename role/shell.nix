@@ -99,9 +99,6 @@ in {
         alias e='emacsclient -c'
         alias et='emacsclient -t'
         alias er='systemctl --user restart emacs'
-
-        # Eat shell integration
-        [ -n "$EAT_SHELL_INTEGRATION_DIR" ] && source "$EAT_SHELL_INTEGRATION_DIR/bash"
       '';
     };
     # programs.fzf = {
