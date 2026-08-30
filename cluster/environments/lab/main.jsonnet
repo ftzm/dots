@@ -352,6 +352,10 @@ local withNamespace(resources, ns) = {
     resources: withNamespace(
       helm.template('argocd', '../../charts/argo-cd', {
         namespace: ns,
+        // The chart gates its ServiceMonitors and PrometheusRule on
+        // .Capabilities.APIVersions; tanka renders helm without the monitoring
+        // CRD unless we declare it here (it becomes --api-versions).
+        apiVersions: ['monitoring.coreos.com/v1'],
         values: {
           // Use existing CRDs if already installed
           crds: {
@@ -368,6 +372,77 @@ local withNamespace(resources, ns) = {
               'reposerver.max.combined.directory.manifests.size': '30000000',
             },
           },
+          // Metrics for the application controller, API server and repo server.
+          // The chart renders the metrics Services, ServiceMonitors and the
+          // PrometheusRule below (serviceMonitor/rules enabled, apiVersions
+          // above makes them render). The controller rules alert on sync
+          // failures and drift — a broken PreSync gate blocked every sync for
+          // 9 days before these existed.
+          controller: {
+            metrics: {
+              enabled: true,
+              serviceMonitor: { enabled: true },
+              rules: {
+                enabled: true,
+                // kube-prometheus-stack's Prometheus selects rules by this label
+                additionalLabels: { release: 'kube-prometheus-stack' },
+                spec: [
+                  {
+                    alert: 'ArgoCDSyncFailed',
+                    expr: 'increase(argocd_app_sync_total{phase=~"Failed|Error"}[5m]) > 0',
+                    'for': '1m',
+                    labels: { severity: 'critical' },
+                    annotations: {
+                      summary: 'ArgoCD sync failed for {{ $labels.name }}',
+                      description: |||
+                        ArgoCD failed to sync application {{ $labels.name }} ({{ $labels.namespace }}); the last sync operation finished with phase {{ $labels.phase }}.
+                        See `argocd app get {{ $labels.name }}` or the ArgoCD UI.
+                      |||,
+                    },
+                  },
+                  {
+                    alert: 'ArgoCDAppOutOfSync',
+                    expr: 'argocd_app_info{sync_status!="Synced"} == 1',
+                    'for': '15m',
+                    labels: { severity: 'warning' },
+                    annotations: {
+                      summary: 'ArgoCD app {{ $labels.name }} out of sync for over 15 minutes',
+                      description: |||
+                        Application {{ $labels.name }} has drifted from git ({{ $labels.sync_status }}) and has not reconciled for 15 minutes.
+                        This usually means the automated sync is blocked (e.g. by a failing PreSync hook).
+                      |||,
+                    },
+                  },
+                  {
+                    alert: 'ArgoCDAppDegraded',
+                    expr: 'argocd_app_info{health_status="Degraded"} == 1',
+                    'for': '15m',
+                    labels: { severity: 'warning' },
+                    annotations: {
+                      summary: 'ArgoCD app {{ $labels.name }} is Degraded',
+                      description: 'Application {{ $labels.name }} ({{ $labels.namespace }}) reports health status Degraded.',
+                    },
+                  },
+                  {
+                    alert: 'ArgoCDAppMissing',
+                    expr: 'absent(argocd_app_info) == 1',
+                    'for': '15m',
+                    labels: { severity: 'critical' },
+                    annotations: {
+                      summary: 'ArgoCD reports no applications',
+                      description: 'The ArgoCD application controller has reported no application metrics for 15 minutes and is likely down.',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+          server: {
+            metrics: {
+              enabled: true,
+              serviceMonitor: { enabled: true },
+            },
+          },
           repoServer: {
             livenessProbe: {
               timeoutSeconds: 5,
@@ -377,6 +452,10 @@ local withNamespace(resources, ns) = {
             readinessProbe: {
               timeoutSeconds: 5,
               periodSeconds: 15,
+            },
+            metrics: {
+              enabled: true,
+              serviceMonitor: { enabled: true },
             },
           },
         },

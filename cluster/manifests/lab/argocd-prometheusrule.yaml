@@ -1,0 +1,49 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: kube-prometheus-stack
+  name: argocd
+  namespace: argocd
+spec:
+  groups:
+  - name: argocd
+    rules:
+    - alert: ArgoCDSyncFailed
+      annotations:
+        description: |
+          ArgoCD failed to sync application {{ $labels.name }} ({{ $labels.namespace }}); the last sync operation finished with phase {{ $labels.phase }}.
+          See `argocd app get {{ $labels.name }}` or the ArgoCD UI.
+        summary: ArgoCD sync failed for {{ $labels.name }}
+      expr: increase(argocd_app_sync_total{phase=~"Failed|Error"}[5m]) > 0
+      for: 1m
+      labels:
+        severity: critical
+    - alert: ArgoCDAppOutOfSync
+      annotations:
+        description: |
+          Application {{ $labels.name }} has drifted from git ({{ $labels.sync_status }}) and has not reconciled for 15 minutes.
+          This usually means the automated sync is blocked (e.g. by a failing PreSync hook).
+        summary: ArgoCD app {{ $labels.name }} out of sync for over 15 minutes
+      expr: argocd_app_info{sync_status!="Synced"} == 1
+      for: 15m
+      labels:
+        severity: warning
+    - alert: ArgoCDAppDegraded
+      annotations:
+        description: Application {{ $labels.name }} ({{ $labels.namespace }}) reports
+          health status Degraded.
+        summary: ArgoCD app {{ $labels.name }} is Degraded
+      expr: argocd_app_info{health_status="Degraded"} == 1
+      for: 15m
+      labels:
+        severity: warning
+    - alert: ArgoCDAppMissing
+      annotations:
+        description: The ArgoCD application controller has reported no application
+          metrics for 15 minutes and is likely down.
+        summary: ArgoCD reports no applications
+      expr: absent(argocd_app_info) == 1
+      for: 15m
+      labels:
+        severity: critical
