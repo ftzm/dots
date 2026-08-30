@@ -352,6 +352,10 @@ local withNamespace(resources, ns) = {
     resources: withNamespace(
       helm.template('argocd', '../../charts/argo-cd', {
         namespace: ns,
+        // The chart gates its ServiceMonitors and PrometheusRule on
+        // .Capabilities.APIVersions; tanka renders helm without the monitoring
+        // CRD unless we declare it here (it becomes --api-versions).
+        apiVersions: ['monitoring.coreos.com/v1'],
         values: {
           // Use existing CRDs if already installed
           crds: {
@@ -368,21 +372,75 @@ local withNamespace(resources, ns) = {
               'reposerver.max.combined.directory.manifests.size': '30000000',
             },
           },
-          // Metrics for the application controller, API server and repo server,
-          // scraped by the kube-prometheus-stack Prometheus (it has no SM selector
-          // restrictions). The ServiceMonitors and the sync-failure/drift alert
-          // rules live below as explicit resources: the chart gates them on helm
-          // capabilities that tanka's renderer does not provide. The controller
-          // rules would have caught a broken PreSync gate blocking every sync for
-          // 9 days within minutes.
+          // Metrics for the application controller, API server and repo server.
+          // The chart renders the metrics Services, ServiceMonitors and the
+          // PrometheusRule below (serviceMonitor/rules enabled, apiVersions
+          // above makes them render). The controller rules alert on sync
+          // failures and drift — a broken PreSync gate blocked every sync for
+          // 9 days before these existed.
           controller: {
             metrics: {
               enabled: true,
+              serviceMonitor: { enabled: true },
+              rules: {
+                enabled: true,
+                // kube-prometheus-stack's Prometheus selects rules by this label
+                additionalLabels: { release: 'kube-prometheus-stack' },
+                spec: [
+                  {
+                    alert: 'ArgoCDSyncFailed',
+                    expr: 'increase(argocd_app_sync_total{phase=~"Failed|Error"}[5m]) > 0',
+                    'for': '1m',
+                    labels: { severity: 'critical' },
+                    annotations: {
+                      summary: 'ArgoCD sync failed for {{ $labels.name }}',
+                      description: |||
+                        ArgoCD failed to sync application {{ $labels.name }} ({{ $labels.namespace }}); the last sync operation finished with phase {{ $labels.phase }}.
+                        See `argocd app get {{ $labels.name }}` or the ArgoCD UI.
+                      |||,
+                    },
+                  },
+                  {
+                    alert: 'ArgoCDAppOutOfSync',
+                    expr: 'argocd_app_info{sync_status!="Synced"} == 1',
+                    'for': '15m',
+                    labels: { severity: 'warning' },
+                    annotations: {
+                      summary: 'ArgoCD app {{ $labels.name }} out of sync for over 15 minutes',
+                      description: |||
+                        Application {{ $labels.name }} has drifted from git ({{ $labels.sync_status }}) and has not reconciled for 15 minutes.
+                        This usually means the automated sync is blocked (e.g. by a failing PreSync hook).
+                      |||,
+                    },
+                  },
+                  {
+                    alert: 'ArgoCDAppDegraded',
+                    expr: 'argocd_app_info{health_status="Degraded"} == 1',
+                    'for': '15m',
+                    labels: { severity: 'warning' },
+                    annotations: {
+                      summary: 'ArgoCD app {{ $labels.name }} is Degraded',
+                      description: 'Application {{ $labels.name }} ({{ $labels.namespace }}) reports health status Degraded.',
+                    },
+                  },
+                  {
+                    alert: 'ArgoCDAppMissing',
+                    expr: 'absent(argocd_app_info) == 1',
+                    'for': '15m',
+                    labels: { severity: 'critical' },
+                    annotations: {
+                      summary: 'ArgoCD reports no applications',
+                      description: 'The ArgoCD application controller has reported no application metrics for 15 minutes and is likely down.',
+                    },
+                  },
+                ],
+              },
             },
           },
           server: {
             metrics: {
               enabled: true,
+              serviceMonitor: { enabled: true },
             },
           },
           repoServer: {
@@ -397,6 +455,7 @@ local withNamespace(resources, ns) = {
             },
             metrics: {
               enabled: true,
+              serviceMonitor: { enabled: true },
             },
           },
         },
@@ -455,108 +514,6 @@ local withNamespace(resources, ns) = {
         tls: {
           passthrough: true,
         },
-      },
-    },
-
-    // The chart only creates the metrics Services (its ServiceMonitors and
-    // PrometheusRule are gated on helm capabilities that tanka does not
-    // provide), so they are defined here instead. kube-prometheus-stack's
-    // Prometheus picks up ServiceMonitors from every namespace (no selector
-    // restrictions).
-    controllerServiceMonitor: {
-      apiVersion: 'monitoring.coreos.com/v1',
-      kind: 'ServiceMonitor',
-      metadata: { name: 'argocd-application-controller', namespace: ns },
-      spec: {
-        selector: { matchLabels: { 'app.kubernetes.io/name': 'argocd-application-controller-metrics' } },
-        endpoints: [{ port: 'http-metrics', path: '/metrics', interval: '30s' }],
-      },
-    },
-    serverServiceMonitor: {
-      apiVersion: 'monitoring.coreos.com/v1',
-      kind: 'ServiceMonitor',
-      metadata: { name: 'argocd-server', namespace: ns },
-      spec: {
-        selector: { matchLabels: { 'app.kubernetes.io/name': 'argocd-server-metrics' } },
-        endpoints: [{ port: 'http-metrics', path: '/metrics', interval: '30s' }],
-      },
-    },
-    repoServerServiceMonitor: {
-      apiVersion: 'monitoring.coreos.com/v1',
-      kind: 'ServiceMonitor',
-      metadata: { name: 'argocd-repo-server', namespace: ns },
-      spec: {
-        selector: { matchLabels: { 'app.kubernetes.io/name': 'argocd-repo-server-metrics' } },
-        endpoints: [{ port: 'http-metrics', path: '/metrics', interval: '30s' }],
-      },
-    },
-
-    // Alert on sync failures, drift and controller liveness. The
-    // `release: kube-prometheus-stack` label is required by the Prometheus
-    // ruleSelector (matchLabels). `argocd_app_sync_total{phase="Failed|Error"}`
-    // increments whenever a sync operation fails — e.g. the forgejo-dump-gate
-    // deadlock that blocked every sync for 9 days would have fired
-    // ArgoCDSyncFailed within a minute.
-    prometheusRule: {
-      apiVersion: 'monitoring.coreos.com/v1',
-      kind: 'PrometheusRule',
-      metadata: {
-        name: 'argocd',
-        namespace: ns,
-        labels: { release: 'kube-prometheus-stack' },
-      },
-      spec: {
-        groups: [{
-          name: 'argocd',
-          rules: [
-            {
-              alert: 'ArgoCDSyncFailed',
-              expr: 'increase(argocd_app_sync_total{phase=~"Failed|Error"}[5m]) > 0',
-              'for': '1m',
-              labels: { severity: 'critical' },
-              annotations: {
-                summary: 'ArgoCD sync failed for {{ $labels.name }}',
-                description: |||
-                  ArgoCD failed to sync application {{ $labels.name }} ({{ $labels.namespace }}); the last sync operation finished with phase {{ $labels.phase }}.
-                  See `argocd app get {{ $labels.name }}` or the ArgoCD UI.
-                |||,
-              },
-            },
-            {
-              alert: 'ArgoCDAppOutOfSync',
-              expr: 'argocd_app_info{sync_status!="Synced"} == 1',
-              'for': '15m',
-              labels: { severity: 'warning' },
-              annotations: {
-                summary: 'ArgoCD app {{ $labels.name }} out of sync for over 15 minutes',
-                description: |||
-                  Application {{ $labels.name }} has drifted from git ({{ $labels.sync_status }}) and has not reconciled for 15 minutes.
-                  This usually means the automated sync is blocked (e.g. by a failing PreSync hook).
-                |||,
-              },
-            },
-            {
-              alert: 'ArgoCDAppDegraded',
-              expr: 'argocd_app_info{health_status="Degraded"} == 1',
-              'for': '15m',
-              labels: { severity: 'warning' },
-              annotations: {
-                summary: 'ArgoCD app {{ $labels.name }} is Degraded',
-                description: 'Application {{ $labels.name }} ({{ $labels.namespace }}) reports health status Degraded.',
-              },
-            },
-            {
-              alert: 'ArgoCDAppMissing',
-              expr: 'absent(argocd_app_info) == 1',
-              'for': '15m',
-              labels: { severity: 'critical' },
-              annotations: {
-                summary: 'ArgoCD reports no applications',
-                description: 'The ArgoCD application controller has reported no application metrics for 15 minutes and is likely down.',
-              },
-            },
-          ],
-        }],
       },
     },
   },
