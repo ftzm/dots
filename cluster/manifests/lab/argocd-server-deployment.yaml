@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
     app.kubernetes.io/version: v3.5.2
-    helm.sh/chart: argo-cd-10.6.0
+    helm.sh/chart: argo-cd-10.6.4
   name: argocd-server
   namespace: argocd
 spec:
@@ -21,8 +21,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/cm: 36a20d14546626efdf7cab065dd35addd0858da94885f87618b0d0b5bf2a98d6
-        checksum/cmd-params: b54492ea7970b96b2bdaf0be0809f0a2a5fd3fda0599aa9b7f90ed3acca78c6b
+        checksum/cm: 59e39adfa9ade3dc78e1f9ae5d906571ee3b334933b782d9c819d57514ed5339
+        checksum/cmd-params: 69d8cef0e55694c76d79c433558350e935cb528e161edf17dc977f0e2cb235ad
       labels:
         app.kubernetes.io/component: server
         app.kubernetes.io/instance: argocd
@@ -30,7 +30,7 @@ spec:
         app.kubernetes.io/name: argocd-server
         app.kubernetes.io/part-of: argocd
         app.kubernetes.io/version: v3.5.2
-        helm.sh/chart: argo-cd-10.6.0
+        helm.sh/chart: argo-cd-10.6.4
     spec:
       affinity:
         podAntiAffinity:
@@ -426,6 +426,7 @@ spec:
         name: ssh-known-hosts
       - configMap:
           name: argocd-tls-certs-cm
+          optional: true
         name: tls-certs
       - configMap:
           name: argocd-styles-cm
