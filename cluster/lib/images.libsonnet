@@ -24,4 +24,5 @@
   miniflux: 'miniflux/miniflux:2.3.3',
   valkey: 'valkey/valkey:9-alpine',
   cnpgPostgres: 'ghcr.io/cloudnative-pg/postgresql:18.4',
+  healthchecks: 'ghcr.io/healthchecks/healthchecks:v4.4',
 }

@@ -16,7 +16,7 @@
 
   # Internal service endpoints — direct IP:port, no DNS needed
   services = {
-    lokiPush = "http://${machines.nuc.wg}:30100/loki/api/v1/push";
+    lokiPush = "http://${machines.nuc.lan}:30100/loki/api/v1/push";
   };
 in {
   _module.args.lab = {

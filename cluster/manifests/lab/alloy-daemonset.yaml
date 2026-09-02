@@ -58,6 +58,10 @@ spec:
         ports:
         - containerPort: 12345
           name: http-metrics
+        - containerPort: 5140
+          hostPort: 5140
+          name: syslog
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /-/ready

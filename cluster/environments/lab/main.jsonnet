@@ -1,4 +1,6 @@
 local backup = import '../../lib/backup.libsonnet';
+local alerts = import '../../lib/alerts.libsonnet';
+local logformats = import '../../lib/logformats.libsonnet';
 local config = import '../../lib/config.libsonnet';
 local images = import '../../lib/images.libsonnet';
 local postgres = import '../../lib/postgres.libsonnet';
@@ -32,6 +34,60 @@ local withNamespace(resources, ns) = {
   for key in std.objectFields(resources)
 };
 
+// Comin exporter scrape targets: lab machines by LAN (always on the same
+// subnet), laptops by tailscale IP (they roam/sleep). Instance label is the
+// host shortname so alerts read `instance="saoiste"` etc.
+local cominScrapeConfig = {
+  job_name: 'comin',
+  static_configs: [
+    { targets: [m.host + ':4243'], labels: { instance: m.instance } }
+    for m in [
+      { instance: 'nuc', host: config.machines.nuc.lan },
+      { instance: 'nas', host: config.machines.nas.lan },
+      { instance: 'saoiste', host: config.machines.saoiste.tailscale },
+      { instance: 'eachtrai', host: config.machines.eachtrai.tailscale },
+    ]
+  ],
+};
+
+// The shipped TargetDown rule fires when >10% of a job's targets are down.
+// Laptops sleep, so the comin job (saoiste/eachtrai over tailscale) would
+// page constantly. Exclude that job from TargetDown; the comin rules below
+// alert on real failure via comin_last_*_failed, and `up` for laptops is
+// still queryable if ever needed.
+local targetDownExpr = '100 * (count(up{job!="comin"} == 0) BY (cluster, job, namespace, service) / count(up{job!="comin"}) BY (cluster, job, namespace, service)) > 10';
+local patchTargetDown(resources) = {
+  [key]:
+    if resources[key].kind == 'PrometheusRule' then
+      resources[key] {
+        spec+: {
+          groups: std.map(
+            function(g)
+              g {
+                rules: std.map(
+                  function(r)
+                    if std.objectHas(r, 'alert') && r.alert == 'TargetDown'
+                    then r {
+                      // Replacing a vendored expression wholesale means a
+                      // chart bump that improves TargetDown gets silently
+                      // reverted to this copy. Assert on the shape we forked
+                      // from so the bump fails the render instead.
+                      assert std.length(std.findSubstr('count(up', r.expr)) > 0 :
+                        'TargetDown upstream expr changed shape; re-derive targetDownExpr',
+                      expr: targetDownExpr,
+                    }
+                    else r,
+                  g.rules
+                ),
+              },
+            resources[key].spec.groups
+          ),
+        },
+      }
+    else resources[key]
+  for key in std.objectFields(resources)
+};
+
 {
   nfsProvisioner: {
     namespace: k.core.v1.namespace.new('nfs-provisioner'),
@@ -52,31 +108,6 @@ local withNamespace(resources, ns) = {
       }),
       'nfs-provisioner'
     ),
-  },
-
-  // Test app to verify NFS provisioning
-  storageTest: {
-    local ns = 'storage-test',
-
-    namespace: k.core.v1.namespace.new(ns),
-
-    pvc: k.core.v1.persistentVolumeClaim.new('test-pvc')
-      + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
-      + k.core.v1.persistentVolumeClaim.spec.withAccessModes(['ReadWriteMany'])
-      + k.core.v1.persistentVolumeClaim.spec.resources.withRequests({ storage: '100Mi' }),
-
-    pod: k.core.v1.pod.new('storage-test')
-      + k.core.v1.pod.metadata.withNamespace(ns)
-      + k.core.v1.pod.spec.withContainers([
-        k.core.v1.container.new('busybox', 'busybox')
-        + k.core.v1.container.withCommand(['/bin/sh', '-c', 'echo "Written at $(date)" >> /data/test.txt && cat /data/test.txt && sleep 3600'])
-        + k.core.v1.container.withVolumeMounts([
-          k.core.v1.volumeMount.new('data', '/data'),
-        ]),
-      ])
-      + k.core.v1.pod.spec.withVolumes([
-        k.core.v1.volume.fromPersistentVolumeClaim('data', 'test-pvc'),
-      ]),
   },
 
   // Hello world to test internal ingress
@@ -148,6 +179,11 @@ local withNamespace(resources, ns) = {
           accessLog: {
             enabled: true,
             format: 'json',  // Easier to parse in Loki
+            filters: {
+              // Phase 0: metrics already cover 1xx-3xx volume; keep only the
+              // requests worth investigating.
+              statusCodes: '400-599',
+            },
           },
 
           // Use host network to bind directly to specific IPs
@@ -463,102 +499,71 @@ local withNamespace(resources, ns) = {
     // provide), so they are defined here instead. kube-prometheus-stack's
     // Prometheus picks up ServiceMonitors from every namespace (no selector
     // restrictions).
-    controllerServiceMonitor: {
-      apiVersion: 'monitoring.coreos.com/v1',
-      kind: 'ServiceMonitor',
-      metadata: { name: 'argocd-application-controller', namespace: ns },
-      spec: {
-        selector: { matchLabels: { 'app.kubernetes.io/name': 'argocd-application-controller-metrics' } },
-        endpoints: [{ port: 'http-metrics', path: '/metrics', interval: '30s' }],
-      },
-    },
-    serverServiceMonitor: {
-      apiVersion: 'monitoring.coreos.com/v1',
-      kind: 'ServiceMonitor',
-      metadata: { name: 'argocd-server', namespace: ns },
-      spec: {
-        selector: { matchLabels: { 'app.kubernetes.io/name': 'argocd-server-metrics' } },
-        endpoints: [{ port: 'http-metrics', path: '/metrics', interval: '30s' }],
-      },
-    },
-    repoServerServiceMonitor: {
-      apiVersion: 'monitoring.coreos.com/v1',
-      kind: 'ServiceMonitor',
-      metadata: { name: 'argocd-repo-server', namespace: ns },
-      spec: {
-        selector: { matchLabels: { 'app.kubernetes.io/name': 'argocd-repo-server-metrics' } },
-        endpoints: [{ port: 'http-metrics', path: '/metrics', interval: '30s' }],
-      },
-    },
+    controllerServiceMonitor: alerts.serviceMonitor(
+      'argocd-application-controller', ns,
+      { 'app.kubernetes.io/name': 'argocd-application-controller-metrics' },
+      'http-metrics'
+    ),
+    serverServiceMonitor: alerts.serviceMonitor(
+      'argocd-server', ns,
+      { 'app.kubernetes.io/name': 'argocd-server-metrics' },
+      'http-metrics'
+    ),
+    repoServerServiceMonitor: alerts.serviceMonitor(
+      'argocd-repo-server', ns,
+      { 'app.kubernetes.io/name': 'argocd-repo-server-metrics' },
+      'http-metrics'
+    ),
 
-    // Alert on sync failures, drift and controller liveness. The
-    // `release: kube-prometheus-stack` label is required by the Prometheus
-    // ruleSelector (matchLabels). `argocd_app_sync_total{phase="Failed|Error"}`
-    // increments whenever a sync operation fails — e.g. the forgejo-dump-gate
-    // deadlock that blocked every sync for 9 days would have fired
-    // ArgoCDSyncFailed within a minute.
-    prometheusRule: {
-      apiVersion: 'monitoring.coreos.com/v1',
-      kind: 'PrometheusRule',
-      metadata: {
-        name: 'argocd',
-        namespace: ns,
-        labels: { release: 'kube-prometheus-stack' },
-      },
-      spec: {
-        groups: [{
-          name: 'argocd',
-          rules: [
-            {
-              alert: 'ArgoCDSyncFailed',
-              expr: 'increase(argocd_app_sync_total{phase=~"Failed|Error"}[5m]) > 0',
-              'for': '1m',
-              labels: { severity: 'critical' },
-              annotations: {
-                summary: 'ArgoCD sync failed for {{ $labels.name }}',
-                description: |||
-                  ArgoCD failed to sync application {{ $labels.name }} ({{ $labels.namespace }}); the last sync operation finished with phase {{ $labels.phase }}.
-                  See `argocd app get {{ $labels.name }}` or the ArgoCD UI.
-                |||,
-              },
-            },
-            {
-              alert: 'ArgoCDAppOutOfSync',
-              expr: 'argocd_app_info{sync_status!="Synced"} == 1',
-              'for': '15m',
-              labels: { severity: 'warning' },
-              annotations: {
-                summary: 'ArgoCD app {{ $labels.name }} out of sync for over 15 minutes',
-                description: |||
-                  Application {{ $labels.name }} has drifted from git ({{ $labels.sync_status }}) and has not reconciled for 15 minutes.
-                  This usually means the automated sync is blocked (e.g. by a failing PreSync hook).
-                |||,
-              },
-            },
-            {
-              alert: 'ArgoCDAppDegraded',
-              expr: 'argocd_app_info{health_status="Degraded"} == 1',
-              'for': '15m',
-              labels: { severity: 'warning' },
-              annotations: {
-                summary: 'ArgoCD app {{ $labels.name }} is Degraded',
-                description: 'Application {{ $labels.name }} ({{ $labels.namespace }}) reports health status Degraded.',
-              },
-            },
-            {
-              alert: 'ArgoCDAppMissing',
-              expr: 'absent(argocd_app_info) == 1',
-              'for': '15m',
-              labels: { severity: 'critical' },
-              annotations: {
-                summary: 'ArgoCD reports no applications',
-                description: 'The ArgoCD application controller has reported no application metrics for 15 minutes and is likely down.',
-              },
-            },
-          ],
-        }],
-      },
-    },
+    // Alerts on sync failures, drift, controller liveness and reconcile
+    // absence. `argocd_app_sync_total{phase="Failed|Error"}` increments
+    // whenever a sync operation fails — e.g. the forgejo-dump-gate deadlock
+    // that blocked every sync for 9 days would have fired ArgoCDSyncFailed
+    // within a minute. ArgoCDReconcileStalled catches the wedge class where
+    // activity stops entirely (healthy cadence verified at ~22/hour).
+    prometheusRule: alerts.prometheusRule('argocd', ns, [
+      alerts.rule(
+        'ArgoCDSyncFailed',
+        'increase(argocd_app_sync_total{phase=~"Failed|Error"}[5m]) > 0',
+        '1m', 'critical',
+        'ArgoCD sync failed for {{ $labels.name }}',
+        |||
+          ArgoCD failed to sync application {{ $labels.name }} ({{ $labels.namespace }}); the last sync operation finished with phase {{ $labels.phase }}.
+          See `argocd app get {{ $labels.name }}` or the ArgoCD UI.
+        |||,
+      ),
+      alerts.rule(
+        'ArgoCDAppOutOfSync',
+        'argocd_app_info{sync_status!="Synced"} == 1',
+        '15m', 'warning',
+        'ArgoCD app {{ $labels.name }} out of sync for over 15 minutes',
+        |||
+          Application {{ $labels.name }} has drifted from git ({{ $labels.sync_status }}) and has not reconciled for 15 minutes.
+          This usually means the automated sync is blocked (e.g. by a failing PreSync hook).
+        |||,
+      ),
+      alerts.rule(
+        'ArgoCDAppDegraded',
+        'argocd_app_info{health_status="Degraded"} == 1',
+        '15m', 'warning',
+        'ArgoCD app {{ $labels.name }} is Degraded',
+        'Application {{ $labels.name }} ({{ $labels.namespace }}) reports health status Degraded.',
+      ),
+      alerts.rule(
+        'ArgoCDAppMissing',
+        'absent(argocd_app_info) == 1',
+        '15m', 'critical',
+        'ArgoCD reports no applications',
+        'The ArgoCD application controller has reported no application metrics for 15 minutes and is likely down.',
+      ),
+      alerts.rule(
+        'ArgoCDReconcileStalled',
+        'sum(increase(argocd_app_reconcile_count[30m])) == 0',
+        '15m', 'critical',
+        'ArgoCD controller has not reconciled in 30 minutes',
+        'No app reconciliations in 30 minutes; healthy cadence is ~22/hour. The controller is likely wedged (counter resets on restart are handled by increase()).',
+      ),
+    ]),
   },
 
   // Sealed Secrets controller for encrypted secrets in git
@@ -672,6 +677,185 @@ local withNamespace(resources, ns) = {
 
   },
 
+  // Cross-cutting alerts (metric rules for hosts and machines; log rules live
+  // alongside them via alerts.lokiRule once Phase 1/2 land). Colocation rule:
+  // alerts for a specific app live in that app's block; these are the ones
+  // with no single owning app.
+  observability: {
+    local ns = 'monitoring',
+
+    // Systemd unit state for the critical set. Long-running services only —
+    // oneshot units (mailsort) are covered by JournalUnitFailure, not here:
+    // a 1-min-retried oneshot's failed state never satisfies a `for` metric
+    // rule (verified 2026-09-01).
+    nodeUnitsPrometheusRule: alerts.prometheusRule('node-units', ns, [
+      alerts.rule(
+        'CriticalUnitNotActive',
+        'node_systemd_unit_state{name=~"k3s.service|comin.service|tailscaled.service|jellyfin.service|mosquitto.service|systemd-timesyncd.service|alloy.service",state=~"failed|inactive"} == 1',
+        '2m', 'critical',
+        'Critical unit {{ $labels.name }} is {{ $labels.state }} on {{ $labels.instance }}',
+        'A deploy/network-critical systemd unit is failed or inactive. Includes alloy.service (the nas log shipper) so the pipeline observes itself.',
+      ),
+    ]),
+
+    // comin (NixOS deploy agent) visibility — metrics verified 2026-09-01.
+    // This is the first observability saoiste/eachtrai get at all.
+    cominPrometheusRule: alerts.prometheusRule('comin', ns, [
+      alerts.rule(
+        'CominDeploymentFailed',
+        'comin_last_deployment_failed == 1',
+        '5m', 'critical',
+        'comin deploy failing on {{ $labels.instance }}',
+        'A machine has not successfully deployed its configuration. Check `journalctl -u comin` on {{ $labels.instance }}.',
+      ),
+      alerts.rule(
+        'CominFetchFailed',
+        'comin_last_fetch_failed == 1',
+        '1h', 'warning',
+        'comin fetch failing on {{ $labels.instance }}',
+        'git fetch from origin has been failing for 1h (1h grace for transient network loss).',
+      ),
+      // Every rule above is `metric == 1`, and an absent metric yields no
+      // series — so none of them can fire when the target is simply
+      // unreachable. TargetDown is deliberately excluded for job="comin"
+      // (laptops sleep), which removes the only other signal. Without this
+      // rule a permanently-broken comin scrape is completely silent — the
+      // exact failure class this whole effort exists to eliminate. 6h is long
+      // enough to sleep through a night without paging.
+      alerts.rule(
+        'CominTargetUnreachable',
+        'up{job="comin"} == 0',
+        '6h', 'warning',
+        'comin metrics unreachable on {{ $labels.instance }} for 6h',
+        'Prometheus cannot scrape the comin exporter. Every other Comin* alert is blind while this is true, so a deploy failure here would go unnoticed. Check host reachability (lab machines by LAN, laptops over tailscale) and that the exporter is listening on a routable address.',
+      ),
+      alerts.rule(
+        'CominNeedToReboot',
+        'comin_need_to_reboot == 1',
+        '1h', 'info',
+        '{{ $labels.instance }} needs a reboot',
+        'A deployment is pending a reboot on {{ $labels.instance }}.',
+      ),
+    ]),
+    // Journal-based systemd failure signals — the correct coverage for the
+    // oneshot/flapping class that a `for: 5m` metric rule can't see (the
+    // mailsort finding). Delivered as a ConfigMap the Loki ruler sidecar
+    // watches; requires the ruler wiring (alertmanager_url etc).
+    journalLokiRule: alerts.lokiRule('journal', ns, [
+      alerts.rule(
+        'JournalUnitFailure',
+        '{job="systemd-journal"} |~ "entered failed state|Failed to start|Failed with result"',
+        '1m', 'warning',
+        'Systemd unit failed on {{ $labels.host }}',
+        'Unit {{ $labels.unit }} failed on {{ $labels.host }}. Full message is in the alert body.',
+      ),
+      alerts.rule(
+        'JournalErrorRate',
+        'sum by (host, unit) (rate({job="systemd-journal",level="err"}[5m])) > 0.05',
+        '10m', 'warning',
+        'Elevated error rate in journal on {{ $labels.host }} ({{ $labels.unit }})',
+        'Error lines are being emitted at > 0.05 lines/s over 5m. Threshold tuned against the real err-line baseline (k3s/NetworkManager emit err lines routinely).',
+      ),
+    ]),
+    // Log-based rules — all require Phase 1's normalized `level` label, hence
+    // after the normalization pipeline. Thresholds are starting points tuned
+    // against the Phase 0 volume baseline.
+    logErrorLokiRule: alerts.lokiRule('log-error-rate', ns, [
+      alerts.rule(
+        'LogErrorRate',
+        'sum by (namespace, container) (count_over_time({level="error"}[5m])) > 5',
+        '10m', 'warning',
+        'Elevated error rate in {{ $labels.namespace }}/{{ $labels.container }}',
+        'More than 5 error-level lines per 5m sustained for 10m.',
+      ),
+      // A fraction, not an absolute count: an absolute threshold silently
+      // changes meaning every time ingest volume moves. Scoped by
+      // `container` because only pod logs go through loki.process — journal
+      // and syslog get their level at relabel time instead.
+      alerts.rule(
+        'ParseCoverage',
+        'sum(count_over_time({container=~".+", level="unknown"}[15m])) / sum(count_over_time({container=~".+"}[15m])) > 0.2',
+        '15m', 'warning',
+        'Over 20% of pod log lines have no parsed level',
+        'The level parsers are missing a fifth of pod log lines — a new app, or a format that changed under an existing selector. Check lib/logformats.libsonnet.',
+      ),
+    ]),
+    // Absence needs absent_over_time, NOT `count_over_time(...) == 0`: when a
+    // stream stops entirely the aggregation returns NO series, and an empty
+    // vector never compares equal to 0, so the count form can never fire.
+    // absent_over_time takes a single selector, hence one rule per stream.
+    logAbsenceLokiRule: alerts.lokiRule('log-absence', ns, [
+      alerts.rule(
+        'LogAbsence' + std.asciiUpper(w[0:1]) + w[1:],
+        'absent_over_time({namespace="%s"}[1h])' % w,
+        '30m', 'warning',
+        'No logs from ' + w + ' for 1h',
+        'The ' + w + ' log stream has gone silent — a dead service, or a broken log pipeline.',
+      )
+      for w in ['traefik', 'blocky', 'argocd', 'monitoring']
+    ] + [
+      alerts.rule(
+        'JournalAbsence' + std.asciiUpper(h[0:1]) + h[1:],
+        'absent_over_time({job="systemd-journal", host="%s"}[1h])' % h,
+        '30m', 'warning',
+        'No journal from ' + h + ' for 1h',
+        'Host ' + h + ' has shipped no journal lines for an hour. This is the signal that was missing when nas went dark for 32 days.',
+      )
+      for h in ['nuc', 'nas']
+    ]),
+    // Kubernetes events. Level normalization does not apply here (events are
+    // not pod logs), so this matches on content. Deliberately matches the bare
+    // word rather than `type=Warning`: over-matching surfaces an extra event,
+    // under-matching reinstates the blind spot.
+    eventsLokiRule: alerts.lokiRule('k8s-events', ns, [
+      alerts.rule(
+        'K8sEventWarning',
+        '{job="loki.source.kubernetes_events.cluster"} |= "Warning"',
+        '1m', 'warning',
+        'Kubernetes warning event',
+        'A Warning-type event (OOMKill, FailedScheduling, eviction, probe failure). Full event text is in the alert body.',
+      ),
+    ]),
+  },
+
+  // Dead-man switch: self-hosted healthchecks. Expects the always-firing
+  // `Watchdog` alert (routed below) and complains — via ntfy AND Fastmail
+  // SMTP — when the daily ping stops, so a broken notification path can't be
+  // silent. MANUAL steps (can't be done declaratively, see LOGGING_PLAN.md
+  // item 3): 1) create environments/lab/secrets/healthchecks.enc.yaml (a
+  // SopsSecret `healthchecks` with keys `secret-key`, `smtp-user`,
+  // `smtp-password`); 2) `manage.py createsuperuser` once deployed; 3) create
+  // the check + ntfy/email channels in the UI and paste its UUID into the
+  // Alertmanager Watchdog receiver below.
+  healthchecks: (function()
+    local hc = selfhosted.new('healthchecks', images.healthchecks, 8000, 'hc.lan.ftzmlab.xyz');
+    hc {
+      deployment+: {
+        spec+: {
+          template+: {
+            spec+: {
+              containers: [
+                hc.deployment.spec.template.spec.containers[0] {
+                  env: [
+                    { name: 'SITE_ROOT', value: 'https://hc.lan.ftzmlab.xyz' },
+                    { name: 'ALLOWED_HOSTS', value: 'hc.lan.ftzmlab.xyz' },
+                    { name: 'DEFAULT_FROM_EMAIL', value: 'hc@ftzmlab.xyz' },
+                    { name: 'DB', value: '/config/hc.sqlite' },
+                    { name: 'REGISTRATION_OPEN', value: 'False' },
+                    { name: 'EMAIL_HOST', value: 'smtp.fastmail.com' },
+                    { name: 'EMAIL_PORT', value: '587' },
+                    { name: 'EMAIL_USE_TLS', value: 'True' },
+                  ],
+                  envFrom: [{ secretRef: { name: 'healthchecks' } }],
+                },
+              ],
+            },
+          },
+        },
+      },
+    }
+  )(),
+
   // Observability stack: Prometheus, Grafana, Loki, Tempo, Alloy
   monitoring: {
     local ns = 'monitoring',
@@ -680,7 +864,7 @@ local withNamespace(resources, ns) = {
 
     // kube-prometheus-stack: Prometheus + Grafana + Alertmanager
     prometheusStack: withNamespace(
-      helm.template('kube-prometheus-stack', '../../charts/kube-prometheus-stack', {
+      patchTargetDown(helm.template('kube-prometheus-stack', '../../charts/kube-prometheus-stack', {
         namespace: ns,
         values: {
           prometheus: {
@@ -704,6 +888,7 @@ local withNamespace(resources, ns) = {
                     replacement: 'nas',
                   }],
                 },
+                cominScrapeConfig,
               ],
               storageSpec: {
                 volumeClaimTemplate: {
@@ -757,6 +942,15 @@ local withNamespace(resources, ns) = {
                     send_resolved: true,
                   }],
                 },
+                {
+                  // Dead-man check: healthchecks pings this UUID daily via the
+                  // always-firing Watchdog route below. MANUAL: paste the real
+                  // UUID after creating the check in the healthchecks UI.
+                  name: 'healthchecks',
+                  webhook_configs: [{
+                    url: 'http://healthchecks.healthchecks.svc.cluster.local:8000/ping/REPLACE_WITH_CHECK_UUID',
+                  }],
+                },
               ],
               route: {
                 group_by: ['namespace'],
@@ -767,7 +961,8 @@ local withNamespace(resources, ns) = {
                 routes: [
                   {
                     matchers: ['alertname = "Watchdog"'],
-                    receiver: 'null',
+                    receiver: 'healthchecks',
+                    repeat_interval: '24h',
                   },
                 ],
               },
@@ -854,9 +1049,35 @@ local withNamespace(resources, ns) = {
             },
           },
         },
-      }),
+      })),
       ns
     ),
+
+    // The alloy chart's ClusterRole covers pods/services/endpoints/ingresses
+    // but not events, so loki.source.kubernetes_events would be RBAC-forbidden
+    // and silently collect nothing. Granted separately rather than forked into
+    // the vendored chart, so a chart bump can't drop it.
+    alloyEventsClusterRole: {
+      apiVersion: 'rbac.authorization.k8s.io/v1',
+      kind: 'ClusterRole',
+      metadata: { name: 'alloy-events' },
+      rules: [{
+        apiGroups: [''],
+        resources: ['events'],
+        verbs: ['get', 'list', 'watch'],
+      }],
+    },
+    alloyEventsClusterRoleBinding: {
+      apiVersion: 'rbac.authorization.k8s.io/v1',
+      kind: 'ClusterRoleBinding',
+      metadata: { name: 'alloy-events' },
+      roleRef: {
+        apiGroup: 'rbac.authorization.k8s.io',
+        kind: 'ClusterRole',
+        name: 'alloy-events',
+      },
+      subjects: [{ kind: 'ServiceAccount', name: 'alloy', namespace: ns }],
+    },
 
     // Loki: Log aggregation (monolithic mode)
     loki: withNamespace(
@@ -878,7 +1099,26 @@ local withNamespace(resources, ns) = {
               }],
             },
             limits_config: {
-              retention_period: '720h',
+              // 90d now that Phase 0 cut ingested volume ~100x (was 720h when
+              // the storage-test/traefik/blocky noise forced it).
+              retention_period: '2160h',
+            },
+            // Ruler wired for alert delivery. The sidecar (chart default,
+            // sidecar.rules.enabled) watches ConfigMaps labeled `loki_rule`
+            // into /rules; the ruler must read from that same dir and know
+            // where Alertmanager lives. Without alertmanager_url, rules that
+            // fire notify nobody (the mailsort-class silent failure).
+            // enable_alertmanager_v2 uses the v2 API — without it delivery
+            // fails silently. wal is re-stated because this object replaces
+            // the chart's rulerConfig default.
+            rulerConfig: {
+              alertmanager_url: 'http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093',
+              enable_alertmanager_v2: true,
+              wal: { dir: '/var/loki/ruler-wal' },
+              storage: {
+                type: 'local',
+                'local': { directory: '/rules' },
+              },
             },
             compactor: {
               retention_enabled: true,
@@ -968,6 +1208,17 @@ local withNamespace(resources, ns) = {
             // rejects with 400 "entry too far behind". Back it with a hostPath
             // so offsets survive a restart.
             storagePath: '/var/lib/alloy',
+            // friendlywrt sends its syslog (tcp) to this hostPort. The
+            // daemonset's nodeAffinity is `hostname NotIn [friendlywrt]` (see
+            // below), so alloy runs on every other node and each binds 5140 on
+            // its own host; friendlywrt dials nuc's LAN address specifically.
+            // TCP, not UDP — UDP syslog drops silently under loss.
+            extraPorts: [{
+              name: 'syslog',
+              targetPort: 5140,
+              hostPort: 5140,
+              protocol: 'TCP',
+            }],
             mounts: {
               extra: [
                 { name: 'journal', mountPath: '/var/log/journal', readOnly: true },
@@ -1033,35 +1284,7 @@ local withNamespace(resources, ns) = {
                   targets    = discovery.relabel.pods.output
                   forward_to = [loki.process.default.receiver]
                 }
-
-                // Process logs: parse JSON and extract labels
-                loki.process "default" {
-                  forward_to = [loki.write.default.receiver]
-
-                  // Extract JSON fields (silently ignored if not JSON)
-                  stage.json {
-                    expressions = {
-                      level   = "level",
-                      msg     = "msg",
-                      message = "message",
-                    }
-                  }
-
-                  // Normalize level to lowercase
-                  stage.template {
-                    source   = "level"
-                    template = "{{ "{{" }} ToLower .Value {{ "}}" }}"
-                  }
-
-                  // Only promote level to label if it's a standard value
-                  // Selector requires a label match, so we use namespace which is always set
-                  stage.match {
-                    selector = "{namespace=~\".+\"} |~ \"\\\"level\\\"\\\\s*:\\\\s*\\\"(error|warn|info|debug|ERROR|WARN|INFO|DEBUG)\\\"\""
-                    stage.labels {
-                      values = { level = "" }
-                    }
-                  }
-                }
+              ||| + logformats.renderProcess() + |||
 
                 // Collect host journal logs
                 loki.source.journal "host" {
@@ -1071,24 +1294,42 @@ local withNamespace(resources, ns) = {
                   labels        = { job = "systemd-journal" }
                 }
 
-                discovery.relabel "journal" {
-                  targets = []
-                  rule {
-                    source_labels = ["__journal__systemd_unit"]
-                    target_label  = "unit"
+              ||| + logformats.hostRelabel('journal', '__journal_priority_keyword', [
+                ['__journal__systemd_unit', 'unit'],
+                ['__journal__hostname', 'host'],
+                ['__journal_syslog_identifier', 'syslog_identifier'],
+              ]) + |||
+
+                // friendlywrt (OpenWrt) host syslog over TCP. Collected here
+                // because OpenWrt has no systemd/journal — this is the only
+                // visibility into the k3s agent / sysntpd / firewall on that
+                // box (the NodeClockNotSynchronising incident's host).
+                loki.source.syslog "friendlywrt" {
+                  listener {
+                    address  = "0.0.0.0:5140"
+                    protocol = "tcp"
                   }
-                  rule {
-                    source_labels = ["__journal_priority_keyword"]
-                    target_label  = "level"
-                  }
-                  rule {
-                    source_labels = ["__journal__hostname"]
-                    target_label  = "host"
-                  }
-                  rule {
-                    source_labels = ["__journal_syslog_identifier"]
-                    target_label  = "syslog_identifier"
-                  }
+                  relabel_rules = discovery.relabel.syslog.rules
+                  forward_to    = [loki.write.default.receiver]
+                  labels        = { job = "syslog", host = "friendlywrt" }
+                }
+
+                // Same canonical level vocabulary as the journal and the pod
+                // pipeline — otherwise friendlywrt logs arrive with no level at
+                // all and are invisible to both level-based alerts and the
+                // ParseCoverage guard.
+              ||| + logformats.hostRelabel('syslog', '__syslog_message_severity', [
+                ['__syslog_message_app_name', 'syslog_identifier'],
+              ]) + |||
+
+
+                // Kubernetes events (OOMKill, FailedScheduling, evictions) —
+                // today's biggest blind spot. The alloy chart's ClusterRole
+                // grants NO events access (verified: zero `events` rules in
+                // charts/alloy/templates/rbac.yaml), so the supplementary
+                // ClusterRole below is what makes this component work at all.
+                loki.source.kubernetes_events "cluster" {
+                  forward_to = [loki.write.default.receiver]
                 }
 
                 // Write logs to Loki
@@ -1556,6 +1797,11 @@ local withNamespace(resources, ns) = {
 
           log:
             level: info
+
+          # Phase 0: query metrics are scraped via the PodMonitor below;
+          # per-query logging is 112k lines/48h of noise.
+          queryLog:
+            type: none
 
           prometheus:
             enable: true

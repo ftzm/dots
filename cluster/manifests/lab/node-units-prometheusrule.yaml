@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: kube-prometheus-stack
+  name: node-units
+  namespace: monitoring
+spec:
+  groups:
+  - name: node-units
+    rules:
+    - alert: CriticalUnitNotActive
+      annotations:
+        description: A deploy/network-critical systemd unit is failed or inactive.
+          Includes alloy.service (the nas log shipper) so the pipeline observes itself.
+        summary: Critical unit {{ $labels.name }} is {{ $labels.state }} on {{ $labels.instance
+          }}
+      expr: node_systemd_unit_state{name=~"k3s.service|comin.service|tailscaled.service|jellyfin.service|mosquitto.service|systemd-timesyncd.service|alloy.service",state=~"failed|inactive"}
+        == 1
+      for: 2m
+      labels:
+        severity: critical

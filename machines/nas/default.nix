@@ -75,6 +75,7 @@ in {
   ];
 
   age.secrets.smtppw.file = ../../secrets/smtppw.age;
+  age.secrets.tailscale-authkey-nas.file = ../../secrets/tailscale-authkey-nas.age;
 
   # Set up email for sending mail from the server (e.g. reporting on
   # automated tasks or alerts)
@@ -102,6 +103,15 @@ in {
   services = {
     sshd.enable = true;
     openssh.enable = true;
+    tailscale = {
+      enable = true;
+      # Enrolment happens in the rebuild, not a manual `tailscale up`.
+      # MANUAL: create this secret first with
+      #   agenix -e secrets/tailscale-authkey-nas.age
+      # (mint a key in the tailscale admin console, clean the stale
+      # eachtrai nodes first — see INCIDENT-2026-08-wireguard-transport.md).
+      authKeyFile = config.age.secrets.tailscale-authkey-nas.path;
+    };
     smartd = {
       enable = true;
       notifications = {
@@ -218,48 +228,45 @@ in {
     };
   };
 
-  services.promtail = {
+  services.alloy = {
     enable = true;
-    configuration = {
-      server = {
-        http_listen_port = 3031;
-        grpc_listen_port = 0;
-      };
-      positions = {
-        filename = "/tmp/positions.yaml";
-      };
-      clients = [
-        {
-          url = lab.services.lokiPush;
+  };
+
+  environment.etc."alloy/config.alloy" = {
+    text = ''
+      loki.source.journal "journal" {
+        path    = "/var/log/journal"
+        labels  = {
+          job  = "systemd-journal",
+          host = "nas",
         }
-      ];
-      scrape_configs = [
-        {
-          job_name = "journal";
-          journal = {
-            max_age = "12h";
-            labels = {
-              job = "systemd-journal";
-              host = "nas";
-            };
-          };
-          relabel_configs = [
-            {
-              source_labels = ["__journal__systemd_unit"];
-              target_label = "unit";
-            }
-            {
-              source_labels = ["__journal_priority_keyword"];
-              target_label = "level";
-            }
-            {
-              source_labels = ["__journal_syslog_identifier"];
-              target_label = "syslog_identifier";
-            }
-          ];
+        relabel_rules = discovery.relabel.journal.rules
+        forward_to    = [loki.write.default.receiver]
+      }
+
+      discovery.relabel "journal" {
+        targets = []
+
+        rule {
+          source_labels = ["__journal__systemd_unit"]
+          target_label  = "unit"
         }
-      ];
-    };
+        rule {
+          source_labels = ["__journal_priority_keyword"]
+          target_label  = "level"
+        }
+        rule {
+          source_labels = ["__journal_syslog_identifier"]
+          target_label  = "syslog_identifier"
+        }
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "${lab.services.lokiPush}"
+        }
+      }
+    '';
   };
 
   services.syncthing = {

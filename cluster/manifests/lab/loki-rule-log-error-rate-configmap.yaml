@@ -1,0 +1,30 @@
+apiVersion: v1
+data:
+  log-error-rate.yaml: |-
+    "groups":
+    - "name": "log-error-rate"
+      "rules":
+      - "alert": "LogErrorRate"
+        "annotations":
+          "description": "More than 5 error-level lines per 5m sustained for 10m."
+          "summary": "Elevated error rate in {{ $labels.namespace }}/{{ $labels.container }}"
+        "expr": "sum by (namespace, container) (count_over_time({level=\"error\"}[5m])) > 5"
+        "for": "10m"
+        "labels":
+          "severity": "warning"
+      - "alert": "ParseCoverage"
+        "annotations":
+          "description": "The level parsers are missing a fifth of pod log lines — a new app, or a format that changed under an existing selector. Check lib/logformats.libsonnet."
+          "summary": "Over 20% of pod log lines have no parsed level"
+        "expr": "sum(count_over_time({container=~\".+\", level=\"unknown\"}[15m])) / sum(count_over_time({container=~\".+\"}[15m])) > 0.2"
+        "for": "15m"
+        "labels":
+          "severity": "warning"
+kind: ConfigMap
+metadata:
+  annotations:
+    k8s-sidecar-target-directory: /rules/fake
+  labels:
+    loki_rule: "1"
+  name: loki-rule-log-error-rate
+  namespace: monitoring

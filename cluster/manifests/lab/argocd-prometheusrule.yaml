@@ -47,3 +47,13 @@ spec:
       for: 15m
       labels:
         severity: critical
+    - alert: ArgoCDReconcileStalled
+      annotations:
+        description: No app reconciliations in 30 minutes; healthy cadence is ~22/hour.
+          The controller is likely wedged (counter resets on restart are handled by
+          increase()).
+        summary: ArgoCD controller has not reconciled in 30 minutes
+      expr: sum(increase(argocd_app_reconcile_count[30m])) == 0
+      for: 15m
+      labels:
+        severity: critical

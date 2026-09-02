@@ -87,7 +87,7 @@
     '';
     buildMachines = [
       {
-        hostName = "wg-nuc";
+        hostName = "nuc.tail.ftzmlab.xyz";
         sshUser = "admin";
         sshKey = "/home/ftzm/.ssh/id_rsa";
         system = "x86_64-linux";
@@ -311,7 +311,7 @@
     settings = {
       auto_sync = true;
       sync_frequency = "5m";
-      sync_address = "http://wg-nuc:8889";
+      sync_address = "http://nuc.tail.ftzmlab.xyz:8889";
       search_mode = "prefix";
       sync = {
         records = true;

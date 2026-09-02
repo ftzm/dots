@@ -18,6 +18,10 @@ spec:
     port: 12345
     protocol: TCP
     targetPort: 12345
+  - name: syslog
+    port: null
+    protocol: TCP
+    targetPort: 5140
   selector:
     app.kubernetes.io/instance: alloy
     app.kubernetes.io/name: alloy

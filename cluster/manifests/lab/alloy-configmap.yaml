@@ -57,33 +57,48 @@ data:
       targets    = discovery.relabel.pods.output
       forward_to = [loki.process.default.receiver]
     }
-
-    // Process logs: parse JSON and extract labels
     loki.process "default" {
       forward_to = [loki.write.default.receiver]
-
-      // Extract JSON fields (silently ignored if not JSON)
-      stage.json {
-        expressions = {
-          level   = "level",
-          msg     = "msg",
-          message = "message",
-        }
+      stage.match {
+        selector = "{namespace=~\"traefik|miniflux|cnpg-system|postgres|nextcloud|homepage|pinepods|atuin\"}"
+        stage.json { expressions = { level = "level", message = "message", msg = "msg" } }
       }
 
-      // Normalize level to lowercase
+      stage.match {
+        selector = "{namespace=\"immich\", container!~\"valkey|redis\"}"
+        stage.json { expressions = { level = "level", message = "message", msg = "msg" } }
+      }
+
+      stage.match {
+        selector = "{namespace=~\"argocd|monitoring\"}"
+        stage.logfmt { mapping = { level = "level", message = "message", msg = "msg" } }
+      }
+
+      stage.match {
+        selector = "{namespace=~\"media|vaultwarden|kube-system|blocky\"}"
+        stage.regex { expression = "^\\[[^\\]]*\\]\\s*\\[(?P<level>(DEBUG|INFO|WARN|WARNING|ERROR|FATAL))\\]" }
+      }
+
+      stage.match {
+        selector = "{namespace=\"ntfy\"}"
+        stage.regex { expression = "^(?P<level>(DEBUG|INFO|WARN|WARNING|ERROR|FATAL))\\b" }
+      }
+
+      stage.match {
+        selector = "{namespace=~\"gitea|forgejo\"}"
+        stage.regex { expression = "^\\[(?P<level>[IWEF])\\]" }
+      }
+
+      stage.match {
+        selector = "{namespace=\"immich\", container=~\"valkey|redis\"}"
+        stage.regex { expression = "^[^ ]+ +[0-9]+ [^ ]+ +[0-9:.]+ (?P<level>[.\\-*#])" }
+      }
       stage.template {
         source   = "level"
-        template = "{{ ToLower .Value }}"
+        template = "{{ $lvl := ToLower .Value }}{{ if or (eq $lvl \"debug\") (eq $lvl \".\") }}debug{{ else if or (eq $lvl \"info\") (eq $lvl \"i\") (eq $lvl \"notice\") (eq $lvl \"normal\") (eq $lvl \"-\") (eq $lvl \"*\") }}info{{ else if or (eq $lvl \"warn\") (eq $lvl \"warning\") (eq $lvl \"w\") (eq $lvl \"#\") }}warn{{ else if or (eq $lvl \"error\") (eq $lvl \"err\") (eq $lvl \"e\") }}error{{ else if or (eq $lvl \"fatal\") (eq $lvl \"f\") (eq $lvl \"crit\") (eq $lvl \"alert\") (eq $lvl \"emerg\") }}fatal{{ else }}unknown{{ end }}"
       }
-
-      // Only promote level to label if it's a standard value
-      // Selector requires a label match, so we use namespace which is always set
-      stage.match {
-        selector = "{namespace=~\".+\"} |~ \"\\\"level\\\"\\\\s*:\\\\s*\\\"(error|warn|info|debug|ERROR|WARN|INFO|DEBUG)\\\"\""
-        stage.labels {
-          values = { level = "" }
-        }
+      stage.labels {
+        values = { level = "" }
       }
     }
 
@@ -102,10 +117,6 @@ data:
         target_label  = "unit"
       }
       rule {
-        source_labels = ["__journal_priority_keyword"]
-        target_label  = "level"
-      }
-      rule {
         source_labels = ["__journal__hostname"]
         target_label  = "host"
       }
@@ -113,6 +124,114 @@ data:
         source_labels = ["__journal_syslog_identifier"]
         target_label  = "syslog_identifier"
       }
+      rule {
+        source_labels = ["__journal_priority_keyword"]
+        regex         = ".*"
+        target_label  = "level"
+        replacement   = "unknown"
+      }
+      rule {
+        source_labels = ["__journal_priority_keyword"]
+        regex         = "debug"
+        target_label  = "level"
+        replacement   = "debug"
+      }
+      rule {
+        source_labels = ["__journal_priority_keyword"]
+        regex         = "info|notice"
+        target_label  = "level"
+        replacement   = "info"
+      }
+      rule {
+        source_labels = ["__journal_priority_keyword"]
+        regex         = "warning|warn"
+        target_label  = "level"
+        replacement   = "warn"
+      }
+      rule {
+        source_labels = ["__journal_priority_keyword"]
+        regex         = "err|error"
+        target_label  = "level"
+        replacement   = "error"
+      }
+      rule {
+        source_labels = ["__journal_priority_keyword"]
+        regex         = "crit|alert|emerg"
+        target_label  = "level"
+        replacement   = "fatal"
+      }
+    }
+
+    // friendlywrt (OpenWrt) host syslog over TCP. Collected here
+    // because OpenWrt has no systemd/journal — this is the only
+    // visibility into the k3s agent / sysntpd / firewall on that
+    // box (the NodeClockNotSynchronising incident's host).
+    loki.source.syslog "friendlywrt" {
+      listener {
+        address  = "0.0.0.0:5140"
+        protocol = "tcp"
+      }
+      relabel_rules = discovery.relabel.syslog.rules
+      forward_to    = [loki.write.default.receiver]
+      labels        = { job = "syslog", host = "friendlywrt" }
+    }
+
+    // Same canonical level vocabulary as the journal and the pod
+    // pipeline — otherwise friendlywrt logs arrive with no level at
+    // all and are invisible to both level-based alerts and the
+    // ParseCoverage guard.
+    discovery.relabel "syslog" {
+      targets = []
+      rule {
+        source_labels = ["__syslog_message_app_name"]
+        target_label  = "syslog_identifier"
+      }
+      rule {
+        source_labels = ["__syslog_message_severity"]
+        regex         = ".*"
+        target_label  = "level"
+        replacement   = "unknown"
+      }
+      rule {
+        source_labels = ["__syslog_message_severity"]
+        regex         = "debug"
+        target_label  = "level"
+        replacement   = "debug"
+      }
+      rule {
+        source_labels = ["__syslog_message_severity"]
+        regex         = "info|notice"
+        target_label  = "level"
+        replacement   = "info"
+      }
+      rule {
+        source_labels = ["__syslog_message_severity"]
+        regex         = "warning|warn"
+        target_label  = "level"
+        replacement   = "warn"
+      }
+      rule {
+        source_labels = ["__syslog_message_severity"]
+        regex         = "err|error"
+        target_label  = "level"
+        replacement   = "error"
+      }
+      rule {
+        source_labels = ["__syslog_message_severity"]
+        regex         = "crit|alert|emerg"
+        target_label  = "level"
+        replacement   = "fatal"
+      }
+    }
+
+
+    // Kubernetes events (OOMKill, FailedScheduling, evictions) —
+    // today's biggest blind spot. The alloy chart's ClusterRole
+    // grants NO events access (verified: zero `events` rules in
+    // charts/alloy/templates/rbac.yaml), so the supplementary
+    // ClusterRole below is what makes this component work at all.
+    loki.source.kubernetes_events "cluster" {
+      forward_to = [loki.write.default.receiver]
     }
 
     // Write logs to Loki

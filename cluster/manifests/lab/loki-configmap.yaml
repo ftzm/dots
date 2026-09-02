@@ -49,7 +49,7 @@ data:
       query_timeout: 300s
       reject_old_samples: true
       reject_old_samples_max_age: 168h
-      retention_period: 720h
+      retention_period: 2160h
       split_queries_by_interval: 15m
       volume_enabled: true
     memberlist:
@@ -73,7 +73,11 @@ data:
             timeout: 500ms
             update_interval: 1m
     ruler:
+      alertmanager_url: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
+      enable_alertmanager_v2: true
       storage:
+        local:
+          directory: /rules
         type: local
       wal:
         dir: /var/loki/ruler-wal
