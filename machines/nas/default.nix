@@ -111,6 +111,10 @@ in {
       # (mint a key in the tailscale admin console, clean the stale
       # eachtrai nodes first — see INCIDENT-2026-08-wireguard-transport.md).
       authKeyFile = config.age.secrets.tailscale-authkey-nas.path;
+      # Without this, tailscale up takes the auth key to the SaaS control
+      # plane (controlplane.tailscale.com) instead of headscale on the pi,
+      # and enrolment fails. Matches server_url in machines/pi/default.nix.
+      extraUpFlags = ["--login-server=https://headscale.ftzmlab.xyz:8443"];
     };
     smartd = {
       enable = true;
