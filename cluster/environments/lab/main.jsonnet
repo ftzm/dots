@@ -818,7 +818,12 @@ local patchTargetDown(resources) = {
         'No logs from ' + w + ' for 1h',
         'The ' + w + ' log stream has gone silent — a dead service, or a broken log pipeline.',
       )
-      for w in ['traefik', 'blocky', 'argocd', 'monitoring']
+      // Only streams with a guaranteed baseline belong here. blocky is
+      // deliberately absent: Phase 0 turned its queryLog off, so a healthy
+      // blocky logs nothing for hours and an absence rule just flaps
+      // (observed 2026-09-03: fired 15:51, resolved 16:16, fired 18:43).
+      // Its liveness signal is metrics -- see BlockyDown in the blocky block.
+      for w in ['traefik', 'argocd', 'monitoring']
     ] + [
       alerts.rule(
         'JournalAbsence' + std.asciiUpper(h[0:1]) + h[1:],
@@ -995,6 +1000,20 @@ local patchTargetDown(resources) = {
                     matchers: ['alertname = "Watchdog"'],
                     receiver: 'healthchecks',
                     repeat_interval: '24h',
+                  },
+                  // Host/infra alerts carry no namespace label, so the default
+                  // namespace grouping lumps them into one {} group where any
+                  // membership change re-notifies everything in it
+                  // (CominDeploymentFailed notified 6x in 2h on 2026-09-03).
+                  // Group per alert+host instead so each fires independently
+                  // and repeats on its own 12h clock.
+                  {
+                    matchers: ['alertname =~ "Comin.*|Journal.*|CriticalUnit.*|K8sEvent.*|NodeSystemd.*"'],
+                    receiver: 'ntfy',
+                    group_by: ['alertname', 'instance', 'host'],
+                    group_wait: '30s',
+                    group_interval: '30m',
+                    repeat_interval: '12h',
                   },
                 ],
               },
@@ -1781,6 +1800,19 @@ local patchTargetDown(resources) = {
   blocky: {
     local ns = 'blocky',
     local labels = { 'app.kubernetes.io/name': 'blocky' },
+
+    // Liveness via the long-standing PodMonitor scrape, not log absence --
+    // a healthy blocky is silent (queryLog off). This is the lab's DNS; 5m
+    // of scrape failure is worth a page.
+    prometheusRule: alerts.prometheusRule('blocky', ns, [
+      alerts.rule(
+        'BlockyDown',
+        'up{namespace="blocky"} == 0 or absent(up{namespace="blocky"})',
+        '5m', 'critical',
+        'blocky (lab DNS) is not being scraped',
+        'The blocky metrics endpoint has been unreachable for 5 minutes -- DNS for the whole lab may be down. Check the blocky pod and the PodMonitor.',
+      ),
+    ]),
 
     namespace: k.core.v1.namespace.new(ns),
 

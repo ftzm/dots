@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: kube-prometheus-stack
+  name: blocky
+  namespace: blocky
+spec:
+  groups:
+  - name: blocky
+    rules:
+    - alert: BlockyDown
+      annotations:
+        description: The blocky metrics endpoint has been unreachable for 5 minutes
+          -- DNS for the whole lab may be down. Check the blocky pod and the PodMonitor.
+        summary: blocky (lab DNS) is not being scraped
+      expr: up{namespace="blocky"} == 0 or absent(up{namespace="blocky"})
+      for: 5m
+      labels:
+        severity: critical
