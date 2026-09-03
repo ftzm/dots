@@ -831,12 +831,13 @@ local patchTargetDown(resources) = {
   // Dead-man switch: self-hosted healthchecks. Expects the always-firing
   // `Watchdog` alert (routed below) and complains — via ntfy AND Fastmail
   // SMTP — when the daily ping stops, so a broken notification path can't be
-  // silent. MANUAL steps (can't be done declaratively, see LOGGING_PLAN.md
-  // item 3): 1) create environments/lab/secrets/healthchecks.enc.yaml (a
-  // SopsSecret `healthchecks` with keys SECRET_KEY, EMAIL_HOST_USER,
-  // EMAIL_HOST_PASSWORD -- envFrom injects key names as env var names); 2) `manage.py createsuperuser` once deployed; 3) create
-  // the check + ntfy/email channels in the UI and paste its UUID into the
-  // Alertmanager Watchdog receiver below.
+  // silent. Bootstrapped 2026-09-03: secret in
+  // environments/lab/secrets/healthchecks.enc.yaml (SopsSecret, keys
+  // SECRET_KEY/EMAIL_HOST_USER/EMAIL_HOST_PASSWORD -- envFrom injects key
+  // names as env var names); superuser m@ftzm.org, check
+  // 'alertmanager-watchdog' (25h timeout / 6h grace) with email + ntfy
+  // channels created via Django shell; its UUID is in the Alertmanager
+  // Watchdog receiver below.
   healthchecks: (function()
     local hc = selfhosted.new('healthchecks', images.healthchecks, 8000, 'hc.lan.ftzmlab.xyz');
     hc {
@@ -960,7 +961,7 @@ local patchTargetDown(resources) = {
                   // UUID after creating the check in the healthchecks UI.
                   name: 'healthchecks',
                   webhook_configs: [{
-                    url: 'http://healthchecks.healthchecks.svc.cluster.local:8000/ping/REPLACE_WITH_CHECK_UUID',
+                    url: 'http://healthchecks.healthchecks.svc.cluster.local:8000/ping/69f80353-4a42-4e4b-a152-59324c9c0d8b',
                   }],
                 },
               ],
