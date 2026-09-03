@@ -1,0 +1,48 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: kube-prometheus-stack
+  name: comin
+  namespace: monitoring
+spec:
+  groups:
+  - name: comin
+    rules:
+    - alert: CominDeploymentFailed
+      annotations:
+        description: A machine has not successfully deployed its configuration. Check
+          `journalctl -u comin` on {{ $labels.instance }}.
+        summary: comin deploy failing on {{ $labels.instance }}
+      expr: comin_last_deployment_failed == 1
+      for: 5m
+      labels:
+        severity: critical
+    - alert: CominFetchFailed
+      annotations:
+        description: git fetch from origin has been failing for 1h (1h grace for transient
+          network loss).
+        summary: comin fetch failing on {{ $labels.instance }}
+      expr: comin_last_fetch_failed == 1
+      for: 1h
+      labels:
+        severity: warning
+    - alert: CominTargetUnreachable
+      annotations:
+        description: Prometheus cannot scrape the comin exporter. Every other Comin*
+          alert is blind while this is true, so a deploy failure here would go unnoticed.
+          Check host reachability (lab machines by LAN, laptops over tailscale) and
+          that the exporter is listening on a routable address.
+        summary: comin metrics unreachable on {{ $labels.instance }} for 6h
+      expr: up{job="comin"} == 0
+      for: 6h
+      labels:
+        severity: warning
+    - alert: CominNeedToReboot
+      annotations:
+        description: A deployment is pending a reboot on {{ $labels.instance }}.
+        summary: '{{ $labels.instance }} needs a reboot'
+      expr: comin_need_to_reboot == 1
+      for: 1h
+      labels:
+        severity: info

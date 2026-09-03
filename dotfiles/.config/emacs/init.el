@@ -256,6 +256,36 @@ See `eval-after-load' for the possible formats of FORM."
   :config
   (global-kkp-mode +1))
 
+;; Send kills from terminal frames to the clipboard of the terminal running the
+;; SSH/mosh client.  clipetty wraps OSC 52 for tmux; tmux unwraps it, mosh
+;; transports it, and foot writes it to the connecting machine's clipboard.
+(use-package clipetty
+  :hook (after-init . global-clipetty-mode)
+  :config
+  ;; Mosh 1.4 accepts OSC strings smaller than 16 KiB.  After the OSC 52
+  ;; prefix and base64 expansion, 12,000 input bytes fit safely; rejecting a
+  ;; larger kill with a message is better than mosh silently dropping it.
+  (setq clipetty--max-cut 12000)
+
+  (defun ftzm/clipetty--emit-via-pane (string)
+    "Emit STRING through the selected frame's tmux pane.
+Clipetty normally writes directly to SSH_TTY.  That variable goes stale when
+this daemon-backed Emacs and its tmux session outlive an SSH/mosh connection;
+it also chooses only one client when several clients view the same pane.
+Writing to the pane lets tmux pass OSC 52 to every currently attached client."
+    (let ((tmux (getenv "TMUX" (selected-frame)))
+          (term (getenv "TERM" (selected-frame))))
+      (if (<= (length string) clipetty--max-cut)
+          (write-region
+           (clipetty--dcs-wrap string tmux term nil)
+           nil (terminal-name (selected-frame)) t 0)
+        (message "Selection too long to send through mosh: %d bytes (max %d)"
+                 (length string) clipetty--max-cut)
+        (sit-for 1))))
+
+  (advice-remove 'clipetty--emit #'ftzm/clipetty--emit-via-pane)
+  (advice-add 'clipetty--emit :override #'ftzm/clipetty--emit-via-pane))
+
 ;; Camel Case recognition, works with evil mode movement
 (use-package subword
   :diminish subword-mode
@@ -2063,10 +2093,26 @@ in which case does avy-goto-char with the first char."
 (use-package racket-mode)
 
 (use-package geiser
-  :defer t)
+  :defer t
+  ;; One REPL per project (buffer named "*Geiser Chez REPL: <project>*"), not
+  ;; one shared Chez for all of Emacs.  A Scheme process's library path comes
+  ;; from the environment it was spawned with and cannot be changed afterwards,
+  ;; so a shared REPL means every project after the first gets the wrong
+  ;; CHEZSCHEMELIBDIRS -- see `ftzm/scheme--start-scheme-with-direnv' below.
+  ;; Projects are identified with project.el (`geiser-repl-project-root').
+  :custom (geiser-repl-per-project-p t))
 
 (use-package geiser-chez
-  :after geiser)
+  :after geiser
+  ;; Launch Chez through a wrapper that caps its address space (4 GiB;
+  ;; CHEZ_ULIMIT_KB overrides).  An accidentally non-terminating allocating
+  ;; eval then dies with "out of memory" in ~1 s instead of pushing the
+  ;; emacs.service cgroup over memory.high and freezing the whole daemon
+  ;; (2026-08-24: two runaway REPLs at 15.7 GB + 6.6 GB did exactly that).
+  ;; The wrapper execs `scheme' from PATH, so each project's direnv still
+  ;; selects its own Chez.
+  :custom (geiser-chez-binary
+           (expand-file-name "chez-limited.sh" user-emacs-directory)))
 
 ;; Defensive auto-heal for stale-session load errors -- KEPT, BUT POSSIBLY DEAD
 ;; CODE.  The theory: Chez caches each imported library per session, so editing
@@ -2085,7 +2131,28 @@ in which case does avy-goto-char with the first char."
 ;; imports.  It is at least harmless: a genuine error survives the clean
 ;; restart, so we cache its text and stop -- one restart the first time an
 ;; error appears, none thereafter, never a loop (this bound is unit-tested).
-(defconst scheme-ts--stale-error-rx
+;;
+;; Re-tested against Chez 10.4.1 (2026-07-31), which sharpened all of that:
+;;
+;;   * "different compilation instance" via file loads: still unreproducible.
+;;     Chez records that mid.sls was built against dep.sls and rebuilds mid.so
+;;     by itself when dep changes.  Dead branch, as suspected -- the live
+;;     trigger really is interactive `(import ...)', which the restart fixes.
+;;
+;;   * A NEW class the restart cannot fix: a stale object file on DISK.  Chez
+;;     picks source over object purely on mtime, so an X.so newer than an X.sls
+;;     whose *contents* are newer (restored from a backup, an rsync/cp -p, a
+;;     clock skew) shadows the source in every process, fresh ones included.
+;;     Reproduced: object built from (export foo), source then edited to
+;;     (export foo bar) with an older mtime => "variable bar is not bound", on
+;;     each of N restarts.  That text matches the rx below, so the old code
+;;     restarted, saw the same error, cached it, and reported "real error, not
+;;     staleness" -- precisely backwards.  Deleting the object cures it.
+;;
+;; So the cure now clears this project's compiled objects before the restart:
+;; it heals both classes, and deleting a healthy object costs only the
+;; recompile it triggers on next import.
+(defconst ftzm/scheme--stale-error-rx
   (rx (or "different compilation instance"
           "unbound identifier"
           "is not bound"
@@ -2093,11 +2160,51 @@ in which case does avy-goto-char with the first char."
           "not visible in"))
   "Load-error signatures that may be stale-session artifacts worth one reload.")
 
-(defvar-local scheme-ts--last-confirmed-error nil
+(defvar-local ftzm/scheme--last-confirmed-error nil
   "Text of the last load error confirmed genuine by surviving a clean restart.
 While the same error persists we skip the restart instead of thrashing.")
 
-(defun scheme-ts--retort-error-text (ret)
+(defconst ftzm/scheme--source-extensions '("sls" "ss" "scm" "sps")
+  "Extensions Chez compiles into a sibling .so object file.")
+
+(defun ftzm/scheme--stale-objects (root)
+  "Chez object files under ROOT that can shadow a sibling source file.
+Only objects with a source beside them are returned: those are the ones
+Chez chooses between by mtime, and the only ones we can safely delete --
+whatever we remove, the next import rebuilds from source."
+  (let ((case-fold-search nil)
+        (objects nil))
+    (dolist (obj (directory-files-recursively
+                  root "\\.so\\'" nil
+                  (lambda (dir)
+                    (not (member (file-name-nondirectory (directory-file-name dir))
+                                 '(".git" ".direnv" "node_modules"))))))
+      (let ((stem (file-name-sans-extension obj)))
+        (when (seq-some (lambda (ext) (file-exists-p (concat stem "." ext)))
+                        ftzm/scheme--source-extensions)
+          (push obj objects))))
+    objects))
+
+(defun ftzm/scheme-clear-objects (&optional root)
+  "Delete this project's Chez object files so the next load recompiles.
+ROOT defaults to the current buffer's project (else its directory).
+Interactively, report how many were removed.
+
+This is the half of the stale-load cure a REPL restart cannot perform: an
+object file that is newer than a source whose contents are newer shadows
+that source in every process, however fresh."
+  (interactive)
+  (let* ((root (or root
+                   (when-let ((p (project-current))) (project-root p))
+                   default-directory))
+         (objects (ftzm/scheme--stale-objects root)))
+    (dolist (obj objects) (ignore-errors (delete-file obj)))
+    (when (called-interactively-p 'interactive)
+      (message "ftzm/scheme: removed %d object file(s) under %s"
+               (length objects) (abbreviate-file-name root)))
+    objects))
+
+(defun ftzm/scheme--retort-error-text (ret)
   "Combined error+output text of geiser load retort RET, or nil if it succeeded."
   (let ((err (geiser-eval--retort-error ret)))
     (when err
@@ -2106,14 +2213,14 @@ While the same error persists we skip the restart instead of thrashing.")
                (let ((m (geiser-eval--error-msg err)) ) (if m (format "%s" m) ""))
                (or (geiser-eval--retort-output ret) ""))))))
 
-(defun scheme-ts--load-file-code ()
+(defun ftzm/scheme--load-file-code ()
   "Geiser eval code that loads the current buffer's file."
   (list :load-file (file-local-name (buffer-file-name))))
 
-(defun scheme-ts-auto-load-on-save (&optional buf)
+(defun ftzm/scheme-auto-load-on-save (&optional buf)
   "Load BUF (default current) into the Chez REPL, healing stale-session errors.
 Loads asynchronously; on a stale-looking failure, restarts the REPL once and
-reloads from a clean slate (see `scheme-ts--stale-error-rx')."
+reloads from a clean slate (see `ftzm/scheme--stale-error-rx')."
   (let ((buf (or buf (current-buffer))))
     (when (and (buffer-live-p buf)
                (buffer-file-name buf)
@@ -2123,63 +2230,138 @@ reloads from a clean slate (see `scheme-ts--stale-error-rx')."
           (geiser-autodoc--clean-cache)
           (message "%s ..." label)
           (geiser-eval--send
-           (scheme-ts--load-file-code)
-           (lambda (ret) (scheme-ts--after-load buf label ret))))))))
+           (ftzm/scheme--load-file-code)
+           (lambda (ret) (ftzm/scheme--after-load buf label ret))))))))
 
-(defun scheme-ts--after-load (buf label ret)
+(defun ftzm/scheme--after-load (buf label ret)
   "Handle the first (async) load result RET for BUF, labelled LABEL."
   (when (buffer-live-p buf)
     (with-current-buffer buf
-      (let ((err (scheme-ts--retort-error-text ret)))
+      (let ((err (ftzm/scheme--retort-error-text ret)))
         (cond
          ((null err)                                   ; clean load
-          (setq scheme-ts--last-confirmed-error nil)
+          (setq ftzm/scheme--last-confirmed-error nil)
           (message "%s done" label))
-         ((equal err scheme-ts--last-confirmed-error)  ; known genuine: no thrash
+         ((equal err ftzm/scheme--last-confirmed-error)  ; known genuine: no thrash
           (geiser-debug--display-retort label ret))
-         ((string-match-p scheme-ts--stale-error-rx err)
-          ;; Defer out of the process filter, then restart + reload clean.
+         ((string-match-p ftzm/scheme--stale-error-rx err)
+          ;; Defer out of the process filter, then clear objects + restart +
+          ;; reload clean.  Both halves are needed: the restart drops resident
+          ;; library instances, the deletion drops objects on disk that would
+          ;; shadow their own source again in the fresh process.
           (run-at-time
            0 nil
            (lambda ()
              (when (buffer-live-p buf)
                (with-current-buffer buf
-                 (message "Scheme: REPL state may be stale; restarting Chez and reloading...")
+                 (message "Scheme: load may be stale; clearing objects, \
+restarting Chez and reloading...")
+                 (ftzm/scheme-clear-objects)
                  (geiser-repl-restart-repl)
-                 (scheme-ts--reload-after-restart buf label))))))
+                 (ftzm/scheme--reload-after-restart buf label))))))
          (t                                            ; ordinary error
           (geiser-debug--display-retort label ret)))))))
 
-(defun scheme-ts--reload-after-restart (buf label)
+(defun ftzm/scheme--reload-after-restart (buf label)
   "Reload BUF after a REPL restart; a surviving error is genuine, so cache it."
   (when (and (buffer-live-p buf) (geiser-repl--connection*))
     (with-current-buffer buf
       (geiser-autodoc--clean-cache)
-      (let* ((ret (geiser-eval--send/wait (scheme-ts--load-file-code)))
-             (err (scheme-ts--retort-error-text ret)))
+      (let* ((ret (geiser-eval--send/wait (ftzm/scheme--load-file-code)))
+             (err (ftzm/scheme--retort-error-text ret)))
         (if (null err)
-            (progn (setq scheme-ts--last-confirmed-error nil)
+            (progn (setq ftzm/scheme--last-confirmed-error nil)
                    (message "%s done (after clean restart)" label))
-          ;; Survived a fresh REPL => real error; remember it so the next save
-          ;; with the same error skips the restart.
-          (setq scheme-ts--last-confirmed-error err)
+          ;; Survived a fresh REPL *and* a recompile from source => real error;
+          ;; remember it so the next save with the same error skips the cure.
+          (setq ftzm/scheme--last-confirmed-error err)
           (geiser-debug--display-retort label ret)
-          (message "Scheme: error persists after a clean reload -- real error, not staleness."))))))
+          (message "Scheme: error persists after recompiling from source in a \
+fresh REPL -- real error, not staleness."))))))
 
-(defun scheme-ts-ensure-repl ()
-  "Start a Chez Geiser REPL if one isn't already running.
+(defun ftzm/scheme-ensure-repl ()
+  "Start a Chez Geiser REPL for this buffer's project if none is running.
 Starts it in the background so the current window layout is preserved.
-Return non-nil when a new REPL was started."
-  (unless (seq-some (lambda (b)
-                      (and (buffer-live-p b)
-                           (get-buffer-process b)
-                           (with-current-buffer b
-                             (eq geiser-impl--implementation 'chez))))
-                    geiser-repl--repls)
-    (save-window-excursion (geiser 'chez))
-    t))
+Return non-nil when a new REPL was started.
 
-(defun scheme-ts-find-definition ()
+Scoped per project (see `geiser-repl-per-project-p'): a Chez process gets
+its library path from the environment it was spawned with, so one shared
+REPL would serve every project the environment of whichever project
+happened to open first.  `geiser-repl--repl/impl' matches on
+implementation AND project, so this only reuses a REPL that belongs to
+the current one."
+  (let ((repl (geiser-repl--repl/impl 'chez)))
+    (unless (and (buffer-live-p repl) (get-buffer-process repl))
+      (save-window-excursion (geiser 'chez))
+      t)))
+
+;; Spawn the Chez process under ITS OWN project's direnv environment.
+;;
+;; Geiser starts the REPL from `scheme-mode-hook', i.e. during `find-file' --
+;; before direnv.el has switched the environment to the new file's project.
+;; (`direnv--maybe-update-environment' keys off `(window-buffer)', and the
+;; buffer being visited isn't displayed yet.)  So the Chez process inherits
+;; whatever project was live in the *previously* visited buffer.  Opening a
+;; ~/dev/learn-scheme worksheet after a ~/dev/ac buffer gave a Chez whose
+;; CHEZSCHEMELIBDIRS still pointed at ~/dev/ac -- every worksheet then failed
+;; with "Exception: library (learn test) not found", and kept failing for the
+;; rest of the session, since a process's environment is fixed at spawn time.
+;;
+;; Advising the REPL start (rather than `geiser') covers every entry point:
+;; `ftzm/scheme-ensure-repl', `M-x geiser', and `geiser-repl-restart-repl'.  The
+;; env change is let-scoped, so only the subprocess sees it; Emacs's own
+;; environment stays whatever direnv-mode set for the visible buffer.
+;;
+;; It has to wrap `geiser-repl--start-repl' and not just the `...--start-scheme'
+;; spawn inside it: `geiser-repl--start-repl' first calls
+;; `geiser-repl--check-version', which RUNS the binary ("scheme --version").
+;; Wrapping only the spawn left that probe on Emacs's global environment, where
+;; `scheme' need not exist at all -- direnv unsets it whenever the selected
+;; window shows a buffer outside any .envrc -- and the start died there, before
+;; the advice was ever reached.  Entry-time `default-directory' is the *source*
+;; buffer's, which is what we want: direnv finds the nearest .envrc walking up
+;; from the file, which need not be the project root geiser later cd's to.
+(defun ftzm/scheme--start-repl-with-direnv (fn &rest args)
+  "Call FN with ARGS under `default-directory''s direnv environment.
+ARGS is (IMPL ADDRESS); IMPL selects the Scheme binary to check for.
+
+Falls back to the inherited environment when the direnv one cannot run the
+implementation's binary.  `direnv export' does not just decline to answer for
+a directory it has no .envrc for (or one whose .envrc errors): it emits
+explicit nulls to UNSET whatever is currently loaded.  Applying that leaves a
+bare login PATH -- and on this box `scheme' exists only inside a devShell, so
+the spawn dies with \"Searching for program: no such file or directory\".
+Inheriting a possibly-wrong environment merely risks a bad library path;
+applying an empty one guarantees no REPL at all, so the inherited env wins."
+  (if (not (and (fboundp 'direnv-update-directory-environment)
+                (stringp default-directory)
+                (not (file-remote-p default-directory))
+                (file-directory-p default-directory)))
+      (apply fn args)
+    (let ((inherited-env process-environment)
+          (inherited-path exec-path))
+      (let ((process-environment (copy-sequence process-environment))
+            (exec-path (copy-sequence exec-path))
+            ;; direnv caches which directory the *global* env reflects; restore
+            ;; it so this scoped switch doesn't make direnv-mode skip a real
+            ;; update.
+            (direnv--active-directory direnv--active-directory)
+            (direnv-always-show-summary nil))
+        (direnv-update-directory-environment default-directory)
+        (let ((binary (ignore-errors (geiser-repl--get-binary (car args)))))
+          (unless (and binary (executable-find binary))
+            (message "ftzm/scheme: direnv env for %s cannot run %s; \
+spawning with the inherited environment instead"
+                     (abbreviate-file-name default-directory) binary)
+            (setq process-environment inherited-env
+                  exec-path inherited-path)))
+        (apply fn args)))))
+
+(with-eval-after-load 'geiser-repl
+  (advice-add 'geiser-repl--start-repl
+              :around #'ftzm/scheme--start-repl-with-direnv))
+
+(defun ftzm/scheme-find-definition ()
   "Jump to definition, preferring Geiser, then falling back to `xref'.
 Geiser resolves symbols the running REPL knows (your loaded code); xref
 covers whatever a project makes available to it (e.g. an etags index for
@@ -2191,7 +2373,7 @@ built-in / library procedures the REPL keeps no source for)."
       (let ((sym (thing-at-point 'symbol t)))
         (when sym (ignore-errors (xref-find-definitions sym)))))))
 
-(defun scheme-ts--load-when-ready (buf &optional tries)
+(defun ftzm/scheme--load-when-ready (buf &optional tries)
   "Load BUF into the Chez REPL once a connection exists, retrying until it does.
 Geiser evaluates a buffer's forms in that buffer's library module (here
 `(sqlite)' &c.), so until the file is loaded into the REPL every eval fails with
@@ -2206,14 +2388,14 @@ a probe would itself run in the not-yet-loaded module and never succeed.)"
       (with-current-buffer buf
         (cond
          ((geiser-repl--connection*)
-          (ignore-errors (scheme-ts-auto-load-on-save buf)))
+          (ignore-errors (ftzm/scheme-auto-load-on-save buf)))
          ((< tries 50)
-          (run-at-time 0.3 nil #'scheme-ts--load-when-ready buf (1+ tries)))
+          (run-at-time 0.3 nil #'ftzm/scheme--load-when-ready buf (1+ tries)))
          (t
-          (message "scheme-ts: Chez REPL never connected; %s not auto-loaded"
+          (message "ftzm/scheme: Chez REPL never connected; %s not auto-loaded"
                    (buffer-name buf))))))))
 
-(defun scheme-ts-setup-geiser ()
+(defun ftzm/scheme-setup-geiser ()
   "Activate geiser, ensure a REPL, and load the buffer for introspection.
 Loading the library into the REPL is what makes jump-to-definition,
 autodoc and completion work; without it geiser cannot resolve symbols.
@@ -2224,29 +2406,29 @@ of `scheme-mode-hook' and abort `run-mode-hooks' *before*
 `after-change-major-mode-hook' -- the hook that enables font-lock.  A
 failed REPL start would then silently leave the buffer with no syntax
 highlighting (and no keybindings).  Demoting keeps the mode hook intact."
-  (with-demoted-errors "scheme-ts: geiser activation failed: %S"
+  (with-demoted-errors "ftzm/scheme: geiser activation failed: %S"
     (turn-on-geiser-mode))
-  (add-hook 'after-save-hook #'scheme-ts-auto-load-on-save nil t)
+  (add-hook 'after-save-hook #'ftzm/scheme-auto-load-on-save nil t)
   ;; M-.: Geiser first, then xref (whatever the project wires up) as fallback.
   ;; Override only M-. while inheriting the rest of `geiser-mode-map'.
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map geiser-mode-map)
-    (define-key map (kbd "M-.") #'scheme-ts-find-definition)
+    (define-key map (kbd "M-.") #'ftzm/scheme-find-definition)
     (setq-local minor-mode-overriding-map-alist
                 (cons (cons 'geiser-mode map) minor-mode-overriding-map-alist)))
   ;; evil `gd': evil-collection binds it straight to `geiser-edit-symbol-at-point';
   ;; a buffer-local binding wins over that minor-mode map and adds the fallback.
   (when (fboundp 'evil-local-set-key)
-    (evil-local-set-key 'normal (kbd "gd") #'scheme-ts-find-definition))
+    (evil-local-set-key 'normal (kbd "gd") #'ftzm/scheme-find-definition))
   (when buffer-file-name
-    (with-demoted-errors "scheme-ts: REPL startup failed: %S"
-      (scheme-ts-ensure-repl)
+    (with-demoted-errors "ftzm/scheme: REPL startup failed: %S"
+      (ftzm/scheme-ensure-repl)
       ;; Load this buffer into the REPL so M-. & friends resolve immediately.
       ;; Deferred + retried rather than fired once inline: a just-cold-started
       ;; REPL isn't reliably ready to eval the instant `geiser' returns, which
       ;; used to leave the file unloaded until the first save (see
-      ;; `scheme-ts--load-when-ready').
-      (scheme-ts--load-when-ready (current-buffer)))))
+      ;; `ftzm/scheme--load-when-ready').
+      (ftzm/scheme--load-when-ready (current-buffer)))))
 
 ;; General Scheme editing uses the built-in `scheme-mode'.  Benchmarks showed
 ;; `scheme-ts-mode' is ~3-4x slower at full fontification and ~2x slower per
@@ -2265,7 +2447,7 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
   :mode (("\\.scm\\'" . scheme-mode)
          ("\\.sld\\'" . scheme-mode)
          ("\\.sls\\'" . scheme-mode))
-  :hook (scheme-mode . scheme-ts-setup-geiser))
+  :hook (scheme-mode . ftzm/scheme-setup-geiser))
 
 (use-package scheme-ts-mode
   :ensure nil
@@ -2817,6 +2999,111 @@ Positive values scroll down, negative values scroll up."
 
 (general-nmap "C-y" (lambda () (interactive) (scroll-by-percent -20)))
 (general-nmap "C-e" (lambda () (interactive) (scroll-by-percent 20)))
+
+;; Emacs frontend for the Pi coding agent.  `M-x pi' starts or focuses the
+;; session for the current project.
+(use-package pi-coding-agent
+  :ensure t
+  :after evil
+  :init (defalias 'pi 'pi-coding-agent)
+  :custom
+  ;; Keep the prompt compact and rebalance it as the frame is resized.
+  (pi-coding-agent-input-window-height 0.25)
+  (pi-coding-agent-evil-integration t)
+  ;; Motion state leaves ESC unbound as a Meta prefix, which makes which-key
+  ;; open when ESC is used defensively before the leader.  Normal state keeps
+  ;; all chat bindings while giving ESC its standard Evil behavior.
+  (pi-coding-agent-evil-chat-state 'normal)
+  :config
+  ;; The integration ships with pi-coding-agent; loading it installs the
+  ;; motion-state chat bindings and insert-state input behavior immediately.
+  (require 'pi-coding-agent-evil)
+
+  ;; The frontend exposes phase changes but, unlike Pi's TUI, does not include
+  ;; elapsed time in its header.  Track each busy phase and render it as, for
+  ;; example, "thinking 0:12" or "running 1:03".
+  (defvar-local ftzm/pi-activity-phase-start-time nil)
+  (defvar ftzm/pi-activity-clock-timer nil)
+
+  (defun ftzm/pi-activity-clock-string (elapsed)
+    "Format ELAPSED seconds as M:SS, or H:MM:SS after one hour."
+    (let* ((total (max 0 (floor elapsed)))
+           (hours (/ total 3600))
+           (minutes (% (/ total 60) 60))
+           (seconds (% total 60)))
+      (if (> hours 0)
+          (format "%d:%02d:%02d" hours minutes seconds)
+        (format "%d:%02d" minutes seconds))))
+
+  (defun ftzm/pi-activity-chat-buffer ()
+    "Return the Pi chat buffer associated with the current buffer."
+    (cond
+     ((derived-mode-p 'pi-coding-agent-chat-mode) (current-buffer))
+     ((and (boundp 'pi-coding-agent--chat-buffer)
+           (buffer-live-p pi-coding-agent--chat-buffer))
+      pi-coding-agent--chat-buffer)))
+
+  (defun ftzm/pi-activity-clock-refresh ()
+    "Refresh Pi headers once a second while any session is busy."
+    (let ((busy nil))
+      (dolist (buf (buffer-list))
+        (when (and (buffer-live-p buf)
+                   (with-current-buffer buf
+                     (and (derived-mode-p 'pi-coding-agent-chat-mode)
+                          ftzm/pi-activity-phase-start-time
+                          (not (equal pi-coding-agent--activity-phase "idle")))))
+          (setq busy t)))
+      (if busy
+          (force-mode-line-update t)
+        (when (timerp ftzm/pi-activity-clock-timer)
+          (cancel-timer ftzm/pi-activity-clock-timer))
+        (setq ftzm/pi-activity-clock-timer nil))))
+
+  (defun ftzm/pi-activity-clock-start ()
+    "Start the shared Pi header clock when it is not already running."
+    (unless (timerp ftzm/pi-activity-clock-timer)
+      (setq ftzm/pi-activity-clock-timer
+            (run-at-time 1 1 #'ftzm/pi-activity-clock-refresh))))
+
+  (defun ftzm/pi-track-activity-time (chat _input old new _reason)
+    "Track in CHAT when the activity phase changes from OLD to NEW."
+    (when (buffer-live-p chat)
+      (with-current-buffer chat
+        (cond
+         ((equal new "idle")
+          (setq ftzm/pi-activity-phase-start-time nil))
+         ((or (null ftzm/pi-activity-phase-start-time)
+              (not (equal old new)))
+          (setq ftzm/pi-activity-phase-start-time (float-time))))))
+    (unless (equal new "idle")
+      (ftzm/pi-activity-clock-start))
+    (force-mode-line-update t))
+
+  (defun ftzm/pi-header-with-activity-time (fn model thinking phase-str)
+    "Call FN with MODEL, THINKING and a timed replacement for PHASE-STR."
+    (let* ((chat (ftzm/pi-activity-chat-buffer))
+           (start (and chat
+                       (buffer-local-value
+                        'ftzm/pi-activity-phase-start-time chat)))
+           (phase (and chat
+                       (buffer-local-value
+                        'pi-coding-agent--activity-phase chat))))
+      (funcall
+       fn model thinking
+       (if (and start phase (not (equal phase "idle")))
+           (propertize
+            (format "%s %s" phase
+                    (ftzm/pi-activity-clock-string
+                     (- (float-time) start)))
+            'face 'pi-coding-agent-activity-phase)
+         phase-str))))
+
+  (add-hook 'pi-coding-agent-activity-phase-functions
+            #'ftzm/pi-track-activity-time)
+  (advice-remove 'pi-coding-agent--header-format-identity
+                 #'ftzm/pi-header-with-activity-time)
+  (advice-add 'pi-coding-agent--header-format-identity :around
+              #'ftzm/pi-header-with-activity-time))
 
 (use-package claude-code-ide
   :ensure (:host github :repo "manzaltu/claude-code-ide.el")

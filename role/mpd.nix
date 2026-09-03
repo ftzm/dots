@@ -15,8 +15,20 @@
 
   # Mount music from nas
   nfsAutomounts."/mnt/music" = {
-    device = "10.0.100.3:/pool-1/music";
-    options = ["nfsvers=3" "noatime" "nodiratime" "rsize=32768" "async" "ro"];
+    device = "nas.tail.ftzmlab.xyz:/music";
+    options = [
+      "nfsvers=4.2" # session recovery across sleep / network change
+      "soft"
+      "timeo=100"
+      "retrans=3" # fail in ~30s, never hang; safe because ro
+      "ro"
+      "noatime"
+      "nodiratime"
+      "rsize=1048576"
+      "wsize=1048576"
+      "actimeo=3600"
+      "nconnect=4"
+    ];
   };
 
   home-manager.users.ftzm = {
@@ -27,7 +39,7 @@
       extraConfig = ''
         database {
             plugin  "proxy"
-            host    "10.0.100.4"
+            host    "nuc.tail.ftzmlab.xyz"
             port    "6600"
         }
         audio_output {

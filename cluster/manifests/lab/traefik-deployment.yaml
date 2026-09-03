@@ -55,6 +55,7 @@ spec:
         - --log.level=INFO
         - --accesslog=true
         - --accesslog.format=json
+        - --accesslog.filters.statuscodes=400-599
         - --accesslog.fields.defaultmode=keep
         - --accesslog.fields.headers.defaultmode=drop
         - --entrypoints.privateweb.address=100.64.0.2:80

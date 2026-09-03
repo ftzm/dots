@@ -1,0 +1,30 @@
+apiVersion: v1
+data:
+  journal.yaml: |-
+    "groups":
+    - "name": "journal"
+      "rules":
+      - "alert": "JournalUnitFailure"
+        "annotations":
+          "description": "Unit {{ $labels.unit }} failed on {{ $labels.host }}. Full message is in the alert body."
+          "summary": "Systemd unit failed on {{ $labels.host }}"
+        "expr": "{job=\"systemd-journal\"} |~ \"entered failed state|Failed to start|Failed with result\""
+        "for": "1m"
+        "labels":
+          "severity": "warning"
+      - "alert": "JournalErrorRate"
+        "annotations":
+          "description": "Error lines are being emitted at > 0.05 lines/s over 5m. Threshold tuned against the real err-line baseline (k3s/NetworkManager emit err lines routinely)."
+          "summary": "Elevated error rate in journal on {{ $labels.host }} ({{ $labels.unit }})"
+        "expr": "sum by (host, unit) (rate({job=\"systemd-journal\",level=\"err\"}[5m])) > 0.05"
+        "for": "10m"
+        "labels":
+          "severity": "warning"
+kind: ConfigMap
+metadata:
+  annotations:
+    k8s-sidecar-target-directory: /rules/fake
+  labels:
+    loki_rule: "1"
+  name: loki-rule-journal
+  namespace: monitoring

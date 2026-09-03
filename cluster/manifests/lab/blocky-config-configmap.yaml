@@ -53,6 +53,11 @@ data:
     log:
       level: info
 
+    # Phase 0: query metrics are scraped via the PodMonitor below;
+    # per-query logging is 112k lines/48h of noise.
+    queryLog:
+      type: none
+
     prometheus:
       enable: true
       path: /metrics

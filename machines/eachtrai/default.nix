@@ -27,6 +27,7 @@
     ../../role/interface.nix
     ../../role/iosevka.nix
     ../../role/comin.nix
+    ../../role/resilience.nix
   ];
 
   nix = {
@@ -354,7 +355,7 @@
     settings = {
       auto_sync = true;
       sync_frequency = "5m";
-      sync_address = "http://wg-nuc:8889";
+      sync_address = "http://nuc.tail.ftzmlab.xyz:8889";
       search_mode = "fuzzy";
       sync = {
         records = true;

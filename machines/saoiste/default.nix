@@ -29,6 +29,7 @@
     ../../role/emacs.nix
 
     ../../role/comin.nix
+    ../../role/resilience.nix
     ../../role/packages.nix
     ../../role/iosevka.nix
   ];
@@ -86,7 +87,7 @@
     '';
     buildMachines = [
       {
-        hostName = "wg-nuc";
+        hostName = "nuc.tail.ftzmlab.xyz";
         sshUser = "admin";
         sshKey = "/home/ftzm/.ssh/id_rsa";
         system = "x86_64-linux";
@@ -217,6 +218,14 @@
       set -g xterm-keys on
       set -s extended-keys on
       set -as terminal-features ',*:extkeys'
+
+      # Let terminal applications set the clipboard via OSC 52.  The DCS
+      # passthrough is used by Emacs/clipetty; SSH and mosh then carry the
+      # unwrapped OSC 52 sequence to the terminal on the connecting machine.
+      set -s set-clipboard external
+      set -g allow-passthrough on
+      set -ag update-environment "SSH_TTY"
+
       set -g default-terminal "xterm-256color"
       set -sg terminal-overrides ",*:RGB"
       set -g escape-time 0
@@ -302,7 +311,7 @@
     settings = {
       auto_sync = true;
       sync_frequency = "5m";
-      sync_address = "http://wg-nuc:8889";
+      sync_address = "http://nuc.tail.ftzmlab.xyz:8889";
       search_mode = "prefix";
       sync = {
         records = true;

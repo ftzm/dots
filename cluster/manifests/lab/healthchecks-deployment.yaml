@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthchecks
+  namespace: healthchecks
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: healthchecks
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: healthchecks
+    spec:
+      containers:
+      - env:
+        - name: SITE_ROOT
+          value: https://hc.lan.ftzmlab.xyz
+        - name: ALLOWED_HOSTS
+          value: hc.lan.ftzmlab.xyz
+        - name: DEFAULT_FROM_EMAIL
+          value: hc@ftzmlab.xyz
+        - name: DB
+          value: /config/hc.sqlite
+        - name: REGISTRATION_OPEN
+          value: "False"
+        - name: EMAIL_HOST
+          value: smtp.fastmail.com
+        - name: EMAIL_PORT
+          value: "587"
+        - name: EMAIL_USE_TLS
+          value: "True"
+        envFrom:
+        - secretRef:
+            name: healthchecks
+        image: ghcr.io/healthchecks/healthchecks:v4.4
+        name: healthchecks
+        ports:
+        - containerPort: 8000
+          name: http
+        volumeMounts:
+        - mountPath: /config
+          name: config
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: healthchecks-config

@@ -15,6 +15,11 @@ in {
   "wireguard-private-key-saoiste.age".publicKeys = [personal saoiste];
   "wg-pk-unifi-leigheas.age".publicKeys = [personal leigheas];
   "smtppw.age".publicKeys = [personal nas];
+  # Tailscale enrolment key for nas (see machines/nas/default.nix). The
+  # committed file is a PLACEHOLDER so the build never breaks on a missing
+  # path; the tailscale-autoconnect oneshot fails visibly until a real key
+  # (minted in the tailscale admin console) is written with `agenix -e`.
+  "tailscale-authkey-nas.age".publicKeys = [personal nas];
   "deluge.age".publicKeys = [personal nuc];
   "nextcloud-db-pass.age".publicKeys = [personal nuc];
   "nextcloud-admin-pass.age".publicKeys = [personal nuc];
