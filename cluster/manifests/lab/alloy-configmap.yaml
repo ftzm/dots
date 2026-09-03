@@ -113,6 +113,10 @@ data:
     discovery.relabel "journal" {
       targets = []
       rule {
+        target_label = "job"
+        replacement  = "systemd-journal"
+      }
+      rule {
         source_labels = ["__journal__systemd_unit"]
         target_label  = "unit"
       }
@@ -185,6 +189,14 @@ data:
     // ParseCoverage guard.
     discovery.relabel "syslog" {
       targets = []
+      rule {
+        target_label = "host"
+        replacement  = "friendlywrt"
+      }
+      rule {
+        target_label = "job"
+        replacement  = "syslog"
+      }
       rule {
         source_labels = ["__syslog_message_app_name"]
         target_label  = "syslog_identifier"

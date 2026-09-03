@@ -151,9 +151,20 @@
   // (rather than spliced mid-block) because a jsonnet ||| block takes its
   // indentation prefix from its first content line and every later line must
   // meet it — splicing inside the block breaks that invariant.
-  hostRelabel(name, severityLabel, rules)::
+  hostRelabel(name, severityLabel, rules, statics={})::
     'discovery.relabel "' + name + '" {\n' +
     '  targets = []\n' +
+    // Static labels pinned via relabel rules, not the source's `labels`
+    // attribute: alloy v1.19's loki.source.journal drops the static labels
+    // map when relabel_rules is set (observed 2026-09-03 -- entries arrived
+    // as job="loki.source.journal.host"; the older v1.12 on nas honors it).
+    std.join('', [
+      '  rule {\n' +
+      '    target_label = "' + k + '"\n' +
+      '    replacement  = "' + statics[k] + '"\n' +
+      '  }\n'
+      for k in std.objectFields(statics)
+    ]) +
     std.join('', [
       '  rule {\n' +
       '    source_labels = ["' + r[0] + '"]\n' +

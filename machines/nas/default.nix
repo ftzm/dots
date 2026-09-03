@@ -255,9 +255,44 @@ in {
           source_labels = ["__journal__systemd_unit"]
           target_label  = "unit"
         }
+        # Canonical level vocabulary (debug/info/warn/error/fatal + unknown),
+        # matching cluster/lib/logformats.libsonnet hostLevelRelabel. Catch-all
+        # first; specific maps override.
         rule {
           source_labels = ["__journal_priority_keyword"]
+          regex         = ".*"
           target_label  = "level"
+          replacement   = "unknown"
+        }
+        rule {
+          source_labels = ["__journal_priority_keyword"]
+          regex         = "debug"
+          target_label  = "level"
+          replacement   = "debug"
+        }
+        rule {
+          source_labels = ["__journal_priority_keyword"]
+          regex         = "info|notice"
+          target_label  = "level"
+          replacement   = "info"
+        }
+        rule {
+          source_labels = ["__journal_priority_keyword"]
+          regex         = "warning|warn"
+          target_label  = "level"
+          replacement   = "warn"
+        }
+        rule {
+          source_labels = ["__journal_priority_keyword"]
+          regex         = "err|error"
+          target_label  = "level"
+          replacement   = "error"
+        }
+        rule {
+          source_labels = ["__journal_priority_keyword"]
+          regex         = "crit|alert|emerg"
+          target_label  = "level"
+          replacement   = "fatal"
         }
         rule {
           source_labels = ["__journal_syslog_identifier"]

@@ -1315,7 +1315,7 @@ local patchTargetDown(resources) = {
                 ['__journal__systemd_unit', 'unit'],
                 ['__journal__hostname', 'host'],
                 ['__journal_syslog_identifier', 'syslog_identifier'],
-              ]) + |||
+              ], { job: 'systemd-journal' }) + |||
 
                 // friendlywrt (OpenWrt) host syslog over TCP. Collected here
                 // because OpenWrt has no systemd/journal — this is the only
@@ -1340,7 +1340,7 @@ local patchTargetDown(resources) = {
                 // ParseCoverage guard.
               ||| + logformats.hostRelabel('syslog', '__syslog_message_severity', [
                 ['__syslog_message_app_name', 'syslog_identifier'],
-              ]) + |||
+              ], { job: 'syslog', host: 'friendlywrt' }) + |||
 
 
                 // Kubernetes events (OOMKill, FailedScheduling, evictions) —
