@@ -762,6 +762,19 @@ local patchTargetDown(resources) = {
         'Systemd unit failed on {{ $labels.host }}',
         'Unit {{ $labels.unit }} failed on {{ $labels.host }}. Full message is in the alert body.',
       ),
+      // The canonical-vocabulary guard for host sources — the counterpart of
+      // ParseCoverage, which only covers pod logs. Catches the fault class
+      // where a host shipper runs a stale pipeline (found 2026-09-03: nas
+      // deployed new relabel config but alloy kept the old process, emitting
+      // `notice` — valid-looking, non-canonical, and invisible to every other
+      // alert).
+      alerts.rule(
+        'JournalNonCanonicalLevel',
+        'sum by (host) (count_over_time({job="systemd-journal", level!~"debug|info|warn|error|fatal|unknown"}[15m])) > 0',
+        '15m', 'warning',
+        'Non-canonical journal levels from {{ $labels.host }}',
+        'A host is shipping journal lines with levels outside the canonical vocabulary — its log pipeline is running a stale or divergent config. Compare the deployed generation with the shipper process start time.',
+      ),
       alerts.rule(
         'JournalErrorRate',
         'sum by (host, unit) (rate({job="systemd-journal",level="err"}[5m])) > 0.05',
