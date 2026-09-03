@@ -36,7 +36,7 @@ spec:
         envFrom:
         - secretRef:
             name: healthchecks
-        image: ghcr.io/healthchecks/healthchecks:v4.4
+        image: healthchecks/healthchecks:v4.4
         name: healthchecks
         ports:
         - containerPort: 8000

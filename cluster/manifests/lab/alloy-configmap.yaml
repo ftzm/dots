@@ -170,10 +170,13 @@ data:
       listener {
         address  = "0.0.0.0:5140"
         protocol = "tcp"
+        // labels is a listener-block attribute; at component level
+        // alloy rejects it ("unrecognized attribute name") and the
+        // whole config fails to load.
+        labels   = { job = "syslog", host = "friendlywrt" }
       }
       relabel_rules = discovery.relabel.syslog.rules
       forward_to    = [loki.write.default.receiver]
-      labels        = { job = "syslog", host = "friendlywrt" }
     }
 
     // Same canonical level vocabulary as the journal and the pod

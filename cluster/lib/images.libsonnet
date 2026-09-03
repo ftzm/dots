@@ -24,5 +24,6 @@
   miniflux: 'miniflux/miniflux:2.3.3',
   valkey: 'valkey/valkey:9-alpine',
   cnpgPostgres: 'ghcr.io/cloudnative-pg/postgresql:18.6',
-  healthchecks: 'ghcr.io/healthchecks/healthchecks:v4.4',
+  // Docker Hub, not ghcr — the ghcr.io path 403s (no public package there).
+  healthchecks: 'healthchecks/healthchecks:v4.4',
 }
