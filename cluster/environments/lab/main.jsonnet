@@ -833,8 +833,8 @@ local patchTargetDown(resources) = {
   // SMTP — when the daily ping stops, so a broken notification path can't be
   // silent. MANUAL steps (can't be done declaratively, see LOGGING_PLAN.md
   // item 3): 1) create environments/lab/secrets/healthchecks.enc.yaml (a
-  // SopsSecret `healthchecks` with keys `secret-key`, `smtp-user`,
-  // `smtp-password`); 2) `manage.py createsuperuser` once deployed; 3) create
+  // SopsSecret `healthchecks` with keys SECRET_KEY, EMAIL_HOST_USER,
+  // EMAIL_HOST_PASSWORD -- envFrom injects key names as env var names); 2) `manage.py createsuperuser` once deployed; 3) create
   // the check + ntfy/email channels in the UI and paste its UUID into the
   // Alertmanager Watchdog receiver below.
   healthchecks: (function()
@@ -850,7 +850,9 @@ local patchTargetDown(resources) = {
                     { name: 'SITE_ROOT', value: 'https://hc.lan.ftzmlab.xyz' },
                     { name: 'ALLOWED_HOSTS', value: 'hc.lan.ftzmlab.xyz' },
                     { name: 'DEFAULT_FROM_EMAIL', value: 'hc@ftzmlab.xyz' },
-                    { name: 'DB', value: '/config/hc.sqlite' },
+                    // DB selects the engine (unset = sqlite); the path goes
+                    // in DB_NAME.
+                    { name: 'DB_NAME', value: '/config/hc.sqlite' },
                     { name: 'REGISTRATION_OPEN', value: 'False' },
                     { name: 'EMAIL_HOST', value: 'smtp.fastmail.com' },
                     { name: 'EMAIL_PORT', value: '587' },

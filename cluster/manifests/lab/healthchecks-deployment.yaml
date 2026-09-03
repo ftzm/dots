@@ -23,7 +23,7 @@ spec:
           value: hc.lan.ftzmlab.xyz
         - name: DEFAULT_FROM_EMAIL
           value: hc@ftzmlab.xyz
-        - name: DB
+        - name: DB_NAME
           value: /config/hc.sqlite
         - name: REGISTRATION_OPEN
           value: "False"
