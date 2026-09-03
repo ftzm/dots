@@ -235,6 +235,13 @@ in {
   services.alloy = {
     enable = true;
   };
+  # The alloy module doesn't restart the service when the /etc config
+  # changes, so comin deploys silently kept the old pipeline running
+  # (observed 2026-09-03: config deployed 15:12, alloy still on the 14:01
+  # process). Restart on any config change.
+  systemd.services.alloy.restartTriggers = [
+    config.environment.etc."alloy/config.alloy".source
+  ];
 
   environment.etc."alloy/config.alloy" = {
     text = ''

@@ -20,7 +20,7 @@ spec:
         - name: SITE_ROOT
           value: https://hc.lan.ftzmlab.xyz
         - name: ALLOWED_HOSTS
-          value: hc.lan.ftzmlab.xyz
+          value: hc.lan.ftzmlab.xyz,healthchecks.healthchecks.svc.cluster.local
         - name: DEFAULT_FROM_EMAIL
           value: hc@ftzmlab.xyz
         - name: DB_NAME

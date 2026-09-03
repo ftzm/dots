@@ -6,6 +6,11 @@ data:
     cache-file: "/var/cache/ntfy/cache.db"
     cache-duration: "12h"
     auth-default-access: "read-write"
+    # Alertmanager's ?template=alertmanager notifications exceed the 4k
+    # default once a group holds a few alerts; ntfy then 400s
+    # ("message or title is too large after replacing template") and the
+    # whole notification is dropped.
+    message-size-limit: "32k"
 kind: ConfigMap
 metadata:
   name: ntfy-config

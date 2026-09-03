@@ -10,4 +10,4 @@ spec:
     port: http-metrics
   selector:
     matchLabels:
-      app.kubernetes.io/name: argocd-application-controller-metrics
+      app.kubernetes.io/name: argocd-metrics

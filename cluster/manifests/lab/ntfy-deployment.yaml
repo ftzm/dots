@@ -13,7 +13,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: fd8a045140fd2b4240809addef8b9af8
+        checksum/config: 40758efc1757f25fe0a1e8f64646ce01
       labels:
         app.kubernetes.io/name: ntfy
     spec:

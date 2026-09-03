@@ -511,7 +511,10 @@ local patchTargetDown(resources) = {
     // restrictions).
     controllerServiceMonitor: alerts.serviceMonitor(
       'argocd-application-controller', ns,
-      { 'app.kubernetes.io/name': 'argocd-application-controller-metrics' },
+      // The chart labels this one service `argocd-metrics` (not
+      // *-controller-metrics like its siblings); matching the wrong name
+      // means no argocd_app_info at all -- which ArgoCDAppMissing catches.
+      { 'app.kubernetes.io/name': 'argocd-metrics' },
       'http-metrics'
     ),
     serverServiceMonitor: alerts.serviceMonitor(
@@ -849,7 +852,10 @@ local patchTargetDown(resources) = {
                 hc.deployment.spec.template.spec.containers[0] {
                   env: [
                     { name: 'SITE_ROOT', value: 'https://hc.lan.ftzmlab.xyz' },
-                    { name: 'ALLOWED_HOSTS', value: 'hc.lan.ftzmlab.xyz' },
+                    // Includes the in-cluster service name: Alertmanager's Watchdog
+                    // webhook pings via it, and Django 400s (DisallowedHost)
+                    // anything not listed.
+                    { name: 'ALLOWED_HOSTS', value: 'hc.lan.ftzmlab.xyz,healthchecks.healthchecks.svc.cluster.local' },
                     { name: 'DEFAULT_FROM_EMAIL', value: 'hc@ftzmlab.xyz' },
                     // DB selects the engine (unset = sqlite); the path goes
                     // in DB_NAME.
@@ -1905,6 +1911,11 @@ local patchTargetDown(resources) = {
           cache-file: "/var/cache/ntfy/cache.db"
           cache-duration: "12h"
           auth-default-access: "read-write"
+          # Alertmanager's ?template=alertmanager notifications exceed the 4k
+          # default once a group holds a few alerts; ntfy then 400s
+          # ("message or title is too large after replacing template") and the
+          # whole notification is dropped.
+          message-size-limit: "32k"
         |||,
     },
 
