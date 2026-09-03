@@ -19,7 +19,7 @@ spec:
     protocol: TCP
     targetPort: 12345
   - name: syslog
-    port: null
+    port: 5140
     protocol: TCP
     targetPort: 5140
   selector:

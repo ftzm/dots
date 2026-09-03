@@ -427,7 +427,13 @@ local patchTargetDown(resources) = {
           },
           repoServer: {
             livenessProbe: {
-              timeoutSeconds: 5,
+              // 15s, not 5: the probe is /healthz?full=true, which does a
+              // gRPC self-dial; during manifest generation of this repo's
+              // ~12MB rendered tree the dial can exceed 5s, and five straight
+              // misses kill the pod mid-generation -- which restarts the
+              // generation, which starves the next probe: a crashloop that
+              // blocked syncs for ~4h on 2026-09-03.
+              timeoutSeconds: 15,
               periodSeconds: 30,
               failureThreshold: 5,
             },
@@ -1217,8 +1223,13 @@ local patchTargetDown(resources) = {
             // below), so alloy runs on every other node and each binds 5140 on
             // its own host; friendlywrt dials nuc's LAN address specifically.
             // TCP, not UDP — UDP syslog drops silently under loss.
+            // `port` is the Service port: the chart copies extraPorts into the
+            // ClusterIP Service, where a null port is rejected by the API
+            // server (spec.ports[].port must be 1-65535) and the whole ArgoCD
+            // sync fails.
             extraPorts: [{
               name: 'syslog',
+              port: 5140,
               targetPort: 5140,
               hostPort: 5140,
               protocol: 'TCP',
