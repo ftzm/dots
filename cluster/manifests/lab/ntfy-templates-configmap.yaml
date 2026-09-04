@@ -5,13 +5,14 @@ data:
     \"alertname\" }}{{ if gt $n 1 }} (x{{ $n }}){{ end }}{{ if eq .status \"resolved\"
     }} resolved{{ end }}\nmessage: |\n  {{- range .alerts }}\n  {{- with .annotations.summary
     }}{{ . }}\n  {{ end }}\n  {{- with .annotations.description }}{{ . }}\n  {{ end
-    }}\n  {{- $where := \"\" }}\n  {{- with index .labels \"host\" }}{{ $where = .
-    }}{{ end }}\n  {{- with index .labels \"instance\" }}{{ $where = . }}{{ end }}\n
-    \ {{- with index .labels \"namespace\" }}{{ $where = printf \"%s %s\" $where .
-    }}{{ end }}\n  {{- with index .labels \"unit\" }}{{ $where = printf \"%s %s\"
-    $where . }}{{ end }}\n  {{- if ne $where \"\" }}where: {{ $where }}\n  {{ end
-    }}\n  {{- end }}\npriority: |\n  {{- if eq .status \"resolved\" }}2\n  {{- else
-    if eq (index (index .alerts 0).labels \"severity\") \"critical\" }}5\n  {{- else
+    }}\n  {{- $parts := list }}\n  {{- with index .labels \"host\" }}{{ $parts = append
+    $parts . }}{{ end }}\n  {{- with index .labels \"instance\" }}{{ $parts = append
+    $parts . }}{{ end }}\n  {{- with index .labels \"namespace\" }}{{ $parts = append
+    $parts . }}{{ end }}\n  {{- with index .labels \"container\" }}{{ $parts = append
+    $parts . }}{{ end }}\n  {{- with index .labels \"unit\" }}{{ $parts = append $parts
+    . }}{{ end }}\n  {{- if $parts }}where: {{ join \" / \" $parts }}\n  {{ end }}\n
+    \ {{- end }}\npriority: |\n  {{- if eq .status \"resolved\" }}2\n  {{- else if
+    eq (index (index .alerts 0).labels \"severity\") \"critical\" }}5\n  {{- else
     }}3{{ end }}\n"
 kind: ConfigMap
 metadata:

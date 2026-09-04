@@ -6,9 +6,9 @@ data:
       "rules":
       - "alert": "K8sEventWarning"
         "annotations":
-          "description": "A Warning-type event (OOMKill, FailedScheduling, eviction, probe failure). Full event text is in the alert body."
-          "summary": "Kubernetes warning event"
-        "expr": "{job=\"loki.source.kubernetes_events.cluster\"} |= \"Warning\""
+          "description": "Warning-type events (OOMKill, FailedScheduling, eviction, probe failure) in the last 5m. Details: query the events stream in Loki."
+          "summary": "Kubernetes warning events in {{ $labels.namespace }}"
+        "expr": "sum by (namespace) (count_over_time({job=\"loki.source.kubernetes_events.cluster\"} |= \"Warning\" [5m])) > 0"
         "for": "1m"
         "labels":
           "severity": "warning"

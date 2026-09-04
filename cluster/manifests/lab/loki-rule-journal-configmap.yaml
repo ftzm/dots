@@ -6,9 +6,9 @@ data:
       "rules":
       - "alert": "JournalUnitFailure"
         "annotations":
-          "description": "Unit {{ $labels.unit }} failed on {{ $labels.host }}. Full message is in the alert body."
+          "description": "Unit {{ $labels.unit }} on {{ $labels.host }} logged a failure in the last 5m. Details: query the journal stream in Loki."
           "summary": "Systemd unit failed on {{ $labels.host }}"
-        "expr": "{job=\"systemd-journal\"} |~ \"entered failed state|Failed to start|Failed with result\""
+        "expr": "sum by (host, unit) (count_over_time({job=\"systemd-journal\"} |~ \"entered failed state|Failed to start|Failed with result\" [5m])) > 0"
         "for": "1m"
         "labels":
           "severity": "warning"

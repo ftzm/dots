@@ -755,12 +755,17 @@ local patchTargetDown(resources) = {
     // mailsort finding). Delivered as a ConfigMap the Loki ruler sidecar
     // watches; requires the ruler wiring (alertmanager_url etc).
     journalLokiRule: alerts.lokiRule('journal', ns, [
+      // Loki alerting rules must be METRIC queries -- a bare log selector
+      // loads fine but every evaluation fails with "rule result is not a
+      // vector or scalar", so the rule shows inactive forever while the
+      // ruler logs an error each cycle (found 2026-09-04 via LogErrorRate
+      // firing on loki's own log -- the pipeline reporting its broken rule).
       alerts.rule(
         'JournalUnitFailure',
-        '{job="systemd-journal"} |~ "entered failed state|Failed to start|Failed with result"',
+        'sum by (host, unit) (count_over_time({job="systemd-journal"} |~ "entered failed state|Failed to start|Failed with result" [5m])) > 0',
         '1m', 'warning',
         'Systemd unit failed on {{ $labels.host }}',
-        'Unit {{ $labels.unit }} failed on {{ $labels.host }}. Full message is in the alert body.',
+        'Unit {{ $labels.unit }} on {{ $labels.host }} logged a failure in the last 5m. Details: query the journal stream in Loki.',
       ),
       // The canonical-vocabulary guard for host sources — the counterpart of
       // ParseCoverage, which only covers pod logs. Catches the fault class
@@ -845,10 +850,10 @@ local patchTargetDown(resources) = {
     eventsLokiRule: alerts.lokiRule('k8s-events', ns, [
       alerts.rule(
         'K8sEventWarning',
-        '{job="loki.source.kubernetes_events.cluster"} |= "Warning"',
+        'sum by (namespace) (count_over_time({job="loki.source.kubernetes_events.cluster"} |= "Warning" [5m])) > 0',
         '1m', 'warning',
-        'Kubernetes warning event',
-        'A Warning-type event (OOMKill, FailedScheduling, eviction, probe failure). Full event text is in the alert body.',
+        'Kubernetes warning events in {{ $labels.namespace }}',
+        'Warning-type events (OOMKill, FailedScheduling, eviction, probe failure) in the last 5m. Details: query the events stream in Loki.',
       ),
     ]),
   },
@@ -1991,12 +1996,13 @@ local patchTargetDown(resources) = {
             {{ end }}
             {{- with .annotations.description }}{{ . }}
             {{ end }}
-            {{- $where := "" }}
-            {{- with index .labels "host" }}{{ $where = . }}{{ end }}
-            {{- with index .labels "instance" }}{{ $where = . }}{{ end }}
-            {{- with index .labels "namespace" }}{{ $where = printf "%s %s" $where . }}{{ end }}
-            {{- with index .labels "unit" }}{{ $where = printf "%s %s" $where . }}{{ end }}
-            {{- if ne $where "" }}where: {{ $where }}
+            {{- $parts := list }}
+            {{- with index .labels "host" }}{{ $parts = append $parts . }}{{ end }}
+            {{- with index .labels "instance" }}{{ $parts = append $parts . }}{{ end }}
+            {{- with index .labels "namespace" }}{{ $parts = append $parts . }}{{ end }}
+            {{- with index .labels "container" }}{{ $parts = append $parts . }}{{ end }}
+            {{- with index .labels "unit" }}{{ $parts = append $parts . }}{{ end }}
+            {{- if $parts }}where: {{ join " / " $parts }}
             {{ end }}
             {{- end }}
           priority: |
