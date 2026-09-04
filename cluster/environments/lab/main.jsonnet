@@ -979,7 +979,7 @@ local patchTargetDown(resources) = {
                 {
                   name: 'ntfy',
                   webhook_configs: [{
-                    url: 'http://ntfy.ntfy.svc.cluster.local/alerts?template=alertmanager',
+                    url: 'http://ntfy.ntfy.svc.cluster.local/alerts?template=lab',
                     send_resolved: true,
                   }],
                 },
@@ -1972,6 +1972,40 @@ local patchTargetDown(resources) = {
       + k.core.v1.configMap.metadata.withNamespace(ns)
       + k.core.v1.configMap.withData(configData),
 
+    // Named template for Alertmanager notifications. The stock
+    // ?template=alertmanager rendering prints template artifacts the raw
+    // payload happens to contain -- `Instance: <no value>` when the label is
+    // absent, `Ends at: 0001-01-01` for unresolved alerts -- which made real
+    // alerts read as noise. This one only prints fields that exist.
+    templatesConfigmap: k.core.v1.configMap.new('ntfy-templates')
+      + k.core.v1.configMap.metadata.withNamespace(ns)
+      + k.core.v1.configMap.withData({
+        'lab.yml': |||
+          title: |
+            {{- $n := len .alerts }}
+            {{- $a := index .alerts 0 }}
+            {{- if eq .status "firing" }}🚨 {{ else }}✅ {{ end }}{{ index $a.labels "alertname" }}{{ if gt $n 1 }} (x{{ $n }}){{ end }}{{ if eq .status "resolved" }} resolved{{ end }}
+          message: |
+            {{- range .alerts }}
+            {{- with .annotations.summary }}{{ . }}
+            {{ end }}
+            {{- with .annotations.description }}{{ . }}
+            {{ end }}
+            {{- $where := "" }}
+            {{- with index .labels "host" }}{{ $where = . }}{{ end }}
+            {{- with index .labels "instance" }}{{ $where = . }}{{ end }}
+            {{- with index .labels "namespace" }}{{ $where = printf "%s %s" $where . }}{{ end }}
+            {{- with index .labels "unit" }}{{ $where = printf "%s %s" $where . }}{{ end }}
+            {{- if ne $where "" }}where: {{ $where }}
+            {{ end }}
+            {{- end }}
+          priority: |
+            {{- if eq .status "resolved" }}2
+            {{- else if eq (index (index .alerts 0).labels "severity") "critical" }}5
+            {{- else }}3{{ end }}
+        |||,
+      }),
+
     pvc: k.core.v1.persistentVolumeClaim.new('ntfy-cache')
       + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
       + k.core.v1.persistentVolumeClaim.spec.withAccessModes(['ReadWriteOnce'])
@@ -1995,11 +2029,13 @@ local patchTargetDown(resources) = {
         ])
         + k.core.v1.container.withVolumeMounts([
           k.core.v1.volumeMount.new('config', '/etc/ntfy'),
+          k.core.v1.volumeMount.new('templates', '/etc/ntfy/templates'),
           k.core.v1.volumeMount.new('cache', '/var/cache/ntfy'),
         ]),
       ])
       + k.apps.v1.deployment.spec.template.spec.withVolumes([
         k.core.v1.volume.fromConfigMap('config', 'ntfy-config'),
+        k.core.v1.volume.fromConfigMap('templates', 'ntfy-templates'),
         k.core.v1.volume.fromPersistentVolumeClaim('cache', 'ntfy-cache'),
       ]),
 
