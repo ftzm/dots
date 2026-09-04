@@ -8,7 +8,7 @@ data:
         "annotations":
           "description": "More than 5 error-level lines per 5m sustained for 10m."
           "summary": "Elevated error rate in {{ $labels.namespace }}/{{ $labels.container }}"
-        "expr": "sum by (namespace, container) (count_over_time({level=\"error\"}[5m])) > 5"
+        "expr": "sum by (namespace, container) (count_over_time({container=~\".+\", level=\"error\"}[5m])) > 5"
         "for": "10m"
         "labels":
           "severity": "warning"

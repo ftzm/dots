@@ -787,9 +787,13 @@ local patchTargetDown(resources) = {
     // after the normalization pipeline. Thresholds are starting points tuned
     // against the Phase 0 volume baseline.
     logErrorLokiRule: alerts.lokiRule('log-error-rate', ns, [
+      // Scoped to pod logs: journal streams carry no namespace/container, so
+      // an unscoped selector aggregates them into a nameless "/" group
+      // (notified as "Elevated error rate in /" on 2026-09-04). Journal
+      // errors have their own JournalErrorRate rule.
       alerts.rule(
         'LogErrorRate',
-        'sum by (namespace, container) (count_over_time({level="error"}[5m])) > 5',
+        'sum by (namespace, container) (count_over_time({container=~".+", level="error"}[5m])) > 5',
         '10m', 'warning',
         'Elevated error rate in {{ $labels.namespace }}/{{ $labels.container }}',
         'More than 5 error-level lines per 5m sustained for 10m.',

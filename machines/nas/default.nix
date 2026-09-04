@@ -262,9 +262,21 @@ in {
           source_labels = ["__journal__systemd_unit"]
           target_label  = "unit"
         }
-        # Canonical level vocabulary (debug/info/warn/error/fatal + unknown),
-        # matching cluster/lib/logformats.libsonnet hostLevelRelabel. Catch-all
-        # first; specific maps override.
+        // Pin the static labels as relabel rules: alloy v1.19 drops the
+        // loki.source.journal `labels` map when relabel_rules is set (bit the
+        // cluster daemonset 2026-09-03); harmless on v1.12, protective later.
+        rule {
+          target_label = "job"
+          replacement  = "systemd-journal"
+        }
+        rule {
+          target_label = "host"
+          replacement  = "nas"
+        }
+        // Canonical level vocabulary (debug/info/warn/error/fatal + unknown),
+        // matching cluster/lib/logformats.libsonnet hostLevelRelabel.
+        // Catch-all first; specific maps override. NB River comments are
+        // `//` -- `#` here crash-looped alloy for 20h (33k restarts).
         rule {
           source_labels = ["__journal_priority_keyword"]
           regex         = ".*"
