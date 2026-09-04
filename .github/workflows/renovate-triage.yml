@@ -143,17 +143,41 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
 
+      # Renovate rebases retrigger CI while a triage from the PREVIOUS CI
+      # completion is starting; that triage then faces in-progress checks and
+      # possibly a stale verdict. On 2026-09-04 (#188) the review agent hit
+      # exactly this, tried to wait via a scheduling tool that never fires in
+      # a one-shot session, and exited with no visible outcome. Every CI
+      # completion fires a fresh triage, so the superseded run should yield,
+      # not wait: skip everything downstream and let the newer event decide.
+      - name: Yield if a newer CI run is in progress
+        id: supersede
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          sha=$(gh pr view "${{ matrix.pr.number }}" --json headRefOid --jq .headRefOid)
+          active=$(gh api "repos/${{ github.repository }}/commits/$sha/check-runs"             --jq '[.check_runs[] | select(.status != "completed")] | length')
+          if [ "$active" -gt 0 ]; then
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            echo "head $sha has $active unfinished check-run(s); yielding to the triage their completion will fire"
+          else
+            echo "superseded=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Only the fix path builds anything; a review reads source and release
       # notes, so it skips the (slow) Nix setup entirely.
       - uses: DeterminateSystems/determinate-nix-action@v3
-        if: matrix.pr.mode == 'fix'
+        if: steps.supersede.outputs.superseded != 'true' && matrix.pr.mode == 'fix'
 
       - uses: DeterminateSystems/magic-nix-cache-action@main
-        if: matrix.pr.mode == 'fix'
+        if: steps.supersede.outputs.superseded != 'true' && matrix.pr.mode == 'fix'
         with:
           use-flakehub: false
 
       - name: Ensure needs-review label exists
+        if: steps.supersede.outputs.superseded != 'true'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -168,6 +192,7 @@ jobs:
       # or comments -- so a run that changes nothing must not report success.
       - name: Snapshot PR comment count
         id: before
+        if: steps.supersede.outputs.superseded != 'true'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -179,7 +204,7 @@ jobs:
 
       - name: Collect and distil the failure
         id: diagnose
-        if: matrix.pr.mode == 'fix'
+        if: steps.supersede.outputs.superseded != 'true' && matrix.pr.mode == 'fix'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -220,7 +245,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Claude auto-fix
-        if: matrix.pr.mode == 'fix'
+        if: steps.supersede.outputs.superseded != 'true' && matrix.pr.mode == 'fix'
         uses: anthropics/claude-code-action@v1
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -269,6 +294,12 @@ jobs:
             `nix build` for each affected host and the render command.
 
             Constraints:
+            - You are running as a one-shot batch job: nothing re-invokes
+              you later. Scheduling or deferred-wakeup tools never fire
+              here -- do not use them; wait in the foreground with bounded
+              Bash (`timeout NNN gh run watch ...`) if you must wait at
+              all. Ending the session without a repair PR or an explanatory
+              comment is the one unacceptable outcome.
             - Only adapt config to upstream changes. Do NOT add features,
               refactor unrelated code, or modify `flake.lock`.
             - Do NOT change the dependency version this PR is bumping --
@@ -294,7 +325,7 @@ jobs:
             --allowedTools Read,Edit,Write,Bash,Grep,Glob
 
       - name: Claude release-note risk review
-        if: matrix.pr.mode == 'review'
+        if: steps.supersede.outputs.superseded != 'true' && matrix.pr.mode == 'review'
         uses: anthropics/claude-code-action@v1
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -429,6 +460,14 @@ jobs:
             real risk, not to restate the changelog.
 
             Constraints:
+            - You are running as a one-shot batch job: nothing re-invokes
+              you later. Scheduling or deferred-wakeup tools never fire
+              here -- do not use them. If a required check is unexpectedly
+              still running, wait for it in the foreground with
+              `gh pr checks ${{ matrix.pr.number }} --watch` (bounded by
+              `timeout 600`); if it still has not settled, say so in your
+              comment and finish. Ending the session without a merge or a
+              comment is the one unacceptable outcome.
             - Do not modify any file, and do not push commits. This is a
               read-and-decide task.
             - Never run `kubectl`, `systemctl`, or touch the cluster. Read
@@ -443,7 +482,7 @@ jobs:
       # The agent's own transcript is the only record of why it decided what it
       # decided; the job log keeps just the init and result envelopes.
       - name: Upload Claude transcript
-        if: always()
+        if: always() && steps.supersede.outputs.superseded != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: claude-execution-output-${{ matrix.pr.number }}
@@ -451,7 +490,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Require a visible outcome
-        if: always()
+        if: always() && steps.supersede.outputs.superseded != 'true'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           GH_REPO: ${{ github.repository }}
