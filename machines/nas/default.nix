@@ -227,6 +227,13 @@ in {
       node = {
         enable = true;
         enabledCollectors = ["processes" "systemd"];
+        # Without this the systemd collector exports no restart counters, so the
+
+        # shipped NodeSystemdServiceCrashlooping rule can never fire -- nas alloy
+
+        # restarting every 2s for 20h (2026-09-04) produced no metric at all.
+
+        extraFlags = ["--collector.systemd.enable-restarts-metrics"];
         port = 9002;
       };
     };
