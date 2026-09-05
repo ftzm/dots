@@ -1020,6 +1020,16 @@ local patchTargetDown(resources) = {
                     receiver: 'healthchecks',
                     repeat_interval: '24h',
                   },
+                  // Plumbing alert: it exists solely as an inhibition source
+                  // for severity=info alerts and must never notify. The root
+                  // receiver here is ntfy (the chart's is 'null'), so it needs
+                  // an explicit null route; the bare `target_matchers:
+                  // alertname = InfoInhibitor` inhibit rule does not hold it
+                  // (delivered to ntfy twice on 2026-09-05).
+                  {
+                    matchers: ['alertname = "InfoInhibitor"'],
+                    receiver: 'null',
+                  },
                   // Host/infra alerts carry no namespace label, so the default
                   // namespace grouping lumps them into one {} group where any
                   // membership change re-notifies everything in it
