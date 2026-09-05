@@ -762,10 +762,15 @@ local patchTargetDown(resources) = {
       // firing on loki's own log -- the pipeline reporting its broken rule).
       alerts.rule(
         'JournalUnitFailure',
-        'sum by (host, unit) (count_over_time({job="systemd-journal"} |~ "entered failed state|Failed to start|Failed with result" [5m])) > 0',
+        // > 2 in 15m, not > 0 in 5m: mailsort (1-min timer, ~1440 IMAP
+        // logins/day) hits a transient Fastmail disconnect ~0.1% of runs and
+        // self-heals on the next tick; a single blip paged twice on
+        // 2026-09-05. Real breakage fails every run and clears this
+        // threshold inside 3 minutes.
+        'sum by (host, unit) (count_over_time({job="systemd-journal"} |~ "entered failed state|Failed to start|Failed with result" [15m])) > 2',
         '1m', 'warning',
-        'Systemd unit failed on {{ $labels.host }}',
-        'Unit {{ $labels.unit }} on {{ $labels.host }} logged a failure in the last 5m. Details: query the journal stream in Loki.',
+        'Systemd unit repeatedly failing on {{ $labels.host }}',
+        'Unit {{ $labels.unit }} on {{ $labels.host }} logged 3+ failures in 15m -- persistent, not a transient blip. Details: query the journal stream in Loki.',
       ),
       // The canonical-vocabulary guard for host sources — the counterpart of
       // ParseCoverage, which only covers pod logs. Catches the fault class
@@ -780,9 +785,14 @@ local patchTargetDown(resources) = {
         'Non-canonical journal levels from {{ $labels.host }}',
         'A host is shipping journal lines with levels outside the canonical vocabulary — its log pipeline is running a stale or divergent config. Compare the deployed generation with the shipper process start time.',
       ),
+      // level="error", not "err": the canonical vocabulary folds journal
+      // priority keywords, so the pre-normalization selector matched nothing
+      // -- nmbd spammed 0.63 err/s for days, 12x threshold, unseen
+      // (found 2026-09-05). The stream-side guard (JournalNonCanonicalLevel)
+      // can't catch a RULE still written against the old vocabulary.
       alerts.rule(
         'JournalErrorRate',
-        'sum by (host, unit) (rate({job="systemd-journal",level="err"}[5m])) > 0.05',
+        'sum by (host, unit) (rate({job="systemd-journal",level="error"}[5m])) > 0.05',
         '10m', 'warning',
         'Elevated error rate in journal on {{ $labels.host }} ({{ $labels.unit }})',
         'Error lines are being emitted at > 0.05 lines/s over 5m. Threshold tuned against the real err-line baseline (k3s/NetworkManager emit err lines routinely).',

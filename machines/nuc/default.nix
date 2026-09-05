@@ -269,6 +269,12 @@ in {
       global = {
         browseable = "yes";
         "smb encrypt" = "required";
+        # Without this nmbd binds every interface, including flannel/veth
+        # link-locals (169.254/16), and logs "Packet send failed to
+        # 169.254.255.255 ERRNO=Network is unreachable" ~38x/min forever
+        # (22.7k journal errors in 10h, 2026-09-05). LAN + loopback only.
+        interfaces = "lo eno1";
+        "bind interfaces only" = "yes";
       };
       public = {
         path = "/mnt/nas/cloud";
