@@ -46,7 +46,20 @@ local severities = ['critical', 'warning', 'info'];
 
   // Log alerts (LogQL). Renders a ConfigMap the Loki k8s-sidecar watches
   // (label `loki_rule`, folder /rules).
+  //
+  // A LogQL alert must be a metric query. A bare log selector loads fine and
+  // then fails every single evaluation ("rule result is not a vector or
+  // scalar"), so the rule sits inactive forever while the failure it exists
+  // to catch goes unreported -- two rules were dead this way for weeks. Every
+  // LogQL metric query is built from a range aggregation, so requiring one
+  // rejects that shape at render time instead of at 3am.
   lokiRule(name, ns, rules):: {
+    assert std.all([
+      std.length(std.findSubstr('_over_time(', r.expr)) > 0 ||
+      std.length(std.findSubstr('rate(', r.expr)) > 0
+      for r in rules
+    ]) : name + ': every Loki alert expr must be a metric query (a range aggregation over the selector), not a bare log selector',
+
     apiVersion: 'v1',
     kind: 'ConfigMap',
     metadata: {

@@ -29,6 +29,14 @@ test-rules:
       yq '.spec' "$f" > "tests/.rules/$(basename "$f")"
     done
     promtool test rules tests/*.test.yaml
+    # Loki rules ship as a ConfigMap holding one rule file; lokitool parses the
+    # LogQL that promtool cannot. It does not reject a bare log selector, so the
+    # metric-query shape is asserted in lib/alerts.libsonnet at render time.
+    for f in manifests/lab/loki-rule-*-configmap.yaml; do
+      out="tests/.rules/$(basename "$f")"
+      yq -r '.data | to_entries | .[0].value' "$f" > "$out"
+      lokitool rules check --rule-files="$out"
+    done
 
 # Initialize jsonnet-bundler dependencies
 jb-install:

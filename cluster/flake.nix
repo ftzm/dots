@@ -27,9 +27,11 @@
         # Grafana Tanka
         tanka
 
-        # Alert-rule unit tests: promtool lives in prometheus's `cli` output,
-        # not the default one (which ships only the server binary).
+        # Alert-rule tests: promtool lives in prometheus's `cli` output, not
+        # the default one (which ships only the server binary). lokitool
+        # parses the LogQL rules, which promtool cannot read.
         prometheus.cli
+        grafana-loki
 
         # Utilities
         yq-go
