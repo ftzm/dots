@@ -1,25 +1,19 @@
 annotations:
   artifacthub.io/changes: |
     - kind: fixed
-      description: "fix: hub/proxy mapping"
-    - kind: fixed
-      description: "fix(rbac): restore secretResourceNames for namespaced role"
+      description: "fix: grant ConfigMap write verbs to namespaced role"
     - kind: added
-      description: "feat: deprecate `underscoreHeadersStrategy` value"
+      description: "feat(deps): update traefik docker tag to v3.7.13"
     - kind: added
-      description: "feat: add `aliasHeadersStrategy` value"
+      description: "feat(deps): update ghcr.io/traefik/traefik-hub docker tag to v3.20.13"
     - kind: added
-      description: "feat(hub): support apiManagement OpenAPI refresh interval"
-    - kind: added
-      description: "feat(deps): update traefik docker tag to v3.7.12"
-    - kind: added
-      description: "feat(deps): update ghcr.io/traefik/traefik-hub docker tag to v3.20.12"
-  traefik.io/hub-max-version: v3.20.12
+      description: "feat(CRDs): update Traefik Hub to v1.34.0"
+  traefik.io/hub-max-version: v3.20.13
   traefik.io/hub-min-version: v3.19.3
-  traefik.io/proxy-max-version: v3.7.12
+  traefik.io/proxy-max-version: v3.7.13
   traefik.io/proxy-min-version: v3.6.0
 apiVersion: v2
-appVersion: v3.7.12
+appVersion: v3.7.13
 description: A Traefik based Kubernetes ingress controller
 home: https://traefik.io/
 icon: https://raw.githubusercontent.com/traefik/traefik/master/docs/content/assets/img/traefik.logo.png
@@ -39,4 +33,4 @@ sources:
 - https://github.com/traefik/traefik-helm-chart
 - https://github.com/traefik/traefik
 type: application
-version: 41.4.0
+version: 41.5.0
