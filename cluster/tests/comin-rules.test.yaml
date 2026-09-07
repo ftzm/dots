@@ -1,0 +1,83 @@
+# Unit tests for the comin reachability alerts. Run with `just test-rules`,
+# which renders .spec out of the PrometheusRule CRs into tests/.rules/ first.
+#
+# The two rules split by host class: always-on lab machines alert on `up == 0`
+# within 30m, roaming laptops only when nothing has been scraped for seven
+# days. The laptop cases below pin the overnight absence that used to page.
+
+rule_files:
+  - .rules/comin-prometheusrule.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # An always-on machine going quiet is a fault, on every such machine, and
+  # not before its `for` elapses.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="comin", instance="nuc"}'
+        values: '0+0x60'
+      - series: 'up{job="comin", instance="nas"}'
+        values: '0+0x60'
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: CominTargetUnreachable
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: CominTargetUnreachable
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: comin
+              instance: nas
+            exp_annotations:
+              summary: 'comin metrics unreachable on nas for 30m'
+              description: 'Prometheus cannot scrape the comin exporter on an always-on lab machine. Every other Comin* alert is blind while this is true, so a deploy failure here would go unnoticed. Check host reachability over the LAN and that the exporter is listening on a routable address.'
+          - exp_labels:
+              severity: warning
+              job: comin
+              instance: nuc
+            exp_annotations:
+              summary: 'comin metrics unreachable on nuc for 30m'
+              description: 'Prometheus cannot scrape the comin exporter on an always-on lab machine. Every other Comin* alert is blind while this is true, so a deploy failure here would go unnoticed. Check host reachability over the LAN and that the exporter is listening on a routable address.'
+
+  # A laptop off overnight is not news: one scrape, then eleven hours away,
+  # pages nothing. Under the old single `up == 0` rule this fired at 6h.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="comin", instance="eachtrai"}'
+        values: '1+0x60 0+0x660'
+    alert_rule_test:
+      - eval_time: 12h
+        alertname: CominTargetStale
+        exp_alerts: []
+      - eval_time: 12h
+        alertname: CominTargetUnreachable
+        exp_alerts: []
+
+  # A laptop that has not answered once in seven days is either gone or
+  # broken; both make every other Comin* alert blind for it, so it pages.
+  # Sampled every 30m: a week of 1m samples exceeds promtool's per-query
+  # sample budget, and the rule's semantics do not depend on resolution.
+  - interval: 30m
+    input_series:
+      - series: 'up{job="comin", instance="saoiste"}'
+        values: '1 0+0x384'
+    alert_rule_test:
+      # Still within seven days of the last successful scrape.
+      - eval_time: 6d
+        alertname: CominTargetStale
+        exp_alerts: []
+      - eval_time: 7d2h
+        alertname: CominTargetStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: comin
+              instance: saoiste
+            exp_annotations:
+              summary: 'comin metrics stale on saoiste for 7d'
+              description: 'A roaming machine has not been scraped successfully once in seven days: either it has been off that whole time or its exporter is broken. Either way every other Comin* alert is blind for it, so a deploy failure would go unnoticed. Expect this after a long trip; otherwise check tailscale reachability and the exporter.'
+      - eval_time: 7d2h
+        alertname: CominTargetUnreachable
+        exp_alerts: []

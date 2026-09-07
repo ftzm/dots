@@ -36,17 +36,26 @@ local withNamespace(resources, ns) = {
 
 // Comin exporter scrape targets: lab machines by LAN (always on the same
 // subnet), laptops by tailscale IP (they roam/sleep). Instance label is the
-// host shortname so alerts read `instance="saoiste"` etc.
+// host shortname so alerts read `instance="saoiste"` etc. `alwaysOn` is the
+// host class the reachability alerts split on -- see CominTargetUnreachable
+// and CominTargetStale below.
+local cominMachines = [
+  { instance: 'nuc', host: config.machines.nuc.lan, alwaysOn: true },
+  { instance: 'nas', host: config.machines.nas.lan, alwaysOn: true },
+  { instance: 'saoiste', host: config.machines.saoiste.tailscale, alwaysOn: false },
+  { instance: 'eachtrai', host: config.machines.eachtrai.tailscale, alwaysOn: false },
+];
+
+// Instance regex for one host class, so an alert expression and the scrape
+// targets it reasons about cannot drift apart.
+local cominInstances(alwaysOn) =
+  std.join('|', [m.instance for m in cominMachines if m.alwaysOn == alwaysOn]);
+
 local cominScrapeConfig = {
   job_name: 'comin',
   static_configs: [
     { targets: [m.host + ':4243'], labels: { instance: m.instance } }
-    for m in [
-      { instance: 'nuc', host: config.machines.nuc.lan },
-      { instance: 'nas', host: config.machines.nas.lan },
-      { instance: 'saoiste', host: config.machines.saoiste.tailscale },
-      { instance: 'eachtrai', host: config.machines.eachtrai.tailscale },
-    ]
+    for m in cominMachines
   ],
 };
 
@@ -731,16 +740,30 @@ local patchTargetDown(resources) = {
       // Every rule above is `metric == 1`, and an absent metric yields no
       // series — so none of them can fire when the target is simply
       // unreachable. TargetDown is deliberately excluded for job="comin"
-      // (laptops sleep), which removes the only other signal. Without this
-      // rule a permanently-broken comin scrape is completely silent — the
-      // exact failure class this whole effort exists to eliminate. 6h is long
-      // enough to sleep through a night without paging.
+      // (laptops sleep), which removes the only other signal. Without a
+      // reachability rule a permanently-broken comin scrape is completely
+      // silent — the exact failure class this whole effort exists to
+      // eliminate.
+      //
+      // `up == 0` only carries that meaning for the always-on machines.
+      // A single rule with a `for` long enough to cover a laptop paged every
+      // night instead: eachtrai was unscrapable for 76% of a measured
+      // three-day window in one 11h night and one 43h stretch, so no
+      // duration separates "asleep" from "broken" there. The two classes get
+      // the signal that is true for them.
       alerts.rule(
         'CominTargetUnreachable',
-        'up{job="comin"} == 0',
-        '6h', 'warning',
-        'comin metrics unreachable on {{ $labels.instance }} for 6h',
-        'Prometheus cannot scrape the comin exporter. Every other Comin* alert is blind while this is true, so a deploy failure here would go unnoticed. Check host reachability (lab machines by LAN, laptops over tailscale) and that the exporter is listening on a routable address.',
+        'up{job="comin", instance=~"%s"} == 0' % cominInstances(true),
+        '30m', 'warning',
+        'comin metrics unreachable on {{ $labels.instance }} for 30m',
+        'Prometheus cannot scrape the comin exporter on an always-on lab machine. Every other Comin* alert is blind while this is true, so a deploy failure here would go unnoticed. Check host reachability over the LAN and that the exporter is listening on a routable address.',
+      ),
+      alerts.rule(
+        'CominTargetStale',
+        'max_over_time(up{job="comin", instance=~"%s"}[7d]) == 0' % cominInstances(false),
+        '1h', 'warning',
+        'comin metrics stale on {{ $labels.instance }} for 7d',
+        'A roaming machine has not been scraped successfully once in seven days: either it has been off that whole time or its exporter is broken. Either way every other Comin* alert is blind for it, so a deploy failure would go unnoticed. Expect this after a long trip; otherwise check tailscale reachability and the exporter.',
       ),
       alerts.rule(
         'CominNeedToReboot',

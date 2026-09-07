@@ -44,3 +44,4 @@ xmonad-x86_64-linux
 
 eln-cache
 .pre-commit-config.yaml
+/cluster/tests/.rules/

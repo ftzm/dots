@@ -15,6 +15,21 @@ render-lab:
     rm -rf manifests/lab
     mv "$tmp" manifests/lab
 
+# Unit-test the rendered Prometheus alert rules.
+# Rules ship as PrometheusRule CRs but promtool wants bare rule files, so
+# extract .spec into tests/.rules (gitignored) and point the tests at it.
+# Testing the rendered output, not the Jsonnet, means a rule that only breaks
+# once templated still fails here.
+test-rules:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -rf tests/.rules
+    mkdir -p tests/.rules
+    for f in manifests/lab/*-prometheusrule.yaml; do
+      yq '.spec' "$f" > "tests/.rules/$(basename "$f")"
+    done
+    promtool test rules tests/*.test.yaml
+
 # Initialize jsonnet-bundler dependencies
 jb-install:
     jb install

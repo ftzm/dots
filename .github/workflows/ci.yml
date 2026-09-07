@@ -40,3 +40,5 @@ jobs:
       # pi is aarch64-linux, skipped in CI (would require QEMU/cross-compilation)
       - name: Render cluster manifests
         run: cd cluster && nix develop . -c just render-lab
+      - name: Test alert rules
+        run: cd cluster && nix develop . -c just test-rules

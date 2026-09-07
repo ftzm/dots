@@ -5,10 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-  }: let
+  outputs = {nixpkgs, ...}: let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
   in {
@@ -29,6 +26,10 @@
 
         # Grafana Tanka
         tanka
+
+        # Alert-rule unit tests: promtool lives in prometheus's `cli` output,
+        # not the default one (which ships only the server binary).
+        prometheus.cli
 
         # Utilities
         yq-go
