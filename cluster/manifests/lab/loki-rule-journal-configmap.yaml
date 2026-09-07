@@ -6,10 +6,10 @@ data:
       "rules":
       - "alert": "JournalUnitFailure"
         "annotations":
-          "description": "Unit {{ $labels.failing_unit }} on {{ $labels.host }} logged 3+ failures in 15m -- persistent, not a transient blip. Details: query the journal stream in Loki."
+          "description": "Unit {{ $labels.failing_unit }} on {{ $labels.host }} has failed 3+ times in every 15m window for the last 20 minutes -- sustained, not a blip. Details: query the journal stream in Loki."
           "summary": "Systemd unit repeatedly failing on {{ $labels.host }}"
-        "expr": "sum by (host, failing_unit) (count_over_time({job=\"systemd-journal\"} |~ \"entered failed state|Failed to start|Failed with result\" | label_format failing_unit=`{{ if .about_unit }}{{ .about_unit }}{{ else }}{{ .unit }}{{ end }}` [15m])) > 2"
-        "for": "1m"
+        "expr": "sum by (host, failing_unit) (count_over_time({job=\"systemd-journal\"} |~ \"entered failed state|Failed with result\" | label_format failing_unit=`{{ if .about_unit }}{{ .about_unit }}{{ else }}{{ .unit }}{{ end }}` [15m])) > 2"
+        "for": "20m"
         "labels":
           "severity": "warning"
       - "alert": "JournalNonCanonicalLevel"

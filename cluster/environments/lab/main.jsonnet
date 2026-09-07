@@ -788,16 +788,32 @@ local patchTargetDown(resources) = {
         // > 2 in 15m, not > 0 in 5m: mailsort (1-min timer, ~1440 IMAP
         // logins/day) hits a transient Fastmail disconnect ~0.1% of runs and
         // self-heals on the next tick; a single blip paged twice on
-        // 2026-09-05. Real breakage fails every run and clears this
-        // threshold inside 3 minutes.
+        // 2026-09-05.
+        //
+        // One line per failure: systemd logs BOTH "Failed to start X" and
+        // "X: Failed with result" for the same event, so matching all three
+        // phrases counted every failure twice and `> 2` really tripped at two
+        // failures, not the three the description promised.
+        //
+        // The `for` is what makes the threshold mean "sustained": the count
+        // has to stay above three across the whole of it, and since the
+        // window only holds 15m of history that requires failures to keep
+        // arriving. A burst instead decays out and clears.
+        //
+        // 20m, not 15m, because a burst holds the count up for nearly a whole
+        // window on its own: replaying this expression over the three
+        // failures of 2026-09-07 01:08-01:10 (a Fastmail outage that paged
+        // under the old rule) leaves it above threshold from 01:10 to 01:23 --
+        // 14 minutes, one short of a 15m `for`. 20m clears that by five
+        // minutes while a unit that keeps failing still pages ~23 minutes in.
         // Grouped on the unit the message is ABOUT (about_unit), falling back
         // to the emitting unit for a service that logs one of these phrases
         // itself. Grouping on `unit` alone named PID 1 for every systemd-side
         // failure, so a page said "init.scope" whatever had actually broken.
-        'sum by (host, failing_unit) (count_over_time({job="systemd-journal"} |~ "entered failed state|Failed to start|Failed with result" | label_format failing_unit=`{{ if .about_unit }}{{ .about_unit }}{{ else }}{{ .unit }}{{ end }}` [15m])) > 2',
-        '1m', 'warning',
+        'sum by (host, failing_unit) (count_over_time({job="systemd-journal"} |~ "entered failed state|Failed with result" | label_format failing_unit=`{{ if .about_unit }}{{ .about_unit }}{{ else }}{{ .unit }}{{ end }}` [15m])) > 2',
+        '20m', 'warning',
         'Systemd unit repeatedly failing on {{ $labels.host }}',
-        'Unit {{ $labels.failing_unit }} on {{ $labels.host }} logged 3+ failures in 15m -- persistent, not a transient blip. Details: query the journal stream in Loki.',
+        'Unit {{ $labels.failing_unit }} on {{ $labels.host }} has failed 3+ times in every 15m window for the last 20 minutes -- sustained, not a blip. Details: query the journal stream in Loki.',
       ),
       // The canonical-vocabulary guard for host sources — the counterpart of
       // ParseCoverage, which only covers pod logs. Catches the fault class
