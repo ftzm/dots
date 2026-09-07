@@ -6,9 +6,9 @@ data:
       "rules":
       - "alert": "JournalUnitFailure"
         "annotations":
-          "description": "Unit {{ $labels.unit }} on {{ $labels.host }} logged 3+ failures in 15m -- persistent, not a transient blip. Details: query the journal stream in Loki."
+          "description": "Unit {{ $labels.failing_unit }} on {{ $labels.host }} logged 3+ failures in 15m -- persistent, not a transient blip. Details: query the journal stream in Loki."
           "summary": "Systemd unit repeatedly failing on {{ $labels.host }}"
-        "expr": "sum by (host, unit) (count_over_time({job=\"systemd-journal\"} |~ \"entered failed state|Failed to start|Failed with result\" [15m])) > 2"
+        "expr": "sum by (host, failing_unit) (count_over_time({job=\"systemd-journal\"} |~ \"entered failed state|Failed to start|Failed with result\" | label_format failing_unit=`{{ if .about_unit }}{{ .about_unit }}{{ else }}{{ .unit }}{{ end }}` [15m])) > 2"
         "for": "1m"
         "labels":
           "severity": "warning"

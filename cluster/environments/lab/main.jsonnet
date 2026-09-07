@@ -790,10 +790,14 @@ local patchTargetDown(resources) = {
         // self-heals on the next tick; a single blip paged twice on
         // 2026-09-05. Real breakage fails every run and clears this
         // threshold inside 3 minutes.
-        'sum by (host, unit) (count_over_time({job="systemd-journal"} |~ "entered failed state|Failed to start|Failed with result" [15m])) > 2',
+        // Grouped on the unit the message is ABOUT (about_unit), falling back
+        // to the emitting unit for a service that logs one of these phrases
+        // itself. Grouping on `unit` alone named PID 1 for every systemd-side
+        // failure, so a page said "init.scope" whatever had actually broken.
+        'sum by (host, failing_unit) (count_over_time({job="systemd-journal"} |~ "entered failed state|Failed to start|Failed with result" | label_format failing_unit=`{{ if .about_unit }}{{ .about_unit }}{{ else }}{{ .unit }}{{ end }}` [15m])) > 2',
         '1m', 'warning',
         'Systemd unit repeatedly failing on {{ $labels.host }}',
-        'Unit {{ $labels.unit }} on {{ $labels.host }} logged 3+ failures in 15m -- persistent, not a transient blip. Details: query the journal stream in Loki.',
+        'Unit {{ $labels.failing_unit }} on {{ $labels.host }} logged 3+ failures in 15m -- persistent, not a transient blip. Details: query the journal stream in Loki.',
       ),
       // The canonical-vocabulary guard for host sources — the counterpart of
       // ParseCoverage, which only covers pod logs. Catches the fault class
@@ -1404,6 +1408,13 @@ local patchTargetDown(resources) = {
 
               ||| + logformats.hostRelabel('journal', '__journal_priority_keyword', [
                 ['__journal__systemd_unit', 'unit'],
+                // systemd's own messages about a unit ("mailsort.service:
+                // Failed with result") are logged by PID 1, so _SYSTEMD_UNIT
+                // is init.scope and `unit` above names the messenger, not the
+                // subject. The UNIT= field carries the subject; without it
+                // every unit failure on a host pages as "init.scope"
+                // (observed 2026-09-07: a mailsort crash paged as init.scope).
+                ['__journal_unit', 'about_unit'],
                 ['__journal__hostname', 'host'],
                 ['__journal_syslog_identifier', 'syslog_identifier'],
               ], { job: 'systemd-journal' }) + |||
