@@ -42,3 +42,5 @@ jobs:
         run: cd cluster && nix develop . -c just render-lab
       - name: Test alert rules
         run: cd cluster && nix develop . -c just test-rules
+      - name: Test mailsort
+        run: nix shell nixpkgs#lua5_4 -c lua role/tests/mailsort.test.lua role/mailsort.lua

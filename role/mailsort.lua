@@ -283,27 +283,65 @@ local function sort_mailbox(name)
     orders:move_messages(account['Orders'])
 end
 
-for _, name in ipairs(SOURCES) do
-    sort_mailbox(name)
-end
-
 -- Anything with no bulk markers at all -- humans, receipts, official mail --
 -- is never selected here and simply stays where it was. Reaching you is the
 -- default path, not a listed exception.
 
 -- Retention --------------------------------------------------------------
 
-for _, rule in ipairs(EXPIRE_IN_PLACE) do
-    local sender, days = rule[1], rule[2]
-    for _, src in ipairs(SOURCES) do
-        local mbox = account[src]
-        local stale = mbox:contain_field('from', sender) * mbox:is_older(days)
-        stale:move_messages(account['Archive'])
+local function retain()
+    for _, rule in ipairs(EXPIRE_IN_PLACE) do
+        local sender, days = rule[1], rule[2]
+        for _, src in ipairs(SOURCES) do
+            local mbox = account[src]
+            local stale = mbox:contain_field('from', sender) * mbox:is_older(days)
+            stale:move_messages(account['Archive'])
+        end
+    end
+
+    for _, rule in ipairs(AGE_OUT) do
+        local name, days = rule[1], rule[2]
+        account[name]:is_older(days)
+                     :move_messages(account['Archive'])
     end
 end
 
-for _, rule in ipairs(AGE_OUT) do
-    local name, days = rule[1], rule[2]
-    account[name]:is_older(days)
-                 :move_messages(account['Archive'])
+-- Transient IMAP failures -------------------------------------------------
+-- imapfilter raises on a refused login or a connection the server closes
+-- mid-read, and an uncaught raise exits 2 with nothing done. Waiting for the
+-- next timer tick does not cover it: a three-minute Fastmail outage failed
+-- three consecutive runs on 2026-09-07. Since a pass is stateless and
+-- idempotent -- it re-derives every set from the live mailbox -- repeating it
+-- in place is free, and the backoff outlasts an outage of that length.
+--
+-- Only exhausting every attempt exits nonzero, so a real breakage (a rejected
+-- password, a mailbox that no longer exists) still fails the unit and alerts.
+-- The timer skips ticks while a run is still going, so a retrying run simply
+-- means fewer runs that minute, never overlapping ones.
+--
+-- imapfilter's own `recover` is not usable here: past its retry count it
+-- returns the failed result instead of re-raising, so a permanent failure
+-- would exit 0 and go unnoticed.
+local BACKOFF = { 20, 40, 80 }  -- seconds; four attempts over ~2.5 minutes
+
+local function pass()
+    for _, name in ipairs(SOURCES) do
+        sort_mailbox(name)
+    end
+    retain()
+end
+
+local ok, err
+for attempt = 1, #BACKOFF + 1 do
+    ok, err = pcall(pass)
+    if ok then break end
+    if attempt <= #BACKOFF then
+        print('mailsort: attempt ' .. attempt .. ' failed (' .. tostring(err) ..
+              '); retrying in ' .. BACKOFF[attempt] .. 's')
+        sleep(BACKOFF[attempt])
+    end
+end
+
+if not ok then
+    error(err, 0)
 end
