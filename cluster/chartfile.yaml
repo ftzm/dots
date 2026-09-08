@@ -13,7 +13,7 @@ repositories:
   - name: grafana-community
     url: https://grafana-community.github.io/helm-charts
   - name: sealed-secrets
-    url: https://bitnami-labs.github.io/sealed-secrets
+    url: https://bitnami.github.io/sealed-secrets
   - name: jetstack
     url: https://charts.jetstack.io
   - name: sops-secrets-operator
