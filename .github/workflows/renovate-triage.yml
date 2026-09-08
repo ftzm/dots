@@ -137,7 +137,7 @@ jobs:
         pr: ${{ fromJSON(needs.discover.outputs.prs) }}
     steps:
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: refs/pull/${{ matrix.pr.number }}/head
           fetch-depth: 0
@@ -493,7 +493,7 @@ jobs:
       # decided; the job log keeps just the init and result envelopes.
       - name: Upload Claude transcript
         if: always() && steps.supersede.outputs.superseded != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: claude-execution-output-${{ matrix.pr.number }}
           path: ${{ runner.temp }}/claude-execution-output.json
