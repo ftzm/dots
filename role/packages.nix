@@ -61,7 +61,6 @@
     slack
     vlc
     # (wrapMpv mpv-unwrapped {scripts = [mpvScripts.mpris];})
-    keybase-gui
     nomacs
     # gnome.cheese
     qutebrowser
@@ -141,7 +140,6 @@
 
     dconf
     zoom-us
-    keybase
     w3m
 
     # #games
