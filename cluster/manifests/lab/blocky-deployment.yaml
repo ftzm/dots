@@ -21,7 +21,7 @@ spec:
       - args:
         - --config
         - /config/config.yaml
-        image: spx01/blocky:latest
+        image: spx01/blocky:v0.35.0
         livenessProbe:
           httpGet:
             path: /api/blocking/status

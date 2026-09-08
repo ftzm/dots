@@ -14,12 +14,11 @@
   // already tried. Add the next major here when an upgrade is deliberately
   // started, and remove the old one once it has proven itself.
   cloudnativeVectorchord18: 'ghcr.io/tensorchord/cloudnative-vectorchord:18.4-1.1.1',
-  blocky: 'spx01/blocky:latest',
-  ntfy: 'binwiederhier/ntfy',
+  blocky: 'spx01/blocky:v0.35.0',
+  ntfy: 'binwiederhier/ntfy:v2.28.0',
   navidrome: 'ghcr.io/navidrome/navidrome:0.63.2',
   audiobookshelf: 'advplyr/audiobookshelf:2.36.0',
   thelounge: 'thelounge/thelounge:4.5.2',
-  filestash: 'machines/filestash:latest',
   pinepods: 'madeofpendletonwool/pinepods:0.9.0',
   miniflux: 'miniflux/miniflux:2.3.3',
   valkey: 'valkey/valkey:9-alpine',
