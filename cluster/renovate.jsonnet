@@ -34,6 +34,20 @@ local imageManager = {
 // Forgejo Actions runner image, pinned in the microVM guest module on nuc.
 // Kept on the same Renovate flow as the cluster images so the runner version
 // tracks with the rest of the fleet (comin deploys it, not ArgoCD).
+// Containers declared on a host rather than in the cluster. Only the active
+// `image = "..."` lines match: the commented-out blocks put a `#` where this
+// pattern requires whitespace, so dead config raises no PRs. filestash
+// publishes only `latest`, hence the digest -- a digest bump is still an
+// update Renovate can offer.
+local hostContainerImageManager = {
+  customType: 'regex',
+  managerFilePatterns: ['/machines/nuc/default\\.nix$/'],
+  matchStrings: [
+    '\\n\\s+image = "(?<depName>[a-z0-9._/-]+):(?<currentValue>[^"@]+)@(?<currentDigest>sha256:[a-f0-9]+)"',
+  ],
+  datasourceTemplate: 'docker',
+};
+
 local runnerImageManager = {
   customType: 'regex',
   managerFilePatterns: ['/machines/nuc/forgejo-runner\\.nix$/'],
@@ -46,7 +60,7 @@ local runnerImageManager = {
 {
   '$schema': 'https://docs.renovatebot.com/renovate-schema.json',
   extends: ['config:recommended'],
-  customManagers: chartManagers + [imageManager, runnerImageManager],
+  customManagers: chartManagers + [imageManager, hostContainerImageManager, runnerImageManager],
   enabledManagers: ['custom.regex', 'github-actions', 'jsonnet-bundler'],
   prHourlyLimit: 10,
   prConcurrentLimit: 20,

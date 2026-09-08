@@ -464,7 +464,9 @@ in {
   #  systemd.services.photoprism.serviceConfig.Group = lib.mkForce "storage";
 
   virtualisation.oci-containers.containers.filestash = {
-    image = "machines/filestash";
+    # Pinned by digest: upstream publishes only `latest`, so there is no
+    # version to track. Renovate offers the next digest as a PR instead.
+    image = "machines/filestash:latest@sha256:8daed89b3694ccec4615555e32031b76a1fef74265b00f8f0ee7a29d344f2e4d";
     ports = ["0.0.0.0:8334:8334"];
     environment = {};
   };

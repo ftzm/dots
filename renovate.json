@@ -171,6 +171,16 @@
          "customType": "regex",
          "datasourceTemplate": "docker",
          "managerFilePatterns": [
+            "/machines/nuc/default\\.nix$/"
+         ],
+         "matchStrings": [
+            "\\n\\s+image = \"(?<depName>[a-z0-9._/-]+):(?<currentValue>[^\"@]+)@(?<currentDigest>sha256:[a-f0-9]+)\""
+         ]
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "docker",
+         "managerFilePatterns": [
             "/machines/nuc/forgejo-runner\\.nix$/"
          ],
          "matchStrings": [
