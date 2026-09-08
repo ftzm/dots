@@ -290,8 +290,16 @@ jobs:
             - always re-render: `cd cluster && nix develop . -c just render-lab`
             Commit the regenerated `cluster/charts/**` and `cluster/manifests/**`.
 
-            Verify locally before opening anything: run the relevant
-            `nix build` for each affected host and the render command.
+            Commit, push the branch and open the PR before any verification
+            that could take minutes. A fix that exists only in the working
+            tree dies with this job, and a full-system `nix build` outruns
+            the foreground timeout and moves to the background. CI builds
+            this repair PR too, so it is the verification of record -- do
+            not reproduce it here. Before pushing, run the render command
+            (it is fast, and its output is committed) and check evaluation
+            only, with `nix eval` on
+            `.#nixosConfigurations.<host>.config.system.build.toplevel.drvPath`
+            for each affected host.
 
             Constraints:
             - You are running as a one-shot batch job: nothing re-invokes
@@ -319,7 +327,9 @@ jobs:
               rebase, which is why the fix goes in a separate branch rather
               than directly onto it.
             - Title: `fix: adapt config to Renovate bump (#${{ matrix.pr.number }})`
-            - Body: what upstream changed and what you changed in response.
+            - Body: what upstream changed, what you changed in response, and
+              the render and evaluation commands you ran, naming any host you
+              could not check so CI's result is read with that in mind.
           claude_args: |
             --max-turns 100
             --allowedTools Read,Edit,Write,Bash,Grep,Glob

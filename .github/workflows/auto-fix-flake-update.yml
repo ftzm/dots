@@ -291,10 +291,24 @@ jobs:
               (never drop a host from the build, never disable a check).
             - Never run `kubectl apply`, `systemctl`, or any imperative fix.
               Every change is declarative and flows through git.
-            - Hosts built in CI: saoiste, eachtrai, nuc, nas. Verify with
-              `nix build .#nixosConfigurations.<host>.config.system.build.toplevel`
-              for each host your change affects, before opening the PR. The
-              Nix cache is warm, so start with saoiste.
+            - You are running as a one-shot batch job: nothing re-invokes
+              you later. A command that backgrounds will never notify you,
+              and scheduling or deferred-wakeup tools never fire here -- do
+              not use them. Wait in the foreground with bounded Bash if you
+              must wait at all.
+            - Commit, push the branch and open the PR as soon as the edit is
+              made, before any verification that could take minutes. A fix
+              that exists only in the working tree dies with this job: a
+              full-system `nix build` outruns the foreground timeout, moves
+              to the background, and has already cost one run its entire
+              diagnosis and fix that way.
+            - Hosts built in CI: saoiste, eachtrai, nuc, nas. CI builds this
+              repair PR too, so it is the verification of record -- do not
+              reproduce it here. Before pushing, check evaluation only, with
+              `nix eval .#nixosConfigurations.<host>.config.system.build.toplevel.drvPath`
+              for each host your change affects: that settles the common
+              case, an evaluation error, in seconds and never backgrounds.
+              The Nix cache is warm, so start with saoiste.
             - If the failure is transient (network, cache, infra) and not a
               real break, comment on the PR saying so and exit without opening
               a repair PR. Never exit silently: whatever you conclude, this run
@@ -308,7 +322,8 @@ jobs:
               pass CI and auto-merge.
             - Title: `fix: adapt config to flake.lock update (#${{ steps.pr.outputs.pr_number }})`
             - Body: what upstream changed, what you changed in response, and
-              the build commands you ran to verify it.
+              the evaluation commands you ran, naming any host you could not
+              check so CI's result is read with that in mind.
           claude_args: |
             --max-turns 100
             --allowedTools Read,Edit,Write,Bash,Grep,Glob
