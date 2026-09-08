@@ -75,7 +75,7 @@ spec:
             secretKeyRef:
               key: password
               name: immich-database-app
-        image: ghcr.io/tensorchord/cloudnative-vectorchord:18.4-1.1.1
+        image: ghcr.io/tensorchord/cloudnative-vectorchord:18.6-1.1.1
         name: immich-db-upgrade-gate
         volumeMounts:
         - mountPath: /backup
