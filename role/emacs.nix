@@ -46,6 +46,13 @@ in {
       Type = "simple";
       ExecStart = "${emacs}/bin/emacs --fg-daemon";
       Restart = "on-failure";
+      # Terminals inside the daemon (vterm, eat) put every process they
+      # spawn in this unit's cgroup, so a runaway build or test there is
+      # an OOM kill inside emacs.service. systemd's default OOMPolicy of
+      # "stop" would tear down the whole unit -- the daemon and every
+      # buffer in it -- over a child the kernel already killed. Keep the
+      # daemon; the kernel has dealt with the process that was at fault.
+      OOMPolicy = "continue";
       TimeoutStopSec = 10;
       Environment = [
         "COLORTERM=truecolor"
