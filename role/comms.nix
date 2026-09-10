@@ -8,5 +8,5 @@
       pinentry.package = pkgs.pinentry-gnome3;
     };
   };
-  services.dbus.packages = [pkgs.gcr];
+  services.dbus.packages = [pkgs.gcr_3];
 }
