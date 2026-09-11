@@ -541,8 +541,12 @@ in {
     };
   };
 
+  # 26.05 removed the "auto" default for fsType, so it has to be stated.
+  # "none" is what nixpkgs' own modules use for a bind mount, and what mount(8)
+  # takes in the fstab entry a bind produces.
   fileSystems."/var/www/dav" = {
     device = "/mnt/nas/cloud";
+    fsType = "none";
     options = ["bind" "nofail"];
   };
   systemd.services.nginx.serviceConfig.ReadWritePaths = ["/tmp/" "/var/www/dav/"];
