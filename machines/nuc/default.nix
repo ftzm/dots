@@ -6,7 +6,7 @@
   ...
 }: let
   # Beets with filetote, built via uv2nix to avoid nixpkgs beets packaging issues
-  unstablePkgs = inputs.nixpkgs.legacyPackages.${pkgs.system};
+  unstablePkgs = inputs.nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system};
   beetsWorkspace = inputs.uv2nix.lib.workspace.loadWorkspace {workspaceRoot = ./beets;};
   beetsOverlay = beetsWorkspace.mkPyprojectOverlay {sourcePreference = "wheel";};
   beetsPythonBase = unstablePkgs.callPackage inputs.pyproject-nix.build.packages {

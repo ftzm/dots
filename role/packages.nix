@@ -160,9 +160,9 @@
     nil
     inputs.agenix.packages.x86_64-linux.agenix
 
-    inputs.claude-code-nix.packages.${pkgs.system}.default
-    inputs.kimi-code.packages.${pkgs.system}.kimi-code
-    inputs.pi.packages.${pkgs.system}.default
+    inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.default
+    inputs.kimi-code.packages.${pkgs.stdenv.hostPlatform.system}.kimi-code
+    inputs.pi.packages.${pkgs.stdenv.hostPlatform.system}.default
     codex
   ];
 
