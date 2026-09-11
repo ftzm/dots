@@ -14,7 +14,7 @@ spec:
     version: 1.1.1
   - ensure: present
     name: vector
-    version: 0.8.3
+    version: 0.8.6
   - ensure: present
     name: cube
   - ensure: present

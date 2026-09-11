@@ -2466,13 +2466,26 @@ local patchTargetDown(resources) = {
       'immich-database-extensions', ns, 'immich-database', 'immich', 'immich',
       [
         { name: 'vchord', version: postgres.vchordVersionOf(images.cloudnativeVectorchord18) },
-        // pgvector has the same problem vchord had: left version-free it was
-        // created once and never moved, sitting at 0.8.0 while the image
-        // offered 0.8.3. Immich requires >=0.5 <1, and nothing here uses
-        // pgvector's own index types (ivfflat/hnsw) -- only its vector type,
-        // whose representation is unchanged across 0.8.x. Revisit the pin when
-        // the image crosses that range.
-        { name: 'vector', version: '0.8.3' },
+        // pgvector's version is not carried in the image tag -- only
+        // PostgreSQL's and VectorChord's are -- so unlike vchord above this
+        // pin cannot be derived from the image and has to be re-read from it
+        // on every bump:
+        //
+        //   docker run --rm --entrypoint sh <image> -c \
+        //     'grep default_version .../18/extension/vector.control'
+        //
+        // Left version-free it was created once and never moved, sitting at
+        // 0.8.0 while the image offered 0.8.3. A pin that is never re-read
+        // fails the same way one bump later: 18.4-1.1.1 shipped 0.8.3,
+        // 18.6-1.1.1 ships 0.8.6, and a pin left at 0.8.3 would put a 0.8.6
+        // library under a 0.8.3 catalog -- the exact drift this pin exists to
+        // prevent. The 0.8.3->0.8.4->0.8.5->0.8.6 upgrade scripts are empty,
+        // so the ALTER is catalog metadata and nothing else. Immich requires
+        // >=0.5 <1, and nothing here uses pgvector's own index types
+        // (ivfflat/hnsw) -- only its vector type, whose representation is
+        // unchanged across 0.8.x. Revisit that reasoning when the image
+        // crosses out of 0.8.x.
+        { name: 'vector', version: '0.8.6' },
         { name: 'cube' },
         { name: 'earthdistance' },
       ]
