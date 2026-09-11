@@ -192,10 +192,20 @@ in {
     options = ["nfsvers=3" "noatime" "nodiratime" "rsize=32768" "async"];
   };
 
+  # 26.05 folded mpd's individual options into `settings`, which is written
+  # straight into mpd.conf: musicDirectory -> music_directory,
+  # network.listenAddress -> bind_to_address. The old names still evaluate but
+  # warn, and they carry no alias module, so they are gone on the next release.
   services.mpd = {
     enable = true;
-    musicDirectory = "/mnt/nas/music";
-    network = {listenAddress = "any";};
+    settings = {
+      music_directory = "/mnt/nas/music";
+      bind_to_address = "any";
+    };
+    # Binding to "any" without this warns that clients may not reach mpd. Same
+    # reasoning as role/comin.nix: a no-op where networking.firewall.enable is
+    # false, stated so the intent survives the firewall ever being turned on.
+    openFirewall = true;
   };
 
   services.prometheus.exporters.node = {
