@@ -4,7 +4,7 @@
   lidarr: 'linuxserver/lidarr:3.1.5-nightly',
   readarr: 'linuxserver/readarr:0.4.19-nightly',
   prowlarr: 'linuxserver/prowlarr:2.6.4-nightly',
-  flaresolverr: 'flaresolverr/flaresolverr:v3.5.0',
+  flaresolverr: 'flaresolverr/flaresolverr:v3.5.2',
   jellyseerr: 'fallenbagel/jellyseerr:develop',
   vaultwarden: 'vaultwarden/server:1.37.2',
   forgejo: 'codeberg.org/forgejo/forgejo:16.0.4',
