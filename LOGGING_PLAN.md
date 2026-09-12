@@ -317,7 +317,17 @@ Implementation:
 |---|---|---|
 | `CominDeploymentFailed` | `comin_last_deployment_failed == 1` for 5m | the direct signal |
 | `CominFetchFailed` | `comin_last_fetch_failed == 1` for 1h | 1h grace for transient network loss |
-| `CominNeedToReboot` | `comin_need_to_reboot == 1` for 1h | informational; deploys pending reboot |
+| `OutdatedKernelNeedsReboot` | `nixos_reboot_required == 1` for 1h | warning; carries both kernel versions as labels |
+
+`OutdatedKernelNeedsReboot` replaced `CominNeedToReboot` (`comin_need_to_reboot == 1`,
+severity info). That gauge is a bare 0/1 with no cause attached, so the notification
+could only say "a deployment is pending a reboot" — nothing to act on, nothing to
+judge urgency by. saoiste ran a four-day-old kernel behind exactly that message,
+delivered to ntfy and reasonably ignored. `nixos_reboot_required` comes from
+`role/node-exporter.nix` via the textfile collector and carries `booted_kernel`,
+`current_kernel` and `reason`, so the alert states the actual difference. It is a
+warning rather than info because a reboot is manual work only the operator can do,
+and because a severity=info host alert is one inhibit rule away from being swallowed.
 
 Honest caveat: whether the frozen-PID-1 path on saoiste actually set
 `comin_last_deployment_failed` is unverified (the deploy may have hung rather

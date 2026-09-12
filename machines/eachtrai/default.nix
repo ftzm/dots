@@ -19,6 +19,7 @@
     # Generic
     ../../role/home-setup.nix
     ../../role/network.nix
+    ../../role/node-exporter.nix
     ../../role/mpd.nix
     ../../role/sleep.nix
     ../../role/shell.nix
