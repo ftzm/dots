@@ -59,12 +59,31 @@ local cominScrapeConfig = {
   ],
 };
 
+// node_exporter, from the same fleet list rather than a second copy of the
+// addresses. The previous version hardcoded 192.168.1.3/.4 and relabelled each
+// back to a hostname, which silently covered only the two lab machines -- the
+// roaming ones exported nothing, so nothing could alert on their kernels.
+//
+// `instance` is set directly, as the comin job does, rather than derived by
+// relabelling; the machine list is the single place a host's address lives.
+local nodeScrapeConfig = {
+  job_name: 'host-node-exporter',
+  static_configs: [
+    { targets: [m.host + ':9002'], labels: { job: 'node-exporter', instance: m.instance } }
+    for m in cominMachines
+  ],
+};
+
 // The shipped TargetDown rule fires when >10% of a job's targets are down.
 // Laptops sleep, so the comin job (saoiste/eachtrai over tailscale) would
 // page constantly. Exclude that job from TargetDown; the comin rules below
 // alert on real failure via comin_last_*_failed, and `up` for laptops is
 // still queryable if ever needed.
-local targetDownExpr = '100 * (count(up{job!="comin"} == 0) BY (cluster, job, namespace, service) / count(up{job!="comin"}) BY (cluster, job, namespace, service)) > 10';
+// Roaming machines are excluded by instance, not just by job: they now appear
+// in the node-exporter job too, and a closed laptop lid is not a down target.
+// Derived from the same list as the scrape config so the two cannot drift.
+local roamingSelector = 'job!="comin", instance!~"' + cominInstances(false) + '"';
+local targetDownExpr = '100 * (count(up{' + roamingSelector + '} == 0) BY (cluster, job, namespace, service) / count(up{' + roamingSelector + '}) BY (cluster, job, namespace, service)) > 10';
 local patchTargetDown(resources) = {
   [key]:
     if resources[key].kind == 'PrometheusRule' then
@@ -765,12 +784,23 @@ local patchTargetDown(resources) = {
         'comin metrics stale on {{ $labels.instance }} for 7d',
         'A roaming machine has not been scraped successfully once in seven days: either it has been off that whole time or its exporter is broken. Either way every other Comin* alert is blind for it, so a deploy failure would go unnoticed. Expect this after a long trip; otherwise check tailscale reachability and the exporter.',
       ),
+      // Replaces CominNeedToReboot, which fired on comin_need_to_reboot at
+      // severity info and said only "a deployment is pending a reboot". That
+      // names no cause, so there is nothing to act on and nothing to judge
+      // urgency by: saoiste ran a four-day-old kernel (2026-09-08 to
+      // 2026-09-12) behind exactly that message, delivered and ignored.
+      //
+      // nixos_reboot_required carries both kernel versions as labels
+      // (role/node-exporter.nix), so the notification can state the actual
+      // difference and what it costs. Warning, not info: a reboot is manual
+      // work only the operator can do, and info is one inhibit rule away from
+      // being swallowed entirely.
       alerts.rule(
-        'CominNeedToReboot',
-        'comin_need_to_reboot == 1',
-        '1h', 'info',
-        '{{ $labels.instance }} needs a reboot',
-        'A deployment is pending a reboot on {{ $labels.instance }}.',
+        'OutdatedKernelNeedsReboot',
+        'nixos_reboot_required == 1',
+        '1h', 'warning',
+        '{{ $labels.instance }} is running an outdated kernel - reboot to pick it up',
+        '{{ $labels.instance }} booted kernel {{ $labels.booted_kernel }} but its deployed configuration ships {{ $labels.current_kernel }} ({{ $labels.reason }} differs). Config changes deploy live; a kernel cannot, so this needs a manual reboot and will not clear on its own. Until then the machine runs the older kernel and misses its security fixes.',
       ),
     ]),
     // Journal-based systemd failure signals — the correct coverage for the
@@ -969,24 +999,7 @@ local patchTargetDown(resources) = {
           prometheus: {
             prometheusSpec: {
               additionalScrapeConfigs: [
-                {
-                  job_name: 'host-node-exporter',
-                  static_configs: [{
-                    targets: ['192.168.1.4:9002', '192.168.1.3:9002'],
-                    labels: { job: 'node-exporter' },
-                  }],
-                  relabel_configs: [{
-                    source_labels: ['__address__'],
-                    regex: '192.168.1.4:.*',
-                    target_label: 'instance',
-                    replacement: 'nuc',
-                  }, {
-                    source_labels: ['__address__'],
-                    regex: '192.168.1.3:.*',
-                    target_label: 'instance',
-                    replacement: 'nas',
-                  }],
-                },
+                nodeScrapeConfig,
                 cominScrapeConfig,
               ],
               storageSpec: {

@@ -50,11 +50,16 @@ spec:
       for: 1h
       labels:
         severity: warning
-    - alert: CominNeedToReboot
+    - alert: OutdatedKernelNeedsReboot
       annotations:
-        description: A deployment is pending a reboot on {{ $labels.instance }}.
-        summary: '{{ $labels.instance }} needs a reboot'
-      expr: comin_need_to_reboot == 1
+        description: '{{ $labels.instance }} booted kernel {{ $labels.booted_kernel
+          }} but its deployed configuration ships {{ $labels.current_kernel }} ({{
+          $labels.reason }} differs). Config changes deploy live; a kernel cannot,
+          so this needs a manual reboot and will not clear on its own. Until then
+          the machine runs the older kernel and misses its security fixes.'
+        summary: '{{ $labels.instance }} is running an outdated kernel - reboot to
+          pick it up'
+      expr: nixos_reboot_required == 1
       for: 1h
       labels:
-        severity: info
+        severity: warning

@@ -17,6 +17,7 @@ in {
     ../../role/comin.nix
     ../../role/resilience.nix
     ../../role/lab.nix
+    ../../role/node-exporter.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
@@ -219,25 +220,7 @@ in {
 
   networking.firewall.enable = false;
 
-  services.prometheus = {
-    # we don't need prometheus proper, just the exporter
-    #enable = true;
-    port = 9001;
-    exporters = {
-      node = {
-        enable = true;
-        enabledCollectors = ["processes" "systemd"];
-        # Without this the systemd collector exports no restart counters, so the
-
-        # shipped NodeSystemdServiceCrashlooping rule can never fire -- nas alloy
-
-        # restarting every 2s for 20h (2026-09-04) produced no metric at all.
-
-        extraFlags = ["--collector.systemd.enable-restarts-metrics"];
-        port = 9002;
-      };
-    };
-  };
+  # node_exporter (and its reboot-required metric) comes from role/node-exporter.nix.
 
   services.alloy = {
     enable = true;

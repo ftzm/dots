@@ -17,6 +17,7 @@
 
     # Generic
     ../../role/network.nix
+    ../../role/node-exporter.nix
     ../../role/mpd.nix
     # ../../role/mail.nix
     ../../role/printing.nix
