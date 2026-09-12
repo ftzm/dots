@@ -22,7 +22,15 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixpkgs-lutris.url = "github:NixOS/nixpkgs/1a7de5d740a244b99c53e6bff8c60b621637f687";
-    nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixos-25.11";
+    # nas and nuc build from this; everything else tracks unstable. A release
+    # branch stops receiving commits once the next release's overlap month ends,
+    # and `nix flake update` goes on resolving it successfully forever -- so an
+    # EOL branch is indistinguishable from an up-to-date one in every signal we
+    # have. nixos-25.11 died on 2026-06-30 and sat here unnoticed for 73 days,
+    # which is 73 days of no security backports on the storage box and the k3s
+    # node. When the next release ships, move this within the overlap month;
+    # `lastModified` in flake.lock standing still is the only symptom.
+    nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager = {
