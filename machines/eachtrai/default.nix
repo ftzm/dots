@@ -283,6 +283,25 @@
   services.blueman.enable = true;
 
   # Video
+  #
+  # nixos-hardware's common/gpu/intel treats an unset vaapiDriver as "both":
+  #
+  #   useIntelVaapiDriver = cfg.vaapiDriver == "intel-vaapi-driver" || cfg.vaapiDriver == null;
+  #   useIntelOcl = useIntelVaapiDriver && (enableAllFirmware or allowUnfree or false);
+  #
+  # so leaving it null pulled in the legacy intel-vaapi-driver *and* intel-ocl,
+  # Intel's 2017 SRB5.0 OpenCL runtime. Every mirror for that tarball is now
+  # dead (intel.com 403, the web.archive.org fallback 503), which took the whole
+  # repo's CI down on 2026-09-12 -- it is a dependency of graphics-drivers, so
+  # steam and then eachtrai's entire system closure failed to build.
+  #
+  # Naming the driver is the right setting regardless: this is a Latitude 9430
+  # (12th-gen Iris Xe), where intel-media-driver is the supported VAAPI path and
+  # intel-vaapi-driver is the pre-Gen9 legacy one. OpenCL is unaffected --
+  # intel-compute-runtime, the modern NEO runtime, is still pulled in by the
+  # media-driver branch.
+  hardware.intelgpu.vaapiDriver = "intel-media-driver";
+
   hardware = {
     graphics.enable = true;
     graphics.enable32Bit = true;
