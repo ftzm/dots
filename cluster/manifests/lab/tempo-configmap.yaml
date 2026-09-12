@@ -10,9 +10,11 @@ data:
     multitenancy_enabled: false
     usage_report:
       reporting_enabled: true
-    compactor:
-      compaction:
-        block_retention: 336h
+    backend_scheduler:
+          provider:
+            compaction:
+              compaction:
+                block_retention: 336h
     distributor:
       receivers:
             jaeger:
@@ -31,8 +33,6 @@ data:
                   endpoint: 0.0.0.0:4317
                 http:
                   endpoint: 0.0.0.0:4318
-    ingester:
-          {}
     server:
           http_listen_port: 3200
     storage:
@@ -55,7 +55,7 @@ metadata:
     app.kubernetes.io/instance: tempo
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/name: tempo
-    app.kubernetes.io/version: 2.10.8
-    helm.sh/chart: tempo-2.4.0
+    app.kubernetes.io/version: 3.0.3
+    helm.sh/chart: tempo-3.0.0
   name: tempo
   namespace: monitoring
