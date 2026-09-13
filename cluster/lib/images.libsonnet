@@ -3,7 +3,7 @@
   sonarr: 'linuxserver/sonarr:4.0.19',
   lidarr: 'linuxserver/lidarr:3.1.5-nightly',
   readarr: 'linuxserver/readarr:0.4.19-nightly',
-  prowlarr: 'linuxserver/prowlarr:2.6.4-nightly',
+  prowlarr: 'linuxserver/prowlarr:2.6.5-nightly',
   flaresolverr: 'flaresolverr/flaresolverr:v3.5.2',
   jellyseerr: 'fallenbagel/jellyseerr:develop',
   vaultwarden: 'vaultwarden/server:1.37.2',
