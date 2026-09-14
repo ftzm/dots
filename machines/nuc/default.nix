@@ -469,7 +469,7 @@ in {
   virtualisation.oci-containers.containers.filestash = {
     # Pinned by digest: upstream publishes only `latest`, so there is no
     # version to track. Renovate offers the next digest as a PR instead.
-    image = "machines/filestash:latest@sha256:4c19475226d9e26f670ce4284f8e8115d42ee41cba6118defff4239eaf1ea65d";
+    image = "machines/filestash:latest@sha256:dabc04f09e6dedebaf667042f840e5117abc616004fafdfa20aea064ca59bbdb";
     ports = ["0.0.0.0:8334:8334"];
     environment = {};
   };
