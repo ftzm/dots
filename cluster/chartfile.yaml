@@ -33,7 +33,7 @@ requires:
   - chart: argo/argo-cd
     version: "10.9.1"
   - chart: prometheus-community/kube-prometheus-stack
-    version: "91.2.3"
+    version: "91.4.0"
   - chart: grafana/loki
     version: "7.3.0"
   - chart: grafana-community/tempo
