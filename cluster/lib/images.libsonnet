@@ -1,5 +1,5 @@
 {
-  radarr: 'linuxserver/radarr:6.3.0',
+  radarr: 'linuxserver/radarr:6.4.4',
   sonarr: 'linuxserver/sonarr:4.0.20',
   lidarr: 'linuxserver/lidarr:3.1.6-nightly',
   readarr: 'linuxserver/readarr:0.4.19-nightly',
