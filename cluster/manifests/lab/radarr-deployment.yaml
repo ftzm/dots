@@ -23,7 +23,7 @@ spec:
           value: "1001"
         - name: TZ
           value: Europe/Copenhagen
-        image: linuxserver/radarr:6.3.0
+        image: linuxserver/radarr:6.4.4
         name: radarr
         ports:
         - containerPort: 7878
