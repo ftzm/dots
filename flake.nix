@@ -31,7 +31,15 @@
     # node. When the next release ships, move this within the overlap month;
     # `lastModified` in flake.lock standing still is the only symptom.
     nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixos-26.05";
-    nixpkgs-iosevka.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # A real pin, not a branch: this input exists so the font is built once and
+    # then served from cache forever, and 28e1ac9c ("pin nixpkgs for it") meant
+    # it to be one. It named a branch instead, so `nix flake update` re-resolved
+    # it every cycle for five years. nixpkgs builds iosevka with buildNpmPackage
+    # wired to `nodejs_latest`, so any bump that moves node invalidates the font:
+    # #241 spent 2h26m compiling nodejs 26.9.0 from source because that build
+    # fails upstream (NixOS/nixpkgs#564449) and Hydra had nothing to substitute.
+    # Bump this deliberately when you want a newer Iosevka; nothing else should.
+    nixpkgs-iosevka.url = "github:NixOS/nixpkgs/c7def046b9a883d46974757852106483d741586f";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager = {
       url = "github:nix-community/home-manager";
