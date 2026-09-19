@@ -72,6 +72,23 @@
     };
     overlays = [
       inputs.emacs-overlay.overlay
+      # nixpkgs (nixpkgs-unstable @ a32edd7) pins tree-sitter-grammars.tree-sitter-cuda
+      # to a `v0.21.2` source hash that no longer matches upstream's tag content,
+      # breaking the fixed-output derivation. Fixed upstream in nixpkgs commit
+      # a4b68e6c7536f5086d4f0520340375f53f7e7177, not yet in nixpkgs-unstable.
+      # Drop once the channel advances past that commit.
+      (final: prev: {
+        tree-sitter-grammars = prev.tree-sitter-grammars.overrideScope (finalScope: prevScope: {
+          tree-sitter-cuda = prevScope.tree-sitter-cuda.overrideAttrs (_: {
+            src = final.fetchFromGitHub {
+              owner = "tree-sitter-grammars";
+              repo = "tree-sitter-cuda";
+              rev = "v0.21.2";
+              hash = "sha256-s2qrZx5fEu/I6xE2paX/Nlmgvo6T27qqvy1cI8iznAA=";
+            };
+          });
+        });
+      })
     ];
   };
 
