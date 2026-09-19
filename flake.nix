@@ -20,7 +20,21 @@
   };
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # nixos-unstable, not nixpkgs-unstable. The difference is what gates the
+    # channel. nixos-unstable advances only when the `tested` aggregate of the
+    # nixos/trunk-combined jobset passes, which includes the NixOS VM and
+    # installer tests -- a revision that reaches it has been booted and
+    # exercised as a NixOS system. nixpkgs-unstable advances on nixpkgs/trunk,
+    # which builds packages and runs no NixOS system tests; it is there for
+    # Darwin, standalone home-manager and nix-env consumers, for whom those
+    # tests are meaningless. We build NixOS hosts from this input, so the gate
+    # that matches what we do with it is the former.
+    #
+    # The stall that surfaced this (nixpkgs-unstable frozen at a32edd7 from
+    # 09-17, missing the tree-sitter-cuda and nodejs 26.9.0 fixes that
+    # nixos-unstable already had prebuilt) was the symptom. Relative freshness
+    # is not the argument and does not reliably favour either channel.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-lutris.url = "github:NixOS/nixpkgs/1a7de5d740a244b99c53e6bff8c60b621637f687";
     # nas and nuc build from this; everything else tracks unstable. A release
     # branch stops receiving commits once the next release's overlap month ends,
