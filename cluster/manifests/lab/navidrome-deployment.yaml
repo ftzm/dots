@@ -21,7 +21,7 @@ spec:
           value: /music
         - name: ND_SCANNER_SCHEDULE
           value: 15m
-        image: ghcr.io/navidrome/navidrome:0.64.0
+        image: ghcr.io/navidrome/navidrome:0.64.1
         name: navidrome
         ports:
         - containerPort: 4533
