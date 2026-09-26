@@ -18,7 +18,7 @@ dependencies:
 - condition: kubeStateMetrics.enabled
   name: kube-state-metrics
   repository: oci://ghcr.io/prometheus-community/charts
-  version: 8.5.0
+  version: 8.6.0
 - condition: nodeExporter.enabled
   name: prometheus-node-exporter
   repository: oci://ghcr.io/prometheus-community/charts
@@ -69,4 +69,4 @@ sources:
 - https://github.com/prometheus-community/helm-charts
 - https://github.com/prometheus-operator/kube-prometheus
 type: application
-version: 91.5.2
+version: 91.6.0
