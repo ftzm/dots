@@ -6,8 +6,8 @@ metadata:
     app.kubernetes.io/instance: kube-prometheus-stack
     app.kubernetes.io/managed-by: Helmraiser
     app.kubernetes.io/part-of: kube-prometheus-stack
-    app.kubernetes.io/version: 91.5.2
-    chart: kube-prometheus-stack-91.5.2
+    app.kubernetes.io/version: 91.6.0
+    chart: kube-prometheus-stack-91.6.0
     heritage: Helm
     release: kube-prometheus-stack
   name: kube-prometheus-stack-kubernetes-apps
@@ -316,6 +316,9 @@ spec:
           -
           kube_poddisruptionbudget_status_current_healthy{job="kube-state-metrics", namespace=~".*"}
         )
+        > 0
+        and
+        kube_poddisruptionbudget_status_expected_pods{job="kube-state-metrics", namespace=~".*"}
         > 0
       for: 15m
       labels:
