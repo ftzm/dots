@@ -227,7 +227,7 @@
       set -g allow-passthrough on
       set -ag update-environment "SSH_TTY"
 
-      set -g default-terminal "xterm-256color"
+      set -g default-terminal "tmux-256color"
       set -sg terminal-overrides ",*:RGB"
       set -g escape-time 0
       set -g status off
