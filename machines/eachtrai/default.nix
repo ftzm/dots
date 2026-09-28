@@ -5,6 +5,7 @@
   ...
 }: {
   imports = [
+    ../../role/agentd.nix
     # nixos extensions
     inputs.agenix.nixosModules.age
     inputs.home-manager.nixosModules.home-manager

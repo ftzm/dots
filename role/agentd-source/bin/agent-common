@@ -1,0 +1,83 @@
+# Shared Bash helpers. Sourced by the commands in this directory.
+agent_root=$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd)
+agent_bin=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd)
+agent_data=$agent_root/hooks
+agent_helpers=$agent_root/build
+agent_runtime=${AGENTD_RUNTIME_DIR:-${XDG_RUNTIME_DIR:?Set XDG_RUNTIME_DIR or AGENTD_RUNTIME_DIR}/agentd}
+[[ $agent_runtime == /* ]] || { printf 'agentd runtime path must be absolute\n' >&2; exit 2; }
+agent_socket=$agent_runtime/client.sock
+agent_zmx=${AGENT_ZMX_BIN:-zmx}
+
+agent_request() {
+    printf '%s\n' "$1" | timeout 5 socat -t0.2 - "UNIX-CONNECT:$agent_socket"
+}
+agent_result() {
+    local response
+    response=$(agent_request "$1") || return
+    if ! jq -se 'any(.[]; .type=="result" and .ok)' <<< "$response" >/dev/null; then
+        jq -r 'select(.type=="result") | .error // "Request failed"' <<< "$response" >&2
+        return 1
+    fi
+    if jq -se 'any(.[]; .type=="result" and .persisted==false)' <<< "$response" >/dev/null; then
+        printf 'Warning: agentd applied the request but could not persist its state\n' >&2
+    fi
+}
+agent_server() {
+    local dependency missing=()
+    for dependency in jq socat timeout flock setsid "$agent_zmx"; do
+        command -v "$dependency" >/dev/null 2>&1 || missing+=("$dependency")
+    done
+    if (( ${#missing[@]} )); then
+        printf 'Missing required command: %s\n' "${missing[@]}" >&2
+        printf 'Install the agentd runtime package, or use its Nix development shell.\n' >&2
+        return 127
+    fi
+    umask 077
+    mkdir -p "$agent_runtime"
+    local lock
+    exec {lock}>"$agent_runtime/start.lock"
+    flock -x "$lock"
+    if ! agent_result '{"op":"list"}' 2>/dev/null; then
+        local args=(--runtime-dir "$agent_runtime" --zmx-bin "$agent_zmx")
+        [[ -z ${AGENTD_STATE_FILE:-} ]] || args+=(--state-file "$AGENTD_STATE_FILE")
+        # Prefer the declaratively installed supervisor for the default runtime.
+        # Isolated test/custom runtimes retain the portable bootstrap path.
+        local supervised=false
+        if [[ $agent_runtime == "${XDG_RUNTIME_DIR:-}/agentd" && -z ${AGENTD_BIN:-}${AGENTD_STATE_FILE:-}${AGENT_ZMX_BIN:-} ]] &&
+           command -v systemctl >/dev/null &&
+           [[ $(systemctl --user show agentd.service -p LoadState --value 2>/dev/null) == loaded ]]; then
+            systemctl --user start agentd.service || { exec {lock}>&-; return 1; }
+            supervised=true
+        fi
+        if [[ $supervised == false ]]; then
+            (
+                exec {lock}>&-
+                exec setsid "${AGENTD_BIN:-$agent_helpers/agentd}" "${args[@]}"
+            ) </dev/null >>"$agent_runtime/agentd.log" 2>&1 &
+            agent_started_pid=$!
+        fi
+        local ready=false probe_error=
+        for ((i=0;i<50;i++)); do
+            if probe_error=$(agent_result '{"op":"list"}' 2>&1); then ready=true; break; fi
+            sleep .1
+        done
+        if [[ $ready != true ]]; then
+            [[ -z $probe_error ]] || printf '%s\n' "$probe_error" >&2
+            printf 'agentd did not become reachable; see %s/agentd.log\n' "$agent_runtime" >&2
+            exec {lock}>&-
+            return 1
+        fi
+    fi
+    exec {lock}>&-
+}
+agent_zmx_env() {
+    export ZMX_DIR="$agent_runtime/zmx" ZMX_DIR_MODE=0700 ZMX_LOG_MODE=0600
+    unset ZMX_SESSION ZMX_SESSION_PREFIX
+}
+agent_receipt() {
+    local id=$1 code=$2 temp
+    temp=$(mktemp "$agent_runtime/exits/.exit.XXXXXX") || return
+    if jq -cn --arg id "$id" --argjson code "$code" '{session:$id,exit_code:$code}' > "$temp"; then
+        mv -f -- "$temp" "$agent_runtime/exits/$id"
+    else rm -f -- "$temp"; return 1; fi
+}

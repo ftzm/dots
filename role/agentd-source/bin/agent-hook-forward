@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Hook stdout and failures must never affect the agent.
+exec >/dev/null 2>&1
+
+socket=${AGENTD_SOCKET:-${XDG_RUNTIME_DIR:-}/agentd/ingest.sock}
+session=${AGENT_SESSION:-${ZMX_SESSION:-}}
+
+# Bound the whole worker, including reading stdin and connecting. No retries.
+timeout --signal=KILL 0.2s bash -c '
+    set -o pipefail
+    jq -ce --arg kind "$1" --arg session "$2" '\''
+        select(type == "object")
+        | . + {
+            agent_kind: $kind,
+            agent_session: (if $session == "" then null else $session end),
+            event_time: (now * 1000000 | floor),
+            received_at: (now | todateiso8601)
+        }
+    '\'' | socat -u - "UNIX-CONNECT:$3"
+' agent-hook-forward "${1:-claude}" "$session" "$socket" || :
+
+exit 0

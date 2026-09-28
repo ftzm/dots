@@ -353,6 +353,7 @@ Writing to the pane lets tmux pass OSC 52 to every currently attached client."
     "d" '(dired-jump :which-key "dired here")
     "D" '(dired :which-key "dired")
 					;"a" '(app-keys :which-key "apps")
+    "a" '(agentd-menu :which-key "agents")
     "b" '(buffer-keys :which-key "buffer")
 					;"e" '(flycheck-keys :which-key "error")
 					;"i" '(ivy-keys :which-key "ivy")
@@ -2711,6 +2712,29 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
 ;; ==============================================================================
 ;; Ghostel
 ;; ==============================================================================
+
+;; Persistent coding agents. Packages and hook definitions come from the Nix
+;; profile; Elpaca uses that immutable source with the existing Ghostel package.
+(use-package agentd
+  :ensure `(:type file
+           :main ,(if (file-exists-p "/run/current-system/sw/share/emacs/site-lisp/agentd.el")
+                      "/run/current-system/sw/share/emacs/site-lisp/agentd.el"
+                    (expand-file-name "~/.nix-profile/share/emacs/site-lisp/agentd.el"))
+           :files ("agentd*.el"))
+  :after (general perspective)
+  :demand t
+  :config
+  (require 'agentd-perspective)
+  ;; The systemd Emacs service does not inherit the interactive shell's PATH.
+  (setq agentd-launch-program (if (file-executable-p "/run/current-system/sw/bin/agent-new")
+                                   "/run/current-system/sw/bin/agent-new"
+                                 (expand-file-name "~/.nix-profile/bin/agent-new"))
+        agentd-control-program (if (file-executable-p "/run/current-system/sw/bin/agentctl")
+                                    "/run/current-system/sw/bin/agentctl"
+                                  (expand-file-name "~/.nix-profile/bin/agentctl"))
+        agentd-attention-buffer-list-function #'agentd-perspective-buffers
+        agentd-attention-switch-buffer-function #'agentd-perspective-switch-buffer)
+  (agentd-mode 1))
 
 ;; Terminal emulator powered by libghostty-vt (the VT engine behind Ghostty).
 ;; Ships a Zig native module; a prebuilt binary auto-downloads on first use

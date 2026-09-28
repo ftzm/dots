@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source "${BASH_SOURCE[0]%/*}/agent-common"
+machine=false
+if [[ ${1:-} == --json ]]; then machine=true; shift; fi
+ctl_result() {
+    if [[ $machine == false ]]; then agent_result "$1"; return; fi
+    local response result
+    response=$(agent_request "$1") || return
+    result=$(jq -cse '[.[] | select(.type=="result")]|last // error("Missing server result")' <<< "$response") || return
+    printf '%s\n' "$result"
+    jq -e '.ok==true' <<< "$result" >/dev/null
+}
+op=${1:-list}
+# Listing is also the client startup/recovery path.
+if [[ $op == list ]]; then agent_server; fi
+case $op in
+    restart)
+        [[ $# == 2 ]] || { printf 'usage: agentctl restart ID\n' >&2; exit 2; }
+        exec "$agent_bin/agent-restart" "$2" ;;
+    list) agent_request '{"op":"list"}' | jq -cse '[.[] | select(.type=="snapshot")]|last // error("Missing snapshot")' ;;
+    kill|dismiss_error)
+        [[ $# == 2 ]] || { printf 'usage: agentctl %s ID\n' "$op" >&2; exit 2; }
+        ctl_result "$(jq -cn --arg op "$op" --arg id "$2" '{op:$op,session:$id}')" ;;
+    title)
+        [[ $# == 3 ]] || { printf 'usage: agentctl title ID TITLE\n' >&2; exit 2; }
+        ctl_result "$(jq -cn --arg id "$2" --arg title "$3" '{op:"set_title",session:$id,title:$title}')" ;;
+    clear-title)
+        [[ $# == 2 ]] || { printf 'usage: agentctl clear-title ID\n' >&2; exit 2; }
+        ctl_result "$(jq -cn --arg id "$2" '{op:"set_title",session:$id,title:null}')" ;;
+    attach)
+        [[ $# == 2 || ( $# == 3 && $3 == --raw ) ]] || { printf 'usage: agentctl attach ID [--raw]\n' >&2; exit 2; }
+        id=$2
+        [[ $id =~ ^[a-zA-Z0-9_-]{1,128}$ ]] || exit 2
+        # Supplying a failing command prevents an absent session becoming a free shell.
+        agent_zmx_env
+        [[ -S $ZMX_DIR/$id ]] || { printf 'No zmx socket for %s\n' "$id" >&2; exit 1; }
+        if [[ ${3:-} == --raw || ! -t 0 || ! -t 1 ]]; then
+            exec "$agent_zmx" attach "$id" false
+        fi
+        replay_filter="$agent_helpers/agent-replay-filter"
+        [[ -x $replay_filter ]] || { printf 'Missing replay helper: %s\n' "$replay_filter" >&2; exit 1; }
+        # Short screens have no scrollback/viewport separator. Do not leave a
+        # filter waiting to mistake a later application clear for that separator.
+        if ! geometry=$(stty size < /dev/tty 2>/dev/null) ||
+           [[ ! $geometry =~ ^([1-9][0-9]*)[[:space:]]+[1-9][0-9]*$ ]]; then
+            printf 'agentctl: cannot read terminal size; using stock replay\n' >&2
+            exec "$agent_zmx" attach "$id" false
+        fi
+        rows=${BASH_REMATCH[1]}
+        if ! lines=$(timeout 3 "$agent_zmx" history "$id" | awk 'END { print NR }'); then
+            printf 'agentctl: cannot inspect history; using stock replay\n' >&2
+            exec "$agent_zmx" attach "$id" false
+        fi
+        if (( lines <= rows )); then exec "$agent_zmx" attach "$id" false; fi
+        "$agent_zmx" attach "$id" false | "$replay_filter" "$rows" ;;
+    *) printf 'usage: agentctl [--json] {list|attach ID [--raw]|restart ID|kill ID|dismiss_error ID|title ID TITLE|clear-title ID}\n' >&2; exit 2 ;;
+esac

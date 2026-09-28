@@ -1,0 +1,299 @@
+[
+  {
+    "file": "codex-success",
+    "statuses": [
+      "idle",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "codex-api-error",
+    "statuses": [
+      "working"
+    ],
+    "gap": "No failure/completion hook"
+  },
+  {
+    "file": "codex-recovery",
+    "statuses": [
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "codex-permission-allow",
+    "statuses": [
+      "working",
+      "working",
+      "waiting",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "codex-permission-deny",
+    "statuses": [
+      "working",
+      "working",
+      "waiting",
+      "idle"
+    ]
+  },
+  {
+    "file": "codex-tool-failure",
+    "statuses": [
+      "working",
+      "working",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "codex-interrupt",
+    "statuses": [
+      "working",
+      "working",
+      "unknown"
+    ]
+  },
+  {
+    "file": "codex-after-interrupt",
+    "statuses": [
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "codex-question",
+    "statuses": [
+      "working",
+      "waiting",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "codex-end",
+    "statuses": [
+      "exited"
+    ]
+  },
+  {
+    "file": "codex-cli",
+    "statuses": [
+      "idle",
+      "working",
+      "idle",
+      "exited"
+    ]
+  },
+  {
+    "file": "claude-api-error",
+    "statuses": [
+      "idle",
+      "working",
+      "error"
+    ],
+    "message": "Local test: login required"
+  },
+  {
+    "file": "claude-recovery",
+    "statuses": [
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "claude-permission-allow",
+    "statuses": [
+      "working",
+      "working",
+      "waiting",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "claude-permission-deny",
+    "statuses": [
+      "working",
+      "working",
+      "waiting",
+      "idle"
+    ]
+  },
+  {
+    "file": "claude-tool-failure",
+    "statuses": [
+      "working",
+      "working",
+      "waiting",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "claude-question",
+    "statuses": [
+      "working",
+      "waiting",
+      "waiting",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "claude-subagent",
+    "statuses": [
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "claude-interrupt",
+    "statuses": [
+      "working",
+      "working"
+    ],
+    "gap": "Early cancellation has no completion hook"
+  },
+  {
+    "file": "claude-after-interrupt",
+    "statuses": [
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "claude-end",
+    "statuses": [
+      "exited"
+    ]
+  },
+  {
+    "file": "claude-resume",
+    "statuses": [
+      "idle",
+      "working",
+      "idle",
+      "exited"
+    ]
+  },
+  {
+    "file": "claude-background",
+    "statuses": [
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "codex-concurrent",
+    "statuses": [
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "claude-concurrent",
+    "statuses": [
+      "idle",
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "working",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "waiting",
+      "working",
+      "idle",
+      "working",
+      "idle",
+      "exited"
+    ]
+  },
+  {
+    "file": "codex-rate-limit",
+    "statuses": [
+      "working"
+    ]
+  },
+  {
+    "file": "codex-server-error",
+    "statuses": [
+      "working"
+    ]
+  },
+  {
+    "file": "codex-question-cancel",
+    "statuses": [
+      "working",
+      "waiting",
+      "working",
+      "idle"
+    ]
+  },
+  {
+    "file": "claude-rate-limit",
+    "statuses": [
+      "idle",
+      "working",
+      "error",
+      "error"
+    ]
+  },
+  {
+    "file": "claude-server-error",
+    "statuses": [
+      "idle",
+      "working",
+      "error",
+      "error"
+    ]
+  },
+  {
+    "file": "claude-mcp-cancel",
+    "statuses": [
+      "idle",
+      "working",
+      "working",
+      "waiting",
+      "working",
+      "idle",
+      "exited"
+    ]
+  }
+]

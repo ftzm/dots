@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source "${BASH_SOURCE[0]%/*}/agent-common"
+# setsid detaches from a terminal, but does not escape a systemd service's
+# cgroup. A service restart would otherwise kill zmx and the harness too.
+# A scope inherits our environment, cwd and terminal; its children outlive
+# the creating Emacs service. Re-execution ends here because scopes end .scope.
+if [[ -r /proc/self/cgroup && $(< /proc/self/cgroup) == */user@*.service/*.service ]]; then
+    command -v systemd-run >/dev/null || {
+        printf 'Launching from a user service requires systemd-run for session persistence\n' >&2
+        exit 127
+    }
+    exec systemd-run --user --scope --quiet --collect --expand-environment=no "$agent_bin/agent-new" "$@"
+fi
+id=
+title=
+while [[ ${1:-} == --id || ${1:-} == --title ]]; do
+  if [[ $1 == --title ]]; then
+    [[ $# -ge 2 && -n $2 ]] || { printf 'Expected a nonempty title after --title\n' >&2; exit 2; }
+    title=$2; shift 2
+  else
+    [[ $# -ge 2 && $2 =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || {
+        printf 'Expected a lowercase UUID after --id\n' >&2; exit 2;
+    }
+    id=$2; shift 2
+  fi
+done
+if [[ $# -lt 2 || ( $1 != claude && $1 != codex ) ]]; then
+    printf 'usage: agent-new [--id UUID] [--title TITLE] {claude|codex} DIRECTORY [-- HARNESS-ARGS...]\n' >&2; exit 2
+fi
+kind=$1
+cd -- "$2"
+shift 2
+[[ ${1:-} != -- ]] || shift
+umask 077
+agent_server
+[[ -n $id ]] || IFS= read -r id < /proc/sys/kernel/random/uuid
+work=$agent_runtime/launch/$id
+mkdir -p "$agent_runtime/launch"
+mkdir "$work" # Explicit IDs must not reuse another launch's preparation files.
+export AGENTD_RUNTIME_DIR="$agent_runtime" AGENT_SESSION="$id"
+export AGENT_HOOK_FORWARD="$agent_bin/agent-hook-forward" AGENTD_SOCKET="$agent_runtime/ingest.sock"
+if [[ $kind == codex ]]; then harness=${AGENT_CODEX_BIN:-codex}; else harness=${AGENT_CLAUDE_BIN:-claude}; fi
+version=$(timeout 5 "$harness" --version)
+baseline=$(jq -r --arg kind "$kind" '.[$kind]' "$agent_data/versions.json")
+[[ " $version " == *" $baseline "* ]] || printf 'Warning: %s differs from verified %s baseline; continuing\n' "$version" "$baseline" >&2
+if [[ $kind == codex ]]; then
+    # All preparatory work finishes before starting the launch lease.
+    timeout -k 2 30 "$agent_bin/agent-codex-options" "$work" > "$work/options"
+    mapfile -d '' -t options < "$work/options"
+    # Keep conversation output in the terminal's normal scrollback for Ghostel.
+    screen_options=(--no-alt-screen)
+    for argument in "$@"; do
+        [[ $argument != --no-alt-screen ]] || screen_options=()
+    done
+    command=("$harness" --no-daemon "${screen_options[@]}" "$@" "${options[@]}")
+else
+    command=("$harness" "$@" --settings "$agent_data/claude.json")
+fi
+agent_result "$(jq -cn --arg id "$id" --arg kind "$kind" --arg cwd "$PWD" --arg title "$title" '{op:"register",session:$id,kind:$kind,cwd:$cwd,managed:true} + (if $title == "" then {} else {title:$title} end)')"
+printf 'Agent session: %s\n' "$id" >&2
+agent_zmx_env
+# The zmx child, not this disposable attaching client, records the harness exit.
+set +e
+"$agent_zmx" attach "$id" "$agent_bin/agent-run" "$id" "${command[@]}"
+result=$?
+set -e
+if [[ $result -ne 0 && ! -S $ZMX_DIR/$id && ! -e $agent_runtime/exits/$id ]]; then agent_receipt "$id" "$result"; fi
+exit "$result"

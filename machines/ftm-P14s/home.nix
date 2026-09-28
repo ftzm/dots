@@ -38,6 +38,7 @@ in {
   };
 
   imports = [
+    ../../role/agentd-home.nix
     ../../role/iosevka-home.nix
     ../../role/emacs-home.nix
     ../../role/sway-home.nix

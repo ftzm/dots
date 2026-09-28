@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Explicit, idle-only harness restart. Called by agentctl, not by resize hooks.
+set -Eeuo pipefail
+source "${BASH_SOURCE[0]%/*}/agent-common"
+[[ $# == 1 && $1 =~ ^[a-zA-Z0-9_-]{1,128}$ ]] || exit 2
+id=$1
+work=$agent_runtime/launch/$id
+fail() { printf '%s\n' "$*" >&2; exit 1; }
+[[ -f $work/control.json ]] || fail 'This session predates restart support; exit and resume it manually once.'
+umask 077
+exec {lock}>"$work/restart.lock"
+flock -n "$lock" || fail 'A restart is already in progress.'
+agent_zmx_env
+snapshot=$("$agent_bin/agentctl" list)
+session=$(jq -ce --arg id "$id" '.sessions[] | select(.id==$id)' <<< "$snapshot") || fail 'Session no longer exists.'
+kind=$(jq -r .kind <<< "$session")
+jq -e '(.kind=="claude" or .kind=="codex") and .managed and .status=="idle" and .zmx_state=="alive" and
+       (.status_stale|not) and (.launch_pending|not) and (.kill_requested|not)' <<< "$session" >/dev/null ||
+    fail 'Restart requires an idle, live, managed Claude or Codex session with current status.'
+conversation=$(jq -er '.conversation_id | select(type=="string" and test("^[0-9a-fA-F-]{36}$"))' <<< "$session") || fail 'No conversation ID is available.'
+transcript=$(jq -er '.transcript_path | select(type=="string")' <<< "$session") || fail 'No transcript is available.'
+[[ -r $transcript && -s $transcript ]] || fail 'The saved transcript is not readable.'
+control=$(cat "$work/control.json")
+pid=$(jq -er '.pid | select(type=="number" and .>1)' <<< "$control")
+start=$(jq -er '.start | select(type=="string" and length>0)' <<< "$control")
+generation=$(jq -er .generation <<< "$control")
+previous_event=$(jq -r .last_event_at <<< "$session")
+mapfile -d '' -t command < <(jq -j '.argv[] | ., "\u0000"' <<< "$control")
+((${#command[@]})) || fail 'Launch arguments are unavailable.'
+command -v "${command[0]}" >/dev/null || fail 'Harness executable is no longer available.'
+prepared=$(mktemp "$work/.restart.XXXXXX")
+requested=false
+cleanup() { rm -f "$prepared"; [[ $requested != true ]] || rm -f "$work/restart.request"; }
+trap cleanup EXIT
+"$agent_bin/agent-$kind-resume-args" "$conversation" "${command[@]:1}" > "$prepared"
+mapfile -d '' -t arguments < "$prepared"
+IFS= read -r token < /proc/sys/kernel/random/uuid
+jq -cn --arg generation "$generation" --arg request_id "$token" --argjson expires_at "$(($(date +%s)+30))" --args \
+    '{generation:$generation,request_id:$request_id,expires_at:$expires_at,argv:$ARGS.positional}' \
+    -- "${command[0]}" "${arguments[@]}" > "$prepared"
+# Check the captured child generation before signalling; stale metadata must
+# never target a subsequent process or change an unrelated session.
+[[ -r /proc/$pid/stat ]] || fail 'Harness exited before restart.'
+stat=$(<"/proc/$pid/stat"); read -ra fields <<< "${stat##*) }"
+[[ ${fields[19]:-} == "$start" && $(jq -r .generation "$work/control.json") == "$generation" ]] || fail 'Harness changed before restart; try again.'
+latest=$("$agent_bin/agentctl" list)
+jq -e --arg id "$id" --arg conversation "$conversation" --argjson previous "$previous_event" \
+    'any(.sessions[]; .id==$id and .conversation_id==$conversation and .last_event_at==$previous
+     and .status=="idle" and (.status_stale|not) and (.kill_requested|not) and .zmx_state=="alive")' \
+    <<< "$latest" >/dev/null || fail 'Session changed while preparing restart; try again when idle.'
+# Codex defers SessionStart until the next turn. Its resume initialization
+# appends ThreadSettingsApplied to the saved JSONL before accepting input.
+# Remember the byte boundary so an earlier startup cannot acknowledge this one.
+transcript_offset=$(stat -c %s -- "$transcript")
+mv "$prepared" "$work/restart.request"
+requested=true
+# Stop the child without injecting text into its prompt.
+kill -TERM "$pid" || fail 'Harness exited before the restart signal.'
+deadline=$((SECONDS+30))
+while ((SECONDS < deadline)); do
+    if [[ $(jq -r .generation "$work/control.json") == "$token" ]]; then
+        requested=false
+        snapshot=$("$agent_bin/agentctl" list)
+        codex_ready=false
+        if [[ $kind == codex ]] && tail -c "+$((transcript_offset+1))" -- "$transcript" |
+            jq -Rse --arg conversation "$conversation" '
+                [split("\n")[:-1][] | fromjson?] | any(.type=="event_msg" and
+                .payload.type=="thread_settings_applied" and .payload.thread_id==$conversation)
+            ' >/dev/null; then
+            codex_ready=true
+        fi
+        if jq -e --arg id "$id" --arg conversation "$conversation" --argjson previous "$previous_event" \
+            --argjson codex_ready "$codex_ready" \
+            'any(.sessions[]; .id==$id and .conversation_id==$conversation
+             and .status=="idle" and .zmx_state=="alive" and (.status_stale|not)
+             and ($codex_ready or (.last_event=="SessionStart" and .last_event_at>$previous)))' <<< "$snapshot" >/dev/null; then
+            jq -c --arg id "$id" '{type:"result",ok:true,applied:true,persisted,op:"restart",session:$id}' <<< "$snapshot"
+            exit 0
+        fi
+        if [[ -e $agent_runtime/exits/$id ]]; then fail 'Resumed harness exited during startup; inspect the session output.'; fi
+    fi
+    sleep .1
+done
+fail 'Restart timed out; inspect the session before retrying. An unclaimed restart request has been cancelled.'

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Emit NUL-delimited per-invocation options. Never change global config/trust.
+set -Eeuo pipefail
+source "${BASH_SOURCE[0]%/*}/agent-common"
+work=$1
+codex_bin=${AGENT_CODEX_BIN:-codex}
+mapfile -d '' -t options < <(jq -j '
+  def toml:
+    if type=="object" then "{" + (to_entries | map((.key|tojson)+"="+(.value|toml)) | join(",")) + "}"
+    elif type=="array" then "[" + (map(toml)|join(",")) + "]"
+    elif type=="null" then error("null is not supported in TOML") else tojson end;
+  .hooks | to_entries[] | "-c\u0000hooks." + .key + "=" + (.value|toml) + "\u0000"
+' "$agent_data/codex.json")
+[[ ${#options[@]} -gt 0 ]]
+rpc_pid=
+cleanup() { if [[ -n $rpc_pid ]]; then kill "$rpc_pid" 2>/dev/null || :; wait "$rpc_pid" 2>/dev/null || :; fi; }
+trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+rpc_start() {
+    coproc discovery { exec "$codex_bin" "${options[@]}" app-server --stdio 2>>"$work/codex-discovery.log"; }
+    rpc_pid=$discovery_PID
+    exec {rpc_in}>&"${discovery[1]}" {rpc_out}<&"${discovery[0]}"
+}
+rpc_call() {
+    printf '%s\n' "$1" >&"$rpc_in"
+    local line
+    while IFS= read -r -t 10 line <&"$rpc_out"; do
+        if jq -e --argjson id "$2" '.id==$id' <<< "$line" >/dev/null; then
+            jq -e 'has("result")' <<< "$line" >/dev/null || { printf '%s\n' "$line" >&2; return 1; }
+            rpc_response=$(jq -c '.result' <<< "$line")
+            return
+        fi
+    done
+    printf 'Codex hook discovery timed out; see %s/codex-discovery.log\n' "$work" >&2
+    return 1
+}
+discover() {
+    rpc_start
+    rpc_call '{"id":1,"method":"initialize","params":{"clientInfo":{"name":"agentd_launcher","version":"1"},"capabilities":{"experimentalApi":true}}}' 1
+    printf '%s\n' '{"method":"initialized"}' >&"$rpc_in"
+    rpc_call "$(jq -cn --arg cwd "$PWD" '{id:2,method:"hooks/list",params:{cwds:[$cwd]}}')" 2
+    cleanup; rpc_pid=
+    exec {rpc_in}>&- {rpc_out}<&-
+}
+discover
+entries=$(jq -c '[.data[].hooks[] | select(.sourcePath=="/<session-flags>/config.toml")]' <<< "$rpc_response")
+expected=$(jq '[.hooks[][] .hooks[]] | length' "$agent_data/codex.json")
+jq -e --argjson expected "$expected" 'length==$expected and all(.[]; .enabled and (.currentHash|startswith("sha256:")))' <<< "$entries" >/dev/null || {
+    printf 'Codex did not discover all required session hooks; refusing incomplete coverage\n' >&2; exit 1;
+}
+options+=(-c "$(jq -r '"hooks.state={" + (map((.key|tojson)+"={trusted_hash="+(.currentHash|tojson)+"}")|join(",")) + "}"' <<< "$entries")")
+discover
+jq -e --argjson expected "$expected" '[.data[].hooks[] | select(.sourcePath=="/<session-flags>/config.toml")] | length==$expected and all(.[]; .enabled and .trustStatus=="trusted")' <<< "$rpc_response" >/dev/null || {
+    printf 'Codex did not trust the exact launch hook definitions\n' >&2; exit 1;
+}
+printf '%s\0' "${options[@]}"

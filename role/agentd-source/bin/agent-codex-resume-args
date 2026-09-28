@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# NUL-delimited resume argv. Arity baseline: Codex 0.156.1 / 0.157.0.
+# Preserve configuration and hook trust, but never resubmit the initial input.
+set -Eeuo pipefail
+conversation=$1; shift
+result=()
+root_result=()
+positional=false
+while (($#)); do
+    arg=$1; shift
+    option=${arg%%=*}; arity=0; keep=true
+    case $option in
+        --) break ;;
+        --no-alt-screen|--no-daemon|--last|--all|--include-non-interactive) keep=false ;;
+        --image|-i) arity=many; keep=false ;;
+        --config|-c|--enable|--disable|--model|-m|--local-provider|--profile|-p|--sandbox|-s|--cd|-C|--add-dir|--ask-for-approval|-a)
+            arity=1 ;;
+        --strict-config|--oss|--approve-for-me|--dangerously-bypass-approvals-and-sandbox|--dangerously-bypass-hook-trust|--search) ;;
+        -*) printf 'Unsupported Codex restart option: %s\n' "$option" >&2; exit 2 ;;
+        *)
+            if [[ $positional == false ]]; then
+                case $arg in
+                    # Keep root and subcommand options separate: e.g. a model
+                    # override in both positions is legal and has precedence.
+                    resume|fork) root_result=("${result[@]}"); result=() ;;
+                    exec|e|review|login|logout|mcp|mcp-server|app-server|app|completion|sandbox|debug|apply|a|cloud|features|help|agents|proxy)
+                        printf 'Cannot restart this Codex launch mode: %s\n' "$arg" >&2; exit 2 ;;
+                esac
+                positional=true
+            fi
+            continue ;; # Drop the old conversation selector and prompt.
+    esac
+    [[ $keep != true ]] || result+=("$arg")
+    if [[ $arg == *=* ]]; then
+        [[ $arity != 0 ]] || { printf 'Unexpected value for %s\n' "$option" >&2; exit 2; }
+        [[ $arity == many ]] || continue
+    elif [[ $arity == 1 ]]; then
+        (($#)) || { printf 'Missing value for %s\n' "$option" >&2; exit 2; }
+        [[ $keep != true ]] || result+=("$1")
+        shift
+        continue
+    fi
+    if [[ $arity == many ]]; then
+        while (($#)) && [[ $1 != -* ]]; do shift; done
+    fi
+done
+printf '%s\0' "${root_result[@]}" resume "$conversation" --no-daemon --no-alt-screen "${result[@]}"

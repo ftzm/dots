@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Internal PTY child: startup handshake, foreground harness, durable exit receipt.
+set -uo pipefail
+source "${BASH_SOURCE[0]%/*}/agent-common"
+id=$1; shift
+umask 077
+if ! agent_result "$(jq -cn --arg id "$id" '{op:"started",session:$id}')"; then
+    agent_receipt "$id" 125
+    printf 'Launch was not accepted by agentd; harness was not started\n' >&2
+    exit 125
+fi
+work=$agent_runtime/launch/$id
+mkdir -p "$work"
+generation=initial
+wait_interrupted=false
+trap 'wait_interrupted=true' INT QUIT
+while :; do
+    # Keep the original environment and argv in this persistent PTY owner.
+    # Explicit stdin prevents Bash from giving an asynchronous child /dev/null.
+    # Bash normally makes asynchronous children ignore INT/QUIT. Restore the
+    # normal dispositions before exec so terminal interruption still works.
+    env --default-signal=INT,QUIT -- "$@" <&0 &
+    child=$!
+    start=
+    if [[ -r /proc/$child/stat ]]; then
+        stat=$(<"/proc/$child/stat"); read -ra fields <<< "${stat##*) }"
+        start=${fields[19]:-}
+    fi
+    jq -cn --argjson pid "$child" --arg start "$start" --arg cwd "$PWD" \
+        --arg generation "$generation" --args \
+        '{version:1,pid:$pid,start:$start,cwd:$cwd,generation:$generation,argv:$ARGS.positional}' \
+        -- "$@" > "$work/control.tmp"
+    mv -f "$work/control.tmp" "$work/control.json"
+    while :; do
+        wait_interrupted=false
+        wait "$child"
+        result=$?
+        [[ $wait_interrupted == true ]] || break
+    done
+    # Atomic claim competes with the caller cancelling a timed-out request.
+    if ! mv "$work/restart.request" "$work/restart.claimed" 2>/dev/null; then break; fi
+    # A killed client must not leave a request that restarts a much later exit.
+    if ! jq -e --argjson now "$(date +%s)" '.expires_at > $now' "$work/restart.claimed" >/dev/null; then
+        rm "$work/restart.claimed"; break
+    fi
+    if ! jq -e --arg generation "$generation" \
+        '.generation == $generation and (.request_id|type=="string") and
+         (.argv|type=="array" and length>0 and all(.[];type=="string"))' \
+        "$work/restart.claimed" >/dev/null; then
+        printf 'Invalid restart request; stopping\n' >&2
+        result=125; break
+    fi
+    generation=$(jq -r .request_id "$work/restart.claimed")
+    mapfile -d '' -t command < <(jq -j '.argv[] | ., "\u0000"' "$work/restart.claimed")
+    rm "$work/restart.claimed"
+    set -- "${command[@]}"
+    # Reset screen/modes and erase retained history in zmx and attached clients.
+    printf '\033c\033[H\033[2J\033[3J'
+done
+agent_receipt "$id" "$result" || printf 'Could not record harness exit status %s\n' "$result" >&2
+exit "$result"

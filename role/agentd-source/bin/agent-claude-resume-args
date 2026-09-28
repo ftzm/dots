@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Produce NUL-delimited argv for the same conversation, without replaying the
+# initial prompt or retaining a previous session selector. Never eval argv.
+# Arity baseline: Claude Code 2.1.282. Unknown options fail before any restart.
+set -Eeuo pipefail
+conversation=$1; shift
+result=()
+while (($#)); do
+    arg=$1; shift
+    option=${arg%%=*}; arity=0; keep=true
+    case $option in
+        --) break ;; # Everything after -- is the original positional prompt.
+        --continue|-c|--fork-session) keep=false ;;
+        --session-id) arity=1; keep=false ;;
+        --resume|-r|--from-pr|--teleport) arity=optional; keep=false ;;
+        --worktree|-w|--tmux|--cloud|--environment|--bg|--background|--print|-p|--no-session-persistence|--bare|--safe-mode)
+            printf 'Cannot restart this Claude launch mode: %s\n' "$option" >&2; exit 2 ;;
+        --agent|--agents|--append-system-prompt|--append-system-prompt-file|--autocompact|--debug-file|--effort|--fallback-model|--model|--name|-n|--permission-mode|--plugin-dir|--plugin-url|--remote-control-session-name-prefix|--setting-sources|--settings|--system-prompt|--system-prompt-file|--system-prompt-snapshot)
+            arity=1 ;;
+        --add-dir|--allowedTools|--allowed-tools|--disallowedTools|--disallowed-tools|--betas|--mcp-config|--tools|--file)
+            arity=many ;;
+        --debug|-d|--prompt-suggestions|--remote-control) arity=optional ;;
+        --allow-dangerously-skip-permissions|--dangerously-skip-permissions|--ax-screen-reader|--brief|--chrome|--no-chrome|--disable-slash-commands|--exclude-dynamic-system-prompt-sections|--ide|--restricted|--strict-mcp-config|--verbose) ;;
+        -*) printf 'Unsupported Claude restart option: %s\n' "$option" >&2; exit 2 ;;
+        *) continue ;; # The positional initial prompt is not submitted again.
+    esac
+    [[ $keep != true ]] || result+=("$arg")
+    if [[ $arg == *=* ]]; then
+        [[ $arity != 0 ]] || { printf 'Unexpected value for %s\n' "$option" >&2; exit 2; }
+        [[ $arity == many ]] || continue
+    elif [[ $arity == 1 ]]; then
+        (($#)) || { printf 'Missing value for %s\n' "$option" >&2; exit 2; }
+        [[ $keep != true ]] || result+=("$1")
+        shift
+        continue
+    fi
+    if [[ $arity == many || $arity == optional ]]; then
+        while (($#)) && [[ $1 != -* ]]; do
+            [[ $keep != true ]] || result+=("$1")
+            shift
+            [[ $arity == many ]] || break
+        done
+    fi
+done
+printf '%s\0' "${result[@]}" --resume "$conversation"
