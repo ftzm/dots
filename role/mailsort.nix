@@ -28,6 +28,15 @@
 
     serviceConfig = {
       Type = "oneshot";
+      # A oneshot's start timeout defaults to infinity, and while a run is
+      # still activating the timer can't start another -- so one hung run
+      # stops sorting for good, silently, since a hang never fails.
+      # options.timeout in mailsort.lua doesn't cover this: imapfilter's
+      # SSL_connect runs on a blocking socket with no select(), so a
+      # connection that dies mid-handshake blocks in read() forever
+      # (observed 2026-09-25, hung 3.8 days). Runs take ~30s; the timeout
+      # turns a hang into a failure, which alerts and lets the next tick run.
+      TimeoutStartSec = "5min";
       ExecStart = "${pkgs.imapfilter}/bin/imapfilter -c ${./mailsort.lua}";
 
       # agenix writes secrets root-owned 0400, and DynamicUser has no stable
