@@ -845,6 +845,27 @@ local patchTargetDown(resources) = {
         'Systemd unit repeatedly failing on {{ $labels.host }}',
         'Unit {{ $labels.failing_unit }} on {{ $labels.host }} has failed 3+ times in every 15m window for the last 20 minutes -- sustained, not a blip. Details: query the journal stream in Loki.',
       ),
+      // Liveness, not failure: JournalUnitFailure can't see a run that never
+      // finishes. A mailsort run hung in activating for 4.6 days from
+      // 2026-09-25 -- no failure line, no alert, no sorting, since a oneshot
+      // still activating blocks its timer. Keyed on the success line, so any
+      // stall (hang, stopped timer, broken deploy) fires, whatever the cause.
+      //
+      // about_unit, not unit: systemd logs "Finished ..." from PID 1, so
+      // `unit` is init.scope. Replayed against Loki before shipping: 1 from
+      // 2026-09-26 00:00 through the fix, empty on either side and in every
+      // other window since about_unit landed on 2026-09-07.
+      //
+      // 15m + 15m `for`: a run finishes every ~minute, so this pages after
+      // ~30 minutes of no sorting. A Fastmail outage that long pages too,
+      // which is correct -- mail is not being sorted.
+      alerts.rule(
+        'MailsortStale',
+        'absent_over_time({job="systemd-journal", host="nuc", about_unit="mailsort.service"} |= "Finished" [15m])',
+        '15m', 'warning',
+        'mailsort has not completed a run on nuc for 30m',
+        'No successful mailsort.service run on nuc for 30 minutes, so incoming mail is not being sorted. Check `systemctl status mailsort.service` on nuc: a run stuck in activating, a failing run, or a stopped timer.',
+      ),
       // The canonical-vocabulary guard for host sources — the counterpart of
       // ParseCoverage, which only covers pod logs. Catches the fault class
       // where a host shipper runs a stale pipeline (found 2026-09-03: nas

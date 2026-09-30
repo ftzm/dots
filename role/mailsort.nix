@@ -34,9 +34,16 @@
       # options.timeout in mailsort.lua doesn't cover this: imapfilter's
       # SSL_connect runs on a blocking socket with no select(), so a
       # connection that dies mid-handshake blocks in read() forever
-      # (observed 2026-09-25, hung 3.8 days). Runs take ~30s; the timeout
-      # turns a hang into a failure, which alerts and lets the next tick run.
-      TimeoutStartSec = "5min";
+      # (observed 2026-09-25, hung 3.8 days). The timeout turns a hang into a
+      # failure and lets the next tick run.
+      #
+      # 2min, not 5min: a timed-out run is retried immediately, so a hang that
+      # recurs fails once per TimeoutStartSec. At 5min that is 3 per 15m,
+      # which dips to 2 as the window slides and keeps resetting
+      # JournalUnitFailure's `for`, so it never fires. 2min gives ~7 per 15m
+      # while leaving 4x headroom over a normal ~30s run. MailsortStale in
+      # cluster/environments/lab/main.jsonnet is the backstop for any stall.
+      TimeoutStartSec = "2min";
       ExecStart = "${pkgs.imapfilter}/bin/imapfilter -c ${./mailsort.lua}";
 
       # agenix writes secrets root-owned 0400, and DynamicUser has no stable

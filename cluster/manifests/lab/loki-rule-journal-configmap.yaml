@@ -12,6 +12,14 @@ data:
         "for": "20m"
         "labels":
           "severity": "warning"
+      - "alert": "MailsortStale"
+        "annotations":
+          "description": "No successful mailsort.service run on nuc for 30 minutes, so incoming mail is not being sorted. Check `systemctl status mailsort.service` on nuc: a run stuck in activating, a failing run, or a stopped timer."
+          "summary": "mailsort has not completed a run on nuc for 30m"
+        "expr": "absent_over_time({job=\"systemd-journal\", host=\"nuc\", about_unit=\"mailsort.service\"} |= \"Finished\" [15m])"
+        "for": "15m"
+        "labels":
+          "severity": "warning"
       - "alert": "JournalNonCanonicalLevel"
         "annotations":
           "description": "A host is shipping journal lines with levels outside the canonical vocabulary — its log pipeline is running a stale or divergent config. Compare the deployed generation with the shipper process start time."
