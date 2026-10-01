@@ -80,6 +80,7 @@ in {
     ./mqtt2prometheus-service.nix
     ./k3s.nix
     ../../role/node-exporter.nix
+    ../../role/mosh.nix
     ./forgejo-runner.nix
     ../../role/comin.nix
     ../../role/resilience.nix
@@ -157,7 +158,6 @@ in {
     sshd.enable = true;
   };
 
-  programs.mosh.enable = true;
 
   # --------------------------
   services.jellyfin = {
