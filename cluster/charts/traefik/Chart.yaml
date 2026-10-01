@@ -1,10 +1,8 @@
 annotations:
   artifacthub.io/changes: |
-    - kind: fixed
-      description: "fix: use kubeversion to determine PDB apiVersion"
     - kind: added
-      description: "feat(hub): support transparency logs"
-  traefik.io/hub-max-version: v3.20.13
+      description: "feat(hub): support traefik hub v3.21.0"
+  traefik.io/hub-max-version: v3.21.0
   traefik.io/hub-min-version: v3.19.3
   traefik.io/proxy-max-version: v3.7.13
   traefik.io/proxy-min-version: v3.6.0
@@ -29,4 +27,4 @@ sources:
 - https://github.com/traefik/traefik-helm-chart
 - https://github.com/traefik/traefik
 type: application
-version: 41.6.0
+version: 41.6.1
