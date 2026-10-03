@@ -1802,45 +1802,54 @@ in which case does avy-goto-char with the first char."
    "R" 'org-agenda-refile
    )
 
-  (setq org-agenda-files '("~/org/personal/"
-			   "~/org/personal/projects/" 
-			   "~/org/personal/culture/" ))
+  (setq org-agenda-files '("~/org/inbox.org"
+                            "~/org/todo.org"
+                            "~/org/habits.org"
+                            "~/org/special-dates.org"
+                            "~/org/projects/"
+                            "~/org/culture/"
+                            "~/org/interests/"
+                            "~/org/personal/"))
 
   (setq org-agenda-window-setup 'current-window)
 
   (setq org-agenda-custom-commands
 	`((" " "My Agenda"
 	   ((org-sep-header "Ní dhéanfaidh smaoineamh an treabhadh dhuit\n")
-	    (org-ql-block `(and (not (todo "DONE"))
+	    (org-ql-block `(and (not (todo "DONE" "CANCELLED"))
 				(not (habit))
 				(deadline :to -1))
 			  ((org-ql-block-header "\nMissed Deadlines")))
-	    (org-ql-block '(and (not (todo "DONE"))
+	    (org-ql-block '(and (not (todo "DONE" "CANCELLED"))
 				(not (deadline :to -1))
 				(deadline auto)
 				(not (scheduled :from +1)))
 			  ((org-ql-block-header "\nDeadlines")))
 	    (org-ql-block '(and (scheduled :to today)
+                                (not (todo "DONE" "CANCELLED"))
 	  			(not (habit)))
 	  		  ((org-ql-block-header "\nToday")))
 	    (org-ql-block '(and (scheduled :to today)
+                                (not (todo "DONE" "CANCELLED"))
 	  			(habit))
 	  		  ((org-ql-block-header "\nHabits")
 			   ))
 	    (org-ql-block '(and (todo "NEXT")
 				(not (scheduled)))
-	  		  ((org-agenda-files '("~/org/personal/todo.org"))
+			  ((org-agenda-files '("~/org/todo.org"))
 			   (org-ql-block-header "\nAd Hoc")))
 	    (org-ql-block '(todo "TODO" "NEXT")
-	  		  ((org-agenda-files '("~/org/personal/inbox.org"))
+			  ((org-agenda-files '("~/org/inbox.org"))
 			   (org-ql-block-header "\nTo Refile")))
 	    (org-ql-block '(todo "NEXT")
 			  ((org-ql-block-header "\nProjects")
-			   (org-agenda-files '("~/org/personal/projects/"))
+			   (org-agenda-files '("~/org/projects/"))
 			   (org-super-agenda-groups '((:auto-category-and-outline-path t)))))
 	    (org-ql-block '(closed 0)
 			  ((org-ql-block-header "\nClosed")))
-	    ))))
+	    ))
+          ("W" "Work Agenda" alltodo ""
+           ((org-agenda-files '("~/org/work-inbox.org"))))))
 
   (defun ftzm/daily-agenda()
     (interactive)
@@ -1856,13 +1865,13 @@ in which case does avy-goto-char with the first char."
   (add-hook 'org-capture-mode-hook 'evil-insert-state)
 
   (setq org-capture-templates
-	(quote (("t" "todo" entry (file "~/org/personal/inbox.org")
+	(quote (("t" "todo" entry (file "~/org/inbox.org")
 		 "* NEXT %?")
-		("d" "diary entry" entry (file+datetree "~/org/personal/diary.org")
+		("d" "diary entry" entry (file+datetree "~/org/diary.org")
 		 "* %?")
-		("u" "work diary entry" entry (file+datetree "~/org/work/diary.org")
+		("u" "work diary entry" entry (file+datetree "~/org/work-diary.org")
 		 "* %?")
-		("w" "work todo" entry (file "~/org/work/work-inbox.org")
+		("w" "work todo" entry (file "~/org/work-inbox.org")
 		 "* NEXT %?")
 		)))
 
@@ -1897,7 +1906,7 @@ in which case does avy-goto-char with the first char."
   ;; Archive
 
   ;; Dynamic archive location: mirror source path under ~/org/archive/
-  ;; e.g. ~/org/personal/todo.org -> ~/org/archive/personal/todo.org_archive
+  ;; e.g. ~/org/todo.org -> ~/org/archive/todo.org_archive
   (defun ftzm/org-archive-location ()
     (let* ((source (buffer-file-name))
            (org-root (expand-file-name "~/org/"))
