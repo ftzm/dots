@@ -235,6 +235,9 @@ in {
       move_completed_path = "/mnt/nas/mediastack/downloads/torrents";
       torrentfiles_location = "/var/lib/deluge/torrents";
       move_completed = false;
+      # Sonarr and Radarr each tag their torrents with their own label
+      # (download client category), so neither sees the other's downloads.
+      enabled_plugins = ["Label"];
     };
     group = "storage";
   };
