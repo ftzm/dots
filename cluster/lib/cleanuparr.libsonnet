@@ -27,6 +27,7 @@ local k = import 'k8s-libsonnet/main.libsonnet';
   //   downloadClients: [{ name, typeName, type, host, username?, passwordEnv }],
   //   malwareBlocker: <PUT /api/configuration/malware_blocker body>,
   //   queueCleaner: <PUT /api/configuration/queue_cleaner body>,
+  //   general: <fields merged into GET /api/configuration/general, then PUT>,
   //   seeker: <fields merged into GET /api/configuration/seeker, then PUT>,
   // }
   //

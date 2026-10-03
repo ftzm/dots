@@ -104,10 +104,14 @@ data:
     call PUT /configuration/queue_cleaner "$(jq -c .queueCleaner "$SETTINGS")" >/dev/null
     echo "queue cleaner: applied"
 
-    current=$(call GET /configuration/seeker)
-    call PUT /configuration/seeker \
-      "$(printf '%s' "$current" | jq -c --argjson s "$(jq -c .seeker "$SETTINGS")" '. + $s')" >/dev/null
-    echo "seeker: applied"
+    # General and seeker settings are partly managed: declared fields are merged
+    # into the current config, so undeclared ones (logging, auth, ...) stay as set.
+    for section in general seeker; do
+      current=$(call GET "/configuration/$section")
+      call PUT "/configuration/$section" \
+        "$(printf '%s' "$current" | jq -c --argjson s "$(jq -c --arg s "$section" '.[$s] // {}' "$SETTINGS")" '. * $s')" >/dev/null
+      echo "$section: applied"
+    done
   settings.json: |-
     {
       "arrs": {
@@ -137,6 +141,9 @@ data:
           "typeName": "Deluge"
         }
       ],
+      "general": {
+        "httpTimeout": 600
+      },
       "malwareBlocker": {
         "cronExpression": "0/5 * * * * ?",
         "deleteIfAnyFileBlocked": true,

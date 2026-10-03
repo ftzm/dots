@@ -517,7 +517,9 @@ All observability components live in the `monitoring` namespace.
   in its database. The `cleanuparr-configure` CronJob (every 10 min) applies
   the declared settings through its REST API — first-run admin setup, arr
   instances and download clients upserted by name (undeclared ones deleted),
-  job configs replaced — so UI edits to declared settings are reverted.
+  job configs replaced, declared general/seeker fields merged in (e.g. a 600 s
+  HTTP timeout: Sonarr's queue deletes take 30–100+ s) — so UI edits to declared
+  settings are reverted.
 - Credentials come from the `cleanuparr-config` SopsSecret:
   `CLEANUPARR_PASSWORD` (user `admin`), `SONARR_API_KEY`, `RADARR_API_KEY`,
   `DELUGE_PASSWORD` (Deluge web UI password).

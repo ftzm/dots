@@ -2280,6 +2280,12 @@ local patchTargetDown(resources) = {
             patternMode: 'Include',
           },
         },
+        // Removing a queue item is a DELETE on the arr, which also removes
+        // the torrent from Deluge; sonarr takes 30–100+ s for it, past the
+        // default 100 s timeout. A timed-out removal still completes on the
+        // arr side, but Cleanuparr treats it as failed and queues no
+        // replacement search.
+        general: { httpTimeout: 600 },
         // Replacement searches after a removal run only while search is on.
         seeker: { searchEnabled: true, proactiveSearchEnabled: false },
       },
