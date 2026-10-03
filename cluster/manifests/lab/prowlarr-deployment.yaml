@@ -24,7 +24,22 @@ spec:
         volumeMounts:
         - mountPath: /config
           name: config
+      - command:
+        - /bin/sh
+        - /scripts/reconcile.sh
+        image: linuxserver/prowlarr:2.6.5-nightly
+        name: prune-failing-indexers
+        volumeMounts:
+        - mountPath: /config
+          name: config
+        - mountPath: /scripts
+          name: prune-failing-indexers
+          readOnly: true
       volumes:
       - name: config
         persistentVolumeClaim:
           claimName: prowlarr-config
+      - configMap:
+          defaultMode: 365
+          name: prowlarr-prune-failing-indexers
+        name: prune-failing-indexers

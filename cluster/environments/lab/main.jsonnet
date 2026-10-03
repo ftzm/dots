@@ -4,6 +4,7 @@ local logformats = import '../../lib/logformats.libsonnet';
 local config = import '../../lib/config.libsonnet';
 local images = import '../../lib/images.libsonnet';
 local postgres = import '../../lib/postgres.libsonnet';
+local prowlarr = import '../../lib/prowlarr.libsonnet';
 local selfhosted = import '../../lib/selfhosted.libsonnet';
 local storage = import '../../lib/storage.libsonnet';
 local helm = (import 'tanka-util/helm.libsonnet').new(std.thisFile);
@@ -2212,7 +2213,13 @@ local patchTargetDown(resources) = {
     readarr: mediaApp('readarr', images.readarr, 8787, 'readarr.lan.ftzmlab.xyz'),
 
     // Support services (no mediastack volume)
-    prowlarr: selfhosted.new('prowlarr', images.prowlarr, 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns),
+    // Prowlarr disables indexers that keep failing and re-enables them when
+    // they recover; see prowlarr.pruneFailingIndexers.
+    local prowlarrPruner = prowlarr.pruneFailingIndexers(images.prowlarr, ns=ns),
+    prowlarr: selfhosted.new('prowlarr', images.prowlarr, 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns) {
+      pruneFailingIndexers: prowlarrPruner.configMap,
+      deployment+: prowlarrPruner.deploymentMixin,
+    },
     flaresolverr: selfhosted.new('flaresolverr', images.flaresolverr, 8191, 'flaresolverr.lan.ftzmlab.xyz', ns=ns),
     jellyseerr: selfhosted.new('jellyseerr', images.jellyseerr, 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns) {
       deployment+: {
