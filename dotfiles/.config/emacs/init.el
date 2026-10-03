@@ -120,6 +120,9 @@
 ;; post recipe setup
 (setq package-enable-at-startup nil)
 
+;; No bell: in -t frames it emits BEL, which rings through tmux/mosh.
+(setq ring-bell-function #'ignore)
+
 ;; Pin package versions declaratively. `elpaca-menu-lock-file' is already first
 ;; in `elpaca-menu-functions', so pointing `elpaca-lock-file' at our committed
 ;; lockfile makes it authoritative: every package resolves to the exact commit
