@@ -2204,6 +2204,27 @@ in which case does avy-goto-char with the first char."
 	  (format "[%s] %s \n %s\n %s" playing play-time current-song artist))
       "No song selected."))
 
+  (defun ftzm-mpd-volume ()
+    "Return the default audio sink volume for the music hydra."
+    (with-temp-buffer
+      (if (and (zerop (call-process "wpctl" nil t nil
+                                   "get-volume" "@DEFAULT_AUDIO_SINK@"))
+               (progn (goto-char (point-min))
+                      (re-search-forward "Volume: \\([0-9.]+\\)" nil t)))
+          (format "%d%%%s"
+                  (round (* 100 (string-to-number (match-string 1))))
+                  (if (save-excursion
+                        (goto-char (point-min))
+                        (search-forward "[MUTED]" nil t))
+                      " (muted)" ""))
+        "unavailable")))
+
+  (defun ftzm-mpd-hydra-title ()
+    "Return music status and system volume for the music hydra."
+    ;; `lv-message' treats the rendered hydra hint as a format string.
+    (replace-regexp-in-string
+     "%" "%%" (concat (ftzm-mpd-status) "\nVolume: " (ftzm-mpd-volume)) t t))
+
   (defun ftzm-mpd-repeat ()
     (interactive)
     (if libmpdel--repeat
@@ -2229,7 +2250,7 @@ in which case does avy-goto-char with the first char."
   (pretty-hydra-define mpd-hydra
     (:color blue
 	    :quit-key "q"
-	    :title (ftzm-mpd-status))
+	    :title (ftzm-mpd-hydra-title))
     ("Playback" (( "p" libmpdel-playback-play-pause "play-pause")
 	         ( "<" mpdel-song-normal-decrement "skip backward" :exit nil)
 	         ( ">" mpdel-song-normal-increment "skip forward" :exit nil)
@@ -2241,6 +2262,12 @@ in which case does avy-goto-char with the first char."
 		  ( "c" ftzm-embark-composer-search "search composers")
 					;( "a" ivy-mpdel-artists "search artists")
 		  )
+     "Volume" (( "v" (lambda () (interactive)
+                       (start-process "volumectl" nil "volumectl" "-p" "-u" "up"))
+                 "up" :exit nil)
+               ( "V" (lambda () (interactive)
+                       (start-process "volumectl" nil "volumectl" "-p" "-u" "down"))
+                 "down" :exit nil))
      "Toggles" (( "r" ftzm-mpd-repeat "repeat" :toggle (symbol-value 'libmpdel--repeat))
 	        ( "S" ftzm-mpd-single "single" :toggle (eq 'forever libmpdel--single))
 	        ( "R" ftzm-mpd-random "random" :toggle (symbol-value 'libmpdel--random)))))
