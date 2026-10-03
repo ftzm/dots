@@ -713,7 +713,7 @@ Writing to the pane lets tmux pass OSC 52 to every currently attached client."
 (use-package doom-modeline
   :config
   (doom-modeline-def-modeline 'trimmed
-    '(eldoc bar workspace-name matches follow buffer-info remote-host buffer-position word-count parrot selection-info)
+    '(eldoc bar modals workspace-name matches follow buffer-info remote-host buffer-position word-count parrot selection-info)
     '(compilation objed-state misc-info project-name persp-name battery grip irc mu4e gnus github debug repl lsp minor-modes input-method indent-info buffer-encoding major-mode process check time))
 
   ;; Set default mode-line
