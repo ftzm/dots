@@ -17,6 +17,75 @@
                               :ref nil :depth 1 :inherit ignore
                               :files (:defaults "elpaca-test.el" (:exclude "extensions"))
                               :build (:not elpaca-activate)))
+
+;; --- Lockfile integrity helpers ---------------------------------------------
+;; Defined here, ahead of the bootstrap, because the guard below has to run
+;; before elpaca itself is loaded.
+
+(defun ftzm/elpaca--git-head (dir)
+  "Return the HEAD commit of the git repository in DIR, or nil."
+  (when (file-directory-p (expand-file-name ".git" dir))
+    (with-temp-buffer
+      (let ((default-directory (file-name-as-directory dir)))
+        (when (zerop (call-process "git" nil t nil "rev-parse" "HEAD"))
+          (car (split-string (buffer-string))))))))
+
+(defun ftzm/elpaca--lock-alist (&optional path)
+  "Read the lockfile at PATH, defaulting to `elpaca-lock-file'."
+  (let ((path (or path (bound-and-true-p elpaca-lock-file)
+                  (expand-file-name "elpaca-lock.el" user-emacs-directory))))
+    (when (file-readable-p path)
+      (with-temp-buffer
+        (insert-file-contents path)
+        (goto-char (point-min))
+        (ignore-errors (read (current-buffer)))))))
+
+(defun ftzm/elpaca--locked-ref (id &optional path)
+  "Return the commit ID is pinned to in the lockfile at PATH, or nil."
+  (when-let* ((entry (alist-get id (ftzm/elpaca--lock-alist path)))
+              (recipe (plist-get entry :recipe)))
+    (plist-get recipe :ref)))
+
+(defun ftzm/elpaca--same-commit-p (a b)
+  "Return t if commits A and B agree, tolerating abbreviation."
+  (and a b (or (string-prefix-p a b) (string-prefix-p b a))))
+
+(defun ftzm/elpaca--abbrev (ref)
+  "Return a short form of REF for display."
+  (substring ref 0 (min 8 (length ref))))
+
+;; Guard: keep elpaca's own checkout in sync with the lockfile BEFORE the
+;; bootstrap loads it.
+;;
+;; elpaca is the one package the lockfile cannot govern the usual way: it is
+;; loaded out of `elpaca-sources-directory' before elpaca exists.  If the repo
+;; sits on a different commit than `elpaca-lock.el' pins, the bootstrap
+;; byte-compiles the checked-out commit and `elpaca-check-version' then rolls the
+;; *source* back to the pinned ref -- leaving builds/elpaca/*.elc from one commit
+;; beside sources/elpaca/*.el from another.  The two commits have incompatible
+;; `elpaca<-' struct slots, so the next startup loads a hybrid elpaca whose
+;; accessors are void and which queues zero packages: nothing in this file loads.
+;;
+;; Not hypothetical.  On 2026-08-31 an `elpaca-merge-all' fast-forwarded the repo
+;; to master (5b0cbb1) without regenerating the lockfile, which still pinned
+;; d50549d.  It stayed invisible until the Emacs 30.2 -> 31.1 upgrade forced a
+;; rebuild, at which point the .elc and the .el were 135 ms and one commit apart.
+;;
+;; So: check out the pinned ref first, and drop builds/elpaca whenever we move,
+;; so the .elc is always recompiled from the commit we actually load.
+(let* ((repo (expand-file-name "elpaca/" elpaca-sources-directory))
+       (build (expand-file-name "elpaca/" elpaca-builds-directory))
+       (ref (ftzm/elpaca--locked-ref 'elpaca))
+       (head (ftzm/elpaca--git-head repo)))
+  (when (and ref head (not (ftzm/elpaca--same-commit-p ref head)))
+    (message "Elpaca: repo at %s but lockfile pins %s; checking out pinned ref"
+             (ftzm/elpaca--abbrev head) (ftzm/elpaca--abbrev ref))
+    (let ((default-directory repo))
+      (if (zerop (call-process "git" nil nil nil "checkout" "--detach" ref))
+          (when (file-directory-p build)
+            ;; This build was compiled from the commit we just left.
+            (delete-directory build 'recursive))
+        (warn "Elpaca: could not check out pinned ref %s in %s" ref repo)))))
 (let* ((repo  (expand-file-name "elpaca/" elpaca-sources-directory))
        (build (expand-file-name "elpaca/" elpaca-builds-directory))
        (order (cdr elpaca-order))
@@ -100,6 +169,77 @@
         (push (car cell) failed)))
     failed))
 
+(defun ftzm/elpaca-lock-drift ()
+  "Return (ID LOCKED-REF HEAD) for each package whose checkout left the lockfile.
+Drift means a package's build may have been compiled from a commit other than
+the pinned one; see the guard at the top of this file for why that is fatal."
+  (let ((lock (ftzm/elpaca--lock-alist))
+        (drift nil))
+    (dolist (cell (elpaca--queued))
+      (let* ((id (car cell))
+             (ref (plist-get (plist-get (alist-get id lock) :recipe) :ref))
+             (dir (elpaca<-source-dir (cdr cell)))
+             (head (and ref dir (ftzm/elpaca--git-head dir))))
+        (when (and ref head (not (ftzm/elpaca--same-commit-p ref head)))
+          (push (list id ref head) drift))))
+    (nreverse drift)))
+
+(defun ftzm/elpaca-report-lock-drift (&optional interactive)
+  "Warn about packages whose checkout has drifted from `elpaca-lock-file'.
+Runs from `elpaca-after-init-hook' so drift surfaces at the startup after it is
+introduced, rather than at the next full rebuild -- which may be months later,
+and by then presents as an unrelated failure."
+  (interactive "p")
+  (let ((drift (ftzm/elpaca-lock-drift)))
+    (cond (drift
+           (warn "Elpaca: %d package(s) drifted from %s: %s
+Run `M-x ftzm/elpaca-restore-locked' to roll them back, or
+`M-x ftzm/elpaca-update-and-relock' to re-pin them."
+                 (length drift)
+                 (file-name-nondirectory elpaca-lock-file)
+                 (mapconcat (lambda (d)
+                              (format "%s (locked %s, head %s)"
+                                      (nth 0 d)
+                                      (ftzm/elpaca--abbrev (nth 1 d))
+                                      (ftzm/elpaca--abbrev (nth 2 d))))
+                            drift ", ")))
+          (interactive
+           (message "Elpaca: all %d packages match %s."
+                    (length (elpaca--queued))
+                    (file-name-nondirectory elpaca-lock-file))))))
+
+(add-hook 'elpaca-after-init-hook #'ftzm/elpaca-report-lock-drift)
+
+(defun ftzm/elpaca-restore-locked (&optional interactive)
+  "Check every drifted package back out to the commit `elpaca-lock-file' pins.
+Also removes each restored package's build directory: a build compiled from the
+drifted commit outlives a source-only rollback and is loaded in preference to
+it, which is exactly the half-rolled-back state that produced a hybrid elpaca.
+Restored packages are rebuilt on the next startup."
+  (interactive "p")
+  (let ((restored 0)
+        (failed nil))
+    (dolist (d (ftzm/elpaca-lock-drift))
+      (let* ((id (nth 0 d))
+             (ref (nth 1 d))
+             (e (alist-get id (elpaca--queued)))
+             (build (and e (elpaca<-build-dir e)))
+             (default-directory (and e (elpaca<-source-dir e))))
+        (if (and default-directory
+                 (zerop (call-process "git" nil nil nil "checkout" "--detach" ref)))
+            (progn
+              (when (and build (file-directory-p build))
+                (delete-directory build 'recursive))
+              (setq restored (1+ restored)))
+          (push id failed))))
+    (let ((msg (format "Elpaca: restored %d package(s) to locked refs%s%s"
+                       restored
+                       (if failed
+                           (format "; FAILED: %s" (mapconcat #'symbol-name failed ", "))
+                         "")
+                       (if (> restored 0) " -- restart Emacs to rebuild them." ""))))
+      (if interactive (message "%s" msg) msg))))
+
 (defun ftzm/elpaca-update-and-relock ()
   "Fetch, merge and rebuild every Elpaca package, then re-pin the lockfile.
 The lockfile is only rewritten when the post-update state is clean: if any
@@ -114,9 +254,13 @@ Run interactively, then review `git diff' on the lockfile and commit."
         (elpaca-wait)
         (let ((failed (ftzm/elpaca--failed-packages)))
           (if failed
-              (format "Elpaca update: %d package(s) FAILED (%s) — lockfile left unchanged; restart Emacs to roll back to committed pins."
+              ;; Leaving the lockfile alone is only half a rollback: the merge
+              ;; has already moved the checkouts, and their builds were compiled
+              ;; from the moved commits.  Restore both before returning.
+              (format "Elpaca update: %d package(s) FAILED (%s) — lockfile left unchanged. %s"
                       (length failed)
-                      (mapconcat #'symbol-name failed ", "))
+                      (mapconcat #'symbol-name failed ", ")
+                      (ftzm/elpaca-restore-locked))
             (elpaca-write-lock-file elpaca-lock-file)
             (format "Elpaca update: %d packages healthy — %s regenerated; review `git diff' and commit."
                     (length (elpaca--queued))

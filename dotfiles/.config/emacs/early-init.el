@@ -43,3 +43,45 @@
 (setq window-resize-pixelwise t)
 (setq frame-resize-pixelwise t)
 
+
+;;;;;; Rebuild elpaca packages after an Emacs version upgrade
+
+;; Byte-compiled .elc files are not portable across Emacs versions, and nothing
+;; invalidates them on an upgrade: elpaca keys its build cache on each package's
+;; source revision, and Emacs's loader only compares .el/.elc mtimes -- the
+;; ";;; in Emacs version 30.2" header is a comment, not a check.  Native
+;; compilation, by contrast, *is* version-keyed (eln-cache/<version>-<hash>/), so
+;; after an upgrade the two halves disagree: natively-compiled functions from the
+;; new Emacs get late-loaded over top-level definitions that came from the old
+;; Emacs's .elc.  That is how 30.2 -> 31.1 produced "Symbol's value as variable is
+;; void: treesit-auto-mode--set-explicitly" on every major-mode change (Emacs 31
+;; renamed the `define-globalized-minor-mode' internal MODE-set-explicitly to
+;; MODE--set-explicitly).
+;;
+;; So stamp the Emacs version beside the build tree and, when it changes, drop the
+;; build tree plus any foreign-version eln caches.  Elpaca rebuilds everything
+;; from elpaca/sources/ during this same startup; nothing is re-cloned.
+
+(let* ((elpaca-dir (expand-file-name "elpaca/" user-emacs-directory))
+       (builds (expand-file-name "builds/" elpaca-dir))
+       (stamp (expand-file-name "emacs-version" elpaca-dir))
+       (eln-cache (expand-file-name "eln-cache/" user-emacs-directory))
+       (recorded (and (file-readable-p stamp)
+                      (with-temp-buffer
+                        (insert-file-contents stamp)
+                        (car (split-string (buffer-string) "\n" t))))))
+  (unless (equal recorded emacs-version)
+    ;; Only wipe when we know a *different* Emacs built the tree.  A missing
+    ;; stamp means this guard is new (or the checkout is fresh), not stale.
+    (when (and recorded (file-directory-p builds))
+      (message "Emacs %s but elpaca builds are from %s; wiping %s to force a rebuild"
+               emacs-version recorded builds)
+      (delete-directory builds t))
+    (when (and recorded (file-directory-p eln-cache))
+      (dolist (dir (directory-files eln-cache t "\\`[0-9]"))
+        (when (and (file-directory-p dir)
+                   (not (string-prefix-p (concat emacs-version "-")
+                                         (file-name-nondirectory dir))))
+          (delete-directory dir t))))
+    (make-directory elpaca-dir t)
+    (with-temp-file stamp (insert emacs-version "\n"))))
