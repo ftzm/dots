@@ -502,6 +502,27 @@ All observability components live in the `monitoring` namespace.
 - Daily `pg_dump` to `/pool-1/k8s/miniflux-db-backup`, which the NAS borg job covers.
 - Accessible at `miniflux.lan.ftzmlab.xyz`.
 
+### Cleanuparr — Malware Blocking for Sonarr/Radarr
+
+- `ghcr.io/cleanuparr/cleanuparr` in the `media` namespace, defined via
+  `lib/cleanuparr.libsonnet`; its settings are declared in `main.jsonnet`.
+- Keeps executables and other dangerous files (Sonarr/Radarr's own extension
+  list) out of the arr downloads:
+  - torrents: the malware blocker sets matching files in Deluge to skip before
+    they download, removes the torrent through the arr (blocklisting the
+    release), and the seeker searches for a replacement;
+  - usenet: the queue cleaner removes and blocklists NZBGet downloads whose
+    import the arr blocked as dangerous, then the seeker searches again.
+- Cleanuparr only reads infrastructure settings from env; everything else is
+  in its database. The `cleanuparr-configure` CronJob (every 10 min) applies
+  the declared settings through its REST API — first-run admin setup, arr
+  instances and download clients upserted by name (undeclared ones deleted),
+  job configs replaced — so UI edits to declared settings are reverted.
+- Credentials come from the `cleanuparr-config` SopsSecret:
+  `CLEANUPARR_PASSWORD` (user `admin`), `SONARR_API_KEY`, `RADARR_API_KEY`,
+  `DELUGE_PASSWORD` (Deluge web UI password).
+- Accessible at `cleanuparr.lan.ftzmlab.xyz`.
+
 ### Hello World — Test App
 
 - Minimal nginx deployment used to verify ingress and DNS are working.

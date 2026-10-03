@@ -1,0 +1,18 @@
+apiVersion: v1
+data:
+  dangerous.txt: |
+    *.bat
+    *.cmd
+    *.exe
+    *.sh
+    *.arj
+    *.lnk
+    *.lzh
+    *.ps1
+    *.scr
+    *.vbs
+    *.zipx
+kind: ConfigMap
+metadata:
+  name: cleanuparr-blocklists
+  namespace: media

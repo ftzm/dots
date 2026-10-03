@@ -1,0 +1,107 @@
+#!/bin/sh
+# Apply the declared Cleanuparr settings ($SETTINGS) through its REST API.
+# Rendered by cleanuparr.libsonnet; see the comment there. Idempotent: every
+# run converges Cleanuparr onto the declared state. Exits non-zero on the
+# first failed call, so a broken run shows up as a failed Job.
+set -eu
+set -o pipefail
+
+api="$CLEANUPARR_URL/api"
+user=admin
+
+fail() { echo "ERROR: $*" >&2; exit 1; }
+
+# call METHOD PATH [BODY] — prints the response body; fails on non-2xx.
+call() {
+  method=$1 path=$2 body=${3-} has_body=${3+1}
+  # Explicit dir: images may set TMPDIR to a path their own init creates.
+  out=$(mktemp /tmp/cleanuparr-configure.XXXXXX)
+  set -- -sS -o "$out" -w '%{http_code}' -m 60 -X "$method" -H 'Content-Type: application/json'
+  if [ -n "$token" ]; then set -- "$@" -H "Authorization: Bearer $token"; fi
+  if [ -n "$has_body" ]; then set -- "$@" --data-binary "$body"; fi
+  code=$(curl "$@" "$api$path") || fail "$method $path: request failed"
+  case "$code" in
+    2??) cat "$out"; rm -f "$out" ;;
+    *) echo "ERROR: $method $path: HTTP $code: $(cat "$out")" >&2; rm -f "$out"; exit 1 ;;
+  esac
+}
+
+# Expand {"fooEnv": "NAME"} into {"foo": $NAME} for the given field.
+from_env() { # JSON FIELD
+  var=$(printf '%s' "$1" | jq -r --arg f "$2Env" '.[$f] // empty')
+  [ -n "$var" ] || { printf '%s' "$1"; return; }
+  val=$(printenv "$var") || fail "env var $var is not set"
+  printf '%s' "$1" | jq -c --arg f "$2" --arg v "$val" 'del(.[$f + "Env"]) | .[$f] = $v'
+}
+
+for i in $(seq 1 30); do
+  curl -sf -m 5 "$CLEANUPARR_URL/health" >/dev/null && break
+  [ "$i" -eq 30 ] && fail "Cleanuparr not healthy at $CLEANUPARR_URL"
+  sleep 10
+done
+
+# First run: create the admin account. The setup endpoints are open only
+# until setup completes.
+token=
+status=$(call GET /auth/status)
+if [ "$(printf '%s' "$status" | jq -r .setupCompleted)" = false ]; then
+  echo "completing first-run setup"
+  creds=$(jq -nc --arg u "$user" --arg p "$CLEANUPARR_PASSWORD" '{username: $u, password: $p}')
+  call POST /auth/setup/account "$creds" >/dev/null
+  call POST /auth/setup/complete >/dev/null
+fi
+
+login=$(call POST /auth/login \
+  "$(jq -nc --arg u "$user" --arg p "$CLEANUPARR_PASSWORD" '{username: $u, password: $p}')")
+token=$(printf '%s' "$login" | jq -r '.tokens.accessToken // empty')
+[ -n "$token" ] || fail "login as $user returned no token"
+
+# upsert_by_name LABEL EXISTING_JSON DESIRED_JSON CREATE_PATH ITEM_PATH_PREFIX SECRET_FIELD
+upsert_by_name() {
+  label=$1 existing=$2 desired=$3 create=$4 item=$5 secret=$6
+  printf '%s' "$desired" | jq -c '.[]' | while read -r want; do
+    name=$(printf '%s' "$want" | jq -r .name)
+    body=$(from_env "$want" "$secret")
+    id=$(printf '%s' "$existing" | jq -r --arg n "$name" 'map(select(.name == $n))[0].id // empty')
+    if [ -n "$id" ]; then
+      call PUT "$item/$id" "$body" >/dev/null
+      echo "$label $name: updated"
+    else
+      call POST "$create" "$body" >/dev/null
+      echo "$label $name: created"
+    fi
+  done
+  printf '%s' "$existing" | jq -r --argjson d "$desired" \
+    '.[] | select(.name as $n | $d | map(.name) | index($n) | not) | "\(.id) \(.name)"' |
+    while read -r id name; do
+      call DELETE "$item/$id" >/dev/null
+      echo "$label $name: deleted (not declared)"
+    done
+}
+
+# Command substitutions are assigned before use: one inside an argument list
+# would not stop the script when the call fails.
+for arr in $(jq -r '.arrs | keys[]' "$SETTINGS"); do
+  current=$(call GET "/configuration/$arr")
+  upsert_by_name "$arr" \
+    "$(printf '%s' "$current" | jq -c .instances)" \
+    "$(jq -c --arg a "$arr" '.arrs[$a] | map({enabled: true} + .)' "$SETTINGS")" \
+    "/configuration/$arr/instances" "/configuration/$arr/instances" apiKey
+done
+
+current=$(call GET /configuration/download_client)
+upsert_by_name "download client" \
+  "$(printf '%s' "$current" | jq -c .clients)" \
+  "$(jq -c '.downloadClients | map({enabled: true} + .)' "$SETTINGS")" \
+  /configuration/download_client /configuration/download_client password
+
+call PUT /configuration/malware_blocker "$(jq -c .malwareBlocker "$SETTINGS")" >/dev/null
+echo "malware blocker: applied"
+
+call PUT /configuration/queue_cleaner "$(jq -c .queueCleaner "$SETTINGS")" >/dev/null
+echo "queue cleaner: applied"
+
+current=$(call GET /configuration/seeker)
+call PUT /configuration/seeker \
+  "$(printf '%s' "$current" | jq -c --argjson s "$(jq -c .seeker "$SETTINGS")" '. + $s')" >/dev/null
+echo "seeker: applied"

@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanuparr-configure
+  namespace: media
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          containers:
+          - command:
+            - /bin/sh
+            - /scripts/configure.sh
+            env:
+            - name: CLEANUPARR_URL
+              value: http://cleanuparr.media.svc.cluster.local:11011
+            - name: SETTINGS
+              value: /scripts/settings.json
+            envFrom:
+            - secretRef:
+                name: cleanuparr-config
+            image: linuxserver/sonarr:4.0.20
+            name: configure
+            volumeMounts:
+            - mountPath: /scripts
+              name: scripts
+              readOnly: true
+          restartPolicy: Never
+          volumes:
+          - configMap:
+              name: cleanuparr-configure
+            name: scripts
+  schedule: '*/10 * * * *'
+  successfulJobsHistoryLimit: 1

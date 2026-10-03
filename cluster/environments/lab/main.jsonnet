@@ -1,4 +1,5 @@
 local backup = import '../../lib/backup.libsonnet';
+local cleanuparr = import '../../lib/cleanuparr.libsonnet';
 local alerts = import '../../lib/alerts.libsonnet';
 local logformats = import '../../lib/logformats.libsonnet';
 local config = import '../../lib/config.libsonnet';
@@ -2220,6 +2221,69 @@ local patchTargetDown(resources) = {
       pruneFailingIndexers: prowlarrPruner.configMap,
       deployment+: prowlarrPruner.deploymentMixin,
     },
+
+    // Cleanuparr keeps executables and other dangerous files out of the
+    // arr downloads (see lib/cleanuparr.libsonnet for how its settings are
+    // applied). The extension list is Sonarr/Radarr's own executable +
+    // potentially-dangerous list (FileExtensions.cs).
+    //  - Torrents: the malware blocker polls the sonarr/radarr queues every
+    //    5 s and sets matching files in Deluge to skip, so they are never
+    //    downloaded; any torrent with such a file is removed via the arr
+    //    (blocklisted), and the seeker searches for a replacement.
+    //  - Usenet: NZBGet downloads can't be inspected before download, so the
+    //    queue cleaner removes (blocklists) any download whose import the
+    //    arr blocked with "Caution: Found executable/potentially dangerous
+    //    file", after 3 strikes (one per 5-minute run), and the seeker
+    //    searches for a replacement.
+    // Secret cleanuparr-config (environments/lab/secrets/cleanuparr-config.enc.yaml):
+    // CLEANUPARR_PASSWORD, SONARR_API_KEY, RADARR_API_KEY, DELUGE_PASSWORD.
+    cleanuparr: cleanuparr.new(
+      images.cleanuparr,
+      // Any image with sh, curl and jq; this one is already on the node.
+      images.sonarr,
+      'cleanuparr.lan.ftzmlab.xyz',
+      ns,
+      'cleanuparr-config',
+      blocklists={
+        'dangerous.txt': ['*' + ext for ext in [
+          '.bat', '.cmd', '.exe', '.sh',  // Executables
+          '.arj', '.lnk', '.lzh', '.ps1', '.scr', '.vbs', '.zipx',  // Potentially dangerous
+        ]],
+      },
+      settings={
+        local blocklist = { enabled: true, blocklistType: 'Blacklist', blocklistPath: '/blocklists/dangerous.txt' },
+        arrs: {
+          sonarr: [{ name: 'sonarr', url: 'http://sonarr.media.svc.cluster.local:8989', version: 4, apiKeyEnv: 'SONARR_API_KEY' }],
+          radarr: [{ name: 'radarr', url: 'http://radarr.media.svc.cluster.local:7878', version: 6, apiKeyEnv: 'RADARR_API_KEY' }],
+        },
+        // Same endpoint sonarr/radarr use for Deluge (its web UI, on nuc).
+        downloadClients: [{
+          name: 'deluge',
+          typeName: 'Deluge',
+          type: 'Torrent',
+          host: 'http://deluge.lan.ftzmlab.xyz:8112',
+          passwordEnv: 'DELUGE_PASSWORD',
+        }],
+        malwareBlocker: {
+          enabled: true,
+          cronExpression: '0/5 * * * * ?',
+          deleteIfAnyFileBlocked: true,
+          sonarr: blocklist,
+          radarr: blocklist,
+        },
+        queueCleaner: {
+          enabled: true,
+          cronExpression: '0 0/5 * * * ?',
+          failedImport: {
+            maxStrikes: 3,
+            patterns: ['Caution: Found'],
+            patternMode: 'Include',
+          },
+        },
+        // Replacement searches after a removal run only while search is on.
+        seeker: { searchEnabled: true, proactiveSearchEnabled: false },
+      },
+    ),
     flaresolverr: selfhosted.new('flaresolverr', images.flaresolverr, 8191, 'flaresolverr.lan.ftzmlab.xyz', ns=ns),
     jellyseerr: selfhosted.new('jellyseerr', images.jellyseerr, 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns) {
       deployment+: {
