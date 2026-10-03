@@ -232,6 +232,10 @@
       set -g escape-time 0
       set -g status off
 
+      # No audible bells from any pane.
+      set -g bell-action none
+      set -g visual-bell off
+
       unbind C-b
       set-option -g prefix C-a
       bind-key C-a send-prefix
