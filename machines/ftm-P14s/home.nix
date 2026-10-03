@@ -306,7 +306,8 @@ in {
     };
   };
 
-  programs.foot.settings.main.font = "iosevka ftzm:medium:size=11";
+  # Keep the shared 16:17 symbols-to-text size ratio at this machine's text size.
+  programs.foot.settings.main.font = "iosevka ftzm:medium:size=11,Symbols Nerd Font Mono:size=10.35";
 
   services.mako = {
     enable = true;

@@ -1,6 +1,5 @@
 {
   config,
-  pkgs,
   lib,
   ...
 }: {
@@ -462,7 +461,7 @@
       enable = true;
       settings = {
         main = {
-          font = lib.mkDefault "iosevka ftzm:medium:size=17";
+          font = lib.mkDefault "iosevka ftzm:medium:size=17,Symbols Nerd Font Mono:size=16";
         };
         colors-dark = {
           cursor = "282828 ebdbb2";

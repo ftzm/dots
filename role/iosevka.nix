@@ -12,8 +12,10 @@
       set = "-ftzm";
     };
 in {
+  fonts.fontconfig.localConf = builtins.readFile ./symbols-iosevka.conf;
   fonts.packages = with pkgs; [
     ios
     nerd-fonts.symbols-only
+    (pkgs.callPackage ./symbols-iosevka.nix {})
   ];
 }
