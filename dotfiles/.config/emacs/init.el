@@ -396,7 +396,10 @@ See `eval-after-load' for the possible formats of FORM."
 
 ;; Modern icon set for Emacs (replacement for all-the-icons).
 ;; Powers icons in doom-modeline, corfu, etc.
-(use-package nerd-icons)
+(use-package nerd-icons
+  :config
+  (add-to-list 'nerd-icons-mode-icon-alist
+               '(ghostel-mode nerd-icons-devicon "nf-dev-terminal")))
 
 ;; Auto-applies project formatting rules from .editorconfig files:
 ;; indent style (tabs/spaces), indent size, charset, trailing whitespace, final newline.
@@ -2883,20 +2886,44 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
 			     "build.zig" "build.zig.zon" "symbols.map"))
   :commands (ghostel)
   :config
+  (defun ftzm/ghostel-send-escape ()
+    "Send Escape to the terminal from a Ghostel buffer."
+    (interactive)
+    (setq quit-flag nil)
+    (deactivate-mark)
+    (ghostel-send-key "escape"))
+
   ;; By default ghostel sends C-r straight to the shell in semi-char mode.
   ;; Add it to the exceptions so it passes through to Emacs (evil) instead,
   ;; letting the evil-ghostel C-r -> atuin binding below fire. The defcustom's
   ;; :set rebuilds the semi-char keymap. Idempotent so re-evaluating is safe.
   (unless (member "C-r" ghostel-keymap-exceptions)
-    (setopt ghostel-keymap-exceptions (cons "C-r" ghostel-keymap-exceptions))))
+    (setopt ghostel-keymap-exceptions (cons "C-r" ghostel-keymap-exceptions)))
+
+  ;; Ghostel's major map handles C-g before Evil is necessarily loaded, and
+  ;; char mode's emulation map takes priority over minor mode bindings.
+  (define-key ghostel-mode-map (kbd "C-g") #'ftzm/ghostel-send-escape)
+  (define-key ghostel-char-mode-map (kbd "C-g") #'ftzm/ghostel-send-escape)
+
+  ;; Automatic read-only switches (point leaving the cursor after a minibuffer
+  ;; command or isearch, mouse selection, prompt navigation) default to copy
+  ;; mode, which stops redrawing entirely: the buffer looks frozen until a
+  ;; keypress exits it.  Evil normal state lets point roam off the cursor, so
+  ;; e.g. M-x from such a position triggers the switch via
+  ;; `ghostel--minibuffer-exit-maybe-leave'.  Emacs mode is the
+  ;; same read-only view with output still streaming.  An explicit
+  ;; `ghostel-copy-mode' still freezes.
+  (setopt ghostel-readonly-default-mode 'emacs))
 
 ;; evil-mode integration for ghostel. Separate MELPA package living in the
 ;; same repo under extensions/; recipe mirrors the MELPA one.
 (use-package evil-ghostel
   :ensure (:host github :repo "dakra/ghostel"
 	   :files ("extensions/evil-ghostel/evil-ghostel.el"))
-  :after (evil ghostel consult-atuin)
+  :after (evil ghostel)
   :hook (ghostel-mode . evil-ghostel-mode)
+  :custom
+  (evil-ghostel-escape 'evil)
   :config
   ;; C-r: atuin history search modeled on the shell's own atuin binding.
   ;; Unlike the eat version (which inserts buffer text at point), this is
@@ -2908,6 +2935,7 @@ highlighting (and no keybindings).  Demoting keeps the mode hook intact."
     "Search atuin history via consult, seeded with the current shell input.
 Replaces the entire input line with the selected command over the PTY."
     (interactive)
+    (require 'consult-atuin)
     (let* ((beg (or (evil-ghostel--input-start) (ghostel-input-start-point)))
            (end (or (evil-ghostel--input-end) (point)))
            (current (when (and beg end (< beg end))
@@ -2947,7 +2975,8 @@ Replaces the entire input line with the selected command over the PTY."
   ;; Override evil-ghostel's built-in C-r PTY passthrough in insert state,
   ;; and bind normal state too (matches the eat C-r workflow).
   (evil-define-key* '(normal insert) evil-ghostel-mode-map
-                    (kbd "C-r") #'ftzm/ghostel-atuin))
+                    (kbd "C-r") #'ftzm/ghostel-atuin
+                    (kbd "C-g") #'ftzm/ghostel-send-escape))
 
 ;; ==============================================================================
 ;; C(++)
