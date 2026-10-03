@@ -351,6 +351,19 @@ See `eval-after-load' for the possible formats of FORM."
 (use-package doom-themes
   :config
   (load-theme 'doom-gruvbox t)
+  ;; Break a face inheritance cycle between doom-themes and stock gnus.
+  ;; gnus.el:473 defines `gnus-group-news-low' as :inherit
+  ;; `gnus-group-news-low-empty', while doom-themes-base.el:677 points
+  ;; `gnus-group-news-low-empty' back at `gnus-group-news-low'.  Emacs 30
+  ;; tolerated the loop; Emacs 31 signals "Face inheritance results in
+  ;; inheritance cycle" on the first face realization once gnus-group is
+  ;; loaded, and the error lands on whichever `use-package' form is being
+  ;; evaluated at that moment -- it presented as `vue-ts-mode/:catch', which
+  ;; has nothing to do with gnus.  Every sibling `-empty' face in doom
+  ;; inherits another `-empty' face (doom-themes-base.el:669-676), so 677 is
+  ;; an upstream typo; follow the sibling pattern instead.
+  (custom-set-faces
+   '(gnus-group-news-low-empty ((t (:inherit gnus-group-news-1-empty :weight normal)))))
   ;; doom-themes italicizes function calls; turn that off.
   (set-face-attribute 'font-lock-function-call-face nil :slant 'normal)
   ;; Use the default foreground for function defs and calls (was green).
