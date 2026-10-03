@@ -455,7 +455,7 @@ gives them nothing they lack. Two mechanical rules:
   `cluster/environments/`, `cluster/lib/`, `cluster/charts/`,
   `cluster/manifests/`. Every file there with a consumer enters a build
   through a nix path (`builtins.readFile`, `${./file}`, `patches`, uv2nix
-  `workspaceRoot`, `agentd-source/nix/`), nothing there turns a repo path
+  `workspaceRoot`), nothing there turns a repo path
   into a live string path, and every live reference to the checkout
   (`$HOME/dots/bin`, `stow … dotfiles`, `~/dots/stacks.jpg`) points outside
   it. `flake.lock` is outside it too, so a repair keeps the Renovate head's
