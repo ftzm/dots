@@ -17,6 +17,9 @@ data:
     }
 
     while :; do
+      # Retry soon unless a full pass completes (Prowlarr may still be
+      # starting when the sidecar does).
+      pause=60
       key=$(sed -n 's:.*<ApiKey>\(.*\)</ApiKey>.*:\1:p' /config/config.xml 2>/dev/null)
       if [ -z "$key" ]; then
         echo "no API key in /config/config.xml yet"
@@ -77,8 +80,9 @@ data:
           fi
         done
         printf '%s\n' "$new" > "$state.tmp" && mv "$state.tmp" "$state"
+        pause=21600
       fi
-      sleep 21600
+      sleep "$pause"
     done
 kind: ConfigMap
 metadata:

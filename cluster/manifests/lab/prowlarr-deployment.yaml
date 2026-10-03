@@ -12,6 +12,8 @@ spec:
     type: Recreate
   template:
     metadata:
+      annotations:
+        checksum/prune-failing-indexers: 1e760ae04140bd897983ab8e87109c53
       labels:
         app.kubernetes.io/name: prowlarr
     spec:
