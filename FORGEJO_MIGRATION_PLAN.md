@@ -617,7 +617,7 @@ Nothing changes the source of truth until the manual paths are proven.
    until step 4. The writer's poll URL moves from GitHub to the nas mirror (hosts unaffected); the nas
    mirror (git user, keys, `receive.denyNonFastForwards`) and Forgejo's
    `master`-only push mirror to it, with its `last_error` alert; ArgoCD
-   `repoURL` → the nas mirror + read key + nas host key (one jsonnet value feeding the `argocd` Application, the operator Applications and the ApplicationSet's generator and template, `ARGOCD_APPLICATIONS_PLAN.md` → Target);
+   `repoURL` → the nas mirror + read key + nas host key (one jsonnet value feeding the `argocd` Application, the operator Applications and the ApplicationSet's generator and template, `ARGOCD_APPLICATIONS_PLAN.md` → Target), and `cluster/scripts/bootstrap` gains the repo-credential step ahead of its ArgoCD apply (Cluster Bootstrap, its step 2);
    every workstation and laptop clone: `origin` → Forgejo, plus a `nas`
    remote; the `Makefile`'s `check-not-behind` changed (Plumbing); `Prune=false` on forgejo
    PVCs. Accept: a push to Forgejo reaches the nas mirror within seconds and
