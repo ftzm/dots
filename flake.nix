@@ -134,6 +134,14 @@
           lua tests/mailsort.test.lua mailsort.lua
           touch $out
         '';
+      # The fleet writer and agent end to end in NixOS VMs
+      # (FORGEJO_MIGRATION_PLAN.md -> Binary Cache -> Deploy test).
+      fleet-deploy = import ./tests/fleet-deploy {
+        pkgs = nixpkgs-ftzmlab.legacyPackages.${defaultSystem};
+        fleetAgentModule = ./role/fleet-agent.nix;
+        fleetWriterModule = ./role/fleet-writer.nix;
+        nodeExporterModule = ./role/node-exporter.nix;
+      };
       pre-commit-check = git-hooks.lib.${defaultSystem}.run {
         src = ./.;
         hooks = {
