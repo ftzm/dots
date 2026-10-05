@@ -81,3 +81,66 @@ tests:
       - eval_time: 7d2h
         alertname: CominTargetUnreachable
         exp_alerts: []
+
+  # The reboot alert splits by reason: a kernel/initrd difference and a
+  # deferred switch each get their own message.
+  - interval: 1m
+    input_series:
+      - series: 'nixos_reboot_required{instance="nas", booted_kernel="6.12.1", current_kernel="6.12.2", reason="kernel"}'
+        values: '1+0x70'
+      - series: 'nixos_reboot_required{instance="nuc", booted_kernel="6.12.2", current_kernel="6.12.2", reason="deferred"}'
+        values: '1+0x70'
+      - series: 'nixos_reboot_required{instance="saoiste", booted_kernel="6.12.2", current_kernel="6.12.2", reason=""}'
+        values: '0+0x70'
+    alert_rule_test:
+      - eval_time: 61m
+        alertname: OutdatedKernelNeedsReboot
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: nas
+              booted_kernel: 6.12.1
+              current_kernel: 6.12.2
+              reason: kernel
+            exp_annotations:
+              summary: 'nas is running an outdated kernel - reboot to pick it up'
+              description: 'nas booted kernel 6.12.1 but its deployed configuration ships 6.12.2 (kernel differs). Config changes deploy live; a kernel cannot, so this needs a manual reboot and will not clear on its own. Until then the machine runs the older kernel and misses its security fixes.'
+      - eval_time: 61m
+        alertname: DeferredSwitchNeedsReboot
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: nuc
+              booted_kernel: 6.12.2
+              current_kernel: 6.12.2
+              reason: deferred
+            exp_annotations:
+              summary: 'nuc has a deployed system waiting for a reboot'
+              description: 'nuc installed its deployed system as the boot default but could not activate it live (a switch inhibitor changed, or the new systemd cannot replace the running one). It keeps running the previous system -- no config change since applies -- until a manual reboot. This will not clear on its own.'
+
+  # A laptop's node_exporter down while its comin target answers pages after
+  # 30m; down while comin is down too (the laptop is asleep) does not.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="node-exporter", instance="eachtrai"}'
+        values: '0+0x40'
+      - series: 'up{job="comin", instance="eachtrai"}'
+        values: '1+0x40'
+      - series: 'up{job="node-exporter", instance="saoiste"}'
+        values: '0+0x40'
+      - series: 'up{job="comin", instance="saoiste"}'
+        values: '0+0x40'
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: RoamingNodeExporterDown
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: RoamingNodeExporterDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node-exporter
+              instance: eachtrai
+            exp_annotations:
+              summary: 'node_exporter on eachtrai unreachable while the host is up'
+              description: 'eachtrai answers on its comin exporter but not on node_exporter (:9002) for 30m, so every node metric for it -- reboot-needed, units, the manual-path self-tests -- is missing. Check `systemctl status prometheus-node-exporter` on eachtrai.'

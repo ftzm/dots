@@ -10,6 +10,7 @@
 # labels; node_exporter's textfile collector is the cheapest way to get
 # machine-local facts into Prometheus without writing an exporter.
 {
+  config,
   lib,
   pkgs,
   ...
@@ -37,8 +38,16 @@
     bi=$(readlink -f /run/booted-system/initrd)
     ci=$(readlink -f /run/current-system/initrd)
 
+    # A deferred switch: the deploying agent installed a system as the boot
+    # default but did not activate it (a switch inhibitor changed, or the new
+    # systemd cannot be switched to live). A reboot applies everything, so it
+    # is checked first.
+    deployed=$(readlink -f ${lib.escapeShellArg config.nodeExporterDeployProfile} || true)
+
     reason=""
-    if [ "$bk" != "$ck" ]; then
+    if [ -n "$deployed" ] && [ "$deployed" != "$(readlink -f /run/current-system)" ]; then
+      reason="deferred"
+    elif [ "$bk" != "$ck" ]; then
       reason="kernel"
     elif [ "$bi" != "$ci" ]; then
       reason="initrd"
@@ -64,6 +73,16 @@ in {
     default = textfileDir;
     readOnly = true;
     description = "node_exporter textfile collector directory: *.prom files here are scraped with the host's metrics.";
+  };
+
+  # The profile the host's deploy agent switches through. A difference from
+  # /run/current-system is a deployed system waiting for a reboot. comin
+  # switches through its own profile (role/comin.nix sets it); fleet-agent
+  # through the system profile.
+  options.nodeExporterDeployProfile = lib.mkOption {
+    type = lib.types.str;
+    default = "/nix/var/nix/profiles/system";
+    description = "Profile the deploy agent installs systems into.";
   };
 
   config.services.prometheus.exporters.node = {

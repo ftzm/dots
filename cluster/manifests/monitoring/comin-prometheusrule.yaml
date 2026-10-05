@@ -59,7 +59,32 @@ spec:
           the machine runs the older kernel and misses its security fixes.'
         summary: '{{ $labels.instance }} is running an outdated kernel - reboot to
           pick it up'
-      expr: nixos_reboot_required == 1
+      expr: nixos_reboot_required{reason=~"kernel|initrd"} == 1
       for: 1h
+      labels:
+        severity: warning
+    - alert: DeferredSwitchNeedsReboot
+      annotations:
+        description: '{{ $labels.instance }} installed its deployed system as the
+          boot default but could not activate it live (a switch inhibitor changed,
+          or the new systemd cannot replace the running one). It keeps running the
+          previous system -- no config change since applies -- until a manual reboot.
+          This will not clear on its own.'
+        summary: '{{ $labels.instance }} has a deployed system waiting for a reboot'
+      expr: nixos_reboot_required{reason="deferred"} == 1
+      for: 1h
+      labels:
+        severity: warning
+    - alert: RoamingNodeExporterDown
+      annotations:
+        description: '{{ $labels.instance }} answers on its comin exporter but not
+          on node_exporter (:9002) for 30m, so every node metric for it -- reboot-needed,
+          units, the manual-path self-tests -- is missing. Check `systemctl status
+          prometheus-node-exporter` on {{ $labels.instance }}.'
+        summary: node_exporter on {{ $labels.instance }} unreachable while the host
+          is up
+      expr: up{job="node-exporter", instance=~"saoiste|eachtrai"} == 0 and on(instance)
+        up{job="comin"} == 1
+      for: 30m
       labels:
         severity: warning

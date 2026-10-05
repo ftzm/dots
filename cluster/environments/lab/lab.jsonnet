@@ -964,10 +964,34 @@ local patchTargetDown(resources) = {
       // being swallowed entirely.
       alerts.rule(
         'OutdatedKernelNeedsReboot',
-        'nixos_reboot_required == 1',
+        'nixos_reboot_required{reason=~"kernel|initrd"} == 1',
         '1h', 'warning',
         '{{ $labels.instance }} is running an outdated kernel - reboot to pick it up',
         '{{ $labels.instance }} booted kernel {{ $labels.booted_kernel }} but its deployed configuration ships {{ $labels.current_kernel }} ({{ $labels.reason }} differs). Config changes deploy live; a kernel cannot, so this needs a manual reboot and will not clear on its own. Until then the machine runs the older kernel and misses its security fixes.',
+      ),
+      // A deferred switch (role/node-exporter.nix): the deploy agent installed
+      // the new system as the boot default without activating it -- a switch
+      // inhibitor changed, or the new systemd cannot replace the running PID 1
+      // live. Nothing of the new configuration runs until a reboot, kernel or
+      // not, so it gets its own message.
+      alerts.rule(
+        'DeferredSwitchNeedsReboot',
+        'nixos_reboot_required{reason="deferred"} == 1',
+        '1h', 'warning',
+        '{{ $labels.instance }} has a deployed system waiting for a reboot',
+        '{{ $labels.instance }} installed its deployed system as the boot default but could not activate it live (a switch inhibitor changed, or the new systemd cannot replace the running one). It keeps running the previous system -- no config change since applies -- until a manual reboot. This will not clear on its own.',
+      ),
+      // A laptop whose node_exporter never answers while the host itself is
+      // up: laptops are outside the reachability alerts (they sleep), so
+      // without this a dead exporter is silent -- eachtrai's was down for 30
+      // days with no alert (FORGEJO_MIGRATION_PLAN.md -> Follow-ups). comin's
+      // own target answering is the evidence the host is up.
+      alerts.rule(
+        'RoamingNodeExporterDown',
+        'up{job="node-exporter", instance=~"%s"} == 0 and on(instance) up{job="comin"} == 1' % cominInstances(false),
+        '30m', 'warning',
+        'node_exporter on {{ $labels.instance }} unreachable while the host is up',
+        '{{ $labels.instance }} answers on its comin exporter but not on node_exporter (:9002) for 30m, so every node metric for it -- reboot-needed, units, the manual-path self-tests -- is missing. Check `systemctl status prometheus-node-exporter` on {{ $labels.instance }}.',
       ),
     ]),
     // The manual deploy paths' weekly self-tests (role/manual-path-selftest.nix):

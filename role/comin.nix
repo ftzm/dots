@@ -1,6 +1,10 @@
 {inputs, ...}: {
   imports = [inputs.comin.nixosModules.comin];
 
+  # comin installs systems into its own profile, not the system profile, so
+  # the deferred-reboot check (role/node-exporter.nix) compares against it.
+  nodeExporterDeployProfile = "/nix/var/nix/profiles/system-profiles/comin";
+
   services.comin = {
     enable = true;
     remotes = [
