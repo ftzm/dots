@@ -8,7 +8,8 @@
 #   laptop-rebuild  `git fetch` in the clone, then `nixos-rebuild build` of
 #                   origin/master for this host: fetch, evaluation, substitution.
 #   workstation-push  `nixos-rebuild dry-activate --target-host` of origin/master
-#                   for each lab host: ssh, sudo, the build and the copy,
+#                   for each lab host, with that host's own nixos-rebuild as
+#                   the Makefile pushes: ssh, sudo, the build and the copy,
 #                   nothing activated.
 #
 # Each (path, host) pair reports fleet_manual_path_last_run_success and
@@ -86,7 +87,12 @@
         elif [ -z "$rev" ] && ! rev=$(fetch); then
           record workstation-push ${target} fail
           failed=1
-        elif nixos-rebuild dry-activate --no-reexec --accept-flake-config \
+        # The target's own nixos-rebuild: one from a newer release passes
+        # switch-to-configuration flags its systemd rejects (26.11's
+        # `systemd-run --output=cat` against 26.05). The Makefile does the same.
+        elif tool=$(nix build --no-link --print-out-paths \
+          "$(flake "$rev" nixosConfigurations.${target}.config.system.build.nixos-rebuild)") &&
+          "$tool/bin/nixos-rebuild" dry-activate --no-reexec --accept-flake-config \
           --flake "$(flake "$rev" ${target})" \
           --target-host ${lib.escapeShellArg dest} --sudo; then
           record workstation-push ${target} ok
