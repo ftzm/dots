@@ -678,7 +678,7 @@ local patchTargetDown(resources) = {
         'ArgoCD app {{ $labels.name }} out of sync for over 15 minutes',
         |||
           Application {{ $labels.name }} has drifted from git ({{ $labels.sync_status }}) and has not reconciled for 15 minutes.
-          This usually means the automated sync is blocked (e.g. by a failing PreSync hook).
+          This usually means the automated sync is blocked (e.g. by a failing sync hook, such as an upgrade gate).
         |||,
       ),
       alerts.rule(

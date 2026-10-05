@@ -1,5 +1,12 @@
 # Migration Plan: Unify NixOS + k3s Infrastructure
 
+> **Paths since 2026-10-05** (`ARGOCD_APPLICATIONS_PLAN.md`): cluster resources
+> are defined in `cluster/environments/lab/lab.jsonnet` (the former
+> `main.jsonnet`; `main.jsonnet` now only maps keys to namespaces), and render
+> into `cluster/manifests/<namespace>/` instead of `cluster/manifests/lab/`.
+> `file:line` citations give the file as it was named, and the line as it
+> was, when they were written.
+
 ## Context
 
 Two parallel systems manage services on the nuc homelab: NixOS (dots repo, via comin) and k3s (cluster repo, via ArgoCD/Tanka). The goal is to consolidate toward k3s for application workloads, unify ingress under Traefik, eliminate duplicated infrastructure (observability, DNS), and clean up dead services. NixOS remains for host-level concerns and services that need hardware access.

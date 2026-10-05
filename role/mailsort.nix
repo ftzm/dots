@@ -42,7 +42,7 @@
       # which dips to 2 as the window slides and keeps resetting
       # JournalUnitFailure's `for`, so it never fires. 2min gives ~7 per 15m
       # while leaving 4x headroom over a normal ~30s run. MailsortStale in
-      # cluster/environments/lab/main.jsonnet is the backstop for any stall.
+      # cluster/environments/lab/lab.jsonnet is the backstop for any stall.
       TimeoutStartSec = "2min";
       ExecStart = "${pkgs.imapfilter}/bin/imapfilter -c ${./mailsort.lua}";
 

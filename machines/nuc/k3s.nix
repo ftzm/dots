@@ -29,7 +29,7 @@
   # tail.ftzmlab.xyz search domain, ndots:5 lookups like
   # cleanuparr.media.svc.cluster.local hit the public *.ftzmlab.xyz wildcard
   # first and resolve to the WAN IP. lan.ftzmlab.xyz is forwarded to blocky by
-  # the coredns-custom ConfigMap (cluster/environments/lab/main.jsonnet).
+  # the coredns-custom ConfigMap (cluster/environments/lab/lab.jsonnet).
   environment.etc."k3s/resolv.conf".text = ''
     nameserver 192.168.1.1
   '';

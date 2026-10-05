@@ -13,7 +13,7 @@
 //
 // Colocation: alerts live in the block of the thing they watch. Cross-cutting
 // rules (journal, comin, node units, meta-alerts) live in the top-level
-// `observability:` block in main.jsonnet.
+// `observability:` block in environments/lab/lab.jsonnet.
 local severities = ['critical', 'warning', 'info'];
 
 {

@@ -1,5 +1,12 @@
 # Logging & Alerting Overhaul Plan
 
+> **Paths since 2026-10-05** (`ARGOCD_APPLICATIONS_PLAN.md`): cluster resources
+> are defined in `cluster/environments/lab/lab.jsonnet` (the former
+> `main.jsonnet`; `main.jsonnet` now only maps keys to namespaces), and render
+> into `cluster/manifests/<namespace>/` instead of `cluster/manifests/lab/`.
+> `file:line` citations below give the file as it was named, and the line as it
+> was, when they were written.
+
 ## Context
 
 Two incidents in August 2026 exposed that this infrastructure's failure modes are largely invisible:
@@ -115,7 +122,7 @@ un-forgettable.
 **Colocation convention:** alerts live in the block of the thing they watch
 (the argocd rules already do this — make it the rule, not an accident).
 Cross-cutting concerns (journal, comin, meta-alerts) get one top-level
-`observability:` block in `main.jsonnet`.
+`observability:` block in `lab.jsonnet`.
 
 **`lib/logformats.libsonnet` — the parser map as data.** One `formats:: [...]
 table (name, detection regex, level mapping, owning apps) plus
@@ -154,7 +161,7 @@ secret env — the existing convention working as intended, no new pattern.
 
 | Source | Action | Expected result |
 |---|---|---|
-| storage-test pod | Retire the leftover NFS test pod (or convert to a real Job/CronJob so the file stop growing). It's `storageTest` in `cluster/environments/lab/main.jsonnet`; the write loop `cat`s the accumulated file every restart. | −232k lines/48h |
+| storage-test pod | Retire the leftover NFS test pod (or convert to a real Job/CronJob so the file stop growing). It's `storageTest` in `cluster/environments/lab/main.jsonnet` (now `lab.jsonnet`); the write loop `cat`s the accumulated file every restart. | −232k lines/48h |
 | traefik access | Filter at source: `accessLog.filters.statusCodes` in the traefik chart values, keeping only 4xx/5xx — removes the I/O entirely. (Ingest-side fallback if needed: `stage.json` then `stage.drop` with `source: DownstreamStatus`, regex `[123][0-9][0-9]`; `stage.drop` has no numeric comparison, so `>= 400` must be expressed as a regex on the extracted value.) Traefik metrics are already scraped (`podMetricsEndpoints` in the traefik chart values) — logs are redundant for status visibility. | −147k lines/48h |
 | blocky queryLog | Disable at source (`queryLog.type: none` in blocky config), and add a ServiceMonitor for blocky's built-in metrics (currently unscraped) so query-level visibility survives. Source-side elimination beats an ingest-side drop rule — same argument as retiring WireGuard instead of alerting on it. | −112k lines/48h |
 
@@ -238,7 +245,7 @@ notify. Fix: a dead-man switch that expects a daily ping and complains when it
 doesn't arrive.
 
 **Design:** self-hosted healthchecks instance in-cluster (new app in
-`main.jsonnet`; SQLite on a PVC, or a small cnpg database). Alertmanager gets a
+`lab.jsonnet`; SQLite on a PVC, or a small cnpg database). Alertmanager gets a
 dedicated route + receiver for `alertname="Watchdog"` (always-firing, ships with
 kube-prometheus-stack) that webhook-POSTs to the healthchecks ping URL — same
 webhook pattern as the ntfy receiver (`main.jsonnet:754-756`). Check period 24h +
@@ -303,7 +310,7 @@ Implementation:
 
 1. `role/comin.nix`: set `exporter.port = 4243` explicitly and
    `exporter.openFirewall = true` (no-op on nas where the firewall is off).
-2. `main.jsonnet` `additionalScrapeConfigs`: add a `comin` job — nuc/nas by LAN
+2. `lab.jsonnet` `additionalScrapeConfigs`: add a `comin` job — nuc/nas by LAN
    address; saoiste (`100.64.0.1`) and eachtrai (`100.64.0.7`) by tailscale IP.
 3. **TargetDown caveat:** the shipped `TargetDown` rule
    (`kube-prometheus-stack-general.rules-prometheusrule.yaml`) fires when >10% of
@@ -421,4 +428,4 @@ journal appearing in Loki after T1+T2 deploy; Loki ruler picking up the
 `loki-rule-*` ConfigMaps and reaching Alertmanager; per-format level coverage
 on real logs; the comin scrape on live saoiste/eachtrai.
 
-All changes are declarative. Cluster side: `cluster/environments/lab/main.jsonnet` + rendered manifests (alloy config, PrometheusRules, Loki ruler config, Alertmanager route) through git → ArgoCD. Host side: `role/lab.nix`, `role/mpd.nix`, `machines/*/default.nix` through git → comin. The unavoidable manual steps live in the incident doc: minting a Tailscale auth key, the tailnet stale-node cleanup, the `saoiste` reboot, the healthchecks secret/superuser/check setup, and the friendlywrt uci syslog change.
+All changes are declarative. Cluster side: `cluster/environments/lab/lab.jsonnet` + rendered manifests (alloy config, PrometheusRules, Loki ruler config, Alertmanager route) through git → ArgoCD. Host side: `role/lab.nix`, `role/mpd.nix`, `machines/*/default.nix` through git → comin. The unavoidable manual steps live in the incident doc: minting a Tailscale auth key, the tailnet stale-node cleanup, the `saoiste` reboot, the healthchecks secret/superuser/check setup, and the friendlywrt uci syslog change.
