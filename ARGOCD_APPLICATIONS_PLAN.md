@@ -449,7 +449,10 @@ cut-over (step 4). Each task names its sections above for the detail.
    Role with `get` on that one `Cluster` (`resourceNames`), a RoleBinding,
    `serviceAccountName` on the gate.
    *Verify:* `just render-lab`; the four gates carry `hook: Sync` and wave
-   `-1`; their PVCs/PVs wave `-1`; nothing else in those apps has a wave.
+   `-1`; their PVCs/PVs and the DB gates' ServiceAccount, Role and
+   RoleBinding wave `-1` (in wave 0 a fresh cluster's gate pod would find no
+   ServiceAccount and wave `-1` would never finish); nothing else in those
+   apps has a wave.
 6. **Bootstrap script** (step 6). `cluster/scripts/bootstrap`: server-side
    apply of `cluster/manifests/argocd/`
    (`kubectl apply --server-side -f cluster/manifests/argocd/`).
