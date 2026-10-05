@@ -1968,7 +1968,7 @@ local patchTargetDown(resources) = {
           # Forward cluster.local to CoreDNS
           conditional:
             mapping:
-              cluster.local: 10.96.0.10
+              cluster.local: 10.43.0.10
 
           caching:
             minTime: 5m

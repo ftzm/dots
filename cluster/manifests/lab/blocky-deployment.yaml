@@ -13,7 +13,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 5af0c023fa8738228579b6c8adfaa2f1
+        checksum/config: fbc49a821d04601da8e5ce53a5d8406e
       labels:
         app.kubernetes.io/name: blocky
     spec:
