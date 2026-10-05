@@ -15,6 +15,22 @@
     role = "server";
     tokenFile = "${config.age.secrets.k3s.path}";
     clusterInit = true;
-    extraFlags = ["--disable=traefik" "--disable=servicelb"];
+    extraFlags = [
+      "--disable=traefik"
+      "--disable=servicelb"
+      "--resolv-conf=/etc/k3s/resolv.conf"
+    ];
   };
+
+  # Cluster DNS must not follow the host's /etc/resolv.conf: tailscale rewrites
+  # it at runtime (nameserver 100.100.100.100, search tail.ftzmlab.xyz). The
+  # kubelet copies its search domains into every new pod, and CoreDNS takes its
+  # upstream from whatever the file held when CoreDNS started. With the
+  # tail.ftzmlab.xyz search domain, ndots:5 lookups like
+  # cleanuparr.media.svc.cluster.local hit the public *.ftzmlab.xyz wildcard
+  # first and resolve to the WAN IP. lan.ftzmlab.xyz is forwarded to blocky by
+  # the coredns-custom ConfigMap (cluster/environments/lab/main.jsonnet).
+  environment.etc."k3s/resolv.conf".text = ''
+    nameserver 192.168.1.1
+  '';
 }
