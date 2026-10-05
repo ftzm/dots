@@ -96,7 +96,35 @@ in {
     extraOptions = ''
       experimental-features = nix-command flakes
     '';
+    # nuc is the fleet's build host (FORGEJO_MIGRATION_PLAN.md -> Binary
+    # Cache). CI jobs are untrusted daemon clients, so the flake's nixConfig
+    # caches (flake.nix) cannot reach the daemon from them: they are set here,
+    # or the pi's kernel gets built under emulation.
+    settings = {
+      extra-substituters = [
+        "https://nixos-raspberrypi.cachix.org"
+        "https://claude-code.cachix.org"
+        "https://pi.cachix.org"
+      ];
+      extra-trusted-public-keys = [
+        "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+        "claude-code.cachix.org-1:YeXf2aNu7UTX8Vwrze0za1WEDS+4DuI2kVeWEE4fsRk="
+        "pi.cachix.org-1:lGeoGJaZ5ZDabuRzkcD5EBTNnDM4HJ1vqeOxlWk1Flk="
+      ];
+      # The store is bounded by pressure, not a schedule: the fleet's
+      # closures (~41 GiB a generation, ~80 during a bump) are rooted by the
+      # writer's profiles, everything else goes when free space drops below
+      # 20 GiB, until 60 GiB are free. k3s and Forgejo's SQLite share this
+      # disk.
+      min-free = 20 * 1024 * 1024 * 1024;
+      max-free = 60 * 1024 * 1024 * 1024;
+    };
   };
+
+  # The pi's system builds here (its kernel and firmware come from
+  # nixos-raspberrypi.cachix.org; emulation covers the rest). Also sets
+  # extra-platforms.
+  boot.binfmt.emulatedSystems = ["aarch64-linux"];
 
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
