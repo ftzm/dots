@@ -501,7 +501,10 @@ local patchTargetDown(resources) = {
         },
         syncPolicy: {
           automated: {
-            prune: true,
+            // false for the cut-over to per-namespace Applications
+            // (ARGOCD_APPLICATIONS_PLAN.md, task 9): lab must not prune
+            // anything before the new Applications have adopted it.
+            prune: false,
             selfHeal: true,  // Auto-sync when cluster state drifts
           },
           syncOptions: [
