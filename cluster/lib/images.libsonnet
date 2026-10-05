@@ -1,29 +1,26 @@
+// One file per image under images/, so two Renovate bumps never edit
+// adjacent lines of one file: a bump PR can only fall behind master, never
+// conflict with a sibling.
 {
-  radarr: 'linuxserver/radarr:6.4.4',
-  sonarr: 'linuxserver/sonarr:4.0.20',
-  lidarr: 'linuxserver/lidarr:3.1.6-nightly',
-  readarr: 'linuxserver/readarr:0.4.19-nightly',
-  prowlarr: 'linuxserver/prowlarr:2.6.5-nightly',
-  cleanuparr: 'ghcr.io/cleanuparr/cleanuparr:2.10.8',
-  flaresolverr: 'flaresolverr/flaresolverr:v3.5.2',
-  jellyseerr: 'fallenbagel/jellyseerr:develop',
-  vaultwarden: 'vaultwarden/server:1.37.3',
-  forgejo: 'codeberg.org/forgejo/forgejo:16.0.5',
-  // Immich's database. Only the major actually in use is listed: a catalog
-  // entry for a major nothing runs is an invitation to set a Cluster back to
-  // it, and CloudNativePG rejects a downgrade only after the operator has
-  // already tried. Add the next major here when an upgrade is deliberately
-  // started, and remove the old one once it has proven itself.
-  cloudnativeVectorchord18: 'ghcr.io/tensorchord/cloudnative-vectorchord:18.6-1.1.1',
-  blocky: 'spx01/blocky:v0.35.0',
-  ntfy: 'binwiederhier/ntfy:v2.28.0',
-  navidrome: 'ghcr.io/navidrome/navidrome:0.64.2',
-  audiobookshelf: 'advplyr/audiobookshelf:2.37.1',
-  thelounge: 'thelounge/thelounge:4.5.2',
-  pinepods: 'madeofpendletonwool/pinepods:0.9.0',
-  miniflux: 'miniflux/miniflux:2.3.3',
-  valkey: 'valkey/valkey:9-alpine',
-  cnpgPostgres: 'ghcr.io/cloudnative-pg/postgresql:18.6',
-  // Docker Hub, not ghcr — the ghcr.io path 403s (no public package there).
-  healthchecks: 'healthchecks/healthchecks:v4.4',
+  radarr: import 'images/radarr.libsonnet',
+  sonarr: import 'images/sonarr.libsonnet',
+  lidarr: import 'images/lidarr.libsonnet',
+  readarr: import 'images/readarr.libsonnet',
+  prowlarr: import 'images/prowlarr.libsonnet',
+  cleanuparr: import 'images/cleanuparr.libsonnet',
+  flaresolverr: import 'images/flaresolverr.libsonnet',
+  jellyseerr: import 'images/jellyseerr.libsonnet',
+  vaultwarden: import 'images/vaultwarden.libsonnet',
+  forgejo: import 'images/forgejo.libsonnet',
+  cloudnativeVectorchord18: import 'images/cloudnativeVectorchord18.libsonnet',
+  blocky: import 'images/blocky.libsonnet',
+  ntfy: import 'images/ntfy.libsonnet',
+  navidrome: import 'images/navidrome.libsonnet',
+  audiobookshelf: import 'images/audiobookshelf.libsonnet',
+  thelounge: import 'images/thelounge.libsonnet',
+  pinepods: import 'images/pinepods.libsonnet',
+  miniflux: import 'images/miniflux.libsonnet',
+  valkey: import 'images/valkey.libsonnet',
+  cnpgPostgres: import 'images/cnpgPostgres.libsonnet',
+  healthchecks: import 'images/healthchecks.libsonnet',
 }

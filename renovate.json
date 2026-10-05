@@ -173,7 +173,7 @@
          "customType": "regex",
          "datasourceTemplate": "docker",
          "managerFilePatterns": [
-            "/cluster/lib/images\\.libsonnet$/"
+            "/cluster/lib/images/.+\\.libsonnet$/"
          ],
          "matchStrings": [
             "'(?<depName>[a-z0-9._/-]+):(?<currentValue>[^']+)'"

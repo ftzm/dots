@@ -1,0 +1,1 @@
+'fallenbagel/jellyseerr:develop'

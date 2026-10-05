@@ -717,13 +717,19 @@ Renovate runs daily at 04:00 UTC via GitHub Actions
 (`.github/workflows/renovate.yaml`), and again whenever a file it manages lands
 on `master`.
 
-That second trigger exists because every docker-tag PR edits
-`lib/images.libsonnet`, so the moment one merges the rest are behind it and go
-conflicted. Renovate already knows to rebase them — with automerge enabled its
-`rebaseWhen=auto` resolves to `behind-base-branch` — but it can only act during
-a run. On a daily schedule a straggler waited until the next morning, which is
-how #87 and #89 sat overnight while nine siblings merged without them. Running
-on the managed files lets the queue drain itself.
+That second trigger exists because every docker-tag PR used to edit
+`lib/images.libsonnet`, so the moment one merged the rest were behind it and
+went conflicted. Renovate already knows to rebase them — with automerge enabled
+its `rebaseWhen=auto` resolves to `behind-base-branch` — but it can only act
+during a run. On a daily schedule a straggler waited until the next morning,
+which is how #87 and #89 sat overnight while nine siblings merged without them.
+Running on the managed files lets the queue drain itself.
+
+Each image now lives in its own file, `lib/images/<name>.libsonnet`
+(`lib/images.libsonnet` is only the map of imports), so sibling image bumps no
+longer conflict; a bump PR only falls behind master. The push trigger goes with
+the move to Forgejo, where `update-prs.yml` brings such PRs current
+(`FORGEJO_MIGRATION_PLAN.md`).
 
 ### How it works
 

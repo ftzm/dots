@@ -21,10 +21,11 @@ local chartManagers = [
   for req in chartfile.requires
 ];
 
-// Container images in images.libsonnet
+// Container images, one file per image in lib/images/ (images.libsonnet is
+// only the map of imports)
 local imageManager = {
   customType: 'regex',
-  managerFilePatterns: ['/cluster/lib/images\\.libsonnet$/'],
+  managerFilePatterns: ['/cluster/lib/images/.+\\.libsonnet$/'],
   matchStrings: [
     "'(?<depName>[a-z0-9._/-]+):(?<currentValue>[^']+)'",
   ],
