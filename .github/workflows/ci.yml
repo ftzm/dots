@@ -38,9 +38,11 @@ jobs:
         if: steps.changes.outputs.nix == 'true'
         run: nix build .#nixosConfigurations.nas.config.system.build.toplevel
       # pi is aarch64-linux, skipped in CI (would require QEMU/cross-compilation)
-      - name: Render cluster manifests
-        run: cd cluster && nix develop . -c just render-lab
-      - name: Test alert rules
-        run: cd cluster && nix develop . -c just test-rules
-      - name: Test mailsort
-        run: nix shell nixpkgs#lua5_4 -c lua role/tests/mailsort.test.lua role/mailsort.lua
+      # Sandboxed flake checks: the committed cluster/manifests must equal the
+      # render, the alert rules pass their unit tests, mailsort its cases.
+      - name: Flake checks
+        run: >-
+          nix build --no-update-lock-file
+          ./cluster#checks.x86_64-linux.render-lab
+          ./cluster#checks.x86_64-linux.test-rules
+          .#checks.x86_64-linux.mailsort

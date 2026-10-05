@@ -124,14 +124,25 @@
         modules = [(./machines/. + "/${host}")];
       };
   in {
-    checks.${defaultSystem}.pre-commit-check = git-hooks.lib.${defaultSystem}.run {
-      src = ./.;
-      hooks = {
-        deadnix.enable = true;
-        alejandra.enable = true;
-        #statix.enable = true;
-        trufflehog.enable = true;
-        nil.enable = true;
+    checks.${defaultSystem} = {
+      # The mail sorter's rules against its test cases, in the sandbox.
+      mailsort = let
+        pkgs = nixpkgs.legacyPackages.${defaultSystem};
+      in
+        pkgs.runCommand "mailsort-test" {nativeBuildInputs = [pkgs.lua5_4];} ''
+          cd ${./role}
+          lua tests/mailsort.test.lua mailsort.lua
+          touch $out
+        '';
+      pre-commit-check = git-hooks.lib.${defaultSystem}.run {
+        src = ./.;
+        hooks = {
+          deadnix.enable = true;
+          alejandra.enable = true;
+          #statix.enable = true;
+          trufflehog.enable = true;
+          nil.enable = true;
+        };
       };
     };
 
@@ -145,6 +156,15 @@
     };
 
     formatter.${defaultSystem} = nixpkgs.legacyPackages.${defaultSystem}.alejandra;
+
+    # Every host's system in one build: a directory of one symlink per host
+    # to its toplevel. CI builds it; the fleet writer on nuc builds the same
+    # attribute at master's commit and publishes the manifest from it
+    # (FORGEJO_MIGRATION_PLAN.md -> Binary Cache). The pi's aarch64 toplevel
+    # is a plain reference here; its builder needs binfmt or a remote builder.
+    packages.${defaultSystem}.fleet =
+      nixpkgs-ftzmlab.legacyPackages.${defaultSystem}.linkFarm "fleet"
+      (builtins.mapAttrs (_: c: c.config.system.build.toplevel) inputs.self.nixosConfigurations);
 
     nixosConfigurations = {
       saoiste = nixpkgs.lib.nixosSystem {

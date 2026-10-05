@@ -205,8 +205,10 @@ Custom logic and configuration is defined in Jsonnet, not in the charts themselv
 
 | Command | Description |
 |---|---|
-| `just render-lab` | Export every environment into `manifests/<namespace>/`, copy each encrypted secret into its namespace's directory, swap `manifests/` only on success |
+| `just render-lab` | Build the flake's `render-lab` package (`tk export` of every environment into `<namespace>/`, each encrypted secret copied into its namespace's directory, in the nix sandbox) and replace `manifests/` with it, only on success |
 | `just render-all` | Alias for `render-lab` (scales to multiple environments) |
+| `nix build ./cluster#checks.x86_64-linux.render-lab` | Fail if the committed `manifests/` differ from the render (CI runs it; `manifests/` is what ArgoCD deploys) |
+| `nix build ./cluster#checks.x86_64-linux.test-rules` | `just test-rules` on the render, in the sandbox (CI runs it) |
 | `just diff-lab` | Show what would change if applied (`tk diff`, one environment at a time) |
 | `just jb-install` | Install vendored Jsonnet dependencies |
 | `just jb-update` | Update Jsonnet dependencies to latest |

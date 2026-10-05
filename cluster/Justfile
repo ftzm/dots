@@ -3,31 +3,21 @@ render-all: render-lab
 
 # Render lab environment: one directory per namespace (one Tanka inline
 # environment each, environments/lab/main.jsonnet), which is one ArgoCD
-# Application each.
-# Render into a temp dir and swap only on success: a failed render must not
-# leave manifests/ empty (renovate commits whatever the tree looks like
-# after its post-upgrade task, and an empty tree would delete everything).
+# Application each. The render itself is the flake's `render-lab` package,
+# built in the nix sandbox -- the same derivation CI's `render-lab` check
+# compares with the committed manifests, so the two cannot drift. `path:`,
+# not the git reference: a chart vendored by Renovate's post-upgrade task is
+# still untracked, and a git flake omits untracked files.
+# Swap only on success: a failed render must not leave manifests/ empty
+# (renovate commits whatever the tree looks like after its post-upgrade
+# task, and an empty tree would delete everything).
 render-lab:
     #!/usr/bin/env bash
     set -euo pipefail
-    tmp=$(mktemp -d .render-lab.XXXXXX)
-    old=""
-    trap 'rm -rf "$tmp" ${old:+"$old"}' EXIT
-    tk export "$tmp" environments/lab --recursive --format '{{ "{{" }}env.metadata.name{{ "}}" }}/{{ "{{" }}.metadata.name{{ "}}" }}-{{ "{{" }}.kind | lower{{ "}}" }}' --skip-manifest
-    # Each SopsSecret goes to its namespace's directory, which must exist.
-    for f in environments/lab/secrets/*.enc.yaml; do
-      ns=$(awk '/^metadata:/ {m=1; next} m && /^[^ ]/ {m=0} m && $1 == "namespace:" {print $2; exit}' "$f")
-      if [ -z "$ns" ] || [ ! -d "$tmp/$ns" ]; then
-        echo "render-lab: $f: namespace '$ns' has no environment" >&2
-        exit 1
-      fi
-      cp "$f" "$tmp/$ns"/
-    done
-    if [ -d manifests ]; then
-      old=$(mktemp -d .render-lab-old.XXXXXX)
-      mv manifests "$old"/
-    fi
-    mv "$tmp" manifests
+    trap 'rm -f .render-lab' EXIT
+    nix build --no-update-lock-file --out-link .render-lab "path:.#render-lab"
+    rm -rf manifests
+    cp -rL --no-preserve=mode .render-lab manifests
 
 # Unit-test the rendered Prometheus alert rules.
 # Rules ship as PrometheusRule CRs but promtool wants bare rule files, so
