@@ -38,9 +38,9 @@
     {
       name: 'logfmt',
       kind: 'logfmt',
-      // argocd, loki, alloy, prometheus. kube-system is NOT logfmt (coredns
+      // argocd, loki, alloy, prometheus, external-dns. kube-system is NOT logfmt (coredns
       // is bracket format) — it belongs to the bracket entry below.
-      selector: '{namespace=~"argocd|monitoring"}',
+      selector: '{namespace=~"argocd|monitoring|external-dns"}',
       logfmt: { level: 'level', msg: 'msg', message: 'message' },
     },
     {

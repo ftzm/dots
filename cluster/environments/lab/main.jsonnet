@@ -720,6 +720,64 @@ local patchTargetDown(resources) = {
 
   },
 
+  // external-dns: public Cloudflare records declared as DNSEndpoint resources.
+  // upsert-only + the txt ownership registry: it never deletes or rewrites
+  // records it did not create, so ddclient's apex/wildcard A records (pi) are
+  // untouched. Token: environments/lab/secrets/external-dns-cloudflare-api-token.enc.yaml
+  externalDns: {
+    local ns = 'external-dns',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('external-dns', '../../charts/external-dns', {
+        namespace: ns,
+        values: {
+          provider: { name: 'cloudflare' },
+          env: [{
+            name: 'CF_API_TOKEN',
+            valueFrom: { secretKeyRef: { name: 'cloudflare-api-token', key: 'api-token' } },
+          }],
+          sources: ['crd'],
+          policy: 'upsert-only',
+          registry: 'txt',
+          txtOwnerId: 'lab',
+          domainFilters: ['ftzmlab.xyz'],
+          managedRecordTypes: ['A', 'AAAA', 'CNAME', 'TXT'],
+        },
+      }),
+      ns
+    ),
+
+    // The public zone has a *.ftzmlab.xyz wildcard (ddclient) so public
+    // services need no per-service record. A wildcard does not synthesize
+    // answers below an existing name (RFC 4592), so this record makes every
+    // public lookup under lan.ftzmlab.xyz NXDOMAIN instead of the WAN IP.
+    // Private names resolve only via blocky; a client that reaches a
+    // non-blocky resolver fails cleanly. lan.ftzmlab.xyz is already public via
+    // the *.lan.ftzmlab.xyz certificate in CT logs, so this discloses nothing.
+    lanZoneCut: {
+      apiVersion: 'externaldns.k8s.io/v1alpha1',
+      kind: 'DNSEndpoint',
+      metadata: {
+        name: 'lan-zone-cut',
+        namespace: ns,
+        annotations: {
+          // The CRD ships in the same sync.
+          'argocd.argoproj.io/sync-options': 'SkipDryRunOnMissingResource=true',
+        },
+      },
+      spec: {
+        endpoints: [{
+          dnsName: 'lan.ftzmlab.xyz',
+          recordType: 'TXT',
+          recordTTL: 3600,
+          targets: ['reserved'],
+        }],
+      },
+    },
+  },
+
   // Cross-cutting alerts (metric rules for hosts and machines; log rules live
   // alongside them via alerts.lokiRule once Phase 1/2 land). Colocation rule:
   // alerts for a specific app live in that app's block; these are the ones

@@ -159,6 +159,18 @@
       },
       {
          "customType": "regex",
+         "datasourceTemplate": "helm",
+         "depNameTemplate": "external-dns",
+         "managerFilePatterns": [
+            "/cluster/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: external-dns/external-dns\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://kubernetes-sigs.github.io/external-dns/"
+      },
+      {
+         "customType": "regex",
          "datasourceTemplate": "docker",
          "managerFilePatterns": [
             "/cluster/lib/images\\.libsonnet$/"

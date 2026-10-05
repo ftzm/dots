@@ -70,7 +70,7 @@ data:
       }
 
       stage.match {
-        selector = "{namespace=~\"argocd|monitoring\"}"
+        selector = "{namespace=~\"argocd|monitoring|external-dns\"}"
         stage.logfmt { mapping = { level = "level", message = "message", msg = "msg" } }
       }
 

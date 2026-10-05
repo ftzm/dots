@@ -24,6 +24,8 @@ repositories:
     url: https://cloudnative-pg.github.io/charts
   - name: jameswynn
     url: https://jameswynn.github.io/helm-charts
+  - name: external-dns
+    url: https://kubernetes-sigs.github.io/external-dns/
 
 requires:
   - chart: nfs-subdir-external-provisioner/nfs-subdir-external-provisioner
@@ -52,3 +54,5 @@ requires:
     version: "0.29.1"
   - chart: jameswynn/homepage
     version: "2.1.0"
+  - chart: external-dns/external-dns
+    version: "1.23.0"

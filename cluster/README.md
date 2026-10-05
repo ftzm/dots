@@ -366,6 +366,11 @@ separate IPs, creating isolated public and private ingress paths:
 - In-cluster pods resolve `lan.ftzmlab.xyz` through Blocky too: the `coredns-custom` ConfigMap (`kube-system`) adds a `lan.ftzmlab.xyz` server block forwarding to `192.168.1.4`. CoreDNS's default upstream is nuc's `/etc/resolv.conf` as it stood when CoreDNS started, which at boot is the router; the router answers `*.ftzmlab.xyz` with the public wildcard IP.
 - Provides ad-blocking via deny lists (StevenBlack, AdguardDNS, Firebog).
 
+**Public DNS (Cloudflare):** ddclient on the pi keeps `ftzmlab.xyz` and the `*.ftzmlab.xyz` wildcard pointed at the WAN IP, so public services need no per-service record. Other public records are declared as `DNSEndpoint` resources and published by **external-dns** (`external-dns` namespace, `--policy=upsert-only`, txt ownership registry with owner `lab`). It never deletes or rewrites records it did not create.
+
+- `lan-zone-cut` publishes `lan.ftzmlab.xyz TXT "reserved"`. A wildcard does not answer below an existing name (RFC 4592), so public lookups under `lan.ftzmlab.xyz` return NXDOMAIN instead of the WAN IP. Private names resolve only via Blocky.
+- To add a record, add an endpoint to a `DNSEndpoint` in `main.jsonnet` (`externalDns`).
+
 ### TLS
 
 - **cert-manager** obtains a wildcard certificate for `*.lan.ftzmlab.xyz` from Let's Encrypt using DNS-01 validation via the Cloudflare API.

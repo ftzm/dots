@@ -1,0 +1,14 @@
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+  name: lan-zone-cut
+  namespace: external-dns
+spec:
+  endpoints:
+  - dnsName: lan.ftzmlab.xyz
+    recordTTL: 3600
+    recordType: TXT
+    targets:
+    - reserved
