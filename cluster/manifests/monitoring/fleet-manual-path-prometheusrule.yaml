@@ -1,0 +1,36 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: kube-prometheus-stack
+  name: fleet-manual-path
+  namespace: monitoring
+spec:
+  groups:
+  - name: fleet-manual-path
+    rules:
+    - alert: FleetManualPathFailing
+      annotations:
+        description: The weekly self-test of the {{ $labels.path }} path for {{ $labels.host
+          }}, run on {{ $labels.instance }}, has failed for 2h of hourly retries.
+          This path is how {{ $labels.host }} gets deployed while nuc is down. Check
+          `journalctl -u manual-path-selftest-*` on {{ $labels.instance }}.
+        summary: Manual deploy path {{ $labels.path }} to {{ $labels.host }} fails
+          its self-test
+      expr: fleet_manual_path_last_run_success == 0
+      for: 2h
+      labels:
+        severity: warning
+    - alert: FleetManualPathStale
+      annotations:
+        description: The {{ $labels.path }} self-test for {{ $labels.host }}, run
+          on {{ $labels.instance }}, has not passed in 8 days (0 = never). For a push
+          target this means {{ $labels.instance }} never reached it as itself -- away
+          from the home LAN, or the host down. Check `systemctl list-timers manual-path-selftest-*`
+          and its journal on {{ $labels.instance }}.
+        summary: Manual deploy path {{ $labels.path }} to {{ $labels.host }} not proven
+          for 8 days
+      expr: time() - fleet_manual_path_last_success_timestamp > 8 * 86400
+      for: 2h
+      labels:
+        severity: warning

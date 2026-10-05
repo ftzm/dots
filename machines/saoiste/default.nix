@@ -29,6 +29,7 @@
     ../../role/emacs.nix
 
     ../../role/comin.nix
+    ../../role/manual-path-selftest.nix
     ../../role/resilience.nix
     ../../role/packages.nix
     ../../role/iosevka.nix
@@ -132,6 +133,18 @@
   # Enable swap on luks
   boot.initrd.luks.devices."luks-80ee3586-78e6-4101-b35d-6c0bd7c3f26a".device = "/dev/disk/by-uuid/80ee3586-78e6-4101-b35d-6c0bd7c3f26a";
   boot.initrd.luks.devices."luks-80ee3586-78e6-4101-b35d-6c0bd7c3f26a".keyFile = "/crypto_keyfile.bin";
+
+  # saoiste is both a laptop and the workstation that pushes to the lab hosts
+  # when nuc is down (FORGEJO_MIGRATION_PLAN.md -> nuc Down). By LAN IP, as
+  # the Makefile pushes.
+  manualPathSelftest = {
+    laptop.enable = true;
+    push.targets = {
+      nas = "admin@192.168.1.3";
+      nuc = "admin@192.168.1.4";
+      pi = "admin@192.168.1.12";
+    };
+  };
 
   networking.hostName = "saoiste"; # Define your hostname.
   networking.useDHCP = true;

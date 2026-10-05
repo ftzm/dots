@@ -29,6 +29,7 @@
     ../../role/iosevka.nix
     ../../role/comin.nix
     ../../role/resilience.nix
+    ../../role/manual-path-selftest.nix
   ];
 
   nix = {
@@ -146,12 +147,19 @@
       "/var/lib/nixos"
       "/var/lib/tailscale"
       "/etc/NetworkManager/system-connections"
+      # The manual-path self-test's last success, and the stamps that let a
+      # `Persistent = true` timer catch up a run missed while off -- without
+      # them each boot forgets both, and the weekly self-test rarely runs.
+      "/var/lib/manual-path-selftest"
+      "/var/lib/systemd/timers"
     ];
   };
 
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
+
+  manualPathSelftest.laptop.enable = true;
 
   networking.hostName = "eachtrai";
   networking.networkmanager.enable = true;

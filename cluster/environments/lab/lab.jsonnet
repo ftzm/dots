@@ -970,6 +970,31 @@ local patchTargetDown(resources) = {
         '{{ $labels.instance }} booted kernel {{ $labels.booted_kernel }} but its deployed configuration ships {{ $labels.current_kernel }} ({{ $labels.reason }} differs). Config changes deploy live; a kernel cannot, so this needs a manual reboot and will not clear on its own. Until then the machine runs the older kernel and misses its security fixes.',
       ),
     ]),
+    // The manual deploy paths' weekly self-tests (role/manual-path-selftest.nix):
+    // a laptop rebuilding itself, the workstation pushing to a lab host. They
+    // replace the automation when nuc is down (FORGEJO_MIGRATION_PLAN.md ->
+    // nuc Down), so a broken one must surface before that day. `host` is the
+    // machine the path deploys; `instance` the one that ran the test.
+    //
+    // Laptops are often off, and an off host is not scraped: these rules see
+    // a host only while it is up. Its timer catches up a missed run right
+    // after boot, and a failed run retries hourly; the 2h `for` covers both.
+    fleetManualPathPrometheusRule: alerts.prometheusRule('fleet-manual-path', ns, [
+      alerts.rule(
+        'FleetManualPathFailing',
+        'fleet_manual_path_last_run_success == 0',
+        '2h', 'warning',
+        'Manual deploy path {{ $labels.path }} to {{ $labels.host }} fails its self-test',
+        'The weekly self-test of the {{ $labels.path }} path for {{ $labels.host }}, run on {{ $labels.instance }}, has failed for 2h of hourly retries. This path is how {{ $labels.host }} gets deployed while nuc is down. Check `journalctl -u manual-path-selftest-*` on {{ $labels.instance }}.',
+      ),
+      alerts.rule(
+        'FleetManualPathStale',
+        'time() - fleet_manual_path_last_success_timestamp > 8 * 86400',
+        '2h', 'warning',
+        'Manual deploy path {{ $labels.path }} to {{ $labels.host }} not proven for 8 days',
+        'The {{ $labels.path }} self-test for {{ $labels.host }}, run on {{ $labels.instance }}, has not passed in 8 days (0 = never). For a push target this means {{ $labels.instance }} never reached it as itself -- away from the home LAN, or the host down. Check `systemctl list-timers manual-path-selftest-*` and its journal on {{ $labels.instance }}.',
+      ),
+    ]),
     // Journal-based systemd failure signals — the correct coverage for the
     // oneshot/flapping class that a `for: 5m` metric rule can't see (the
     // mailsort finding). Delivered as a ConfigMap the Loki ruler sidecar

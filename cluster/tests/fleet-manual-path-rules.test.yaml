@@ -1,0 +1,62 @@
+# Unit tests for the manual-path self-test alerts. Run with `just test-rules`.
+
+rule_files:
+  - .rules/fleet-manual-path-prometheusrule.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # A failed run pages only once its hourly retries have kept failing for 2h;
+  # a retry that passes within that window pages nothing.
+  - interval: 1m
+    input_series:
+      - series: 'fleet_manual_path_last_run_success{path="workstation-push", host="nas", instance="saoiste"}'
+        values: '0+0x180'
+      - series: 'fleet_manual_path_last_run_success{path="laptop-rebuild", host="eachtrai", instance="eachtrai"}'
+        values: '0+0x60 1+0x120'
+    alert_rule_test:
+      - eval_time: 1h59m
+        alertname: FleetManualPathFailing
+        exp_alerts: []
+      - eval_time: 2h
+        alertname: FleetManualPathFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              path: workstation-push
+              host: nas
+              instance: saoiste
+            exp_annotations:
+              summary: 'Manual deploy path workstation-push to nas fails its self-test'
+              description: 'The weekly self-test of the workstation-push path for nas, run on saoiste, has failed for 2h of hourly retries. This path is how nas gets deployed while nuc is down. Check `journalctl -u manual-path-selftest-*` on saoiste.'
+
+  # Staleness. promtool's clock starts at unix 0, so a stamp of 0 here is a
+  # success at the start of the test (in production 0 means "never passed",
+  # which is stale at once). Past 8 days it pages after 2h; a newer success
+  # resets the clock. Sampled every 5m: a `for` holds only while every
+  # evaluation sees a sample, and one goes stale after the 5m lookback.
+  - interval: 5m
+    input_series:
+      - series: 'fleet_manual_path_last_success_timestamp{path="workstation-push", host="nuc", instance="saoiste"}'
+        values: '0+0x2600'
+      # Passed again on day 7 (604800 s).
+      - series: 'fleet_manual_path_last_success_timestamp{path="laptop-rebuild", host="saoiste", instance="saoiste"}'
+        values: '0+0x2016 604800+0x600'
+    alert_rule_test:
+      - eval_time: 7d23h
+        alertname: FleetManualPathStale
+        exp_alerts: []
+      - eval_time: 8d1h
+        alertname: FleetManualPathStale
+        exp_alerts: []
+      - eval_time: 8d2h30m
+        alertname: FleetManualPathStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              path: workstation-push
+              host: nuc
+              instance: saoiste
+            exp_annotations:
+              summary: 'Manual deploy path workstation-push to nuc not proven for 8 days'
+              description: 'The workstation-push self-test for nuc, run on saoiste, has not passed in 8 days (0 = never). For a push target this means saoiste never reached it as itself -- away from the home LAN, or the host down. Check `systemctl list-timers manual-path-selftest-*` and its journal on saoiste.'

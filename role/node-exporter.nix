@@ -10,7 +10,6 @@
 # labels; node_exporter's textfile collector is the cheapest way to get
 # machine-local facts into Prometheus without writing an exporter.
 {
-  config,
   lib,
   pkgs,
   ...
@@ -59,7 +58,15 @@
     mv -f "$tmp" "${textfileDir}/nixos-reboot-required.prom"
   '';
 in {
-  services.prometheus.exporters.node = {
+  # Other modules drop their own gauges here (manual-path-selftest.nix).
+  options.nodeExporterTextfileDir = lib.mkOption {
+    type = lib.types.str;
+    default = textfileDir;
+    readOnly = true;
+    description = "node_exporter textfile collector directory: *.prom files here are scraped with the host's metrics.";
+  };
+
+  config.services.prometheus.exporters.node = {
     enable = true;
     enabledCollectors = ["processes" "systemd" "textfile"];
     extraFlags = [
@@ -72,9 +79,9 @@ in {
     port = 9002;
   };
 
-  systemd.tmpfiles.rules = ["d ${textfileDir} 0755 root root -"];
+  config.systemd.tmpfiles.rules = ["d ${textfileDir} 0755 root root -"];
 
-  systemd.services.nixos-reboot-required-metrics = {
+  config.systemd.services.nixos-reboot-required-metrics = {
     description = "Publish booted-vs-deployed kernel facts for node_exporter";
     serviceConfig = {
       Type = "oneshot";
@@ -86,7 +93,7 @@ in {
   # definition does not change between deploys, so a switch would not restart
   # it, and the file would keep describing the previous generation. Polling
   # costs nothing and the alert it feeds waits an hour anyway.
-  systemd.timers.nixos-reboot-required-metrics = {
+  config.systemd.timers.nixos-reboot-required-metrics = {
     wantedBy = ["timers.target"];
     timerConfig = {
       OnBootSec = "1min";
@@ -98,5 +105,5 @@ in {
   # Scraped over tailscale on the roaming machines and over the LAN on the lab
   # ones. Interface-scoped so it is a no-op where the firewall is disabled,
   # rather than a hole that only shows up if one is ever turned on.
-  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [9002];
+  config.networking.firewall.interfaces."tailscale0".allowedTCPPorts = [9002];
 }
