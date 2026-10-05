@@ -16,7 +16,6 @@
     ./hardware.nix
 
     # Generic
-    ../../role/network.nix
     ../../role/node-exporter.nix
     ../../role/mpd.nix
     # ../../role/mail.nix
@@ -255,53 +254,10 @@
 
   programs.mosh.enable = true;
 
-  # ----------------------------------------------------------------------
-  # Forward DNS (Blocky) over wireguard
-
-  boot.kernel.sysctl = {
-    "net.ipv4.conf.all.forwarding" = 1;
-  };
-
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [53 3000 3001 8080 8384];
-    allowedUDPPorts = [53];
-    extraCommands = ''
-      # Forward DNS traffic (port 53) from wg0 to Blocky on 192.168.1.4
-      iptables -t nat -A PREROUTING -i wg0 -p udp --dport 53 -j DNAT --to-destination 192.168.1.4:53
-      iptables -t nat -A PREROUTING -i wg0 -p tcp --dport 53 -j DNAT --to-destination 192.168.1.4:53
-
-      # Allow forwarding between interfaces
-      iptables -A FORWARD -i wg0 -o enp58s0 -p udp --dport 53 -j ACCEPT
-      iptables -A FORWARD -i wg0 -o enp58s0 -p tcp --dport 53 -j ACCEPT
-      iptables -A FORWARD -i enp58s0 -o wg0 -p udp --sport 53 -j ACCEPT
-      iptables -A FORWARD -i enp58s0 -o wg0 -p tcp --sport 53 -j ACCEPT
-
-      # SNAT for return traffic
-      iptables -t nat -A POSTROUTING -o enp58s0 -p udp --dport 53 -j MASQUERADE
-      iptables -t nat -A POSTROUTING -o enp58s0 -p tcp --dport 53 -j MASQUERADE
-    '';
+    allowedTCPPorts = [3000 3001 8080 8384];
   };
-
-  /*
-  networking.nat = {
-    enable = true;
-    internalInterfaces = ["wlp59s0" "enp58s0"];
-    externalInterface = "wg0";
-    forwardPorts = [
-      {
-        destination = "192.168.1.12:53";
-        proto = "tcp";
-        sourcePort = 53;
-      }
-      {
-        destination = "192.168.1.12:53";
-        proto = "udp";
-        sourcePort = 53;
-      }
-    ];
-  };
-  */
 
   # ----------------------------------------------------------------------
   # Atuin

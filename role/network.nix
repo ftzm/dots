@@ -35,15 +35,6 @@
         clientOnly = false;
       };
     };
-    saoiste = {
-      wg = {
-        # LAN IP: 192.168.1.6
-        ip = "10.0.100.6";
-        listenPort = 51860;
-        publicKey = "x90h2zR9keCjpS8WksehZnXNgFwGIhwCxzy+QdQqqRA=";
-        clientOnly = false;
-      };
-    };
     eachtrai = {
       wg = {
         ip = "10.0.100.7";

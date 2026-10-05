@@ -12,7 +12,6 @@ in {
   "wireguard-private-key-eachtrai.age".publicKeys = [personal eachtrai];
   "wireguard-private-key-nas.age".publicKeys = [personal nas];
   "wireguard-private-key-nuc.age".publicKeys = [personal nuc];
-  "wireguard-private-key-saoiste.age".publicKeys = [personal saoiste];
   "wg-pk-unifi-leigheas.age".publicKeys = [personal leigheas];
   "smtppw.age".publicKeys = [personal nas];
   # Tailscale enrolment key for nas (see machines/nas/default.nix). The
