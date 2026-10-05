@@ -1,0 +1,3181 @@
+local backup = import '../../lib/backup.libsonnet';
+local cleanuparr = import '../../lib/cleanuparr.libsonnet';
+local alerts = import '../../lib/alerts.libsonnet';
+local logformats = import '../../lib/logformats.libsonnet';
+local config = import '../../lib/config.libsonnet';
+local images = import '../../lib/images.libsonnet';
+local postgres = import '../../lib/postgres.libsonnet';
+local prowlarr = import '../../lib/prowlarr.libsonnet';
+local selfhosted = import '../../lib/selfhosted.libsonnet';
+local storage = import '../../lib/storage.libsonnet';
+local helm = (import 'tanka-util/helm.libsonnet').new(std.thisFile);
+local k = import 'k8s-libsonnet/main.libsonnet';
+
+// Cluster-scoped kinds that should not have namespace set
+local clusterScoped = [
+  'ClusterRole',
+  'ClusterRoleBinding',
+  'StorageClass',
+  'Namespace',
+  'IngressClass',
+  'CustomResourceDefinition',
+  'GatewayClass',
+  'ClusterImageCatalog',
+];
+
+// Add namespace to all namespaced resources
+local withNamespace(resources, ns) = {
+  [key]: resources[key] + (
+    if std.member(clusterScoped, resources[key].kind)
+    then {}
+    // Preserve namespace if the chart explicitly set a different one
+    else if std.objectHas(resources[key].metadata, 'namespace') && resources[key].metadata.namespace != ns
+    then {}
+    else { metadata+: { namespace: ns } }
+  )
+  for key in std.objectFields(resources)
+};
+
+// Comin exporter scrape targets: lab machines by LAN (always on the same
+// subnet), laptops by tailscale IP (they roam/sleep). Instance label is the
+// host shortname so alerts read `instance="saoiste"` etc. `alwaysOn` is the
+// host class the reachability alerts split on -- see CominTargetUnreachable
+// and CominTargetStale below.
+local cominMachines = [
+  { instance: 'nuc', host: config.machines.nuc.lan, alwaysOn: true },
+  { instance: 'nas', host: config.machines.nas.lan, alwaysOn: true },
+  { instance: 'saoiste', host: config.machines.saoiste.tailscale, alwaysOn: false },
+  { instance: 'eachtrai', host: config.machines.eachtrai.tailscale, alwaysOn: false },
+];
+
+// Instance regex for one host class, so an alert expression and the scrape
+// targets it reasons about cannot drift apart.
+local cominInstances(alwaysOn) =
+  std.join('|', [m.instance for m in cominMachines if m.alwaysOn == alwaysOn]);
+
+local cominScrapeConfig = {
+  job_name: 'comin',
+  static_configs: [
+    { targets: [m.host + ':4243'], labels: { instance: m.instance } }
+    for m in cominMachines
+  ],
+};
+
+// node_exporter, from the same fleet list rather than a second copy of the
+// addresses. The previous version hardcoded 192.168.1.3/.4 and relabelled each
+// back to a hostname, which silently covered only the two lab machines -- the
+// roaming ones exported nothing, so nothing could alert on their kernels.
+//
+// `instance` is set directly, as the comin job does, rather than derived by
+// relabelling; the machine list is the single place a host's address lives.
+local nodeScrapeConfig = {
+  job_name: 'host-node-exporter',
+  static_configs: [
+    { targets: [m.host + ':9002'], labels: { job: 'node-exporter', instance: m.instance } }
+    for m in cominMachines
+  ],
+};
+
+// The shipped TargetDown rule fires when >10% of a job's targets are down.
+// Laptops sleep, so the comin job (saoiste/eachtrai over tailscale) would
+// page constantly. Exclude that job from TargetDown; the comin rules below
+// alert on real failure via comin_last_*_failed, and `up` for laptops is
+// still queryable if ever needed.
+// Roaming machines are excluded by instance, not just by job: they now appear
+// in the node-exporter job too, and a closed laptop lid is not a down target.
+// Derived from the same list as the scrape config so the two cannot drift.
+local roamingSelector = 'job!="comin", instance!~"' + cominInstances(false) + '"';
+local targetDownExpr = '100 * (count(up{' + roamingSelector + '} == 0) BY (cluster, job, namespace, service) / count(up{' + roamingSelector + '}) BY (cluster, job, namespace, service)) > 10';
+local patchTargetDown(resources) = {
+  [key]:
+    if resources[key].kind == 'PrometheusRule' then
+      resources[key] {
+        spec+: {
+          groups: std.map(
+            function(g)
+              g {
+                rules: std.map(
+                  function(r)
+                    if std.objectHas(r, 'alert') && r.alert == 'TargetDown'
+                    then r {
+                      // Replacing a vendored expression wholesale means a
+                      // chart bump that improves TargetDown gets silently
+                      // reverted to this copy. Assert on the shape we forked
+                      // from so the bump fails the render instead.
+                      assert std.length(std.findSubstr('count(up', r.expr)) > 0 :
+                        'TargetDown upstream expr changed shape; re-derive targetDownExpr',
+                      expr: targetDownExpr,
+                    }
+                    else r,
+                  g.rules
+                ),
+              },
+            resources[key].spec.groups
+          ),
+        },
+      }
+    else resources[key]
+  for key in std.objectFields(resources)
+};
+
+{
+  nfsProvisioner: {
+    namespace: k.core.v1.namespace.new('nfs-provisioner'),
+
+    resources: withNamespace(
+      helm.template('nfs-provisioner', '../../charts/nfs-subdir-external-provisioner', {
+        namespace: 'nfs-provisioner',
+        values: {
+          nfs: {
+            server: config.nasIP,
+            path: '/pool-1/k8s',
+          },
+          storageClass: {
+            name: 'nfs',
+            defaultClass: true,
+          },
+        },
+      }),
+      'nfs-provisioner'
+    ),
+  },
+
+  // Hello world to test internal ingress
+  helloWorld: {
+    local ns = 'hello-world',
+    local labels = { app: 'hello' },
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    deployment: k.apps.v1.deployment.new('hello')
+    + k.apps.v1.deployment.metadata.withNamespace(ns)
+    + k.apps.v1.deployment.spec.withReplicas(1)
+    + k.apps.v1.deployment.spec.selector.withMatchLabels(labels)
+    + k.apps.v1.deployment.spec.template.metadata.withLabels(labels)
+    + k.apps.v1.deployment.spec.template.spec.withContainers([
+      k.core.v1.container.new('nginx', 'nginx:alpine')
+      + k.core.v1.container.withPorts([
+        k.core.v1.containerPort.newNamed(80, 'http'),
+      ]),
+    ]),
+
+    service: k.core.v1.service.new('hello', labels, [
+      k.core.v1.servicePort.new(80, 80),
+    ])
+    + k.core.v1.service.metadata.withNamespace(ns),
+
+    // IngressRoute for private-only access (WireGuard only)
+    // To make this public too, add 'web' and 'websecure' to entryPoints
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: {
+        name: 'hello',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [
+          {
+            match: "Host(`hello.lan.ftzmlab.xyz`)",
+            kind: 'Rule',
+            services: [
+              {
+                name: 'hello',
+                port: 80,
+              },
+            ],
+          },
+        ],
+        tls: {},
+      },
+    },
+  },
+
+  // Traefik ingress controller with dual entrypoints
+  // - Public entrypoints (web, websecure) bind to LAN IP
+  // - Private entrypoints (privateweb, privatesecure) bind to Tailscale IP
+  // - WireGuard entrypoints (wgweb, wgsecure) bind to WireGuard IP
+  traefik: {
+    local ns = 'traefik',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('traefik', '../../charts/traefik', {
+        namespace: ns,
+        values: {
+          // Enable access logs (collected by Alloy -> Loki)
+          accessLog: {
+            enabled: true,
+            format: 'json',  // Easier to parse in Loki
+            filters: {
+              // Phase 0: metrics already cover 1xx-3xx volume; keep only the
+              // requests worth investigating.
+              statusCodes: '400-599',
+            },
+          },
+
+          // Use host network to bind directly to specific IPs
+          hostNetwork: true,
+
+          updateStrategy: {
+            type: 'Recreate',
+            rollingUpdate: null,
+          },
+
+          // Ensure Traefik runs on the node with both IPs (public + WireGuard)
+          nodeSelector: {
+            'kubernetes.io/hostname': 'nuc',
+          },
+
+
+          // Disable LoadBalancer service - we bind directly via hostNetwork
+          service: {
+            enabled: false,
+          },
+
+          // Entrypoints with unique ports go in the chart's ports section.
+          // Entrypoints sharing a port across different IPs (private/WG) must
+          // use additionalArguments — k8s container spec forbids duplicate
+          // containerPort values even with different hostIPs.
+          ports: {
+            web: {
+              port: 80,
+              hostIP: config.publicIP,
+              expose: { default: false },
+              http: {
+                redirections: {
+                  entryPoint: {
+                    to: 'websecure',
+                    scheme: 'https',
+                  },
+                },
+              },
+            },
+            websecure: {
+              port: 443,
+              hostIP: config.publicIP,
+              expose: { default: false },
+            },
+            torrent: {
+              port: 6881,
+              expose: { default: false },
+            },
+            traefik: {
+              expose: { default: false },
+            },
+            metrics: {
+              port: 9091,
+              expose: { default: false },
+            },
+          },
+
+          // Chart >= 41 takes the file-provider config as an object and
+          // YAML-formats it itself; the checksum hashes the rendered form.
+          local fileProviderContent = ({
+            local privateEP = ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+            local publicEP = ['web', 'websecure'],
+            local hostRouter(name, domain, entryPoints=privateEP) = {
+              rule: 'Host(`' + domain + '`)',
+              service: name,
+              entryPoints: entryPoints,
+              tls: {},
+            },
+            // Traefik uses hostNetwork, so 127.0.0.1 reaches host services
+            // regardless of which interface they bind to.
+            local hostSvc(port) = {
+              loadBalancer: {
+                servers: [{ url: 'http://127.0.0.1:' + port }],
+              },
+            },
+            http: {
+              routers: {
+                jellyfin: hostRouter('jellyfin', 'jellyfin.ftzmlab.xyz', publicEP),
+                deluge: hostRouter('deluge', 'deluge.lan.ftzmlab.xyz'),
+                filestash: hostRouter('filestash', 'filestash.lan.ftzmlab.xyz'),
+                webdav: hostRouter('webdav', 'dav.lan.ftzmlab.xyz'),
+                nzbget: hostRouter('nzbget', 'nzbget.lan.ftzmlab.xyz'),
+              },
+              services: {
+                jellyfin: hostSvc('8096'),
+                deluge: hostSvc('8112'),
+                filestash: hostSvc('8334'),
+                webdav: hostSvc('8085'),
+                nzbget: hostSvc('6789'),
+              },
+            },
+          }),
+
+          deployment: {
+            dnsPolicy: 'ClusterFirstWithHostNet',
+            podAnnotations: {
+              'checksum/file-provider': std.md5(std.manifestYamlDoc(fileProviderContent)),
+            },
+          },
+
+          // File provider for NixOS host services: routes directly to host IP:port,
+          // bypassing k8s Service/EndpointSlice (which ArgoCD excludes).
+          // watch: false = single directory read at startup (no inotify symlink double-read).
+          providers: {
+            file: {
+              enabled: true,
+              watch: false,
+              content: fileProviderContent,
+            },
+          },
+
+          // Private/WG entrypoints via additionalArguments (share port 80/443
+          // across different IPs, which k8s containerPort spec can't express).
+          additionalArguments: [
+            '--entrypoints.privateweb.address=' + config.tailscaleIP + ':80',
+            '--entrypoints.privateweb.http.redirections.entryPoint.to=privatesecure',
+            '--entrypoints.privateweb.http.redirections.entryPoint.scheme=https',
+            '--entrypoints.privatesecure.address=' + config.tailscaleIP + ':443',
+            '--entrypoints.wgweb.address=' + config.wgIP + ':80',
+            '--entrypoints.wgweb.http.redirections.entryPoint.to=wgsecure',
+            '--entrypoints.wgweb.http.redirections.entryPoint.scheme=https',
+            '--entrypoints.wgsecure.address=' + config.wgIP + ':443',
+          ],
+
+          // Single IngressClass for standard Ingress resources
+          // Note: Standard Ingress resources will be available on ALL entrypoints.
+          // Use IngressRoute CRD with entryPoints field for private-only services.
+          ingressClass: {
+            enabled: true,
+            isDefaultClass: true,
+          },
+        },
+      }),
+      ns
+    ),
+
+    // PodMonitor for Prometheus to scrape Traefik metrics
+    podMonitor: {
+      apiVersion: 'monitoring.coreos.com/v1',
+      kind: 'PodMonitor',
+      metadata: {
+        name: 'traefik',
+        namespace: ns,
+      },
+      spec: {
+        selector: {
+          matchLabels: {
+            'app.kubernetes.io/name': 'traefik',
+          },
+        },
+        podMetricsEndpoints: [{
+          port: 'metrics',
+          path: '/metrics',
+        }],
+      },
+    },
+
+    // Wildcard certificate for *.lan.ftzmlab.xyz (in traefik namespace so Traefik can read it)
+    wildcardCert: {
+      apiVersion: 'cert-manager.io/v1',
+      kind: 'Certificate',
+      metadata: {
+        name: 'lan-wildcard',
+        namespace: ns,
+      },
+      spec: {
+        secretName: 'lan-wildcard-tls',
+        issuerRef: {
+          name: 'letsencrypt',
+          kind: 'ClusterIssuer',
+        },
+        dnsNames: [
+          '*.lan.ftzmlab.xyz',
+          'lan.ftzmlab.xyz',
+          'jellyfin.ftzmlab.xyz',
+        ],
+      },
+    },
+
+    // Default TLS store so all IngressRoutes use the wildcard cert
+    defaultTlsStore: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'TLSStore',
+      metadata: {
+        name: 'default',
+        namespace: ns,
+      },
+      spec: {
+        defaultCertificate: {
+          secretName: 'lan-wildcard-tls',
+        },
+      },
+    },
+  },
+
+  // ArgoCD - GitOps continuous delivery
+  argocd: {
+    local ns = 'argocd',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('argocd', '../../charts/argo-cd', {
+        namespace: ns,
+        // The chart gates its ServiceMonitors and PrometheusRule on
+        // .Capabilities.APIVersions; tanka renders helm without the monitoring
+        // CRD unless we declare it here (it becomes --api-versions).
+        apiVersions: ['monitoring.coreos.com/v1'],
+        values: {
+          // Use existing CRDs if already installed
+          crds: {
+            install: true,
+            keep: true,
+          },
+          // Only needed for initial install to create redis secret.
+          // Keep disabled because it causes problems during syncs.
+          redisSecretInit: {
+            enabled: false,
+          },
+          configs: {
+            params: {
+              'reposerver.max.combined.directory.manifests.size': '30000000',
+            },
+          },
+          // Metrics for the application controller, API server and repo server,
+          // scraped by the kube-prometheus-stack Prometheus (it has no SM selector
+          // restrictions). The ServiceMonitors and the sync-failure/drift alert
+          // rules live below as explicit resources: the chart gates them on helm
+          // capabilities that tanka's renderer does not provide. The controller
+          // rules would have caught a broken PreSync gate blocking every sync for
+          // 9 days within minutes.
+          controller: {
+            metrics: {
+              enabled: true,
+            },
+          },
+          server: {
+            metrics: {
+              enabled: true,
+            },
+          },
+          repoServer: {
+            livenessProbe: {
+              // 15s, not 5: the probe is /healthz?full=true, which does a
+              // gRPC self-dial; during manifest generation of this repo's
+              // ~12MB rendered tree the dial can exceed 5s, and five straight
+              // misses kill the pod mid-generation -- which restarts the
+              // generation, which starves the next probe: a crashloop that
+              // blocked syncs for ~4h on 2026-09-03.
+              timeoutSeconds: 15,
+              periodSeconds: 30,
+              failureThreshold: 5,
+            },
+            readinessProbe: {
+              timeoutSeconds: 5,
+              periodSeconds: 15,
+            },
+            metrics: {
+              enabled: true,
+            },
+          },
+        },
+      }),
+      ns
+    ),
+
+    // Application that points ArgoCD at this repo's rendered manifests
+    app: {
+      apiVersion: 'argoproj.io/v1alpha1',
+      kind: 'Application',
+      metadata: {
+        name: 'lab',
+        namespace: ns,
+      },
+      spec: {
+        project: 'default',
+        source: {
+          repoURL: 'https://github.com/ftzm/dots.git',
+          targetRevision: 'HEAD',
+          path: 'cluster/manifests/lab',
+        },
+        destination: {
+          server: 'https://kubernetes.default.svc',
+          namespace: 'default',
+        },
+        syncPolicy: {
+          automated: {
+            // false for the cut-over to per-namespace Applications
+            // (ARGOCD_APPLICATIONS_PLAN.md, task 9): lab must not prune
+            // anything before the new Applications have adopted it.
+            prune: false,
+            selfHeal: true,  // Auto-sync when cluster state drifts
+          },
+          syncOptions: [
+            'ServerSideApply=true',
+          ],
+        },
+      },
+    },
+
+    // Traefik IngressRouteTCP for ArgoCD with TLS passthrough
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRouteTCP',
+      metadata: {
+        name: 'argocd',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privatesecure', 'wgsecure'],
+        routes: [{
+          match: 'HostSNI(`argo.lan.ftzmlab.xyz`)',
+          services: [{
+            name: 'argocd-server',
+            port: 443,
+          }],
+        }],
+        tls: {
+          passthrough: true,
+        },
+      },
+    },
+
+    // The chart only creates the metrics Services (its ServiceMonitors and
+    // PrometheusRule are gated on helm capabilities that tanka does not
+    // provide), so they are defined here instead. kube-prometheus-stack's
+    // Prometheus picks up ServiceMonitors from every namespace (no selector
+    // restrictions).
+    controllerServiceMonitor: alerts.serviceMonitor(
+      'argocd-application-controller', ns,
+      // The chart labels this one service `argocd-metrics` (not
+      // *-controller-metrics like its siblings); matching the wrong name
+      // means no argocd_app_info at all -- which ArgoCDAppMissing catches.
+      { 'app.kubernetes.io/name': 'argocd-metrics' },
+      'http-metrics'
+    ),
+    serverServiceMonitor: alerts.serviceMonitor(
+      'argocd-server', ns,
+      { 'app.kubernetes.io/name': 'argocd-server-metrics' },
+      'http-metrics'
+    ),
+    repoServerServiceMonitor: alerts.serviceMonitor(
+      'argocd-repo-server', ns,
+      { 'app.kubernetes.io/name': 'argocd-repo-server-metrics' },
+      'http-metrics'
+    ),
+
+    // Alerts on sync failures, drift, controller liveness and reconcile
+    // absence. `argocd_app_sync_total{phase="Failed|Error"}` increments
+    // whenever a sync operation fails — e.g. the forgejo-dump-gate deadlock
+    // that blocked every sync for 9 days would have fired ArgoCDSyncFailed
+    // within a minute. ArgoCDReconcileStalled catches the wedge class where
+    // activity stops entirely (healthy cadence verified at ~22/hour).
+    prometheusRule: alerts.prometheusRule('argocd', ns, [
+      alerts.rule(
+        'ArgoCDSyncFailed',
+        'increase(argocd_app_sync_total{phase=~"Failed|Error"}[5m]) > 0',
+        '1m', 'critical',
+        'ArgoCD sync failed for {{ $labels.name }}',
+        |||
+          ArgoCD failed to sync application {{ $labels.name }} ({{ $labels.namespace }}); the last sync operation finished with phase {{ $labels.phase }}.
+          See `argocd app get {{ $labels.name }}` or the ArgoCD UI.
+        |||,
+      ),
+      alerts.rule(
+        'ArgoCDAppOutOfSync',
+        'argocd_app_info{sync_status!="Synced"} == 1',
+        '15m', 'warning',
+        'ArgoCD app {{ $labels.name }} out of sync for over 15 minutes',
+        |||
+          Application {{ $labels.name }} has drifted from git ({{ $labels.sync_status }}) and has not reconciled for 15 minutes.
+          This usually means the automated sync is blocked (e.g. by a failing PreSync hook).
+        |||,
+      ),
+      alerts.rule(
+        'ArgoCDAppDegraded',
+        'argocd_app_info{health_status="Degraded"} == 1',
+        '15m', 'warning',
+        'ArgoCD app {{ $labels.name }} is Degraded',
+        'Application {{ $labels.name }} ({{ $labels.namespace }}) reports health status Degraded.',
+      ),
+      alerts.rule(
+        'ArgoCDAppMissing',
+        'absent(argocd_app_info) == 1',
+        '15m', 'critical',
+        'ArgoCD reports no applications',
+        'The ArgoCD application controller has reported no application metrics for 15 minutes and is likely down.',
+      ),
+      alerts.rule(
+        'ArgoCDReconcileStalled',
+        'sum(increase(argocd_app_reconcile_count[30m])) == 0',
+        '15m', 'critical',
+        'ArgoCD controller has not reconciled in 30 minutes',
+        'No app reconciliations in 30 minutes; healthy cadence is ~22/hour. The controller is likely wedged (counter resets on restart are handled by increase()).',
+      ),
+    ]),
+  },
+
+  // Sealed Secrets controller for encrypted secrets in git
+  sealedSecrets: {
+    local ns = 'sealed-secrets',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('sealed-secrets', '../../charts/sealed-secrets', {
+        namespace: ns,
+        values: {},
+      }),
+      ns
+    ),
+  },
+
+  // SOPS Secrets Operator: decrypts SopsSecret CRDs in-cluster using age
+  sopsOperator: {
+    local ns = 'sops-operator',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('sops-secrets-operator', '../../charts/sops-secrets-operator', {
+        namespace: ns,
+        values: {
+          secretsAsFiles: [{
+            name: 'sops-age-key',
+            mountPath: '/mnt/age/',
+            secretName: 'sops-age-key',
+          }],
+          extraEnv: [{
+            name: 'SOPS_AGE_KEY_FILE',
+            value: '/mnt/age/key',
+          }],
+        },
+      }),
+      ns
+    ),
+  },
+
+  // CloudNativePG: PostgreSQL operator
+  cnpg: {
+    local ns = 'cnpg-system',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('cloudnative-pg', '../../charts/cloudnative-pg', {
+        namespace: ns,
+        values: {},
+      }),
+      ns
+    ),
+
+    // Cluster-scoped, so one catalog serves Clusters in any namespace.
+    // Each catalog lists only the majors actually in use — moving a database
+    // to a new major means adding its image here and changing that Cluster's
+    // `major`, both of which are deliberate edits. See lib/postgres.libsonnet.
+    postgresCatalog: postgres.clusterImageCatalog('postgresql', [images.cnpgPostgres]),
+    vectorchordCatalog: postgres.clusterImageCatalog('vectorchord', [images.cloudnativeVectorchord18]),
+  },
+
+  // cert-manager: TLS certificate management with Let's Encrypt
+  certManager: {
+    local ns = 'cert-manager',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('cert-manager', '../../charts/cert-manager', {
+        namespace: ns,
+        values: {
+          crds: { enabled: true },
+        },
+      }),
+      ns
+    ),
+
+    // Cloudflare API token: environments/lab/secrets/cloudflare-api-token.enc.yaml
+    // (SOPS-encrypted, copied to manifests/ during render, decrypted in-cluster by sops-secrets-operator)
+
+    // ClusterIssuer for Let's Encrypt using Cloudflare DNS-01
+    clusterIssuer: {
+      apiVersion: 'cert-manager.io/v1',
+      kind: 'ClusterIssuer',
+      metadata: {
+        name: 'letsencrypt',
+      },
+      spec: {
+        acme: {
+          server: 'https://acme-v02.api.letsencrypt.org/directory',
+          email: 'm@ftzm.org',
+          privateKeySecretRef: {
+            name: 'letsencrypt-account-key',
+          },
+          solvers: [{
+            dns01: {
+              cloudflare: {
+                apiTokenSecretRef: {
+                  name: 'cloudflare-api-token',
+                  key: 'api-token',
+                },
+              },
+            },
+          }],
+        },
+      },
+    },
+
+  },
+
+  // external-dns: public Cloudflare records declared as DNSEndpoint resources.
+  // upsert-only + the txt ownership registry: it never deletes or rewrites
+  // records it did not create, so ddclient's apex/wildcard A records (pi) are
+  // untouched. Token: environments/lab/secrets/external-dns-cloudflare-api-token.enc.yaml
+  externalDns: {
+    local ns = 'external-dns',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('external-dns', '../../charts/external-dns', {
+        namespace: ns,
+        values: {
+          provider: { name: 'cloudflare' },
+          env: [{
+            name: 'CF_API_TOKEN',
+            valueFrom: { secretKeyRef: { name: 'cloudflare-api-token', key: 'api-token' } },
+          }],
+          sources: ['crd'],
+          policy: 'upsert-only',
+          registry: 'txt',
+          txtOwnerId: 'lab',
+          domainFilters: ['ftzmlab.xyz'],
+          managedRecordTypes: ['A', 'AAAA', 'CNAME', 'TXT'],
+        },
+      }),
+      ns
+    ),
+
+    // The public zone has a *.ftzmlab.xyz wildcard (ddclient) so public
+    // services need no per-service record. A wildcard does not synthesize
+    // answers below an existing name (RFC 4592), so this record makes every
+    // public lookup under lan.ftzmlab.xyz NXDOMAIN instead of the WAN IP.
+    // Private names resolve only via blocky; a client that reaches a
+    // non-blocky resolver fails cleanly. lan.ftzmlab.xyz is already public via
+    // the *.lan.ftzmlab.xyz certificate in CT logs, so this discloses nothing.
+    lanZoneCut: {
+      apiVersion: 'externaldns.k8s.io/v1alpha1',
+      kind: 'DNSEndpoint',
+      metadata: {
+        name: 'lan-zone-cut',
+        namespace: ns,
+        annotations: {
+          // The CRD ships in the same sync.
+          'argocd.argoproj.io/sync-options': 'SkipDryRunOnMissingResource=true',
+        },
+      },
+      spec: {
+        endpoints: [{
+          dnsName: 'lan.ftzmlab.xyz',
+          recordType: 'TXT',
+          recordTTL: 3600,
+          targets: ['reserved'],
+        }],
+      },
+    },
+  },
+
+  // Cross-cutting alerts (metric rules for hosts and machines; log rules live
+  // alongside them via alerts.lokiRule once Phase 1/2 land). Colocation rule:
+  // alerts for a specific app live in that app's block; these are the ones
+  // with no single owning app.
+  observability: {
+    local ns = 'monitoring',
+
+    // Systemd unit state for the critical set. Long-running services only —
+    // oneshot units (mailsort) are covered by JournalUnitFailure, not here:
+    // a 1-min-retried oneshot's failed state never satisfies a `for` metric
+    // rule (verified 2026-09-01).
+    nodeUnitsPrometheusRule: alerts.prometheusRule('node-units', ns, [
+      alerts.rule(
+        'CriticalUnitNotActive',
+        'node_systemd_unit_state{name=~"k3s.service|comin.service|tailscaled.service|jellyfin.service|mosquitto.service|systemd-timesyncd.service|alloy.service",state=~"failed|inactive"} == 1',
+        '2m', 'critical',
+        'Critical unit {{ $labels.name }} is {{ $labels.state }} on {{ $labels.instance }}',
+        'A deploy/network-critical systemd unit is failed or inactive. Includes alloy.service (the nas log shipper) so the pipeline observes itself.',
+      ),
+    ]),
+
+    // comin (NixOS deploy agent) visibility — metrics verified 2026-09-01.
+    // This is the first observability saoiste/eachtrai get at all.
+    cominPrometheusRule: alerts.prometheusRule('comin', ns, [
+      alerts.rule(
+        'CominDeploymentFailed',
+        'comin_last_deployment_failed == 1',
+        '5m', 'critical',
+        'comin deploy failing on {{ $labels.instance }}',
+        'A machine has not successfully deployed its configuration. Check `journalctl -u comin` on {{ $labels.instance }}.',
+      ),
+      alerts.rule(
+        'CominFetchFailed',
+        'comin_last_fetch_failed == 1',
+        '1h', 'warning',
+        'comin fetch failing on {{ $labels.instance }}',
+        'git fetch from origin has been failing for 1h (1h grace for transient network loss).',
+      ),
+      // Every rule above is `metric == 1`, and an absent metric yields no
+      // series — so none of them can fire when the target is simply
+      // unreachable. TargetDown is deliberately excluded for job="comin"
+      // (laptops sleep), which removes the only other signal. Without a
+      // reachability rule a permanently-broken comin scrape is completely
+      // silent — the exact failure class this whole effort exists to
+      // eliminate.
+      //
+      // `up == 0` only carries that meaning for the always-on machines.
+      // A single rule with a `for` long enough to cover a laptop paged every
+      // night instead: eachtrai was unscrapable for 76% of a measured
+      // three-day window in one 11h night and one 43h stretch, so no
+      // duration separates "asleep" from "broken" there. The two classes get
+      // the signal that is true for them.
+      alerts.rule(
+        'CominTargetUnreachable',
+        'up{job="comin", instance=~"%s"} == 0' % cominInstances(true),
+        '30m', 'warning',
+        'comin metrics unreachable on {{ $labels.instance }} for 30m',
+        'Prometheus cannot scrape the comin exporter on an always-on lab machine. Every other Comin* alert is blind while this is true, so a deploy failure here would go unnoticed. Check host reachability over the LAN and that the exporter is listening on a routable address.',
+      ),
+      alerts.rule(
+        'CominTargetStale',
+        'max_over_time(up{job="comin", instance=~"%s"}[7d]) == 0' % cominInstances(false),
+        '1h', 'warning',
+        'comin metrics stale on {{ $labels.instance }} for 7d',
+        'A roaming machine has not been scraped successfully once in seven days: either it has been off that whole time or its exporter is broken. Either way every other Comin* alert is blind for it, so a deploy failure would go unnoticed. Expect this after a long trip; otherwise check tailscale reachability and the exporter.',
+      ),
+      // Replaces CominNeedToReboot, which fired on comin_need_to_reboot at
+      // severity info and said only "a deployment is pending a reboot". That
+      // names no cause, so there is nothing to act on and nothing to judge
+      // urgency by: saoiste ran a four-day-old kernel (2026-09-08 to
+      // 2026-09-12) behind exactly that message, delivered and ignored.
+      //
+      // nixos_reboot_required carries both kernel versions as labels
+      // (role/node-exporter.nix), so the notification can state the actual
+      // difference and what it costs. Warning, not info: a reboot is manual
+      // work only the operator can do, and info is one inhibit rule away from
+      // being swallowed entirely.
+      alerts.rule(
+        'OutdatedKernelNeedsReboot',
+        'nixos_reboot_required == 1',
+        '1h', 'warning',
+        '{{ $labels.instance }} is running an outdated kernel - reboot to pick it up',
+        '{{ $labels.instance }} booted kernel {{ $labels.booted_kernel }} but its deployed configuration ships {{ $labels.current_kernel }} ({{ $labels.reason }} differs). Config changes deploy live; a kernel cannot, so this needs a manual reboot and will not clear on its own. Until then the machine runs the older kernel and misses its security fixes.',
+      ),
+    ]),
+    // Journal-based systemd failure signals — the correct coverage for the
+    // oneshot/flapping class that a `for: 5m` metric rule can't see (the
+    // mailsort finding). Delivered as a ConfigMap the Loki ruler sidecar
+    // watches; requires the ruler wiring (alertmanager_url etc).
+    journalLokiRule: alerts.lokiRule('journal', ns, [
+      // Loki alerting rules must be METRIC queries -- a bare log selector
+      // loads fine but every evaluation fails with "rule result is not a
+      // vector or scalar", so the rule shows inactive forever while the
+      // ruler logs an error each cycle (found 2026-09-04 via LogErrorRate
+      // firing on loki's own log -- the pipeline reporting its broken rule).
+      alerts.rule(
+        'JournalUnitFailure',
+        // > 2 in 15m, not > 0 in 5m: mailsort (1-min timer, ~1440 IMAP
+        // logins/day) hits a transient Fastmail disconnect ~0.1% of runs and
+        // self-heals on the next tick; a single blip paged twice on
+        // 2026-09-05.
+        //
+        // One line per failure: systemd logs BOTH "Failed to start X" and
+        // "X: Failed with result" for the same event, so matching all three
+        // phrases counted every failure twice and `> 2` really tripped at two
+        // failures, not the three the description promised.
+        //
+        // The `for` is what makes the threshold mean "sustained": the count
+        // has to stay above three across the whole of it, and since the
+        // window only holds 15m of history that requires failures to keep
+        // arriving. A burst instead decays out and clears.
+        //
+        // 20m, not 15m, because a burst holds the count up for nearly a whole
+        // window on its own: replaying this expression over the three
+        // failures of 2026-09-07 01:08-01:10 (a Fastmail outage that paged
+        // under the old rule) leaves it above threshold from 01:10 to 01:23 --
+        // 14 minutes, one short of a 15m `for`. 20m clears that by five
+        // minutes while a unit that keeps failing still pages ~23 minutes in.
+        // Grouped on the unit the message is ABOUT (about_unit), falling back
+        // to the emitting unit for a service that logs one of these phrases
+        // itself. Grouping on `unit` alone named PID 1 for every systemd-side
+        // failure, so a page said "init.scope" whatever had actually broken.
+        'sum by (host, failing_unit) (count_over_time({job="systemd-journal"} |~ "entered failed state|Failed with result" | label_format failing_unit=`{{ if .about_unit }}{{ .about_unit }}{{ else }}{{ .unit }}{{ end }}` [15m])) > 2',
+        '20m', 'warning',
+        'Systemd unit repeatedly failing on {{ $labels.host }}',
+        'Unit {{ $labels.failing_unit }} on {{ $labels.host }} has failed 3+ times in every 15m window for the last 20 minutes -- sustained, not a blip. Details: query the journal stream in Loki.',
+      ),
+      // Liveness, not failure: JournalUnitFailure can't see a run that never
+      // finishes. A mailsort run hung in activating for 4.6 days from
+      // 2026-09-25 -- no failure line, no alert, no sorting, since a oneshot
+      // still activating blocks its timer. Keyed on the success line, so any
+      // stall (hang, stopped timer, broken deploy) fires, whatever the cause.
+      //
+      // about_unit, not unit: systemd logs "Finished ..." from PID 1, so
+      // `unit` is init.scope. Replayed against Loki before shipping: 1 from
+      // 2026-09-26 00:00 through the fix, empty on either side and in every
+      // other window since about_unit landed on 2026-09-07.
+      //
+      // 15m + 15m `for`: a run finishes every ~minute, so this pages after
+      // ~30 minutes of no sorting. A Fastmail outage that long pages too,
+      // which is correct -- mail is not being sorted.
+      alerts.rule(
+        'MailsortStale',
+        'absent_over_time({job="systemd-journal", host="nuc", about_unit="mailsort.service"} |= "Finished" [15m])',
+        '15m', 'warning',
+        'mailsort has not completed a run on nuc for 30m',
+        'No successful mailsort.service run on nuc for 30 minutes, so incoming mail is not being sorted. Check `systemctl status mailsort.service` on nuc: a run stuck in activating, a failing run, or a stopped timer.',
+      ),
+      // The canonical-vocabulary guard for host sources — the counterpart of
+      // ParseCoverage, which only covers pod logs. Catches the fault class
+      // where a host shipper runs a stale pipeline (found 2026-09-03: nas
+      // deployed new relabel config but alloy kept the old process, emitting
+      // `notice` — valid-looking, non-canonical, and invisible to every other
+      // alert).
+      alerts.rule(
+        'JournalNonCanonicalLevel',
+        'sum by (host) (count_over_time({job="systemd-journal", level!~"debug|info|warn|error|fatal|unknown"}[15m])) > 0',
+        '15m', 'warning',
+        'Non-canonical journal levels from {{ $labels.host }}',
+        'A host is shipping journal lines with levels outside the canonical vocabulary — its log pipeline is running a stale or divergent config. Compare the deployed generation with the shipper process start time.',
+      ),
+      // level="error", not "err": the canonical vocabulary folds journal
+      // priority keywords, so the pre-normalization selector matched nothing
+      // -- nmbd spammed 0.63 err/s for days, 12x threshold, unseen
+      // (found 2026-09-05). The stream-side guard (JournalNonCanonicalLevel)
+      // can't catch a RULE still written against the old vocabulary.
+      alerts.rule(
+        'JournalErrorRate',
+        'sum by (host, unit) (rate({job="systemd-journal",level="error"}[5m])) > 0.05',
+        '10m', 'warning',
+        'Elevated error rate in journal on {{ $labels.host }} ({{ $labels.unit }})',
+        'Error lines are being emitted at > 0.05 lines/s over 5m. Threshold tuned against the real err-line baseline (k3s/NetworkManager emit err lines routinely).',
+      ),
+    ]),
+    // Log-based rules — all require Phase 1's normalized `level` label, hence
+    // after the normalization pipeline. Thresholds are starting points tuned
+    // against the Phase 0 volume baseline.
+    logErrorLokiRule: alerts.lokiRule('log-error-rate', ns, [
+      // Scoped to pod logs: journal streams carry no namespace/container, so
+      // an unscoped selector aggregates them into a nameless "/" group
+      // (notified as "Elevated error rate in /" on 2026-09-04). Journal
+      // errors have their own JournalErrorRate rule.
+      alerts.rule(
+        'LogErrorRate',
+        'sum by (namespace, container) (count_over_time({container=~".+", level="error"}[5m])) > 5',
+        '10m', 'warning',
+        'Elevated error rate in {{ $labels.namespace }}/{{ $labels.container }}',
+        'More than 5 error-level lines per 5m sustained for 10m.',
+      ),
+      // A fraction, not an absolute count: an absolute threshold silently
+      // changes meaning every time ingest volume moves. Scoped by
+      // `container` because only pod logs go through loki.process — journal
+      // and syslog get their level at relabel time instead.
+      alerts.rule(
+        'ParseCoverage',
+        'sum(count_over_time({container=~".+", level="unknown"}[15m])) / sum(count_over_time({container=~".+"}[15m])) > 0.2',
+        '15m', 'warning',
+        'Over 20% of pod log lines have no parsed level',
+        'The level parsers are missing a fifth of pod log lines — a new app, or a format that changed under an existing selector. Check lib/logformats.libsonnet.',
+      ),
+    ]),
+    // Absence needs absent_over_time, NOT `count_over_time(...) == 0`: when a
+    // stream stops entirely the aggregation returns NO series, and an empty
+    // vector never compares equal to 0, so the count form can never fire.
+    // absent_over_time takes a single selector, hence one rule per stream.
+    logAbsenceLokiRule: alerts.lokiRule('log-absence', ns, [
+      alerts.rule(
+        'LogAbsence' + std.asciiUpper(w[0:1]) + w[1:],
+        'absent_over_time({namespace="%s"}[1h])' % w,
+        '30m', 'warning',
+        'No logs from ' + w + ' for 1h',
+        'The ' + w + ' log stream has gone silent — a dead service, or a broken log pipeline.',
+      )
+      // Only streams with a guaranteed baseline belong here. blocky is
+      // deliberately absent: Phase 0 turned its queryLog off, so a healthy
+      // blocky logs nothing for hours and an absence rule just flaps
+      // (observed 2026-09-03: fired 15:51, resolved 16:16, fired 18:43).
+      // Its liveness signal is metrics -- see BlockyDown in the blocky block.
+      for w in ['traefik', 'argocd', 'monitoring']
+    ] + [
+      alerts.rule(
+        'JournalAbsence' + std.asciiUpper(h[0:1]) + h[1:],
+        'absent_over_time({job="systemd-journal", host="%s"}[1h])' % h,
+        '30m', 'warning',
+        'No journal from ' + h + ' for 1h',
+        'Host ' + h + ' has shipped no journal lines for an hour. This is the signal that was missing when nas went dark for 32 days.',
+      )
+      for h in ['nuc', 'nas']
+    ]),
+    // Kubernetes events. Level normalization does not apply here (events are
+    // not pod logs), so this matches on content. Deliberately matches the bare
+    // word rather than `type=Warning`: over-matching surfaces an extra event,
+    // under-matching reinstates the blind spot.
+    eventsLokiRule: alerts.lokiRule('k8s-events', ns, [
+      alerts.rule(
+        'K8sEventWarning',
+        'sum by (namespace) (count_over_time({job="loki.source.kubernetes_events.cluster"} |= "Warning" [5m])) > 0',
+        '1m', 'warning',
+        'Kubernetes warning events in {{ $labels.namespace }}',
+        'Warning-type events (OOMKill, FailedScheduling, eviction, probe failure) in the last 5m. Details: query the events stream in Loki.',
+      ),
+    ]),
+  },
+
+  // Dead-man switch: self-hosted healthchecks. Expects the always-firing
+  // `Watchdog` alert (routed below) and complains — via ntfy AND Fastmail
+  // SMTP — when the daily ping stops, so a broken notification path can't be
+  // silent. Bootstrapped 2026-09-03: secret in
+  // environments/lab/secrets/healthchecks.enc.yaml (SopsSecret, keys
+  // SECRET_KEY/EMAIL_HOST_USER/EMAIL_HOST_PASSWORD -- envFrom injects key
+  // names as env var names); superuser m@ftzm.org, check
+  // 'alertmanager-watchdog' (25h timeout / 6h grace) with email + ntfy
+  // channels created via Django shell; its UUID is in the Alertmanager
+  // Watchdog receiver below.
+  healthchecks: (function()
+    local hc = selfhosted.new('healthchecks', images.healthchecks, 8000, 'hc.lan.ftzmlab.xyz');
+    hc {
+      deployment+: {
+        spec+: {
+          template+: {
+            spec+: {
+              containers: [
+                hc.deployment.spec.template.spec.containers[0] {
+                  env: [
+                    { name: 'SITE_ROOT', value: 'https://hc.lan.ftzmlab.xyz' },
+                    // Includes the in-cluster service name: Alertmanager's Watchdog
+                    // webhook pings via it, and Django 400s (DisallowedHost)
+                    // anything not listed.
+                    { name: 'ALLOWED_HOSTS', value: 'hc.lan.ftzmlab.xyz,healthchecks.healthchecks.svc.cluster.local' },
+                    { name: 'DEFAULT_FROM_EMAIL', value: 'hc@ftzmlab.xyz' },
+                    // DB selects the engine (unset = sqlite); the path goes
+                    // in DB_NAME.
+                    { name: 'DB_NAME', value: '/config/hc.sqlite' },
+                    { name: 'REGISTRATION_OPEN', value: 'False' },
+                    { name: 'EMAIL_HOST', value: 'smtp.fastmail.com' },
+                    { name: 'EMAIL_PORT', value: '587' },
+                    { name: 'EMAIL_USE_TLS', value: 'True' },
+                  ],
+                  envFrom: [{ secretRef: { name: 'healthchecks' } }],
+                },
+              ],
+            },
+          },
+        },
+      },
+    }
+  )(),
+
+  // Observability stack: Prometheus, Grafana, Loki, Tempo, Alloy
+  monitoring: {
+    local ns = 'monitoring',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    // kube-prometheus-stack: Prometheus + Grafana + Alertmanager
+    prometheusStack: withNamespace(
+      patchTargetDown(helm.template('kube-prometheus-stack', '../../charts/kube-prometheus-stack', {
+        namespace: ns,
+        values: {
+          prometheus: {
+            prometheusSpec: {
+              additionalScrapeConfigs: [
+                nodeScrapeConfig,
+                cominScrapeConfig,
+              ],
+              storageSpec: {
+                volumeClaimTemplate: {
+                  spec: {
+                    storageClassName: 'nfs',
+                    accessModes: ['ReadWriteOnce'],
+                    resources: {
+                      requests: { storage: '20Gi' },
+                    },
+                  },
+                },
+              },
+              retention: '30d',
+              retentionSize: '18GB',
+              // Discover all ServiceMonitors/PodMonitors, not just those with release label
+              podMonitorSelectorNilUsesHelmValues: false,
+              serviceMonitorSelectorNilUsesHelmValues: false,
+            },
+          },
+          alertmanager: {
+            config: {
+              global: {
+                resolve_timeout: '5m',
+              },
+              inhibit_rules: [
+                {
+                  equal: ['namespace', 'alertname'],
+                  source_matchers: ['severity = critical'],
+                  target_matchers: ['severity =~ warning|info'],
+                },
+                {
+                  equal: ['namespace', 'alertname'],
+                  source_matchers: ['severity = warning'],
+                  target_matchers: ['severity = info'],
+                },
+                {
+                  equal: ['namespace'],
+                  source_matchers: ['alertname = InfoInhibitor'],
+                  target_matchers: ['severity = info'],
+                },
+                {
+                  target_matchers: ['alertname = InfoInhibitor'],
+                },
+              ],
+              receivers: [
+                { name: 'null' },
+                {
+                  name: 'ntfy',
+                  webhook_configs: [{
+                    url: 'http://ntfy.ntfy.svc.cluster.local/alerts?template=lab',
+                    send_resolved: true,
+                  }],
+                },
+                {
+                  // Dead-man check: healthchecks pings this UUID daily via the
+                  // always-firing Watchdog route below. MANUAL: paste the real
+                  // UUID after creating the check in the healthchecks UI.
+                  name: 'healthchecks',
+                  webhook_configs: [{
+                    url: 'http://healthchecks.healthchecks.svc.cluster.local:8000/ping/69f80353-4a42-4e4b-a152-59324c9c0d8b',
+                  }],
+                },
+              ],
+              route: {
+                group_by: ['namespace'],
+                group_interval: '5m',
+                group_wait: '30s',
+                receiver: 'ntfy',
+                repeat_interval: '12h',
+                routes: [
+                  {
+                    matchers: ['alertname = "Watchdog"'],
+                    receiver: 'healthchecks',
+                    repeat_interval: '24h',
+                  },
+                  // Plumbing alert: it exists solely as an inhibition source
+                  // for severity=info alerts and must never notify. The root
+                  // receiver here is ntfy (the chart's is 'null'), so it needs
+                  // an explicit null route; the bare `target_matchers:
+                  // alertname = InfoInhibitor` inhibit rule does not hold it
+                  // (delivered to ntfy twice on 2026-09-05).
+                  {
+                    matchers: ['alertname = "InfoInhibitor"'],
+                    receiver: 'null',
+                  },
+                  // Host/infra alerts carry no namespace label, so the default
+                  // namespace grouping lumps them into one {} group where any
+                  // membership change re-notifies everything in it
+                  // (CominDeploymentFailed notified 6x in 2h on 2026-09-03).
+                  // Group per alert+host instead so each fires independently
+                  // and repeats on its own 12h clock.
+                  {
+                    matchers: ['alertname =~ "Comin.*|Journal.*|CriticalUnit.*|K8sEvent.*|NodeSystemd.*"'],
+                    receiver: 'ntfy',
+                    group_by: ['alertname', 'instance', 'host'],
+                    group_wait: '30s',
+                    group_interval: '30m',
+                    repeat_interval: '12h',
+                  },
+                ],
+              },
+              templates: ['/etc/alertmanager/config/*.tmpl'],
+            },
+            alertmanagerSpec: {
+              storage: {
+                volumeClaimTemplate: {
+                  spec: {
+                    storageClassName: 'nfs',
+                    accessModes: ['ReadWriteOnce'],
+                    resources: {
+                      requests: { storage: '1Gi' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          grafana: {
+            admin: {
+              existingSecret: 'grafana-admin',
+              userKey: 'admin-user',
+              passwordKey: 'admin-password',
+            },
+            persistence: {
+              enabled: true,
+              storageClassName: 'nfs',
+              size: '1Gi',
+            },
+            additionalDataSources: [
+              {
+                name: 'Loki',
+                type: 'loki',
+                url: 'http://loki-gateway.monitoring.svc.cluster.local:80',
+                access: 'proxy',
+              },
+              {
+                name: 'Tempo',
+                type: 'tempo',
+                uid: 'tempo',
+                url: 'http://tempo.monitoring.svc.cluster.local:3100',
+                access: 'proxy',
+              },
+            ],
+            'grafana.ini': {
+              security: {
+                allow_embedding: true,
+                cookie_samesite: 'lax',
+              },
+              'auth.anonymous': {
+                enabled: true,
+                org_role: 'Viewer',
+              },
+            },
+            ingress: { enabled: false },
+            sidecar: {
+              dashboards: { enabled: true, searchNamespace: 'ALL' },
+              datasources: { enabled: true },
+            },
+          },
+          // Disable components not accessible in homelab k8s
+          kubeEtcd: { enabled: false },
+          kubeControllerManager: { enabled: false },
+          kubeScheduler: { enabled: false },
+          kubeProxy: { enabled: false },
+          // Fix node-exporter mount propagation issue
+          'prometheus-node-exporter': {
+            hostRootFsMount: {
+              enabled: false,
+            },
+          },
+          // Disabled alerts for homelab
+          // See values.yaml defaultRules.disabled for mechanism
+          defaultRules: {
+            disabled: {
+              // Cluster is too small to tolerate node failure.
+              KubeMemoryOvercommit: true,
+              // Tailscale creates a WireGuard interface (wg0) whose kernel module
+              // does not populate standard Linux network error/packet counters.
+              // node_exporter reads these bogus counters, producing +Inf error
+              // ratios (errors / 0 packets = +Inf). Not a real network issue.
+              NodeNetworkTransmitErrs: true,
+            },
+          },
+        },
+      })),
+      ns
+    ),
+
+    // The alloy chart's ClusterRole covers pods/services/endpoints/ingresses
+    // but not events, so loki.source.kubernetes_events would be RBAC-forbidden
+    // and silently collect nothing. Granted separately rather than forked into
+    // the vendored chart, so a chart bump can't drop it.
+    alloyEventsClusterRole: {
+      apiVersion: 'rbac.authorization.k8s.io/v1',
+      kind: 'ClusterRole',
+      metadata: { name: 'alloy-events' },
+      rules: [{
+        apiGroups: [''],
+        resources: ['events'],
+        verbs: ['get', 'list', 'watch'],
+      }],
+    },
+    alloyEventsClusterRoleBinding: {
+      apiVersion: 'rbac.authorization.k8s.io/v1',
+      kind: 'ClusterRoleBinding',
+      metadata: { name: 'alloy-events' },
+      roleRef: {
+        apiGroup: 'rbac.authorization.k8s.io',
+        kind: 'ClusterRole',
+        name: 'alloy-events',
+      },
+      subjects: [{ kind: 'ServiceAccount', name: 'alloy', namespace: ns }],
+    },
+
+    // Loki: Log aggregation (monolithic mode)
+    loki: withNamespace(
+      helm.template('loki', '../../charts/loki', {
+        namespace: ns,
+        values: {
+          deploymentMode: 'SingleBinary',
+          loki: {
+            auth_enabled: false,
+            commonConfig: { replication_factor: 1 },
+            storage: { type: 'filesystem' },
+            schemaConfig: {
+              configs: [{
+                from: '2024-01-01',
+                store: 'tsdb',
+                object_store: 'filesystem',
+                schema: 'v13',
+                index: { prefix: 'index_', period: '24h' },
+              }],
+            },
+            limits_config: {
+              // 90d now that Phase 0 cut ingested volume ~100x (was 720h when
+              // the storage-test/traefik/blocky noise forced it).
+              retention_period: '2160h',
+            },
+            // Ruler wired for alert delivery. The sidecar (chart default,
+            // sidecar.rules.enabled) watches ConfigMaps labeled `loki_rule`
+            // into /rules; the ruler must read from that same dir and know
+            // where Alertmanager lives. Without alertmanager_url, rules that
+            // fire notify nobody (the mailsort-class silent failure).
+            // enable_alertmanager_v2 uses the v2 API — without it delivery
+            // fails silently. wal is re-stated because this object replaces
+            // the chart's rulerConfig default.
+            rulerConfig: {
+              alertmanager_url: 'http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093',
+              enable_alertmanager_v2: true,
+              wal: { dir: '/var/loki/ruler-wal' },
+              storage: {
+                type: 'local',
+                'local': { directory: '/rules' },
+              },
+            },
+            compactor: {
+              retention_enabled: true,
+              delete_request_store: 'filesystem',
+            },
+          },
+          singleBinary: {
+            replicas: 1,
+            persistence: {
+              enabled: true,
+              storageClass: 'nfs',
+              size: '20Gi',
+            },
+          },
+          backend: { replicas: 0 },
+          read: { replicas: 0 },
+          write: { replicas: 0 },
+          gateway: {
+            enabled: true,
+            replicas: 1,
+            service: {
+              type: 'NodePort',
+              nodePort: 30100,
+            },
+          },
+          // Right-sized for this cluster. The chart defaults assume Loki is
+          // fronting a large object store; here it is SingleBinary on a 20Gi
+          // filesystem volume, so the chunk cache's default 8192MB ceiling was
+          // 40% the size of the entire dataset.
+          //
+          // The chart requests round(allocatedMemory * 1.2) from Kubernetes
+          // (memcached/_memcached-statefulset.tpl), so the defaults reserved
+          // 9830Mi + 1229Mi = ~11GB — 96% of every memory request on the node
+          // — to hold 181Mi and 4Mi respectively after 171 days. Requests
+          // drive scheduling, so that was held unavailable rather than merely
+          // unused.
+          //
+          // These still leave roughly 5x headroom on chunks and far more on
+          // results. Raise them if either cache starts evicting.
+          chunksCache: { allocatedMemory: 1024 },
+          resultsCache: { allocatedMemory: 256 },
+          minio: { enabled: false },
+          test: { enabled: false },
+          lokiCanary: { enabled: false },
+        },
+      }),
+      ns
+    ),
+
+    // Tempo: Distributed tracing
+    tempo: withNamespace(
+      helm.template('tempo', '../../charts/tempo', {
+        namespace: ns,
+        values: {
+          tempo: {
+            retention: '336h',  // 14 days (Tempo recommended default)
+            receivers: {
+              otlp: {
+                protocols: {
+                  grpc: { endpoint: '0.0.0.0:4317' },
+                  http: { endpoint: '0.0.0.0:4318' },
+                },
+              },
+            },
+          },
+          persistence: {
+            enabled: true,
+            storageClassName: 'nfs',
+            size: '10Gi',
+          },
+        },
+      }),
+      ns
+    ),
+
+    // Alloy: Unified collector for logs and traces
+    alloy: withNamespace(
+      helm.template('alloy', '../../charts/alloy', {
+        namespace: ns,
+        values: {
+          alloy: {
+            // The chart defaults storagePath to /tmp/alloy and mounts nothing
+            // there ("By default, data is lost between reboots" -- upstream
+            // values.yaml). Both log sources checkpoint under this path, so on
+            // an ephemeral path every pod restart loses their read offsets and
+            // they re-ship days of already-ingested logs, which Loki then
+            // rejects with 400 "entry too far behind". Back it with a hostPath
+            // so offsets survive a restart.
+            storagePath: '/var/lib/alloy',
+            // friendlywrt sends its syslog (tcp) to this hostPort. The
+            // daemonset's nodeAffinity is `hostname NotIn [friendlywrt]` (see
+            // below), so alloy runs on every other node and each binds 5140 on
+            // its own host; friendlywrt dials nuc's LAN address specifically.
+            // TCP, not UDP — UDP syslog drops silently under loss.
+            // `port` is the Service port: the chart copies extraPorts into the
+            // ClusterIP Service, where a null port is rejected by the API
+            // server (spec.ports[].port must be 1-65535) and the whole ArgoCD
+            // sync fails.
+            extraPorts: [{
+              name: 'syslog',
+              port: 5140,
+              targetPort: 5140,
+              hostPort: 5140,
+              protocol: 'TCP',
+            }],
+            mounts: {
+              extra: [
+                { name: 'journal', mountPath: '/var/log/journal', readOnly: true },
+                { name: 'machine-id', mountPath: '/etc/machine-id', readOnly: true },
+                { name: 'storage', mountPath: '/var/lib/alloy' },
+              ],
+            },
+            configMap: {
+              content: |||
+                // Discover all pods
+                discovery.kubernetes "pods" {
+                  role = "pod"
+                }
+
+                // Relabel to extract useful Kubernetes labels
+                discovery.relabel "pods" {
+                  targets = discovery.kubernetes.pods.targets
+
+                  // Keep only running pods
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_phase"]
+                    regex         = "Pending|Succeeded|Failed|Completed"
+                    action        = "drop"
+                  }
+
+                  // Set namespace label
+                  rule {
+                    source_labels = ["__meta_kubernetes_namespace"]
+                    target_label  = "namespace"
+                  }
+
+                  // Set pod label
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_name"]
+                    target_label  = "pod"
+                  }
+
+                  // Set container label
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_container_name"]
+                    target_label  = "container"
+                  }
+
+                  // Set node label
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_node_name"]
+                    target_label  = "node"
+                  }
+
+                  // Set app label from pod labels (common conventions)
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_label_app"]
+                    target_label  = "app"
+                  }
+                  rule {
+                    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+                    target_label  = "app"
+                  }
+                }
+
+                // Collect logs from pods
+                loki.source.kubernetes "pods" {
+                  targets    = discovery.relabel.pods.output
+                  forward_to = [loki.process.default.receiver]
+                }
+              ||| + logformats.renderProcess() + |||
+
+                // Collect host journal logs
+                loki.source.journal "host" {
+                  path          = "/var/log/journal"
+                  relabel_rules = discovery.relabel.journal.rules
+                  forward_to    = [loki.write.default.receiver]
+                  labels        = { job = "systemd-journal" }
+                }
+
+              ||| + logformats.hostRelabel('journal', '__journal_priority_keyword', [
+                ['__journal__systemd_unit', 'unit'],
+                // systemd's own messages about a unit ("mailsort.service:
+                // Failed with result") are logged by PID 1, so _SYSTEMD_UNIT
+                // is init.scope and `unit` above names the messenger, not the
+                // subject. The UNIT= field carries the subject; without it
+                // every unit failure on a host pages as "init.scope"
+                // (observed 2026-09-07: a mailsort crash paged as init.scope).
+                ['__journal_unit', 'about_unit'],
+                ['__journal__hostname', 'host'],
+                ['__journal_syslog_identifier', 'syslog_identifier'],
+              ], { job: 'systemd-journal' }) + |||
+
+                // friendlywrt (OpenWrt) host syslog over TCP. Collected here
+                // because OpenWrt has no systemd/journal — this is the only
+                // visibility into the k3s agent / sysntpd / firewall on that
+                // box (the NodeClockNotSynchronising incident's host).
+                loki.source.syslog "friendlywrt" {
+                  listener {
+                    address  = "0.0.0.0:5140"
+                    protocol = "tcp"
+                    // labels is a listener-block attribute; at component level
+                    // alloy rejects it ("unrecognized attribute name") and the
+                    // whole config fails to load.
+                    labels   = { job = "syslog", host = "friendlywrt" }
+                  }
+                  relabel_rules = discovery.relabel.syslog.rules
+                  forward_to    = [loki.write.default.receiver]
+                }
+
+                // Same canonical level vocabulary as the journal and the pod
+                // pipeline — otherwise friendlywrt logs arrive with no level at
+                // all and are invisible to both level-based alerts and the
+                // ParseCoverage guard.
+              ||| + logformats.hostRelabel('syslog', '__syslog_message_severity', [
+                ['__syslog_message_app_name', 'syslog_identifier'],
+              ], { job: 'syslog', host: 'friendlywrt' }) + |||
+
+
+                // Kubernetes events (OOMKill, FailedScheduling, evictions) —
+                // today's biggest blind spot. The alloy chart's ClusterRole
+                // grants NO events access (verified: zero `events` rules in
+                // charts/alloy/templates/rbac.yaml), so the supplementary
+                // ClusterRole below is what makes this component work at all.
+                loki.source.kubernetes_events "cluster" {
+                  forward_to = [loki.write.default.receiver]
+                }
+
+                // Write logs to Loki
+                loki.write "default" {
+                  endpoint {
+                    url = "http://loki-gateway.monitoring.svc.cluster.local:80/loki/api/v1/push"
+                  }
+                }
+
+                // OTLP receiver for traces from instrumented apps
+                otelcol.receiver.otlp "default" {
+                  grpc { endpoint = "0.0.0.0:4317" }
+                  http { endpoint = "0.0.0.0:4318" }
+                  output {
+                    traces = [otelcol.processor.batch.default.input]
+                  }
+                }
+
+                // Batch processor for better performance
+                otelcol.processor.batch "default" {
+                  output {
+                    traces = [otelcol.exporter.otlp.tempo.input]
+                  }
+                }
+
+                // Export traces to Tempo
+                otelcol.exporter.otlp "tempo" {
+                  client {
+                    endpoint = "tempo.monitoring.svc.cluster.local:4317"
+                    tls { insecure = true }
+                  }
+                }
+              |||,
+            },
+          },
+          controller: {
+            type: 'daemonset',
+            volumes: {
+              extra: [
+                { name: 'journal', hostPath: { path: '/var/log/journal', type: 'Directory' } },
+                { name: 'machine-id', hostPath: { path: '/etc/machine-id', type: 'File' } },
+                // Per-node, matching the DaemonSet: each node's offsets track
+                // that node's own pods and journal.
+                { name: 'storage', hostPath: { path: '/var/lib/alloy', type: 'DirectoryOrCreate' } },
+              ],
+            },
+            affinity: {
+              nodeAffinity: {
+                requiredDuringSchedulingIgnoredDuringExecution: {
+                  nodeSelectorTerms: [{
+                    matchExpressions: [{
+                      key: 'kubernetes.io/hostname',
+                      operator: 'NotIn',
+                      values: ['friendlywrt'],
+                    }],
+                  }],
+                },
+              },
+            },
+          },
+          serviceAccount: { create: true },
+          rbac: { create: true },
+        },
+      }),
+      ns
+    ),
+
+    // Sealed secret for Grafana admin credentials
+    grafanaAdminSecret: {
+      apiVersion: 'bitnami.com/v1alpha1',
+      kind: 'SealedSecret',
+      metadata: {
+        name: 'grafana-admin',
+        namespace: ns,
+      },
+      spec: {
+        encryptedData: {
+          'admin-password': 'AgBLDxlOgkWRdht/nC5yG9qVhvXkL9c8uuQM+noyKPz+Owg2DorZ7OyOCD6NVW7Nw8MZjq0z3yw8VJA/DfCOWWEpj2lA3SDHb2xKHwbdhOcGtok3acVf1lePDi5MDg/hJLEX2m2W/3hxJ6F7OV9EVI1Y+dTeEdKjYkmGewWvO/v5SMtsrPqm+nhbif1WKPPRmzBZkKtHtwMBipunzmR6x1Zf1O9Pne3AQPVzDdBVTQcy0o+/TvKhO85LefO475hX8Uj/j2DzscCGAMbdf5dGhvK+E+ZnuvrfHABN2f+dguOOnZH3zPA8TukWadpM5aN5XQOh5wgRZbNhhDOMI8UHgHLPP7AGm9dp7b7cD4BoDL43OsgL8VognXjfFER/g6e0mkeZMO/ocdTJE/NUjq3LKFUt0k4sok64jnDf9yVPNe0k2etQuRQjC1u6RGvu0HndeVwh7MtXKAQr1fVsaYW5rtGrfFgOusKi/o+qJquRA+/iBf+eF1zAaSB35DpxZl0nVc3lsD6IJsze543nDhvGT7+JRBc6R2ghNIdKoyGpI8IKHK0VH/4tC97NnwcPPH9OdiyraE3ZbzrP9dPmGmM8YSh3BpEGNPY0oo6C7gWJZ8IeqchbIhOz6Cc2UZVw6e/av2FgGfgPYCxhdEnk9kaMgSKzwIeV57TLMPIZ6mL+NiqD4U+knBxK/b2GOzmRzvJTrGR56JpY0HWrcNIKBQIDTXuge6RF1W0UJnp7e6EHpHR2lQ==',
+          'admin-user': 'AgBbt9wXLlI8Kjh5YAoHiutyr26U7zuCXc6VpmLu5l3OCM9mKif/TwMb9do6BjPMIoiTsq1jQHsH/N4E16mxR0iht6Awwu7rUgxtlY1zCNQVddXev89AW/yn/+o2W55id14Xig8pOngVA1VNKo9bQCyWKdXNEc2l1IMXEx9Q6uenfGSsdkIrUIY64LkegWvQHSDoj8HTLE8MwCvUcelKNDSmU5QOETjmrpe0oBaWxizbQ+cs3x9uD4b1coS5c3QxjJ32GL89fE4Cx3cOLFa2co44hi+3SUR3yRprGEAbgF9ylWkZ5R3bXvFmDRMKA0gSQnozB0G+RaC/Plvu3/4gYU7A1iKXfnfBzd45ssxrFmzuOZw4tiyftC3rCB8tn2mFYMFHfUvlUYsyWJHjtSaMrt2kBo15kAbkM256L2Oa9qlvQ+V/yCniybunKFB1x2DrBnPCRRWQsnE2/CYvodicIjLogcIKz3yk1vbPoZqoMIgmfa9JifHNQlyOCrtb+Vz4XZf2gOtfildL95YiZWPCsXrMmY9s43xI+dMGeSWOZXICZP8aCakqS+3tobhyyw/OBv4lAPv65QtT72GuzvhlbjLcNqLmG6QdoghW0LHlNKRfb4k3fnV0t38/wKQYiLRyGJfH4lIpWRiyba+ALGPBadJdPIWnbOSgKTSVAB570CiANJl7ZcbyZrlgJUdgU6dxfql5CgZvCg==',
+        },
+        template: {
+          metadata: {
+            name: 'grafana-admin',
+            namespace: ns,
+          },
+        },
+      },
+    },
+
+    // Traefik IngressRoute for Loki (private only, for NAS Promtail)
+    lokiIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: {
+        name: 'loki',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`loki.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{
+            name: 'loki-gateway',
+            port: 80,
+          }],
+        }],
+        tls: {},
+      },
+    },
+
+    // Traefik IngressRoute for Grafana (private/WireGuard only)
+    grafanaIngress: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: {
+        name: 'grafana',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`grafana.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{
+            name: 'kube-prometheus-stack-grafana',
+            port: 80,
+          }],
+        }],
+        tls: {},
+      },
+    },
+
+  },
+
+  // Homepage: unified dashboard with service links and Prometheus metrics
+  homepage: {
+    local ns = 'homepage',
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    resources: withNamespace(
+      helm.template('homepage', '../../charts/homepage', {
+        namespace: ns,
+        values: {
+          enableRbac: true,
+          serviceAccount: { create: true },
+          env: [
+            { name: 'HOMEPAGE_ALLOWED_HOSTS', value: 'home.lan.ftzmlab.xyz' },
+          ],
+          envFrom: [
+            { secretRef: { name: 'homepage-api-keys' } },
+          ],
+          config: {
+            bookmarks: [],
+            kubernetes: { mode: 'cluster' },
+            docker: {},
+            settingsString: |||
+              title: ftzmlab
+              theme: dark
+              color: slate
+              headerStyle: clean
+              layout:
+                Cluster:
+                  style: row
+                  columns: 6
+                Media:
+                  style: row
+                  columns: 4
+                Apps:
+                  style: row
+                  columns: 3
+                Infrastructure:
+                  style: row
+                  columns: 3
+            |||,
+            widgets: [],
+            local promWidget(label, query, format='number') = {
+              widget: {
+                type: 'prometheusmetric',
+                url: 'http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090',
+                refreshInterval: 30000,
+                metrics: [{
+                  label: label,
+                  query: query,
+                  format: { type: format },
+                }],
+              },
+            },
+            services: [
+              {
+                Cluster: [
+                  { CPU: promWidget(
+                    'Cluster',
+                    '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
+                    'percent',
+                  ) },
+                  { Memory: promWidget(
+                    'Cluster',
+                    '100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))',
+                    'percent',
+                  ) },
+                  { 'NFS Pool': promWidget(
+                    'Used',
+                    '100 * (1 - node_filesystem_avail_bytes{instance="nas",mountpoint="/pool-1"} / node_filesystem_size_bytes{instance="nas",mountpoint="/pool-1"})',
+                    'percent',
+                  ) },
+                  { 'Unhealthy Pods': promWidget(
+                    'Count',
+                    'count(kube_pod_status_phase{phase!="Running",phase!="Succeeded"} == 1) or vector(0)',
+                  ) },
+                  { 'Pod Restarts': promWidget(
+                    'Last Hour',
+                    'floor(sum(increase(kube_pod_container_status_restarts_total[1h])))',
+                  ) },
+                  { 'Firing Alerts': promWidget(
+                    'Active',
+                    'count(ALERTS{alertstate="firing",alertname!="Watchdog"}) or vector(0)',
+                  ) },
+                ],
+              },
+              {
+                Media: [
+                  {
+                    Radarr: {
+                      href: 'https://radarr.lan.ftzmlab.xyz',
+                      icon: 'radarr',
+                      ping: 'https://radarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'radarr',
+                        url: 'http://radarr.media.svc.cluster.local:7878',
+                        key: '{{HOMEPAGE_VAR_RADARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Sonarr: {
+                      href: 'https://sonarr.lan.ftzmlab.xyz',
+                      icon: 'sonarr',
+                      ping: 'https://sonarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'sonarr',
+                        url: 'http://sonarr.media.svc.cluster.local:8989',
+                        key: '{{HOMEPAGE_VAR_SONARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Lidarr: {
+                      href: 'https://lidarr.lan.ftzmlab.xyz',
+                      icon: 'lidarr',
+                      ping: 'https://lidarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'lidarr',
+                        url: 'http://lidarr.media.svc.cluster.local:8686',
+                        key: '{{HOMEPAGE_VAR_LIDARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Readarr: {
+                      href: 'https://readarr.lan.ftzmlab.xyz',
+                      icon: 'readarr',
+                      ping: 'https://readarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'readarr',
+                        url: 'http://readarr.media.svc.cluster.local:8787',
+                        key: '{{HOMEPAGE_VAR_READARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Prowlarr: {
+                      href: 'https://prowlarr.lan.ftzmlab.xyz',
+                      icon: 'prowlarr',
+                      ping: 'https://prowlarr.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'prowlarr',
+                        url: 'http://prowlarr.media.svc.cluster.local:9696',
+                        key: '{{HOMEPAGE_VAR_PROWLARR_KEY}}',
+                      },
+                    },
+                  },
+                  {
+                    Jellyseerr: {
+                      href: 'https://jellyseerr.lan.ftzmlab.xyz',
+                      icon: 'jellyseerr',
+                      ping: 'https://jellyseerr.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    Jellyfin: {
+                      href: 'https://jellyfin.ftzmlab.xyz',
+                      icon: 'jellyfin',
+                    },
+                  },
+                ],
+              },
+              {
+                Apps: [
+                  {
+                    Immich: {
+                      href: 'https://img.lan.ftzmlab.xyz',
+                      icon: 'immich',
+                      ping: 'https://img.lan.ftzmlab.xyz',
+                      widget: {
+                        type: 'immich',
+                        url: 'http://immich-server.immich.svc.cluster.local:2283',
+                        key: '{{HOMEPAGE_VAR_IMMICH_KEY}}',
+                        version: 2,
+                      },
+                    },
+                  },
+                  {
+                    Navidrome: {
+                      href: 'https://navidrome.lan.ftzmlab.xyz',
+                      icon: 'navidrome',
+                      ping: 'https://navidrome.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    Audiobookshelf: {
+                      href: 'https://audiobookshelf.lan.ftzmlab.xyz',
+                      icon: 'audiobookshelf',
+                      ping: 'https://audiobookshelf.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    Miniflux: {
+                      href: 'https://miniflux.lan.ftzmlab.xyz',
+                      icon: 'miniflux',
+                      ping: 'https://miniflux.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    Vaultwarden: {
+                      href: 'https://vaultwarden.lan.ftzmlab.xyz',
+                      icon: 'vaultwarden',
+                      ping: 'https://vaultwarden.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    'The Lounge': {
+                      href: 'https://irc.lan.ftzmlab.xyz',
+                      icon: 'thelounge',
+                      ping: 'https://irc.lan.ftzmlab.xyz',
+                    },
+                  },
+                  {
+                    ntfy: {
+                      href: 'https://ntfy.lan.ftzmlab.xyz',
+                      icon: 'ntfy',
+                      ping: 'https://ntfy.lan.ftzmlab.xyz',
+                    },
+                  },
+                ],
+              },
+              {
+                Infrastructure: [
+                  {
+                    ArgoCD: {
+                      href: 'https://argo.lan.ftzmlab.xyz',
+                      icon: 'argocd',
+                    },
+                  },
+                  {
+                    Grafana: {
+                      href: 'https://grafana.lan.ftzmlab.xyz',
+                      icon: 'grafana',
+                    },
+                  },
+                  {
+                    Traefik: {
+                      icon: 'traefik',
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+      ns
+    ),
+
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: {
+        name: 'homepage',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`home.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{
+            name: 'homepage',
+            port: 3000,
+          }],
+        }],
+        tls: {},
+      },
+    },
+  },
+
+  // Blocky: Ad-blocking DNS proxy for Tailscale clients
+  blocky: {
+    local ns = 'blocky',
+    local labels = { 'app.kubernetes.io/name': 'blocky' },
+
+    // Liveness via the long-standing PodMonitor scrape, not log absence --
+    // a healthy blocky is silent (queryLog off). This is the lab's DNS; 5m
+    // of scrape failure is worth a page.
+    prometheusRule: alerts.prometheusRule('blocky', ns, [
+      alerts.rule(
+        'BlockyDown',
+        'up{namespace="blocky"} == 0 or absent(up{namespace="blocky"})',
+        '5m', 'critical',
+        'blocky (lab DNS) is not being scraped',
+        'The blocky metrics endpoint has been unreachable for 5 minutes -- DNS for the whole lab may be down. Check the blocky pod and the PodMonitor.',
+      ),
+    ]),
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    local configData = {
+        'config.yaml': |||
+          # Upstream DNS servers
+          upstreams:
+            groups:
+              default:
+                - 1.1.1.1
+                - 8.8.8.8
+                - 9.9.9.9
+
+          bootstrapDns:
+            - tcp+udp:1.1.1.1
+
+          # Ad-blocking
+          blocking:
+            denylists:
+              ads:
+                - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+                - https://adaway.org/hosts.txt
+                - https://v.firebog.net/hosts/AdguardDNS.txt
+              malware:
+                - https://v.firebog.net/hosts/Prigent-Malware.txt
+            clientGroupsBlock:
+              default:
+                - ads
+                - malware
+            blockType: zeroIp
+            refreshPeriod: 24h
+
+          # Custom DNS mappings
+          customDNS:
+            mapping:
+              lan.ftzmlab.xyz: %(tailscaleIP)s
+
+          # Forward cluster.local to CoreDNS
+          conditional:
+            mapping:
+              cluster.local: 10.43.0.10
+
+          caching:
+            minTime: 5m
+            maxTime: 30m
+            prefetching: true
+
+          ports:
+            dns:
+              - %(publicIP)s:53
+              - %(tailscaleIP)s:53
+              - %(wgIP)s:53
+            http: 4000
+
+          log:
+            level: info
+
+          # Phase 0: query metrics are scraped via the PodMonitor below;
+          # per-query logging is 112k lines/48h of noise.
+          queryLog:
+            type: none
+
+          prometheus:
+            enable: true
+            path: /metrics
+        ||| % {
+          tailscaleIP: config.tailscaleIP,
+          publicIP: config.publicIP,
+          wgIP: config.wgIP,
+        },
+    },
+
+    configmap: k.core.v1.configMap.new('blocky-config')
+      + k.core.v1.configMap.metadata.withNamespace(ns)
+      + k.core.v1.configMap.withData(configData),
+
+    // Pods resolve lan.ftzmlab.xyz through blocky too. Without this, CoreDNS
+    // forwards to whatever /etc/resolv.conf held on nuc when it started: at
+    // boot that is the router, which answers *.ftzmlab.xyz with the public
+    // wildcard IP, so in-cluster clients of lan services hit the WAN address.
+    // Scoped to the lan zone so pod DNS for everything else does not depend
+    // on the blocky pod. k3s's CoreDNS imports *.server keys from this map.
+    corednsCustom: k.core.v1.configMap.new('coredns-custom')
+      + k.core.v1.configMap.metadata.withNamespace('kube-system')
+      + k.core.v1.configMap.withData({
+        'lan.server': |||
+          lan.ftzmlab.xyz:53 {
+            errors
+            cache 30
+            forward . %(publicIP)s
+          }
+        ||| % { publicIP: config.publicIP },
+      }),
+
+    deployment: k.apps.v1.deployment.new('blocky')
+      + k.apps.v1.deployment.metadata.withNamespace(ns)
+      + k.apps.v1.deployment.spec.withReplicas(1)
+      + k.apps.v1.deployment.spec.selector.withMatchLabels(labels)
+      + k.apps.v1.deployment.spec.strategy.withType('Recreate')
+      + k.apps.v1.deployment.spec.template.metadata.withLabels(labels)
+      + k.apps.v1.deployment.spec.template.metadata.withAnnotations({
+        'checksum/config': std.md5(std.toString(configData)),
+      })
+      + k.apps.v1.deployment.spec.template.spec.withHostNetwork(true)
+      + k.apps.v1.deployment.spec.template.spec.withDnsPolicy('ClusterFirstWithHostNet')
+      + k.apps.v1.deployment.spec.template.spec.withNodeSelector({
+        'kubernetes.io/hostname': 'nuc',
+      })
+      + k.apps.v1.deployment.spec.template.spec.withContainers([
+        k.core.v1.container.new('blocky', images.blocky)
+        + k.core.v1.container.withArgs(['--config', '/config/config.yaml'])
+        + k.core.v1.container.withPorts([
+          k.core.v1.containerPort.new(53) + k.core.v1.containerPort.withName('dns-udp') + k.core.v1.containerPort.withProtocol('UDP'),
+          k.core.v1.containerPort.new(53) + k.core.v1.containerPort.withName('dns-tcp') + k.core.v1.containerPort.withProtocol('TCP'),
+          k.core.v1.containerPort.newNamed(4000, 'http'),
+        ])
+        + k.core.v1.container.withVolumeMounts([
+          k.core.v1.volumeMount.new('config', '/config'),
+        ])
+        + k.core.v1.container.readinessProbe.httpGet.withPath('/api/blocking/status')
+        + k.core.v1.container.readinessProbe.httpGet.withPort(4000)
+        + k.core.v1.container.livenessProbe.httpGet.withPath('/api/blocking/status')
+        + k.core.v1.container.livenessProbe.httpGet.withPort(4000),
+      ])
+      + k.apps.v1.deployment.spec.template.spec.withVolumes([
+        k.core.v1.volume.fromConfigMap('config', 'blocky-config'),
+      ]),
+
+    podMonitor: {
+      apiVersion: 'monitoring.coreos.com/v1',
+      kind: 'PodMonitor',
+      metadata: {
+        name: 'blocky',
+        namespace: ns,
+      },
+      spec: {
+        selector: {
+          matchLabels: labels,
+        },
+        podMetricsEndpoints: [{
+          port: 'http',
+          path: '/metrics',
+        }],
+      },
+    },
+  },
+
+  // ntfy: Self-hosted push notification service
+  ntfy: {
+    local ns = 'ntfy',
+    local labels = { 'app.kubernetes.io/name': 'ntfy' },
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    local configData = {
+        'server.yml': |||
+          base-url: "https://ntfy.lan.ftzmlab.xyz"
+          listen-http: ":80"
+          cache-file: "/var/cache/ntfy/cache.db"
+          cache-duration: "12h"
+          auth-default-access: "read-write"
+          # Alertmanager's ?template=alertmanager notifications exceed the 4k
+          # default once a group holds a few alerts; ntfy then 400s
+          # ("message or title is too large after replacing template") and the
+          # whole notification is dropped.
+          message-size-limit: "32k"
+        |||,
+    },
+
+    configmap: k.core.v1.configMap.new('ntfy-config')
+      + k.core.v1.configMap.metadata.withNamespace(ns)
+      + k.core.v1.configMap.withData(configData),
+
+    // Named template for Alertmanager notifications. The stock
+    // ?template=alertmanager rendering prints template artifacts the raw
+    // payload happens to contain -- `Instance: <no value>` when the label is
+    // absent, `Ends at: 0001-01-01` for unresolved alerts -- which made real
+    // alerts read as noise. This one only prints fields that exist.
+    templatesConfigmap: k.core.v1.configMap.new('ntfy-templates')
+      + k.core.v1.configMap.metadata.withNamespace(ns)
+      + k.core.v1.configMap.withData({
+        'lab.yml': |||
+          title: |
+            {{- $n := len .alerts }}
+            {{- $a := index .alerts 0 }}
+            {{- if eq .status "firing" }}🚨 {{ else }}✅ {{ end }}{{ index $a.labels "alertname" }}{{ if gt $n 1 }} (x{{ $n }}){{ end }}{{ if eq .status "resolved" }} resolved{{ end }}
+          message: |
+            {{- range .alerts }}
+            {{- with .annotations.summary }}{{ . }}
+            {{ end }}
+            {{- with .annotations.description }}{{ . }}
+            {{ end }}
+            {{- $parts := list }}
+            {{- with index .labels "host" }}{{ $parts = append $parts . }}{{ end }}
+            {{- with index .labels "instance" }}{{ $parts = append $parts . }}{{ end }}
+            {{- with index .labels "namespace" }}{{ $parts = append $parts . }}{{ end }}
+            {{- with index .labels "container" }}{{ $parts = append $parts . }}{{ end }}
+            {{- with index .labels "unit" }}{{ $parts = append $parts . }}{{ end }}
+            {{- if $parts }}where: {{ join " / " $parts }}
+            {{ end }}
+            {{- end }}
+          priority: |
+            {{- if eq .status "resolved" }}2
+            {{- else if eq (index (index .alerts 0).labels "severity") "critical" }}5
+            {{- else }}3{{ end }}
+        |||,
+      }),
+
+    pvc: k.core.v1.persistentVolumeClaim.new('ntfy-cache')
+      + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
+      + k.core.v1.persistentVolumeClaim.spec.withAccessModes(['ReadWriteOnce'])
+      + k.core.v1.persistentVolumeClaim.spec.resources.withRequests({ storage: '1Gi' })
+      + k.core.v1.persistentVolumeClaim.spec.withStorageClassName('nfs'),
+
+    deployment: k.apps.v1.deployment.new('ntfy')
+      + k.apps.v1.deployment.metadata.withNamespace(ns)
+      + k.apps.v1.deployment.spec.withReplicas(1)
+      + k.apps.v1.deployment.spec.selector.withMatchLabels(labels)
+      + k.apps.v1.deployment.spec.strategy.withType('Recreate')
+      + k.apps.v1.deployment.spec.template.metadata.withLabels(labels)
+      + k.apps.v1.deployment.spec.template.metadata.withAnnotations({
+        'checksum/config': std.md5(std.toString(configData)),
+      })
+      + k.apps.v1.deployment.spec.template.spec.withContainers([
+        k.core.v1.container.new('ntfy', images.ntfy)
+        + k.core.v1.container.withArgs(['serve'])
+        + k.core.v1.container.withPorts([
+          k.core.v1.containerPort.newNamed(80, 'http'),
+        ])
+        + k.core.v1.container.withVolumeMounts([
+          k.core.v1.volumeMount.new('config', '/etc/ntfy'),
+          k.core.v1.volumeMount.new('templates', '/etc/ntfy/templates'),
+          k.core.v1.volumeMount.new('cache', '/var/cache/ntfy'),
+        ]),
+      ])
+      + k.apps.v1.deployment.spec.template.spec.withVolumes([
+        k.core.v1.volume.fromConfigMap('config', 'ntfy-config'),
+        k.core.v1.volume.fromConfigMap('templates', 'ntfy-templates'),
+        k.core.v1.volume.fromPersistentVolumeClaim('cache', 'ntfy-cache'),
+      ]),
+
+    service: k.core.v1.service.new('ntfy', labels, [
+      k.core.v1.servicePort.new(80, 80),
+    ])
+    + k.core.v1.service.metadata.withNamespace(ns),
+
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: {
+        name: 'ntfy',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`ntfy.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{
+            name: 'ntfy',
+            port: 80,
+          }],
+        }],
+        tls: {},
+      },
+    },
+  },
+
+  // Media pipeline: arr apps + support services (download clients stay on NixOS)
+  media: {
+    local ns = 'media',
+    local ms = storage.mediastack(ns),
+    // PUID/PGID for linuxserver containers — matches NAS storage group
+    local storageEnv = [
+      k.core.v1.envVar.new('PUID', '0'),
+      k.core.v1.envVar.new('PGID', '1001'),
+      k.core.v1.envVar.new('TZ', 'Europe/Copenhagen'),
+    ],
+    local mediaApp(name, image, port, domain) =
+      selfhosted.new(name, image, port, domain, ns=ns) {
+        deployment+: k.apps.v1.deployment.spec.template.spec.withVolumesMixin([
+          k.core.v1.volume.fromPersistentVolumeClaim('media', 'mediastack'),
+        ]) + {
+          spec+: { template+: { spec+: { containers: [
+            super.containers[0]
+            + k.core.v1.container.withEnv(storageEnv)
+            + k.core.v1.container.withVolumeMountsMixin([
+              k.core.v1.volumeMount.new('media', '/data'),
+            ]),
+          ] } } },
+        },
+      },
+
+    namespace: k.core.v1.namespace.new(ns),
+    mediastackPv: ms.pv,
+    mediastackPvc: ms.pvc,
+
+    // Arr apps (all mount mediastack for hardlinks)
+    radarr: mediaApp('radarr', images.radarr, 7878, 'radarr.lan.ftzmlab.xyz'),
+    sonarr: mediaApp('sonarr', images.sonarr, 8989, 'sonarr.lan.ftzmlab.xyz'),
+    lidarr: mediaApp('lidarr', images.lidarr, 8686, 'lidarr.lan.ftzmlab.xyz'),
+    readarr: mediaApp('readarr', images.readarr, 8787, 'readarr.lan.ftzmlab.xyz'),
+
+    // Support services (no mediastack volume)
+    // Prowlarr disables indexers that keep failing and re-enables them when
+    // they recover; see prowlarr.pruneFailingIndexers.
+    local prowlarrPruner = prowlarr.pruneFailingIndexers(images.prowlarr, ns=ns),
+    prowlarr: selfhosted.new('prowlarr', images.prowlarr, 9696, 'prowlarr.lan.ftzmlab.xyz', ns=ns) {
+      pruneFailingIndexers: prowlarrPruner.configMap,
+      deployment+: prowlarrPruner.deploymentMixin,
+    },
+
+    // Cleanuparr keeps executables and other dangerous files out of the
+    // arr downloads (see lib/cleanuparr.libsonnet for how its settings are
+    // applied). The extension list is Sonarr/Radarr's own executable +
+    // potentially-dangerous list (FileExtensions.cs).
+    //  - Torrents: the malware blocker polls the sonarr/radarr queues every
+    //    5 s and sets matching files in Deluge to skip, so they are never
+    //    downloaded; any torrent with such a file is removed via the arr
+    //    (blocklisted), and the seeker searches for a replacement.
+    //  - Usenet: NZBGet downloads can't be inspected before download, so the
+    //    queue cleaner removes (blocklists) any download whose import the
+    //    arr blocked with "Caution: Found executable/potentially dangerous
+    //    file", after 3 strikes (one per 5-minute run), and the seeker
+    //    searches for a replacement.
+    // Secret cleanuparr-config (environments/lab/secrets/cleanuparr-config.enc.yaml):
+    // CLEANUPARR_PASSWORD, SONARR_API_KEY, RADARR_API_KEY, DELUGE_PASSWORD.
+    cleanuparr: cleanuparr.new(
+      images.cleanuparr,
+      // Any image with sh, curl and jq; this one is already on the node.
+      images.sonarr,
+      'cleanuparr.lan.ftzmlab.xyz',
+      ns,
+      'cleanuparr-config',
+      blocklists={
+        'dangerous.txt': ['*' + ext for ext in [
+          '.bat', '.cmd', '.exe', '.sh',  // Executables
+          '.arj', '.lnk', '.lzh', '.ps1', '.scr', '.vbs', '.zipx',  // Potentially dangerous
+        ]],
+      },
+      settings={
+        local blocklist = { enabled: true, blocklistType: 'Blacklist', blocklistPath: '/blocklists/dangerous.txt' },
+        arrs: {
+          sonarr: [{ name: 'sonarr', url: 'http://sonarr.media.svc.cluster.local:8989', version: 4, apiKeyEnv: 'SONARR_API_KEY' }],
+          radarr: [{ name: 'radarr', url: 'http://radarr.media.svc.cluster.local:7878', version: 6, apiKeyEnv: 'RADARR_API_KEY' }],
+        },
+        // Same endpoint sonarr/radarr use for Deluge (its web UI, on nuc).
+        downloadClients: [{
+          name: 'deluge',
+          typeName: 'Deluge',
+          type: 'Torrent',
+          host: 'http://deluge.lan.ftzmlab.xyz:8112',
+          passwordEnv: 'DELUGE_PASSWORD',
+        }],
+        malwareBlocker: {
+          enabled: true,
+          cronExpression: '0/5 * * * * ?',
+          deleteIfAnyFileBlocked: true,
+          sonarr: blocklist,
+          radarr: blocklist,
+        },
+        queueCleaner: {
+          enabled: true,
+          cronExpression: '0 0/5 * * * ?',
+          failedImport: {
+            maxStrikes: 3,
+            patterns: ['Caution: Found'],
+            patternMode: 'Include',
+          },
+        },
+        // Removing a queue item is a DELETE on the arr, which also removes
+        // the torrent from Deluge; sonarr takes 30–100+ s for it, past the
+        // default 100 s timeout. A timed-out removal still completes on the
+        // arr side, but Cleanuparr treats it as failed and queues no
+        // replacement search.
+        general: { httpTimeout: 600 },
+        // Replacement searches after a removal run only while search is on.
+        seeker: { searchEnabled: true, proactiveSearchEnabled: false },
+      },
+    ),
+    flaresolverr: selfhosted.new('flaresolverr', images.flaresolverr, 8191, 'flaresolverr.lan.ftzmlab.xyz', ns=ns),
+    jellyseerr: selfhosted.new('jellyseerr', images.jellyseerr, 5055, 'jellyseerr.lan.ftzmlab.xyz', ns=ns) {
+      deployment+: {
+        spec+: { template+: { spec+: { containers: [
+          super.containers[0] {
+            volumeMounts: [v { mountPath: '/app/config' } for v in super.volumeMounts],
+          },
+        ] } } },
+      },
+    },
+  },
+
+  // Navidrome: music streaming
+  navidrome: {
+    local ns = 'navidrome',
+    local musicMount = storage.nfsMount('music', ns, '/pool-1/mediastack/media/music', '500Gi'),
+
+    musicPv: musicMount.pv,
+    musicPvc: musicMount.pvc,
+  } + selfhosted.new('navidrome', images.navidrome, 4533, 'navidrome.lan.ftzmlab.xyz') {
+    deployment+: k.apps.v1.deployment.spec.template.spec.withVolumesMixin([
+      k.core.v1.volume.fromPersistentVolumeClaim('music', 'music'),
+    ]) + {
+      spec+: { template+: { spec+: { containers: [
+        super.containers[0] {
+          // Navidrome uses /data not /config
+          volumeMounts: [
+            if v.mountPath == '/config' then v { mountPath: '/data' } else v
+            for v in super.volumeMounts
+          ],
+        }
+        + k.core.v1.container.withVolumeMountsMixin([
+          k.core.v1.volumeMount.new('music', '/music') + k.core.v1.volumeMount.withReadOnly(true),
+        ])
+        + k.core.v1.container.withEnv([
+          k.core.v1.envVar.new('ND_MUSICFOLDER', '/music'),
+          // The music library is on NFS, where inotify/fsnotify does not work, so
+          // Navidrome never sees new files. A periodic scan is the only change detector:
+          // scan every 15 minutes (Scanner.Schedule env is ND_SCANNER_SCHEDULE).
+          k.core.v1.envVar.new('ND_SCANNER_SCHEDULE', '15m'),
+        ]),
+      ] } } },
+    },
+  },
+
+  // Audiobookshelf: audiobook/podcast server
+  audiobookshelf: {
+    local ns = 'audiobookshelf',
+    local abMount = storage.nfsMount('audiobooks', ns, '/pool-1/mediastack/media/audiobooks', '100Gi'),
+
+    audiobooksPv: abMount.pv,
+    audiobooksPvc: abMount.pvc,
+  } + selfhosted.new('audiobookshelf', images.audiobookshelf, 80, 'audiobookshelf.lan.ftzmlab.xyz') {
+    deployment+: k.apps.v1.deployment.spec.template.spec.withVolumesMixin([
+      k.core.v1.volume.fromPersistentVolumeClaim('audiobooks', 'audiobooks'),
+    ]) + {
+      spec+: { template+: { spec+: { containers: [
+        super.containers[0]
+        + k.core.v1.container.withVolumeMountsMixin([
+          k.core.v1.volumeMount.new('audiobooks', '/audiobooks'),
+        ]),
+      ] } } },
+    },
+  },
+
+  // The Lounge: IRC client
+  thelounge: selfhosted.new('thelounge', images.thelounge, 9000, 'irc.lan.ftzmlab.xyz') {
+    deployment+: {
+      spec+: { template+: { spec+: { containers: [
+        super.containers[0] {
+          volumeMounts: [
+            if v.mountPath == '/config' then v { mountPath: '/var/opt/thelounge' } else v
+            for v in super.volumeMounts
+          ],
+        },
+      ] } } },
+    },
+  },
+
+  // Vaultwarden: password vault (static NFS PV for stable backup path)
+  vaultwarden: {
+    local ns = 'vaultwarden',
+    local vwMount = storage.nfsMount('vaultwarden', ns, '/pool-1/vaultwarden', '1Gi'),
+
+    dataPv: vwMount.pv,
+    dataPvc: vwMount.pvc,
+  } + selfhosted.new('vaultwarden', images.vaultwarden, 80, 'vaultwarden.lan.ftzmlab.xyz') {
+    // Remove the default config PVC — we use the static NFS mount instead
+    configPvc:: null,
+    deployment+: {
+      spec+: { template+: { spec+: { containers: [
+        super.containers[0] {
+          volumeMounts: [
+            if v.mountPath == '/config' then v { mountPath: '/data', name: 'data' } else v
+            for v in super.volumeMounts
+          ],
+        }
+        + k.core.v1.container.withEnvMixin([
+          k.core.v1.envVar.new('DOMAIN', 'https://vaultwarden.lan.ftzmlab.xyz'),
+          k.core.v1.envVar.new('ROCKET_PORT', '80'),
+          {
+            name: 'ADMIN_TOKEN',
+            valueFrom: {
+              secretKeyRef: {
+                name: 'vaultwarden-env',
+                key: 'ADMIN_TOKEN',
+              },
+            },
+          },
+        ]),
+      ] } } },
+    } + k.apps.v1.deployment.spec.template.spec.withVolumes([
+      k.core.v1.volume.fromPersistentVolumeClaim('data', 'vaultwarden'),
+    ]),
+  },
+
+  // Immich: photo management with ML search
+  immich: {
+    local ns = 'immich',
+    // Single source for this database's PostgreSQL major: the Cluster's
+    // catalog ref and the upgrade gate must never disagree about it.
+    local pgMajor = 18,
+    local libraryMount = storage.nfsMount('immich-library', ns, '/pool-1/cloud/photos', '500Gi'),
+    local dbBackupMount = storage.nfsMount('immich-db-backup', ns, '/pool-1/k8s/immich-db-backup', '5Gi'),
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    // Immich upload library (existing photos + new uploads)
+    libraryPv: libraryMount.pv,
+    libraryPvc: libraryMount.pvc,
+
+    // Static NFS PV/PVC for database backups
+    dbBackupPv: dbBackupMount.pv,
+    dbBackupPvc: dbBackupMount.pvc,
+
+    // CloudNativePG PostgreSQL cluster with VectorChord
+    database: {
+      apiVersion: 'postgresql.cnpg.io/v1',
+      kind: 'Cluster',
+      metadata: {
+        name: 'immich-database',
+        namespace: ns,
+      },
+      spec: {
+        instances: 1,
+        imageCatalogRef: postgres.catalogRef('vectorchord', pgMajor),
+        storage: {
+          size: '5Gi',
+          storageClass: 'nfs',
+        },
+        postgresql: {
+          shared_preload_libraries: ['vchord.so'],
+        },
+        bootstrap: {
+          initdb: {
+            database: 'immich',
+            owner: 'immich',
+            postInitApplicationSQL: [
+              'CREATE EXTENSION vchord CASCADE;',
+              'CREATE EXTENSION earthdistance CASCADE;',
+            ],
+          },
+        },
+      },
+    },
+
+    // Immich Helm chart
+    resources: withNamespace(
+      helm.template('immich', '../../charts/immich', {
+        namespace: ns,
+        values: {
+          controllers: {
+            main: {
+              containers: {
+                main: {
+                  env: {
+                    DB_URL: {
+                      valueFrom: {
+                        secretKeyRef: {
+                          name: 'immich-database-app',
+                          key: 'uri',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          immich: {
+            persistence: {
+              library: {
+                existingClaim: 'immich-library',
+              },
+            },
+          },
+          valkey: {
+            enabled: true,
+            persistence: {
+              data: {
+                enabled: true,
+                type: 'persistentVolumeClaim',
+                size: '1Gi',
+                storageClass: 'nfs',
+                accessMode: 'ReadWriteOnce',
+              },
+            },
+          },
+          'machine-learning': {
+            enabled: true,
+            persistence: {
+              cache: {
+                enabled: true,
+                type: 'persistentVolumeClaim',
+                size: '10Gi',
+                storageClass: 'nfs',
+                accessMode: 'ReadWriteOnce',
+              },
+            },
+          },
+        },
+      }),
+      ns
+    ),
+
+    // IngressRoute
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: {
+        name: 'immich',
+        namespace: ns,
+      },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: "Host(`img.lan.ftzmlab.xyz`)",
+          kind: 'Rule',
+          services: [{
+            name: 'immich-server',
+            port: 2283,
+          }],
+        }],
+        tls: {},
+      },
+    },
+
+    // Daily pg_dump backup. Runs via the shared helper, which joins the storage
+    // group so the uid-26 dump pod can actually write to NFS — the inline version
+    // here silently failed with EACCES for months (verified + fixed 2026-07-21).
+    dbBackupCronJob: backup.pgDumpCronJob(
+      'immich-db-backup', ns, images.cloudnativeVectorchord18,
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
+    ),
+
+    // Major upgrade harness — see lib/postgres.libsonnet. Gate and catalog
+    // ref both read pgMajor, so they cannot disagree.
+    dbUpgradeGate: postgres.majorUpgradeGate(
+      'immich-db-upgrade-gate', ns, images.cloudnativeVectorchord18,
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup', pgMajor
+    ),
+    dbUpgradeFinalize: postgres.majorUpgradeFinalize(
+      'immich-db-upgrade-finalize', ns, images.cloudnativeVectorchord18,
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
+    ),
+
+    // vchord and vector come from the vectorchord image; cube and earthdistance
+    // arrive via `CREATE EXTENSION earthdistance CASCADE` in the bootstrap
+    // above. All four are postgres-owned, so the immich role cannot update
+    // them after a major upgrade — the operator does it instead.
+    //
+    // pg_trgm, unaccent and uuid-ossp are deliberately absent: Immich's own
+    // migrations create and own those, and listing them here would put the
+    // operator and the application in competition.
+    // An explicit version is the only thing that makes the operator run
+    // ALTER EXTENSION UPDATE TO. Left implicit, an extension is created once
+    // and then sits there while the image moves underneath it -- which is how
+    // vchord ended up at 0.4.3 against a 1.1.1 library and broke every vector
+    // query.
+    //
+    // cube and earthdistance stay version-free: they are contrib extensions
+    // that move with PostgreSQL itself, and nothing reads their on-disk
+    // format the way vchordrq does.
+    dbExtensions: postgres.managedExtensions(
+      'immich-database-extensions', ns, 'immich-database', 'immich', 'immich',
+      [
+        { name: 'vchord', version: postgres.vchordVersionOf(images.cloudnativeVectorchord18) },
+        // pgvector's version is not carried in the image tag -- only
+        // PostgreSQL's and VectorChord's are -- so unlike vchord above this
+        // pin cannot be derived from the image and has to be re-read from it
+        // on every bump:
+        //
+        //   docker run --rm --entrypoint sh <image> -c \
+        //     'grep default_version .../18/extension/vector.control'
+        //
+        // Left version-free it was created once and never moved, sitting at
+        // 0.8.0 while the image offered 0.8.3. A pin that is never re-read
+        // fails the same way one bump later: 18.4-1.1.1 shipped 0.8.3,
+        // 18.6-1.1.1 ships 0.8.6, and a pin left at 0.8.3 would put a 0.8.6
+        // library under a 0.8.3 catalog -- the exact drift this pin exists to
+        // prevent. The 0.8.3->0.8.4->0.8.5->0.8.6 upgrade scripts are empty,
+        // so the ALTER is catalog metadata and nothing else. Immich requires
+        // >=0.5 <1, and nothing here uses pgvector's own index types
+        // (ivfflat/hnsw) -- only its vector type, whose representation is
+        // unchanged across 0.8.x. Revisit that reasoning when the image
+        // crosses out of 0.8.x.
+        { name: 'vector', version: '0.8.6' },
+        { name: 'cube' },
+        { name: 'earthdistance' },
+      ]
+    ),
+
+    // face_index and clip_index are vchordrq, and VectorChord hard-errors on
+    // an index written by a different format version. Updating the extension
+    // without rebuilding them breaks Immich's face and CLIP search outright.
+    // Both indexes are owned by the immich role, so this connection can
+    // rebuild them without superuser.
+    dbVchordReindex: postgres.vchordReindex(
+      'immich-db-vchord-reindex', ns, images.cloudnativeVectorchord18,
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
+    ),
+
+    // ArgoCD excludes hook resources from its desired-state diff, so editing a
+    // hook alone produces no diff, no sync, and therefore no run: the new hook
+    // sits in git doing nothing until some unrelated resource happens to
+    // change. That has bitten three times now -- #99 tested nothing, #103 did
+    // not take effect, and a corrected reindex hook could not deploy while it
+    // was the only thing that had changed.
+    //
+    // Carrying a digest of the hooks in a ConfigMap makes editing one a
+    // visible change to a resource ArgoCD does diff.
+    dbHookRevision: {
+      apiVersion: 'v1',
+      kind: 'ConfigMap',
+      metadata: { name: 'immich-db-hook-revision', namespace: ns },
+      data: {
+        digest: std.md5(std.manifestJsonEx(
+          [$.immich.dbUpgradeGate, $.immich.dbUpgradeFinalize, $.immich.dbVchordReindex], ''
+        )),
+      },
+    },
+  },
+
+  // PinePods: self-hosted podcast ecosystem (Rust backend + Postgres + Valkey).
+  // Keeps its own auth (native mobile/desktop apps hit the API), so it is NOT
+  // behind forwardAuth — its own login is the leak protection.
+  pinepods: {
+    local ns = 'pinepods',
+    // Single source for this database's PostgreSQL major: the Cluster's
+    // catalog ref and the upgrade gate must never disagree about it.
+    local pgMajor = 18,
+    local host = 'pinepods.lan.ftzmlab.xyz',
+    local labels = { app: 'pinepods' },
+    // Static NFS mounts at known paths so both are covered by the NAS borg job.
+    local downloadsMount = storage.nfsMount('pinepods-downloads', ns, '/pool-1/k8s/pinepods-downloads', '10Gi'),
+    local dbBackupMount = storage.nfsMount('pinepods-db-backup', ns, '/pool-1/k8s/pinepods-db-backup', '5Gi'),
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    // PostgreSQL via CloudNativePG. PinePods' setup script assumes the `postgres`
+    // superuser and runs CREATE DATABASE, so superuser access is enabled and the
+    // app points at it (matches upstream compose). The operator generates the
+    // superuser password in the `pinepods-database-superuser` secret.
+    database: {
+      apiVersion: 'postgresql.cnpg.io/v1',
+      kind: 'Cluster',
+      metadata: { name: 'pinepods-database', namespace: ns },
+      spec: {
+        instances: 1,
+        imageCatalogRef: postgres.catalogRef('postgresql', pgMajor),
+        enableSuperuserAccess: true,
+        storage: { size: '5Gi', storageClass: 'nfs' },
+        bootstrap: { initdb: { database: 'pinepods_database', owner: 'pinepods' } },
+      },
+    },
+
+    // Valkey cache — ephemeral, no persistence needed.
+    valkeyDeployment: k.apps.v1.deployment.new('valkey')
+                      + k.apps.v1.deployment.metadata.withNamespace(ns)
+                      + k.apps.v1.deployment.spec.selector.withMatchLabels({ app: 'valkey' })
+                      + k.apps.v1.deployment.spec.template.metadata.withLabels({ app: 'valkey' })
+                      + k.apps.v1.deployment.spec.template.spec.withContainers([
+                        k.core.v1.container.new('valkey', images.valkey)
+                        + k.core.v1.container.withPorts([k.core.v1.containerPort.new(6379)]),
+                      ]),
+    valkeyService: k.core.v1.service.new('valkey', { app: 'valkey' }, [k.core.v1.servicePort.new(6379, 6379)])
+                   + k.core.v1.service.metadata.withNamespace(ns),
+
+    // Occasional downloads of at-risk / obscure episodes (streaming is the
+    // default). These saved files are the only irreplaceable thing here, so the
+    // volume is a static NFS path included in borg.
+    downloadsPv: downloadsMount.pv,
+    downloadsPvc: downloadsMount.pvc,
+
+    // pg_dump target — static NFS path, also borg'd.
+    dbBackupPv: dbBackupMount.pv,
+    dbBackupPvc: dbBackupMount.pvc,
+
+    // Non-secret env (admin PASSWORD comes from the SopsSecret; DB_PASSWORD from
+    // the CNPG-generated superuser secret).
+    config: k.core.v1.configMap.new('pinepods-env', {
+              SEARCH_API_URL: 'https://search.pinepods.online/api/search',
+              PEOPLE_API_URL: 'https://people.pinepods.online',
+              HOSTNAME: 'https://' + host,
+              DB_TYPE: 'postgresql',
+              DB_HOST: 'pinepods-database-rw',
+              DB_PORT: '5432',
+              DB_USER: 'postgres',
+              DB_NAME: 'pinepods_database',
+              VALKEY_HOST: 'valkey',
+              VALKEY_PORT: '6379',
+              DEBUG_MODE: 'false',
+              TZ: 'Europe/Copenhagen',
+              DEFAULT_LANGUAGE: 'en',
+              PUID: '0',
+              PGID: '1001',
+              USERNAME: 'ftzm',
+              FULLNAME: 'ftzm',
+              EMAIL: 'm@ftzm.org',
+            })
+            + k.core.v1.configMap.metadata.withNamespace(ns),
+
+    deployment: k.apps.v1.deployment.new('pinepods')
+                + k.apps.v1.deployment.metadata.withNamespace(ns)
+                + k.apps.v1.deployment.spec.withReplicas(1)
+                + k.apps.v1.deployment.spec.selector.withMatchLabels(labels)
+                + k.apps.v1.deployment.spec.strategy.withType('Recreate')
+                + k.apps.v1.deployment.spec.template.metadata.withLabels(labels)
+                + k.apps.v1.deployment.spec.template.spec.withContainers([
+                  k.core.v1.container.new('pinepods', images.pinepods)
+                  + k.core.v1.container.withPorts([k.core.v1.containerPort.newNamed(8040, 'http')])
+                  + k.core.v1.container.withEnvFrom([{ configMapRef: { name: 'pinepods-env' } }])
+                  + k.core.v1.container.withEnv([
+                    { name: 'DB_PASSWORD', valueFrom: { secretKeyRef: { name: 'pinepods-database-superuser', key: 'password' } } },
+                    { name: 'PASSWORD', valueFrom: { secretKeyRef: { name: 'pinepods-admin', key: 'PASSWORD' } } },
+                  ])
+                  + k.core.v1.container.withVolumeMounts([
+                    k.core.v1.volumeMount.new('downloads', '/opt/pinepods/downloads'),
+                  ]),
+                ])
+                + k.apps.v1.deployment.spec.template.spec.withVolumes([
+                  k.core.v1.volume.fromPersistentVolumeClaim('downloads', 'pinepods-downloads'),
+                ]),
+
+    service: k.core.v1.service.new('pinepods', labels, [k.core.v1.servicePort.new(8040, 8040)])
+             + k.core.v1.service.metadata.withNamespace(ns),
+
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'pinepods', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: 'Host(`' + host + '`)',
+          kind: 'Rule',
+          services: [{ name: 'pinepods', port: 8040 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // Daily pg_dump → static NFS path (borg'd off-box). The DB is re-derivable
+    // (subscriptions + positions), but with no ZFS snapshot safety net a cheap
+    // dump is the durability floor. Same shared helper as Immich.
+    dbBackupCronJob: backup.pgDumpCronJob(
+      'pinepods-db-backup', ns, images.cnpgPostgres,
+      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup'
+    ),
+
+    // Major upgrade harness — see lib/postgres.libsonnet. Gate and catalog
+    // ref both read pgMajor, so they cannot disagree.
+    // No managed extensions: this database has only plpgsql, which is builtin.
+    dbUpgradeGate: postgres.majorUpgradeGate(
+      'pinepods-db-upgrade-gate', ns, images.cnpgPostgres,
+      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup', pgMajor
+    ),
+    dbUpgradeFinalize: postgres.majorUpgradeFinalize(
+      'pinepods-db-upgrade-finalize', ns, images.cnpgPostgres,
+      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup'
+    ),
+  },
+
+  // Miniflux: feed reader. Read/unread state lives server-side in Postgres and
+  // is exposed over the Google Reader and Fever APIs, so native clients on every
+  // device (NetNewsWire, Reeder, Readrops, …) stay in sync. Like PinePods it
+  // keeps its own auth for exactly that reason — the mobile apps hit the API
+  // directly, so it cannot sit behind an ingress-level auth middleware.
+  miniflux: {
+    local ns = 'miniflux',
+    // Single source for this database's PostgreSQL major: the Cluster's
+    // catalog ref and the upgrade gate must never disagree about it.
+    local pgMajor = 18,
+    local host = 'miniflux.lan.ftzmlab.xyz',
+    local labels = { app: 'miniflux' },
+    // Static NFS mount at a known path so the NAS borg job covers it.
+    local dbBackupMount = storage.nfsMount('miniflux-db-backup', ns, '/pool-1/k8s/miniflux-db-backup', '5Gi'),
+
+    namespace: k.core.v1.namespace.new(ns),
+
+    // PostgreSQL via CloudNativePG. Miniflux needs no superuser and no
+    // extensions (HSTORE stopped being a requirement in 2.0.27), so it connects
+    // as the database owner that CNPG creates, using the operator-generated
+    // `miniflux-database-app` secret.
+    database: {
+      apiVersion: 'postgresql.cnpg.io/v1',
+      kind: 'Cluster',
+      metadata: { name: 'miniflux-database', namespace: ns },
+      spec: {
+        instances: 1,
+        imageCatalogRef: postgres.catalogRef('postgresql', pgMajor),
+        storage: { size: '5Gi', storageClass: 'nfs' },
+        bootstrap: { initdb: { database: 'miniflux', owner: 'miniflux' } },
+      },
+    },
+
+    // pg_dump target — static NFS path, also borg'd.
+    dbBackupPv: dbBackupMount.pv,
+    dbBackupPvc: dbBackupMount.pvc,
+
+    // Non-secret env. The image already sets LISTEN_ADDR=0.0.0.0:8080.
+    // CREATE_ADMIN is idempotent: on every restart Miniflux skips creation when
+    // the user already exists, so it can stay on permanently.
+    config: k.core.v1.configMap.new('miniflux-env', {
+              BASE_URL: 'https://' + host + '/',
+              RUN_MIGRATIONS: '1',
+              CREATE_ADMIN: '1',
+              ADMIN_USERNAME: 'ftzm',
+              // Prometheus scrapes /metrics from inside the pod network; the
+              // default allow-list is loopback only, which would 403 the scrape.
+              METRICS_COLLECTOR: '1',
+              METRICS_ALLOWED_NETWORKS: '10.42.0.0/16',
+              // YouTube channel feeds carry no duration; scrape it so the entry
+              // list shows real watch time instead of a bogus reading time.
+              FETCH_YOUTUBE_WATCH_TIME: '1',
+              // Scheduler interval in minutes (default 60).
+              POLLING_FREQUENCY: '30',
+              TZ: 'Europe/Copenhagen',
+            })
+            + k.core.v1.configMap.metadata.withNamespace(ns),
+
+    deployment: k.apps.v1.deployment.new('miniflux')
+                + k.apps.v1.deployment.metadata.withNamespace(ns)
+                + k.apps.v1.deployment.spec.withReplicas(1)
+                + k.apps.v1.deployment.spec.selector.withMatchLabels(labels)
+                + k.apps.v1.deployment.spec.strategy.withType('Recreate')
+                + k.apps.v1.deployment.spec.template.metadata.withLabels(labels)
+                + k.apps.v1.deployment.spec.template.spec.withContainers([
+                  k.core.v1.container.new('miniflux', images.miniflux)
+                  + k.core.v1.container.withPorts([k.core.v1.containerPort.newNamed(8080, 'http')])
+                  + k.core.v1.container.withEnvFrom([{ configMapRef: { name: 'miniflux-env' } }])
+                  + k.core.v1.container.withEnv([
+                    // CNPG writes a ready-made connection URI into the app secret
+                    // (same pattern as Immich). The server has ssl=on, which lib/pq's
+                    // default sslmode=require needs.
+                    { name: 'DATABASE_URL', valueFrom: { secretKeyRef: { name: 'miniflux-database-app', key: 'uri' } } },
+                    { name: 'ADMIN_PASSWORD', valueFrom: { secretKeyRef: { name: 'miniflux-admin', key: 'ADMIN_PASSWORD' } } },
+                  ])
+                  // /healthz and /readyz are served at the server root, outside
+                  // BASE_URL's path prefix and outside the auth middleware.
+                  + k.core.v1.container.livenessProbe.httpGet.withPath('/healthz')
+                  + k.core.v1.container.livenessProbe.httpGet.withPort(8080)
+                  + k.core.v1.container.readinessProbe.httpGet.withPath('/readyz')
+                  + k.core.v1.container.readinessProbe.httpGet.withPort(8080),
+                ]),
+
+    // withLabels is load-bearing: service.new() only sets spec.selector, and the
+    // ServiceMonitor below selects on the Service's *metadata* labels. Without it
+    // Prometheus discovers the endpoint and then drops it on the generated
+    // `__meta_kubernetes_service_label_app` keep rule.
+    service: k.core.v1.service.new('miniflux', labels, [k.core.v1.servicePort.newNamed('http', 8080, 8080)])
+             + k.core.v1.service.metadata.withNamespace(ns)
+             + k.core.v1.service.metadata.withLabels(labels),
+
+    ingressRoute: {
+      apiVersion: 'traefik.io/v1alpha1',
+      kind: 'IngressRoute',
+      metadata: { name: 'miniflux', namespace: ns },
+      spec: {
+        entryPoints: ['privateweb', 'privatesecure', 'wgweb', 'wgsecure'],
+        routes: [{
+          match: 'Host(`' + host + '`)',
+          kind: 'Rule',
+          services: [{ name: 'miniflux', port: 8080 }],
+        }],
+        tls: {},
+      },
+    },
+
+    // Feed polling fails silently by design (a dead feed just stops producing
+    // entries), so the collector is worth having — kube-prometheus-stack picks
+    // up ServiceMonitors from every namespace.
+    serviceMonitor: {
+      apiVersion: 'monitoring.coreos.com/v1',
+      kind: 'ServiceMonitor',
+      metadata: { name: 'miniflux', namespace: ns },
+      spec: {
+        selector: { matchLabels: labels },
+        endpoints: [{ port: 'http', path: '/metrics', interval: '60s' }],
+      },
+    },
+
+    // Daily pg_dump → static NFS path (borg'd off-box). Subscriptions are
+    // re-derivable from an OPML export, but read history is not. Dumped as the
+    // database owner; no superuser role exists on this cluster.
+    dbBackupCronJob: backup.pgDumpCronJob(
+      'miniflux-db-backup', ns, images.cnpgPostgres,
+      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup'
+    ),
+
+    // Major upgrade harness — see lib/postgres.libsonnet. Gate and catalog
+    // ref both read pgMajor, so they cannot disagree.
+    // No managed extensions: this database has only plpgsql, which is builtin.
+    dbUpgradeGate: postgres.majorUpgradeGate(
+      'miniflux-db-upgrade-gate', ns, images.cnpgPostgres,
+      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup', pgMajor
+    ),
+    dbUpgradeFinalize: postgres.majorUpgradeFinalize(
+      'miniflux-db-upgrade-finalize', ns, images.cnpgPostgres,
+      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup'
+    ),
+  },
+
+  // Forgejo: self-hosted git forge with Actions enabled.
+  // The Actions *runner* is NOT here — it runs in an isolated microVM on nuc
+  // (untrusted job code must not share a kernel with the cluster). This is only
+  // the trusted instance; the runner dials in over the private ingress.
+  forgejo:
+    local ns = 'forgejo';
+    // Env shared by the app container and the admin-bootstrap init container, so
+    // both render an identical app.ini (via the image's environment-to-ini step).
+    local secretRef(name, key) = {
+      name: name,
+      valueFrom: { secretKeyRef: { name: 'forgejo-secrets', key: key } },
+    };
+    local appEnv = [
+      k.core.v1.envVar.new('FORGEJO__server__DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
+      k.core.v1.envVar.new('FORGEJO__server__ROOT_URL', 'https://forgejo.lan.ftzmlab.xyz/'),
+      k.core.v1.envVar.new('FORGEJO__server__SSH_DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
+      k.core.v1.envVar.new('FORGEJO__server__SSH_PORT', '30022'),
+      k.core.v1.envVar.new('FORGEJO__server__SSH_LISTEN_PORT', '22'),
+      k.core.v1.envVar.new('FORGEJO__database__DB_TYPE', 'sqlite3'),
+      k.core.v1.envVar.new('FORGEJO__service__DISABLE_REGISTRATION', 'true'),
+      k.core.v1.envVar.new('FORGEJO__security__INSTALL_LOCK', 'true'),
+      k.core.v1.envVar.new('FORGEJO__actions__ENABLED', 'true'),
+      // Pinned crypto keys (sealed). Without these Forgejo self-mints a transient
+      // SECRET_KEY each boot; pinning makes a fresh PVC reproducible.
+      secretRef('FORGEJO__security__SECRET_KEY', 'SECRET_KEY'),
+      secretRef('FORGEJO__security__INTERNAL_TOKEN', 'INTERNAL_TOKEN'),
+      secretRef('FORGEJO__oauth2__JWT_SECRET', 'JWT_SECRET'),
+    ];
+    // NFS-backed volume for scheduled dumps (shipped off-box by the NAS borg job).
+    local backupMount = storage.nfsMount('forgejo-backup', ns, '/pool-1/k8s/forgejo-backup', '10Gi');
+    {
+      // Data (git repos + sqlite db + config, all under /data) lives on node-local
+      // storage. The pod is pinned to nuc regardless, and SQLite/git over NFS carry
+      // real file-locking hazards. Durability comes from proper `forgejo dump`
+      // archives (scheduled → NAS/borg), NOT from copying a live sqlite file.
+      dataPvc: k.core.v1.persistentVolumeClaim.new('forgejo-data')
+               + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
+               + k.core.v1.persistentVolumeClaim.spec.withAccessModes(['ReadWriteOnce'])
+               + k.core.v1.persistentVolumeClaim.spec.resources.withRequests({ storage: '20Gi' })
+               + k.core.v1.persistentVolumeClaim.spec.withStorageClassName('local-path'),
+
+      // Git-over-SSH via NodePort so clone URLs resolve from the LAN.
+      // SSH_PORT below must match nodePort so Forgejo advertises the right URL.
+      sshService: {
+        apiVersion: 'v1',
+        kind: 'Service',
+        metadata: { name: 'forgejo-ssh', namespace: ns },
+        spec: {
+          type: 'NodePort',
+          selector: { 'app.kubernetes.io/name': 'forgejo' },
+          ports: [{ name: 'ssh', port: 22, targetPort: 22, nodePort: 30022 }],
+        },
+      },
+
+      // Instance crypto keys + admin bootstrap creds (kubeseal, decrypted
+      // in-cluster by the sealed-secrets controller). Consumed by env above and
+      // the init container below. Regenerate with cluster/scripts/create-sealed-secret.sh.
+      sealedSecret: {
+        apiVersion: 'bitnami.com/v1alpha1',
+        kind: 'SealedSecret',
+        metadata: { name: 'forgejo-secrets', namespace: ns },
+        spec: {
+          encryptedData: {
+            SECRET_KEY: 'AgA8EUM3kOABz66x5TOIK0d3coVE88C5XiH9/ZF7268aDwrc5fGXpvfd2sMRivdMEovwHeUKHj9VEHiu9YNxFBkV4kFqFE9K9GZdlIGuMaOPlp7eoZsOt4AKIEq6v+PsTf4qsjP02k5fm79VLfaSxMQtlMhpr82C+EGo0x9H5mlcM7phwm9l+Xp1wHiMIfwkSnAadHxcwXZSNl2FK0Ppi6G+Gbx7UWg4Adi0Lmv5ZGf9K+kx70N3RZYcKRslcjLJD4d7I65hSYJkbFiDOHZfaFReDJ6wgK8e2WuWqIBgllsfMEhFjTnTFrounmoIAJEQMi4Daffp33Cozpx5blL2loDmxc5CJ7hFLjmpW7wMCwEsNUCjuEiGxUPi2/Jc66gE43PqPBAXelZeGOgcnwVqvf2NupgXONNIfce2o6MZY8CCzSbyReUSRvny9FXZZ5syXo03iY18BjpAOl5yQIoFuc+WA7NuzQsV7rEKz8nOZPxKBnkuQw4OYIKwNimc2znvpqaw0jQYeRWanit6AQuEPAMFnnqE8maOTV5m+h/CCTBDFjcC1d47ZhUhj+R4NfcDOzVFGED8Ow/D/pRrXQvQSyl6QmXe5v9xpVN4ZqDLte23fU0a/qqDXV5p7rORQ7ic2MnnOefcqv2PtlqDh8h3PcdlsyDkrwEd9Vr9zQQTYc0fPPrYE0nQczNpmddaJssr96LIJTmVb4+aOy6QvT1RLVYE0CD+uFbuoYRRnBd4/jiGC5VZpVrGJoAc2LTb',
+            INTERNAL_TOKEN: 'AgAJCIKnEg0aFqC/CBSUuYKifBt7COgv3BJUsEufqEmkk67rzuPoBPgFVFJYDC1FUDPzkZnKxD8jiLRK/D/JDzj+8bmcaJJHIDQOMY9p429l1n7giqFpfFaDCEUcW9662mILJEeMyyVMMnRy4WS8L6v24y6e5x0tFjDaJ43jf6Tu6pr3J8+jqC/FV5SnWFZV5kPVU5wIUzA6oSwlTeGelVSeJCcUvDPGqYr7MNGKplXFXVqWSB7MgYrvrmlXWqPYSgnE4KF/sGDiMSfQY1ljLkaWtnoXCxrHnPelMOk36fOuYi9jLKNh4lclL1MjD+QhQ/gO7KFQQ+LYebmF+W6PI6+0BkM5LVTzL2YZixClVwSXa/MaxZrMjZJ8Y1yiMauU4n1Dk3/Zq4N4p1wvte77FnsVPqHg66l05Jbkwg7v685LJKbBs1+Kq0N3MzlJ6jYuI3JaWWo0dYcs9gf0RPqyhptYynKHchh1rvxxEpFEjzXkXwisiWpp6KHvzVuWm2iOR2XrwYttS+C3U/gT/1ALAEaq2xUkRjr+EmEHfASmlaR2s0k9N5qyDKGoYF62ktwFSt9YcmjUj92JRDazfmve/QGZLsZqU2qQBxev8mBs+QzCj2Ql/oxnPCYcv2kMgchgcPSE8I7DJlQ46+OMnmolUKYMWMI3eQ65RwmSr3oLyuPG6xXKVnU97ZxvwyTFBVLQPcDhMiumHERRE3kwPiDl+UXYXCEAOm+HBv9bgwoVsyyvJCks4ypaN1W1kjsa9kaZq5fFVlG5debf+T11fqXT7UcUrFQYadzG6XdsM/Shr8U81jsA9KougLQUMly2aq9PYSOzsoB7YGQgvqg=',
+            JWT_SECRET: 'AgB5PluOwoXOFxqsBINzFFZIfWD5LU0sXCoTJE7Mfq1Cf05wOTIFikbWbANlYabJY8wTzqXfBnSSRcCwTb5Zx2nt+wNy3TQjz+7LGSfbntT1UihTyicRxna0a1jY9RVs0o3U1b6ZLauyqc1emGB6NUnOQZP1/y1wA2cRUYXNOTH5BSkb8Wt8piNWaPzcQESbkdq0EuPwQpTngc/lBOR6VI8fL8EIyjRAuea3Sy7uJ0FH5NwYNl6msd2QxTI/ziDSwHJQKNsVJ7VWcZBAwmqV/T6Iax7IA2swKrKTN38UzS+L5A8fk2rIEUeF8YZjNj3De82B0PkvTT1vocJ5j/B/6+bVre30Ehjhb/iqDPDPA5LpquA0fbWxzXwIGDvGKYSMEdw3EFTUOc8+3pfjgTCza6aDYFOKBVe8awHH8n3MXd2ut1/83r7kaY1UjjLB0yZJOlbje8qF9ZPBKoTz5J3FU23QsH3W9JHmF/ZnLtuPQexlSS60gMrJ2KvMd+WfUQiT5AprmqBKaFCfE3eIlxUzIHDwyMgx8J7KNklcVjhiFiRUAJUF/gIykiEKrQQluveG+VjVg6LjNbxGh3qr5auG9xY2+0NPqnhUFUVx7FHiYY/z9rKppaMzTMzKKLJRhYplOE8T+wBAizDKgTsX4XRnE1yMkKmhM9rYuuu8e8WwSvV5YAVzBC3Bjz1NR2pJ/0WGs4LY3b7085IT5oXvjoF9dzg49ibF/M8jO+SyF/eZ9288W6MpGAZ++wX9vLnI',
+            'admin-username': 'AgCKJOg1l9t8Z23TASf8wca6ZEejCvq9hQ0yGLGKQMtmC57V2HBC0nTjETKK+UfVs5tLNIDGZCcCcgIYmBD9+zMReQC+zyQafPqgTIMy1RMUFnWdwTQJrDfgbXrH4v2a+mQZCBYPcEpm8mD2NDNzgCRRMJVx3v+x2IUQdMNpFg3Au1j7gYOLZf7Ix98PE3qiuWw/l0CSDxtop+j8vhdJUVDHbDSm2QAOUL50cJc02Aqiy9KsBuylVNu5mQ9Qj9Yn4UWIYpfw4EZ8T/KDxn3q92/mdGaBuPVlGvlHRXnsmT6zftu33dgjSTKnVx9H3obXDraOfkr8gPyd0A47Bs8UGHIn2JjCue9wDY/ArsfRbCFYz4/BLTzKgl8WKT0zzzgL2Rmk2nBBh1RZqdZiJf3hfvyM5Y/OCQOyWiz4fA1tRcFKYANiBQgC87hMWTimA9j8+VZFPGp03Z4NQ1phN7eZXK2IOx+raJSo7VNcQzD+uAST7Z4K4Rhb70sQPej3QZKABceBOgcU0YOC45658ajiNYKOLG8aTKlB+3pmyjZum1D5tHsRWVePyKma8Za2uCX2ULJraWNzfunVgIyGNMY20i4sx3pHdyKO/J/F8NIOdocBZiRZrAFtAeYsHWs4YgE3huAr0c11TxiIqlpMk1v6mtq6SbqIEBnZtBNthvU2/tHgk9NWdGDjCP5zs++yFYijGN+n834H',
+            'admin-password': 'AgCPVswvWsyKNskel0+V7HeyfTyE4xjIAP0qwp6HV5ZQQP6su/SXmpBHVqWamXPpIJ+1Y42VQVCWZCPv8LMAZynMRUplsNmDIj31Tnjvd4x/v/M6rCnXVME1OBWxayjXubMNrboE6ke/lX8wbMl/S1E4YNAxC5gwubIC3u+V63liWi/60358Bl1Ia3siop91+Gc8WYuxChORCUqXp+Z+eXP7XRg6wgc7MXVNnEGqXVMbzdqvvxMUHbFrZSKalBoGOLwi0HJ2OYyFhaWX/jdw7v233K7fQX1ClDtoo3+fY1+LK7tNPbP0X94ZH8f/CqpNPlqMsNV5Tk1B7lGByesORA/ySR8b5t3rgD4FQS2HgsZX/o5j1D/qds0Ptjsk6hhVqe15wZvpL0uC7COR9gMDo+DGOZ0oqsyg73TUcEXDzORYlNCgfx/VHyVn1K6AdZINFnndHXWBXo2Uhpgl/S1A/p7rIySeGbmEYzQMQRURPZH3n4HEX9fFxk0n9sBJgrbc9kbvs9CJBTDuzoUsdXoagwSA8Ycr2qiloMTJ9DYYXYY4I4JxAqF/DJcFC+qI7NeWm8IWf8mkgDYSF/hnIeOblloOe45tFAjzMmN6Z53+znekSaYl/SWGdCJYQvpvSaPZKcZ6SUwibG9tEM9uOqTl47ZJdayLsUM5u3h4AZU+2OK9ySI1MZGt5j5jTDOdm1UHnHVv+I+3gKPj7BU5Xtk5cz1vCpiltg==',
+            'admin-email': 'AgAfFQ0ZGCbwTRvz6MUPEhBFp0kW4AQtyTMKPLOVuT2T2cwAq82X3TCXVfexT4DEvxqCOITueZVfp+Zp234yh4o5ZunzPadlZOJRE3ciEdDkhlgYkSfwWEjRYSJcNg38GE2g+2rqUAzcrNqLWwsEQUhDdKBSt5AOQDwmO/zlQx1PGOEiE4zOJ8BhmoyWgW3e4PcrdonVPFYebN9SqkgkdH+1exnCkD3BkUxPoQUL48yNfHJ/KOtLBZLnoei+a9yvA2lMfcM7M02mcX306cbMSOZvkEFouxRvsl8TAul63bOcwy+Mu9fw3TJpeKFXZIaruOhwua02hmgECSzNsac149/3Q2Bsw1PbZU6bP5i7ymirc6r5nRZ+1C0DNmMLaZtwzrKnkL7F8EP3NRbgOEnIQJT+wk9cAX+WX85MfzK/P5RHfN2rwd44n8xTosOS9AeckfqA+CXEINZIRCwRE6DvdO8HZlkg9nObei9OUbPQrhSIv90LFZdLir4K7o5DzTiiZHs4pC9lKgUDpzVaBOY+LHaHS9rgbsQW5dqLwxcwZvH/Alt5ULhBX/tP+E5WSuWWDPAlZ7mLkWH+SktB76ZHpV6Z2lMAJC1GbDzyIoEeC3P3xnEIV9nPIGzej9ScZhenEsKg3lYbQCL/j4o/nTqa/0a3y7baZG3gK14S+Qei5WV/U7ZFAcCFBsYg2T9z/N+cP0UYJ/jdGppBZmDL',
+          },
+          template: { metadata: { name: 'forgejo-secrets', namespace: ns } },
+        },
+      },
+
+      // Daily `forgejo dump` → NFS volume; the NAS borg job ships it off-box.
+      // Runs as git (uid 1000, the server user) and writes uncompressed tar so
+      // borg can dedup unchanged repos across days. The NFS dir is owned
+      // 1000:1000 on the NAS so the git-uid job can write it (no_root_squash).
+      backupPv: backupMount.pv,
+      backupPvc: backupMount.pvc,
+
+      // Gate on a fresh dump before an image change lands. `forgejo migrate`
+      // runs in an initContainer on every pod start, so the schema migration
+      // fires as soon as a new image rolls and reverting the image does not
+      // undo it. The nightly dump above can be nearly a day old by then.
+      // See lib/backup.libsonnet.
+      dumpGate: backup.forgejoDumpGate(
+        'forgejo-dump-gate', ns, images.forgejo, 'forgejo', 'forgejo-data', 'forgejo-backup'
+      ),
+
+      // ArgoCD leaves hook resources out of its diff, so a hook-only edit
+      // never produces the sync that would run it. Same reasoning, and the
+      // same remedy, as immich's dbHookRevision.
+      dumpGateRevision: {
+        apiVersion: 'v1',
+        kind: 'ConfigMap',
+        metadata: { name: 'forgejo-dump-gate-revision', namespace: ns },
+        data: { digest: std.md5(std.manifestJsonEx($.forgejo.dumpGate, '')) },
+      },
+
+      dumpCronJob: {
+        apiVersion: 'batch/v1',
+        kind: 'CronJob',
+        metadata: { name: 'forgejo-dump', namespace: ns },
+        spec: {
+          schedule: '0 2 * * *',
+          concurrencyPolicy: 'Forbid',
+          successfulJobsHistoryLimit: 3,
+          failedJobsHistoryLimit: 3,
+          jobTemplate: { spec: { template: { spec: {
+            restartPolicy: 'OnFailure',
+            containers: [{
+              name: 'dump',
+              image: images.forgejo,
+              command: ['/bin/bash', '-c'],
+              args: [
+                |||
+                  set -eu
+                  TS=$(date +%Y%m%d-%H%M%S)
+                  su-exec git forgejo dump --config /data/gitea/conf/app.ini --type tar --tempdir /tmp --file /backup/forgejo-$TS.tar
+                  find /backup -name 'forgejo-*.tar' -mtime +7 -delete
+                |||,
+              ],
+              volumeMounts: [
+                { name: 'data', mountPath: '/data' },
+                { name: 'backup', mountPath: '/backup' },
+              ],
+            }],
+            volumes: [
+              { name: 'data', persistentVolumeClaim: { claimName: 'forgejo-data' } },
+              { name: 'backup', persistentVolumeClaim: { claimName: 'forgejo-backup' } },
+            ],
+          } } } },
+        },
+      },
+    } + selfhosted.new('forgejo', images.forgejo, 3000, 'forgejo.lan.ftzmlab.xyz') {
+      // Use the node-local data mount instead of the default config PVC.
+      configPvc:: null,
+      deployment+: {
+        spec+: { template+: { spec+: {
+          // Reconcile the admin account to the sealed creds on every start
+          // (secret-authoritative). Reuses the image's own setup so app.ini +
+          // schema exist and are git-owned in both fresh and existing volumes.
+          initContainers: [{
+            name: 'bootstrap-admin',
+            image: images.forgejo,
+            env: appEnv + [
+              secretRef('ADMIN_USERNAME', 'admin-username'),
+              secretRef('ADMIN_PASSWORD', 'admin-password'),
+              secretRef('ADMIN_EMAIL', 'admin-email'),
+            ],
+            command: ['/bin/bash', '-c'],
+            args: [
+              |||
+                set -e
+                export GITEA_CUSTOM=/data/gitea
+                bash /etc/s6/gitea/setup
+                CONF=/data/gitea/conf/app.ini
+                su-exec git forgejo migrate --config "$CONF"
+                if su-exec git forgejo admin user list --config "$CONF" | awk 'NR>1{print $2}' | grep -qx "$ADMIN_USERNAME"; then
+                  su-exec git forgejo admin user change-password --config "$CONF" --username "$ADMIN_USERNAME" --password "$ADMIN_PASSWORD" --must-change-password=false
+                else
+                  su-exec git forgejo admin user create --config "$CONF" --admin --username "$ADMIN_USERNAME" --password "$ADMIN_PASSWORD" --email "$ADMIN_EMAIL" --must-change-password=false
+                fi
+              |||,
+            ],
+            volumeMounts: [{ name: 'data', mountPath: '/data' }],
+          }],
+          containers: [
+            super.containers[0] {
+              volumeMounts: [
+                if v.mountPath == '/config' then v { mountPath: '/data', name: 'data' } else v
+                for v in super.volumeMounts
+              ],
+            }
+            + k.core.v1.container.withPortsMixin([
+              k.core.v1.containerPort.newNamed(22, 'ssh'),
+            ])
+            + k.core.v1.container.withEnvMixin(appEnv),
+          ],
+        } } },
+      } + k.apps.v1.deployment.spec.template.spec.withVolumes([
+        k.core.v1.volume.fromPersistentVolumeClaim('data', 'forgejo-data'),
+      ]),
+    },
+
+}
