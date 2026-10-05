@@ -34,5 +34,6 @@ spec:
           - configMap:
               name: cleanuparr-configure
             name: scripts
+      ttlSecondsAfterFinished: 3600
   schedule: '*/10 * * * *'
   successfulJobsHistoryLimit: 1

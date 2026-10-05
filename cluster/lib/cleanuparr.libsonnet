@@ -80,6 +80,12 @@ local k = import 'k8s-libsonnet/main.libsonnet';
         failedJobsHistoryLimit: 3,
         jobTemplate: { spec: {
           backoffLimit: 0,
+          // KubeJobFailed fires while any failed Job object exists, and
+          // failedJobsHistoryLimit keeps the last 3 failures until 3 newer
+          // runs fail, so the alert outlived recovery. Expire finished Jobs
+          // after 1h: a persistent failure still keeps a failed Job present
+          // (a new one every 10 min), a transient one clears.
+          ttlSecondsAfterFinished: 3600,
           template: { spec: {
             restartPolicy: 'Never',
             containers: [{
