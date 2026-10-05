@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Forgejo API from the shell: forgejo-api METHOD PATH [BODY]
+#
+#   forgejo-api GET  /repos/ftzm/dots
+#   forgejo-api POST /repos/migrate '{"clone_addr": "...", "repo_name": "dots"}'
+#   forgejo-api POST /repos/ftzm/dots/branch_protections @protection.json
+#
+# PATH is relative to the API root ($FORGEJO_URL, default
+# https://forgejo.lan.ftzmlab.xyz/api/v1). BODY is JSON, or @FILE to read it
+# from a file, or - for stdin. The response body goes to stdout; an HTTP
+# error prints the status and body to stderr and exits 1.
+#
+# Token: $FORGEJO_TOKEN if set (CI jobs map their secret into it), else the
+# file $FORGEJO_TOKEN_FILE (default ~/.config/forgejo/claude-token). It goes
+# to curl as a header file, never on a command line, so it does not show in
+# `ps` or a shell transcript.
+set -euo pipefail
+
+if [ $# -lt 2 ]; then
+  sed -n '2,/^set -euo/{/^#/s/^# \{0,1\}//p}' "$0" >&2
+  exit 2
+fi
+method=$1 path=$2 body=${3-}
+
+url=${FORGEJO_URL:-https://forgejo.lan.ftzmlab.xyz/api/v1}
+if [ -z "${FORGEJO_TOKEN-}" ]; then
+  token_file=${FORGEJO_TOKEN_FILE:-$HOME/.config/forgejo/claude-token}
+  [ -r "$token_file" ] || { echo "forgejo-api: no FORGEJO_TOKEN and no readable $token_file" >&2; exit 2; }
+  FORGEJO_TOKEN=$(<"$token_file")
+fi
+
+args=(-sS -X "$method" -H 'Accept: application/json')
+case $body in
+  '') ;;
+  -) args+=(-H 'Content-Type: application/json' --data-binary @-) ;;
+  *) args+=(-H 'Content-Type: application/json' --data-binary "$body") ;;
+esac
+
+out=$(mktemp)
+trap 'rm -f "$out"' EXIT
+status=$(curl "${args[@]}" -H @<(printf 'Authorization: token %s\n' "$FORGEJO_TOKEN") \
+  -o "$out" -w '%{http_code}' "$url/${path#/}")
+
+if [ "$status" -ge 400 ]; then
+  echo "forgejo-api: $method $path -> HTTP $status" >&2
+  cat "$out" >&2
+  echo >&2
+  exit 1
+fi
+cat "$out"
