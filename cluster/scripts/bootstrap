@@ -1,23 +1,74 @@
 #!/usr/bin/env bash
-# Bootstrap ArgoCD onto a k3s cluster (fresh, or the one-time cut-over from
-# the single `lab` Application): a server-side apply of cluster/manifests/argocd/
-# -- ArgoCD's install, the self-managing `argocd` Application, the operator
-# Applications and the services ApplicationSet. From then on the `argocd`
-# Application manages that directory and its sync waves bring up the rest
-# (ARGOCD_APPLICATIONS_PLAN.md). Every object applied is a committed file
-# that ArgoCD adopts unchanged; this is the one-time-bootstrap exception to
-# "no manual kubectl apply".
+# Bootstrap a k3s cluster (fresh, or the one-time cut-over from the single
+# `lab` Application) up to the point where ArgoCD deploys everything else
+# (FORGEJO_MIGRATION_PLAN.md -> Cluster Bootstrap). Every object applied is a
+# committed file that ArgoCD adopts unchanged, or a backed-up sealing key;
+# this is the one-time-bootstrap exception to "no manual kubectl apply".
 #
-# Run from anywhere in the repo, against the cluster in $KUBECONFIG.
+# Run in the cluster dev shell (`cd cluster && nix develop --command
+# scripts/bootstrap`; it supplies kubectl and yq-go), against the cluster in
+# $KUBECONFIG, on a workstation with agenix and the agenix master key
+# (`personal` in secrets/secrets.nix).
 #
-# The apply uses ArgoCD's own field manager, argocd-controller, so it is
-# exactly what the argocd Application's first sync of the same directory
-# writes. As the default `kubectl` manager it conflicts with fields ArgoCD
-# already owns on a live cluster, and forcing those would leave `kubectl`
-# co-owning every field here -- server-side apply removes a field only once
-# no manager owns it, so a field later dropped from the chart would stay.
+#  1. Sealing keys before the controller. The backed-up controller keys
+#     (secrets/sealed-secrets-keys.age, every key the controller ever made;
+#     renewal is off) are applied as the labelled key Secrets, then the
+#     sealed-secrets CRD and controller. Reversed, the controller generates a
+#     fresh key on first start and no existing SealedSecret decrypts -- so
+#     the script asserts every key is present before the controller
+#     Deployment is applied.
+#  2. ArgoCD: a server-side apply of cluster/manifests/argocd/ -- ArgoCD's
+#     install, the self-managing `argocd` Application, the operator
+#     Applications and the services ApplicationSet. From then on the `argocd`
+#     Application manages that directory and its sync waves bring up the rest
+#     (ARGOCD_APPLICATIONS_PLAN.md).
+#
+# Committed manifests are applied with ArgoCD's own field manager,
+# argocd-controller, so each apply is exactly what the owning Application's
+# first sync of the same directory writes. As the default `kubectl` manager it
+# conflicts with fields ArgoCD already owns on a live cluster, and forcing
+# those would leave `kubectl` co-owning every field here -- server-side apply
+# removes a field only once no manager owns it, so a field later dropped from
+# the chart would stay. The key Secrets are in no Application (they are not in
+# git), so ArgoCD neither tracks nor prunes them.
 set -euo pipefail
 
-cluster_dir=$(cd "$(dirname "$0")/.." && pwd)
+for tool in kubectl agenix yq; do
+  command -v "$tool" >/dev/null || { echo "bootstrap: $tool not on PATH" >&2; exit 1; }
+done
 
-kubectl apply --server-side --field-manager=argocd-controller -f "$cluster_dir/manifests/argocd/"
+repo_dir=$(cd "$(dirname "$0")/../.." && pwd)
+cluster_dir=$repo_dir/cluster
+ss_dir=$cluster_dir/manifests/sealed-secrets
+ss_ns=sealed-secrets
+key_label=sealedsecrets.bitnami.com/sealed-secrets-key
+apply=(kubectl apply --server-side --field-manager=argocd-controller)
+
+# --- 1. Sealing keys, then the sealed-secrets controller ---------------------
+
+# agenix resolves the file against ./secrets.nix. Server-set metadata is
+# dropped so the keys create cleanly on a fresh cluster; the labels, which
+# make the controller load them, are kept.
+keys=$(cd "$repo_dir/secrets" && agenix -d sealed-secrets-keys.age |
+  yq 'del(.items[].metadata.resourceVersion, .items[].metadata.uid,
+          .items[].metadata.creationTimestamp, .items[].metadata.managedFields,
+          .items[].metadata.ownerReferences)')
+want=$(yq '[.items[] | select(.metadata.labels["'"$key_label"'"] == "active")] | length' <<<"$keys")
+[ "$want" -gt 0 ] || { echo "bootstrap: no labelled key in the backup" >&2; exit 1; }
+
+"${apply[@]}" -f "$ss_dir/sealed-secrets-namespace.yaml"
+kubectl apply --server-side -f - <<<"$keys"
+
+have=$(kubectl get secret -n "$ss_ns" -l "$key_label=active" -o name | wc -l)
+if [ "$have" -lt "$want" ]; then
+  echo "bootstrap: $have of $want sealing keys present; not starting the controller" >&2
+  exit 1
+fi
+echo "bootstrap: $have sealing keys present"
+
+"${apply[@]}" -f "$ss_dir/"
+kubectl rollout status -n "$ss_ns" deploy/sealed-secrets --timeout=5m
+
+# --- 2. ArgoCD ---------------------------------------------------------------
+
+"${apply[@]}" -f "$cluster_dir/manifests/argocd/"

@@ -135,8 +135,18 @@ Every Application syncs automatically with **prune** and **selfHeal**, and uses
 resources finalizer: removing a `manifests/<namespace>/` directory deletes that
 namespace's resources. Source: `https://github.com/ftzm/dots.git`, `HEAD`.
 
-`scripts/bootstrap` installs all of this onto a cluster: a server-side apply of
-`manifests/argocd/`, after which the `argocd` Application takes over.
+`scripts/bootstrap` installs all of this onto a cluster. Run it in the dev shell
+(`nix develop --command scripts/bootstrap`) on a workstation with agenix and the
+agenix master key:
+
+1. The sealed-secrets controller keys, restored from
+   `secrets/sealed-secrets-keys.age` as the labelled key Secrets, then
+   `manifests/sealed-secrets/`. It refuses to apply the controller until every
+   backed-up key is present: a controller that starts without them mints a
+   fresh key, and no committed SealedSecret decrypts. Key renewal is off
+   (`keyrenewperiod: '0'`), so the backup stays complete.
+2. A server-side apply of `manifests/argocd/`, after which the `argocd`
+   Application takes over.
 
 ---
 
