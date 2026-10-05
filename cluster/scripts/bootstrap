@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Bootstrap ArgoCD onto a k3s cluster (fresh, or the one-time cut-over from
+# the single `lab` Application): a server-side apply of cluster/manifests/argocd/
+# -- ArgoCD's install, the self-managing `argocd` Application, the operator
+# Applications and the services ApplicationSet. From then on the `argocd`
+# Application manages that directory and its sync waves bring up the rest
+# (ARGOCD_APPLICATIONS_PLAN.md). Every object applied is a committed file
+# that ArgoCD adopts unchanged; this is the one-time-bootstrap exception to
+# "no manual kubectl apply".
+#
+# Run from anywhere in the repo, against the cluster in $KUBECONFIG.
+set -euo pipefail
+
+cluster_dir=$(cd "$(dirname "$0")/.." && pwd)
+
+kubectl apply --server-side -f "$cluster_dir/manifests/argocd/"
