@@ -81,6 +81,7 @@ in {
     ./k3s.nix
     ../../role/node-exporter.nix
     ./forgejo-runner.nix
+    ./fleet.nix
     ../../role/comin.nix
     ../../role/resilience.nix
     ../../role/mailsort.nix

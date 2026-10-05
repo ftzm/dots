@@ -37,4 +37,8 @@ in {
   # first starts on a rebuilt cluster. Workstation-only: no host decrypts it.
   # Key renewal is off (cluster lab.jsonnet sealedSecrets), so the set is fixed.
   "sealed-secrets-keys.age".publicKeys = [personal];
+  # nuc's binary-cache signing key (FORGEJO_MIGRATION_PLAN.md -> Secrets): nix
+  # signs what nuc builds with it, harmonia what it serves. The public half,
+  # nuc-fleet-1:..., is every host's trusted key (role/fleet-agent.nix).
+  "fleet-cache-key.age".publicKeys = [personal nuc];
 }
