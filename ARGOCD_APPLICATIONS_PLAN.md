@@ -284,7 +284,7 @@ features this repo does not use:
    object, and two `selfHeal` apps would keep rewriting its tracking-id.
    Acceptance: all 23 Applications Synced and Healthy, none with a
    `SharedResourceWarning` condition, no live object with a `lab:`
-   tracking-id, `application/lab` gone.
+   tracking-id naming itself, `application/lab` gone.
 5. **Alerts: no change.** `ArgoCDAppDegraded`, `ArgoCDAppOutOfSync` and the
    sync-failure rule (`increase(argocd_app_sync_total{phase=~"Failed|Error"}[5m])
    > 0`) evaluate per app; the only
@@ -504,10 +504,22 @@ cut-over (step 4). Each task names its sections above for the detail.
     Application carries a `SharedResourceWarning` condition.
 13. **Confirm nothing is still tracked by `lab`**: over every listable
     resource type (`kubectl api-resources --verbs=list -o name`), no object
-    whose `argocd.argoproj.io/tracking-id` starts with `lab:`. Then
-    `kubectl -n argocd delete application lab` (no finalizer:
-    non-cascading).
+    whose `argocd.argoproj.io/tracking-id` starts with `lab:` *and names the
+    object itself*, other than `application/lab`. ReplicaSets and
+    ControllerRevisions copy their parent's annotation when created, so old
+    ones keep a `lab:` id naming their Deployment, StatefulSet, DaemonSet,
+    Alertmanager or Prometheus (235 at the cut-over); those are not tracked
+    by `lab`. Then `kubectl -n argocd delete application lab` (no finalizer:
+    non-cascading). Run 2026-10-05: the only self-referencing ids besides
+    `lab` were `argocd-redis-secret-init`'s ServiceAccount, Role and
+    RoleBinding, Helm hooks left from chart `argo-cd-9.4.1` (2026-02-07)
+    after `redisSecretInit` was disabled — ArgoCD never prunes hooks, and no
+    pod or Job used them — deleted by hand with `lab`.
     *Verify:* the live object count equals task 10's; `lab` gone;
     `ArgoCDAppMissing` silent; the `lab` alerts resolve.
 14. **Acceptance** (step 4): all 23 Applications Synced and Healthy, none with
-    `SharedResourceWarning`, no `lab:` tracking-id, `application/lab` gone.
+    `SharedResourceWarning`, no `lab:` tracking-id naming its own object,
+    `application/lab` gone. Met 2026-10-05: 23 Applications Synced and
+    Healthy at `c4977443`, 15 from the ApplicationSet, live object count
+    159 before and after, `count(argocd_app_info)` 23, no ArgoCD alert
+    firing.
