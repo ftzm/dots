@@ -136,7 +136,7 @@
 
   networking.hostName = "saoiste"; # Define your hostname.
   networking.useDHCP = true;
-  networking.nameservers = ["192.168.1.12"];
+  networking.nameservers = ["192.168.1.4"]; # Blocky (k8s, hostNetwork on nuc)
 
   # Disable wifi — causes connectivity problems when it takes priority over ethernet
   boot.blacklistedKernelModules = ["iwlwifi" "iwlmvm"];
@@ -256,7 +256,7 @@
   programs.mosh.enable = true;
 
   # ----------------------------------------------------------------------
-  # Forward pihole over wireguard
+  # Forward DNS (Blocky) over wireguard
 
   boot.kernel.sysctl = {
     "net.ipv4.conf.all.forwarding" = 1;
@@ -267,9 +267,9 @@
     allowedTCPPorts = [53 3000 3001 8080 8384];
     allowedUDPPorts = [53];
     extraCommands = ''
-      # Forward DNS traffic (port 53) from wg0 to 192.168.1.12
-      iptables -t nat -A PREROUTING -i wg0 -p udp --dport 53 -j DNAT --to-destination 192.168.1.12:53
-      iptables -t nat -A PREROUTING -i wg0 -p tcp --dport 53 -j DNAT --to-destination 192.168.1.12:53
+      # Forward DNS traffic (port 53) from wg0 to Blocky on 192.168.1.4
+      iptables -t nat -A PREROUTING -i wg0 -p udp --dport 53 -j DNAT --to-destination 192.168.1.4:53
+      iptables -t nat -A PREROUTING -i wg0 -p tcp --dport 53 -j DNAT --to-destination 192.168.1.4:53
 
       # Allow forwarding between interfaces
       iptables -A FORWARD -i wg0 -o enp58s0 -p udp --dport 53 -j ACCEPT
