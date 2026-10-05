@@ -521,13 +521,15 @@ runs on the `dots` runner; the triage workflow on the `ftzm/triage` runner
 Nothing changes the source of truth until the manual paths are proven.
 
 1. **Groundwork.** Precondition: `ARGOCD_APPLICATIONS_PLAN.md` is done — met 2026-10-05 (its Sequencing: the bootstrap script and the CI/Renovate render paths below are written against its per-Application layout). First action: turn off sealed-secrets key renewal, then
-   back every sealing key up into agenix (Secrets). Extend `cluster/scripts/bootstrap` (created by `ARGOCD_APPLICATIONS_PLAN.md` step 6 with its ArgoCD step, a server-side apply as `--field-manager=argocd-controller`) with the sealing-key steps and the repo credential (Cluster Bootstrap).
+   back every sealing key up into agenix (Secrets) — done 2026-10-05:
+   `keyrenewperiod: '0'` (`578024fc`), the 8 keys in
+   `secrets/sealed-secrets-keys.age` (`45868898`). Extend `cluster/scripts/bootstrap` (created by `ARGOCD_APPLICATIONS_PLAN.md` step 6 with its ArgoCD step, a server-side apply as `--field-manager=argocd-controller`) with the sealing-key steps (Cluster Bootstrap, its step 1). Its repo-credential step lands in step 3: the credential is the nas mirror's read key, which step 3 creates, and before the flip ArgoCD reads public GitHub with none.
    Split `cluster/lib/images.libsonnet` into one file per image,
    `cluster/lib/images/<name>.libsonnet` (per-image comments move with
    them), with `images.libsonnet` a fixed map of imports and Renovate's
    regex manager (`cluster/renovate.jsonnet:27`) on
    `/cluster/lib/images/.+\.libsonnet$/`: git conflicts on edits to adjacent
-   lines, and the 24 images sit on consecutive lines, so each image-bump
+   lines, and the 21 images sit on consecutive lines, so each image-bump
    merge conflicted its neighbours' PRs — which only a Renovate run could
    fix. Separate files never conflict; a Renovate PR then only falls behind
    master, which `update-prs.yml` handles. (`chartfile.yaml` already
@@ -542,9 +544,16 @@ Nothing changes the source of truth until the manual paths are proven.
    the `leigheas` peer from `role/network.nix` (the machine no longer exists;
    its `publicKey` `eLpLj1/...` is also eachtrai's, so on every wg host only
    one of 10.0.100.2 / 10.0.100.7 routes). Forgejo: pull-mirror of GitHub
-   (temporary) so Actions can be exercised while GitHub stays the source.
+   (temporary) so Actions can be exercised while GitHub stays the source —
+   created by hand, like the throwaway repos and users of step 4's
+   negative checks: it is test data, deleted in step 3, and the OpenTofu job
+   that declares Forgejo's configuration does not exist until then.
    The manual paths' weekly self-tests (nuc Down → Self-tests) in place
-   and green.
+   and green. Precondition for the laptop self-test: eachtrai's
+   node_exporter, through which its result is reported, is reachable —
+   on 2026-10-05 Prometheus's target `http://100.64.0.7:9002/metrics` was
+   down (`connect: connection refused`, `avg_over_time(up[30d])` 0) while
+   eachtrai ran the current commit, and no alert covered it.
 2. **Build farm + agent.** The `dots` runner on nuc (Binary Cache → Design;
    the VM runner becomes the triage runner — re-registered to `ftzm/triage`,
    no longer instance-scoped, host mode with the nixpkgs module, its own store
@@ -597,8 +606,14 @@ Nothing changes the source of truth until the manual paths are proven.
    public, and the OpenTofu job's `private = true` re-asserts it on the next
    sync) — issues, PRs, labels, milestones, releases, numbers kept,
    so `#246`-style references in commit messages still resolve (GitHub
-   Actions run logs do not migrate); the Forgejo OpenTofu job re-applies secrets,
-   branch protection and the push mirror. Renovate and lockfile bumps pause
+   Actions run logs do not migrate). Then the **Forgejo OpenTofu job** lands
+   (Secrets → Forgejo configuration as OpenTofu): the
+   `terraform-provider-forgejo` package, the nix-built image, the PostSync
+   hook Job in the Forgejo Application, the `kubernetes` state backend.
+   Its first config declares `ftzm/dots` — taken over from the migrator by an
+   OpenTofu `import` block, not created — with `private = true`, master's
+   protection, the push mirror and the `dots` repo secrets that exist by
+   then; step 4 adds the bot users, `ftzm/triage` and their secrets to it. Renovate and lockfile bumps pause
    until step 4. The writer's poll URL moves from GitHub to the nas mirror (hosts unaffected); the nas
    mirror (git user, keys, `receive.denyNonFastForwards`) and Forgejo's
    `master`-only push mirror to it, with its `last_error` alert; ArgoCD
@@ -1409,8 +1424,13 @@ keeps a clone of `dots` and can `nixos-rebuild switch --flake .#<host>` itself
 
 **Self-tests.** Both manual paths run weekly in a form that changes nothing,
 each writing `fleet_manual_path_last_success_timestamp{path,host}` to its
-node_exporter textfile dir; a `Fleet*` rule alerts on failure or on a stamp
-older than 8 days:
+node_exporter textfile dir; a `Fleet*` rule alerts on failure, or on a
+stamp older than 8 days that stays so for 2 h (`for: 2h`). Neither host is
+always on (eachtrai's comin target was up 29% of the 30 days to
+2026-10-05), and an off host's series is not scraped, so the rule only sees
+a host while it is up: the timers are `Persistent = true` and catch up a
+missed run after boot, and the 2 h covers that run. A host that stays off
+is never alerted on — it cannot self-test either:
 
 - **Laptop self-rebuild:** a weekly timer on each laptop runs `git fetch` in
   its clone and `nixos-rebuild build --flake <clone>#<host>` — clone,
