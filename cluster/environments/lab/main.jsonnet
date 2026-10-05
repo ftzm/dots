@@ -2004,6 +2004,24 @@ local patchTargetDown(resources) = {
       + k.core.v1.configMap.metadata.withNamespace(ns)
       + k.core.v1.configMap.withData(configData),
 
+    // Pods resolve lan.ftzmlab.xyz through blocky too. Without this, CoreDNS
+    // forwards to whatever /etc/resolv.conf held on nuc when it started: at
+    // boot that is the router, which answers *.ftzmlab.xyz with the public
+    // wildcard IP, so in-cluster clients of lan services hit the WAN address.
+    // Scoped to the lan zone so pod DNS for everything else does not depend
+    // on the blocky pod. k3s's CoreDNS imports *.server keys from this map.
+    corednsCustom: k.core.v1.configMap.new('coredns-custom')
+      + k.core.v1.configMap.metadata.withNamespace('kube-system')
+      + k.core.v1.configMap.withData({
+        'lan.server': |||
+          lan.ftzmlab.xyz:53 {
+            errors
+            cache 30
+            forward . %(publicIP)s
+          }
+        ||| % { publicIP: config.publicIP },
+      }),
+
     deployment: k.apps.v1.deployment.new('blocky')
       + k.apps.v1.deployment.metadata.withNamespace(ns)
       + k.apps.v1.deployment.spec.withReplicas(1)

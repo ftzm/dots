@@ -363,6 +363,7 @@ separate IPs, creating isolated public and private ingress paths:
 - Maps `lan.ftzmlab.xyz` → `100.64.0.2` (Tailscale IP) so all `*.lan.ftzmlab.xyz` subdomains resolve to the private Traefik entrypoints.
 - Reachable from LAN, Tailscale, and WireGuard clients.
 - Forwards `cluster.local` → `10.96.0.10` (CoreDNS) for in-cluster resolution.
+- In-cluster pods resolve `lan.ftzmlab.xyz` through Blocky too: the `coredns-custom` ConfigMap (`kube-system`) adds a `lan.ftzmlab.xyz` server block forwarding to `192.168.1.4`. CoreDNS's default upstream is nuc's `/etc/resolv.conf` as it stood when CoreDNS started, which at boot is the router; the router answers `*.ftzmlab.xyz` with the public wildcard IP.
 - Provides ad-blocking via deny lists (StevenBlack, AdguardDNS, Firebog).
 
 ### TLS
