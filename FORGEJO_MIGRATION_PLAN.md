@@ -5,7 +5,7 @@
 `ftzm/dots` lives on GitHub. It is public, fetched anonymously by comin on every
 host but the pi (`role/comin.nix:9`; the pi's comin is disabled,
 `machines/pi/default.nix:175`) and by ArgoCD
-(`cluster/environments/lab/main.jsonnet:492`). CI runs on GitHub-hosted runners
+(`cluster/environments/lab/lab.jsonnet:400`). CI runs on GitHub-hosted runners
 and throws away every closure it builds.
 
 Goals, in priority order:
@@ -21,7 +21,7 @@ Goals, in priority order:
 
 Current state:
 
-- Forgejo `16.0.5` in-cluster on nuc (`cluster/manifests/lab/forgejo-*.yaml`),
+- Forgejo `16.0.5` in-cluster on nuc (`cluster/manifests/forgejo/`),
   SQLite, `local-path` RWO PVC `forgejo-data` (20Gi, no prune guard), git SSH on
   NodePort 30022, HTTPS via traefik + LE wildcard. Nightly `forgejo dump` to
   NFS on nas → borgbase.
@@ -52,7 +52,7 @@ happen to be awake. The writer runs seconds after a merge and the agent's
 tick is two minutes. Push from a trusted service on nuc (deploy-rs) remains
 the natural addition for the lab hosts if immediate push and connectivity
 rollback are ever wanted. Laptops reach nuc over Tailscale at home and away
-(the cluster already scrapes them by tailnet IP, `main.jsonnet:42-47`; at home
+(the cluster already scrapes them by tailnet IP, `lab.jsonnet:47-52`; at home
 the path is direct, `nuc.tail.ftzmlab.xyz → direct 192.168.1.4:41641`, per
 `INCIDENT-2026-08-wireguard-transport.md`), so off-LAN they still fetch the
 manifest and substitute — glue from harmonia through the home uplink, the
@@ -109,7 +109,7 @@ a broken forgejo PreSync gate blocked every ArgoCD sync for 9 days (see
 | S2 | nuc commit wedges PID 1 / kernel panic; watchdog boot-loops the new generation | everything on nuc | as S1 | console on nuc (bootloader menu to the previous generation), then `systemctl stop fleet-agent.timer` on nuc before the manifest can switch it back; everything else waits or is pushed from the workstation, timer stopped first; then the fix to master and the timers restarted |
 | S3 | Renovate bumps forgejo / traefik / cert-manager image; new version fails to start | Forgejo (and, for traefik/cert-manager, its https name) | none for ArgoCD: it reads the nas mirror. Forgejo's own repo is unavailable | a Forgejo upgrade that fails rolls itself back and locks further upgrades (Forgejo Upgrades); traefik / cert-manager: push the revert to the nas mirror (and to Forgejo once it is back, Decisions → nas mirror), ArgoCD deploys it |
 | S4 | nuc disk dies, or `forgejo-data` PVC pruned | all Forgejo data | none for data (nas mirror and workstation clone for master, nightly dump; the manifest is regenerated from master) | a stale restored Forgejo cannot move deploys backwards: nas refuses its non-fast-forward mirror push (Decisions → nas `master`). Its own stale state still matters to the runner and Renovate — see Restore Runbook |
-| S5 | pi (headscale) or nuc's resolver down; a host reboots meanwhile | name resolution of `*.lan.ftzmlab.xyz` | CI, Renovate and the VM runner reach Forgejo by its https name (Renovate's `--endpoint`, the checkout's `$GITHUB_SERVER_URL` = `ROOT_URL`, `main.jsonnet:2832`, `forgejo-runner.nix:20`), which needs DNS, traefik and cert-manager: they stop until it resolves | deployers are unaffected — they use IPs (nas/pi fetch manifest and cache from `192.168.1.4`, ArgoCD and the writer the nas mirror at `192.168.1.3`, laptops `100.64.0.2`). A fix needed meanwhile goes to the nas mirror (Decisions), no CI needed. Laptops still depend on headscale on the pi as the tailnet control plane; accepted |
+| S5 | pi (headscale) or nuc's resolver down; a host reboots meanwhile | name resolution of `*.lan.ftzmlab.xyz` | CI, Renovate and the VM runner reach Forgejo by its https name (Renovate's `--endpoint`, the checkout's `$GITHUB_SERVER_URL` = `ROOT_URL`, `lab.jsonnet:3137`, `forgejo-runner.nix:20`), which needs DNS, traefik and cert-manager: they stop until it resolves | deployers are unaffected — they use IPs (nas/pi fetch manifest and cache from `192.168.1.4`, ArgoCD and the writer the nas mirror at `192.168.1.3`, laptops `100.64.0.2`). A fix needed meanwhile goes to the nas mirror (Decisions), no CI needed. Laptops still depend on headscale on the pi as the tailnet control plane; accepted |
 | S6 | Renovate bumps the runner image to a broken one | CI | fix PR can't go green; auto-merge blocked | merge by hand; not a lockout |
 | S7 | away from home | laptop's fetches go over Tailscale through the home uplink | none — deploys still work, slower (bulk from the CDN); with home dark the laptop stays on its current config and can rebuild itself locally | `connect-timeout` on hosts, `--max-time` in the agent |
 
@@ -520,8 +520,8 @@ runs on the `dots` runner; the triage workflow on the `ftzm/triage` runner
 
 Nothing changes the source of truth until the manual paths are proven.
 
-1. **Groundwork.** Precondition: `ARGOCD_APPLICATIONS_PLAN.md` is done (its Sequencing: the bootstrap script and the CI/Renovate render paths below are written against its per-Application layout). First action: turn off sealed-secrets key renewal, then
-   back every sealing key up into agenix (Secrets). Extend `cluster/scripts/bootstrap` (created by `ARGOCD_APPLICATIONS_PLAN.md` step 6 with its ArgoCD step) with the sealing-key steps and the repo credential (Cluster Bootstrap).
+1. **Groundwork.** Precondition: `ARGOCD_APPLICATIONS_PLAN.md` is done — met 2026-10-05 (its Sequencing: the bootstrap script and the CI/Renovate render paths below are written against its per-Application layout). First action: turn off sealed-secrets key renewal, then
+   back every sealing key up into agenix (Secrets). Extend `cluster/scripts/bootstrap` (created by `ARGOCD_APPLICATIONS_PLAN.md` step 6 with its ArgoCD step, a server-side apply as `--field-manager=argocd-controller`) with the sealing-key steps and the repo credential (Cluster Bootstrap).
    Split `cluster/lib/images.libsonnet` into one file per image,
    `cluster/lib/images/<name>.libsonnet` (per-image comments move with
    them), with `images.libsonnet` a fixed map of imports and Renovate's
@@ -675,7 +675,7 @@ Nothing changes the source of truth until the manual paths are proven.
 
 | Host | CPU | RAM | Disk |
 |---|---|---|---|
-| nuc | i5-10210U, 4c/8t | 62 GiB (10 used) | NVMe 450G, 174G free |
+| nuc | i5-10210U, 4c/8t | 62 GiB (10 used) | NVMe 450G, 144G free (2026-10-05) |
 | nas | Athlon 3000G, 2c/4t | 13 GiB (8 used) | root 102G, 34G free; `pool-1` ZFS 3.72T free |
 | runner microVM (on nuc) | 2 vcpu | 4 GiB | 20 GiB volume, SLIRP |
 
@@ -715,7 +715,7 @@ public forge, get their own runner (Later).
   runner per job or a network filter.
   Hardening on the unit (systemd overrides): `ProtectSystem=strict`,
   `ProtectHome`, `NoNewPrivileges`, `PrivateTmp`, `MemoryMax`, `CPUWeight`.
-  forgejo-runner is the `nixpkgs-ftzmlab` package (13.1.0,
+  forgejo-runner is the `nixpkgs-ftzmlab` package (13.2.0,
   `pkgs/by-name/fo/forgejo-runner/package.nix:30`) on both runners and
   follows its bumps.
 - **Triage runner**: the existing microVM (SLIRP, small), re-registered
@@ -1007,7 +1007,7 @@ writes the manifest or starts the writer: it polls the nas mirror itself.
   job on nuc reads the current pointer locally (`/var/www/fleet/manifest`)
   for `nvd diff`.
 - **The pi's monitoring**: the pi added to `role/node-exporter.nix` hosts and
-  to the scrape list in `main.jsonnet` by LAN IP (`alwaysOn: true`).
+  to the scrape list in `lab.jsonnet` by LAN IP (`alwaysOn: true`).
 - **Runner registration**: each runner registers to its one repo with that
   repo's registration token (`GET /repos/{o}/{r}/actions/runners/registration-token`,
   `routers/api/v1/api.go:501`), fetched once by the owner into agenix: the
@@ -1123,8 +1123,8 @@ role. Cases:
   (`fleet_last_failure` 0);
 - GC under `min-free` pressure keeps both profile generations' closures.
 
-Needs the `kvm` system feature on nuc (nix enables it when `/dev/kvm`
-exists; unverified there).
+Needs the `kvm` system feature on nuc: present (`/dev/kvm` exists and
+nuc's `system-features` are `benchmark big-parallel kvm nixos-test`).
 
 ### Flow
 
@@ -1213,8 +1213,8 @@ only its 345 glue drvs.
 | Resource | Now | Target | Why |
 |---|---|---|---|
 | Triage runner VM | 2 vcpu / 4 GiB / 20 GiB, SLIRP, container labels, host store share, instance-scoped | same CPU/RAM; own store disk, no host store share; the `microvm-egress` nftables table on nuc for its qemu process; host mode, registered to `ftzm/triage`; the 20 GiB volume must hold the agent's workdir store (`dots`' flake inputs, the cluster dev shell) — size measured on the first run | it builds nothing beyond evaluation and `render-lab`; the triage agent only |
-| `dots` runner unit on nuc | — | `MemoryMax` ~24 GiB, `CPUWeight` below k3s; evals run here (five sequential, ~1.5–2 GiB each) | 62 GiB RAM, 13 used |
-| Host store (nuc `/nix`) | 135 GiB used, 178 GiB free, no GC | fleet closures live here: ~41 GiB per generation, ~80 with generation N−1 during a bump, +~20 for PR builds kept opportunistically; `min-free` 20 GiB / `max-free` 60 GiB | the store nuc already has; the 41 GiB overlaps nuc's own 8 GiB closure |
+| `dots` runner unit on nuc | — | `MemoryMax` ~24 GiB, `CPUWeight` below k3s; evals run here (five sequential, ~1.5–2 GiB each) | 62 GiB RAM, 10 used |
+| Host store (nuc `/nix`) | 135 GiB used (last measured before 2026-10-05), 144 GiB free on `/` (2026-10-05), no GC | fleet closures live here: ~41 GiB per generation, ~80 with generation N−1 during a bump, +~20 for PR builds kept opportunistically; `min-free` 20 GiB / `max-free` 60 GiB | the store nuc already has; the 41 GiB overlaps nuc's own 8 GiB closure |
 | Host CPU/RAM for builds | — | all 8 threads, whatever RAM Iosevka needs, alongside k3s (load average ~2) | builds are bursty; the runner unit's limits bound the job side |
 | Network | — | harmonia (`:5000`) + nginx (`:5001`) on every nuc address; nas and pi over LAN, laptops over Tailscale | no SLIRP anywhere in the build or serving path |
 
@@ -1348,7 +1348,7 @@ private keys**. The first is the owner's ssh key. The second is **not backed
 up anywhere in this repo** — without it a rebuilt cluster cannot decrypt
 `forgejo-secrets` or anything else sealed. The controller keeps every key it
 has made and `kubeseal` seals with the newest, so the backup must hold all of
-them and the set must stop growing: `main.jsonnet`'s `sealedSecrets` passes
+them and the set must stop growing: `lab.jsonnet`'s `sealedSecrets` passes
 the chart `keyrenewperiod: '0'` (the controller default is a new key every 30
 days, `cmd/controller/main.go:24`; the chart omits the flag when the value is
 empty), deployed through ArgoCD. Once that is synced, the backup (`kubectl get
@@ -1430,9 +1430,10 @@ impossible: an older Forgejo refuses a newer schema
 pre-upgrade snapshot plus the old image; Forgejo's guide: "Restoring the
 backup done before the upgrade is easy and does not lose any information".
 
-**Requires Forgejo to be its own ArgoCD Application**, generated by the
-ApplicationSet of `ARGOCD_APPLICATIONS_PLAN.md`. Hooks, sync failure and the
-lock are all per-Application: inside `lab`, a failing pre-flight would stop
+**Requires Forgejo to be its own ArgoCD Application** — it is since
+2026-10-05, generated by the `services` ApplicationSet of
+`ARGOCD_APPLICATIONS_PLAN.md`. Hooks, sync failure and the lock are all
+per-Application: inside the former single `lab` app, a failing pre-flight would stop
 every cluster sync ("If any of them fails the whole sync process will stop"),
 any unrelated failure would fire the Forgejo rollback, and the lock would
 pause the whole cluster. The ApplicationSet carries
@@ -1465,8 +1466,8 @@ names `X` — a downgrade losing everything written since.
    while a hook of wave `-1` runs or after one failed
    (`pkg/sync/sync_context.go:494-500`, `:540-543`). In order:
    1. No `/data/gitea/gitea.db` on the volume → fresh install, exit 0.
-      (Today's gate instead waits 300 s for Forgejo to answer and fails, so
-      a fresh cluster's first Forgejo sync can never succeed.)
+      (Already in place: the ArgoCD cut-over made the gate a wave-`-1` Sync
+      hook with this check, `lib/backup.libsonnet`.)
    2. The running instance's version (`/api/v1/version`, as today) equals
       the target image's tag → exit 0: nothing to upgrade, lock or not.
    3. Upgrade pending and the Forgejo Application has
@@ -1719,14 +1720,15 @@ number goes here.
 
 ## Verified vs. Unverified
 
-**Verified** (source cited where used): Forgejo `16.0.5`; ArgoCD lab app
-`prune`/`selfHeal`/no `allowEmpty`; `forgejo-data` PVC class and lack of prune
+**Verified** (source cited where used): Forgejo `16.0.5`; every ArgoCD
+Application `prune`/`selfHeal`/no `allowEmpty`; `/dev/kvm` and the `kvm`
+system feature on nuc; forgejo-runner `13.2.0` in `nixpkgs-ftzmlab`; `forgejo-data` PVC class and lack of prune
 guard; every `file:line` in the hurdles table; Forgejo Actions event set
 (`workflow_run` absent from the source), first-existing workflow directory
 only, `uses:` resolution and `DEFAULT_ACTIONS_URL` default, contexts,
 `concurrency` semantics, artifact requirements, Renovate's forgejo platform,
 every API endpoint named (live swagger); laptops scraped over Tailscale
-(`main.jsonnet:42-47`); leigheas and eachtrai share a wg `publicKey`
+(`lab.jsonnet:47-52`); leigheas and eachtrai share a wg `publicKey`
 (`role/network.nix:12,51`); the pi has no wg, no tailscale and no
 node-exporter; the node-exporter textfile dir; the writer's host/system
 evaluation on the real flake. Workflow security against Forgejo `v16.0.5`
@@ -1801,7 +1803,7 @@ armed auto-merge surviving another user's push); whether the automatic token
 may call `POST /pulls/{i}/update`; repo-scoped
 runner invisibility from other repos (check on day one with a throwaway
 public repo); the store-path manifest and the two profiles end to end (the
-`fleet-deploy` VM test); `/dev/kvm` on nuc for that test;
+`fleet-deploy` VM test);
 that nas's `receive.denyNonFastForwards` refusal of a mirror push surfaces
 in the push mirror's `last_error`, and that `branch_filter: master` pushes
 only `master`; that a single `nix build` holds temporary roots for its
