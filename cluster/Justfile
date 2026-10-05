@@ -1,19 +1,33 @@
 # Render all environments
 render-all: render-lab
 
-# Render lab environment.
+# Render lab environment: one directory per namespace (one Tanka inline
+# environment each, environments/lab/main.jsonnet), which is one ArgoCD
+# Application each.
 # Render into a temp dir and swap only on success: a failed render must not
-# leave manifests/lab empty (renovate commits whatever the tree looks like
+# leave manifests/ empty (renovate commits whatever the tree looks like
 # after its post-upgrade task, and an empty tree would delete everything).
 render-lab:
     #!/usr/bin/env bash
     set -euo pipefail
-    tmp=$(mktemp -d manifests/.render-lab.XXXXXX)
-    trap 'rm -rf "$tmp"' EXIT
-    tk export "$tmp" environments/lab --format '{{ "{{" }}.metadata.name{{ "}}" }}-{{ "{{" }}.kind | lower{{ "}}" }}' --skip-manifest
-    cp environments/lab/secrets/*.enc.yaml "$tmp"/
-    rm -rf manifests/lab
-    mv "$tmp" manifests/lab
+    tmp=$(mktemp -d .render-lab.XXXXXX)
+    old=""
+    trap 'rm -rf "$tmp" ${old:+"$old"}' EXIT
+    tk export "$tmp" environments/lab --recursive --format '{{ "{{" }}env.metadata.name{{ "}}" }}/{{ "{{" }}.metadata.name{{ "}}" }}-{{ "{{" }}.kind | lower{{ "}}" }}' --skip-manifest
+    # Each SopsSecret goes to its namespace's directory, which must exist.
+    for f in environments/lab/secrets/*.enc.yaml; do
+      ns=$(awk '/^metadata:/ {m=1; next} m && /^[^ ]/ {m=0} m && $1 == "namespace:" {print $2; exit}' "$f")
+      if [ -z "$ns" ] || [ ! -d "$tmp/$ns" ]; then
+        echo "render-lab: $f: namespace '$ns' has no environment" >&2
+        exit 1
+      fi
+      cp "$f" "$tmp/$ns"/
+    done
+    if [ -d manifests ]; then
+      old=$(mktemp -d .render-lab-old.XXXXXX)
+      mv manifests "$old"/
+    fi
+    mv "$tmp" manifests
 
 # Unit-test the rendered Prometheus alert rules.
 # Rules ship as PrometheusRule CRs but promtool wants bare rule files, so
@@ -46,9 +60,16 @@ jb-install:
 jb-update:
     jb update
 
-# Show diff of what would change in lab
+# Show diff of what would change in lab, one namespace's environment at a
+# time (tk diff takes a single environment).
 diff-lab:
-    tk diff environments/lab
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for ns in manifests/*/; do
+      ns=$(basename "$ns")
+      echo "== $ns"
+      tk diff environments/lab --name "$ns"
+    done
 
 # Generate renovate.json from chartfile.yaml (outputs to repo root)
 generate-renovate:
