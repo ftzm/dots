@@ -88,8 +88,8 @@ features this repo does not use:
    ApplicationSet (`system/argocd/values.yaml`) and mortennordbye/homelab's
    `apps` ApplicationSet; mitchross/talos-argocd-proxmox, vehagn/homelab and
    gruberdev/homelab also run one Application per service, none a single
-   cluster-wide app. Evidence from `tk eval environments/lab` (531
-   resources + 7 `secrets/*.enc.yaml` = the 538 files of `manifests/lab`):
+   cluster-wide app. Evidence from `tk eval environments/lab` (530
+   resources + 8 `secrets/*.enc.yaml` = the 538 files of `manifests/lab`):
    - Each of the 23 Namespace objects is emitted by exactly one top-level key
      of `environments/lab/main.jsonnet`, so every key but one maps to one
      app: `argocd`, `audiobookshelf`, `blocky`, `cert-manager`
@@ -109,10 +109,13 @@ features this repo does not use:
      `kube-prometheus-stack-coredns` Service in `kube-system`; each key's
      cluster-scoped resources (ClusterRoles, the `ClusterIssuer`,
      `StorageClass`, `IngressClass`, `ClusterImageCatalog`s, per-service
-     PersistentVolumes).
-   - The 7 SopsSecrets, copied flat by `render-lab` today, go to the app
+     PersistentVolumes). One exception, to break a CRD cycle (step 3): the
+     `traefik` PodMonitor moves from the `traefik` key to `monitoring`,
+     keeping `namespace: traefik`.
+   - The 8 SopsSecrets, copied flat by `render-lab` today, go to the app
      owning their namespace: `cloudflare-api-token` → `cert-manager`;
      `external-dns-cloudflare-api-token` → `external-dns`;
+     `cleanuparr-config` → `media`;
      `healthchecks`, `homepage-api-keys`, `miniflux-admin`,
      `pinepods-admin`, `vaultwarden-env` → their service.
    - CRDs stay with their operator's app: `traefik` 25, `monitoring` 11,
@@ -162,9 +165,12 @@ features this repo does not use:
      `<tmp>/<its metadata.namespace>/`, failing if that directory does not
      exist; then all of `manifests/` swapped atomically, as `manifests/lab`
      is today (`cluster/Justfile:8-16`).
+   - `just diff-lab`: `tk diff environments/lab` fails with several inline
+     environments ("found multiple Environments … Use `--name`"), so it runs
+     `tk diff --name <namespace>` per `manifests/` directory.
    - `just test-rules`: globs `manifests/*/*-prometheusrule.yaml` and
      `manifests/*/loki-rule-*-configmap.yaml`. Basenames are unique across
-     the 531 files, so `tests/.rules/` and the `*.test.yaml` `rule_files`
+     the 530 files, so `tests/.rules/` and the `*.test.yaml` `rule_files`
      are unchanged.
    - The `render-lab` flake check and Renovate's `postUpgradeTasks`
      (`FORGEJO_MIGRATION_PLAN.md`): `cluster/manifests` in place of
@@ -191,7 +197,21 @@ features this repo does not use:
      their pods Ready — cnpg (`clusters`, `databases`, `backups`,
      `scheduledbackups`, `poolers`) and cert-manager (`cert-manager.io`
      `*/*`, so traefik's `Certificate`); kube-prometheus-stack's are
-     `Ignore`. A missing CRD fails the dry-run, which fails the sync without
+     `Ignore`. The operator apps depend on each other too (checked over
+     every non-core `apiVersion` in their manifests): `cert-manager`'s
+     SopsSecret `cloudflare-api-token` needs `sops-operator`; `traefik`'s
+     `Certificate` needs cert-manager's CRD and webhook; `monitoring`'s
+     SealedSecret `grafana-admin` needs `sealed-secrets`, its IngressRoutes
+     `grafana` and `loki` need `traefik`; `traefik`'s PodMonitor needs
+     `monitoring` — a cycle, broken by moving that PodMonitor to the
+     `monitoring` app (step 1); the `argocd` app's `IngressRouteTCP` needs
+     `traefik`, its ServiceMonitors and PrometheusRule `monitoring`. Within
+     `cert-manager`, the `letsencrypt` ClusterIssuer passes through the
+     app's own webhook (cluster-scoped, so the webhook's `namespaceSelector`
+     does not exempt it) and carries `sync-wave: "1"`, after the webhook
+     Deployment is Healthy. Rejected for the cycle:
+     `SkipDryRunOnMissingResource` on the cross edges, which makes a fresh
+     bootstrap depend on retry timing. A missing CRD fails the dry-run, which fails the sync without
      hooks or SyncFail (gitops-engine `pkg/sync/sync_context.go:455-458`);
      auto-sync then does not retry that SHA (`controller/appcontroller.go:2381-2385`,
      checked before `selfHeal`).
@@ -209,9 +229,11 @@ features this repo does not use:
      | Wave | Contents |
      |---|---|
      | `0` | the ArgoCD install |
-     | `1` | Applications `sealed-secrets`, `sops-operator`, `cnpg-system`, `cert-manager`, `nfs-provisioner`, `monitoring` |
-     | `2` | Application `traefik` (its `Certificate` needs cert-manager's webhook) |
-     | `3` | ArgoCD's ServiceMonitors and PrometheusRule (need `monitoring`'s CRDs); the ApplicationSet (15 service apps) |
+     | `1` | Applications `sealed-secrets`, `sops-operator`, `cnpg-system`, `nfs-provisioner` |
+     | `2` | Application `cert-manager` (its SopsSecret needs `sops-operator`) |
+     | `3` | Application `traefik` (its `Certificate` needs cert-manager's webhook) |
+     | `4` | Application `monitoring` (needs `sealed-secrets` and `traefik`) |
+     | `5` | ArgoCD's `IngressRouteTCP` (needs `traefik`), ServiceMonitors and PrometheusRule (need `monitoring`); the ApplicationSet (15 service apps) |
 
    - The operator Applications are emitted by jsonnet like the rest, same
      template as the ApplicationSet's (finalizer, automated sync, `prune` +
@@ -371,14 +393,14 @@ cut-over (step 4). Each task names its sections above for the detail.
    with `spec.namespace: 'default'`.
    *Verify:* `tk export <scratch> environments/lab --recursive --format
    '{{env.metadata.name}}/{{.metadata.name}}-{{.kind | lower}}'
-   --skip-manifest` gives 23 directories and 531 files, each `cmp`-identical
+   --skip-manifest` gives 23 directories and 530 files, each `cmp`-identical
    to its basename in `manifests/lab/`.
 2. **`render-lab` recipe** (step 2, Consumers). Temp dir outside
    `manifests/`; the recursive export; each `secrets/*.enc.yaml` copied to
    `<tmp>/<metadata.namespace>/`, failing on a missing directory; atomic swap
    of `manifests/`.
-   *Verify:* `just render-lab` → 23 directories, 538 files, the 7 SopsSecrets
-   in `cert-manager`, `external-dns`, `healthchecks`, `homepage`,
+   *Verify:* `just render-lab` → 23 directories, 538 files, the 8 SopsSecrets
+   in `cert-manager`, `external-dns`, `healthchecks`, `homepage`, `media`,
    `miniflux`, `pinepods`,
    `vaultwarden`; a second run leaves `git status` clean.
 3. **`test-rules` globs** (step 2, Consumers).
@@ -392,22 +414,27 @@ cut-over (step 4). Each task names its sections above for the detail.
      `ServerSideApply=true`;
    - the 7 operator Applications, same policy plus
      `resources-finalizer.argocd.argoproj.io`, `sync-wave` `1`
-     (`sealed-secrets`, `sops-operator`, `cnpg-system`, `cert-manager`,
-     `nfs-provisioner`, `monitoring`) and `2` (`traefik`);
-   - the ApplicationSet, `sync-wave: 3`: git directory generator over
+     (`sealed-secrets`, `sops-operator`, `cnpg-system`, `nfs-provisioner`),
+     `2` (`cert-manager`), `3` (`traefik`), `4` (`monitoring`);
+   - the ApplicationSet, `sync-wave: 5`: git directory generator over
      `cluster/manifests/*`, `exclude: true` for `cluster/manifests/argocd`
      and the 7 operator directories; template name and destination namespace
      `{{path.basename}}`, the finalizer, the same policy;
      `ignoreApplicationDifferences` on
      `/spec/syncPolicy/automated/enabled`;
-   - `sync-wave: 3` on ArgoCD's 3 ServiceMonitors and its PrometheusRule;
+   - `sync-wave: 5` on ArgoCD's `IngressRouteTCP`, 3 ServiceMonitors and
+     PrometheusRule;
+   - the `traefik` PodMonitor moved from the `traefik` key to `monitoring`
+     (rendered file unchanged, now in `manifests/monitoring/`);
+   - `sync-wave: "1"` on the `letsencrypt` ClusterIssuer;
    - `argocd.argoproj.io/sync-options: Prune=false` on the `argocd`
      Namespace;
    - `configs.cm."resource.customizations.health.argoproj.io_Application"`
      in the chart values (the Resource Health docs' Lua).
 
    *Verify:* `just render-lab`; in `manifests/argocd/`, 1 + 7 Applications
-   and 1 ApplicationSet with the waves above; the generator's non-excluded
+   and 1 ApplicationSet with the waves above; `traefik-podmonitor.yaml` in
+   `manifests/monitoring/`; the generator's non-excluded
    directories are exactly the 15 service namespaces; no `lab` Application
    anywhere in `manifests/`.
 5. **Hook layout** (Hooks and waves, step 7). For `forgejo`, `immich`,
@@ -431,7 +458,7 @@ cut-over (step 4). Each task names its sections above for the detail.
    `manifests/lab/` references and the hook descriptions.
 8. **Review the branch diff.** `manifests/lab/` gone; 23 directories under
    `manifests/`; the only non-path changes in rendered resources are task
-   4's ArgoCD objects and task 5's hook annotations, ServiceAccounts, Roles
+   4's ArgoCD objects and wave annotations and task 5's hook annotations, ServiceAccounts, Roles
    and RoleBindings.
 
 **Cut-over**
