@@ -1,20 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: lab
+  name: argocd
   namespace: argocd
 spec:
   destination:
-    namespace: default
+    namespace: argocd
     server: https://kubernetes.default.svc
   project: default
   source:
-    path: cluster/manifests/lab
+    path: cluster/manifests/argocd
     repoURL: https://github.com/ftzm/dots.git
     targetRevision: HEAD
   syncPolicy:
     automated:
-      prune: false
+      prune: true
       selfHeal: true
     syncOptions:
     - ServerSideApply=true

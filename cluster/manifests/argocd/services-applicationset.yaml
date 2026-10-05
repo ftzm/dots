@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+  name: services
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      directories:
+      - path: cluster/manifests/*
+      - exclude: true
+        path: cluster/manifests/argocd
+      - exclude: true
+        path: cluster/manifests/cert-manager
+      - exclude: true
+        path: cluster/manifests/cnpg-system
+      - exclude: true
+        path: cluster/manifests/monitoring
+      - exclude: true
+        path: cluster/manifests/nfs-provisioner
+      - exclude: true
+        path: cluster/manifests/sealed-secrets
+      - exclude: true
+        path: cluster/manifests/sops-operator
+      - exclude: true
+        path: cluster/manifests/traefik
+      repoURL: https://github.com/ftzm/dots.git
+      revision: HEAD
+  ignoreApplicationDifferences:
+  - jsonPointers:
+    - /spec/syncPolicy/automated/enabled
+  template:
+    metadata:
+      finalizers:
+      - resources-finalizer.argocd.argoproj.io
+      name: '{{path.basename}}'
+    spec:
+      destination:
+        namespace: '{{path.basename}}'
+        server: https://kubernetes.default.svc
+      project: default
+      source:
+        path: '{{path}}'
+        repoURL: https://github.com/ftzm/dots.git
+        targetRevision: HEAD
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - ServerSideApply=true

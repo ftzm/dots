@@ -350,27 +350,6 @@ local patchTargetDown(resources) = {
       ns
     ),
 
-    // PodMonitor for Prometheus to scrape Traefik metrics
-    podMonitor: {
-      apiVersion: 'monitoring.coreos.com/v1',
-      kind: 'PodMonitor',
-      metadata: {
-        name: 'traefik',
-        namespace: ns,
-      },
-      spec: {
-        selector: {
-          matchLabels: {
-            'app.kubernetes.io/name': 'traefik',
-          },
-        },
-        podMetricsEndpoints: [{
-          port: 'metrics',
-          path: '/metrics',
-        }],
-      },
-    },
-
     // Wildcard certificate for *.lan.ftzmlab.xyz (in traefik namespace so Traefik can read it)
     wildcardCert: {
       apiVersion: 'cert-manager.io/v1',
@@ -413,7 +392,41 @@ local patchTargetDown(resources) = {
   argocd: {
     local ns = 'argocd',
 
-    namespace: k.core.v1.namespace.new(ns),
+    // The git source of every Application below and of the ApplicationSet.
+    local repo = {
+      repoURL: 'https://github.com/ftzm/dots.git',
+      targetRevision: 'HEAD',
+    },
+    local syncPolicy = {
+      automated: {
+        prune: true,
+        selfHeal: true,  // Auto-sync when cluster state drifts
+      },
+      syncOptions: [
+        'ServerSideApply=true',
+      ],
+    },
+    local wave(n) = { metadata+: { annotations+: { 'argocd.argoproj.io/sync-wave': std.toString(n) } } },
+
+    // Operators, by the wave the argocd Application syncs them in. On a fresh
+    // cluster each wave needs CRDs or webhooks from an earlier one:
+    // cert-manager's SopsSecret needs sops-operator, traefik's Certificate
+    // cert-manager, monitoring's SealedSecret and IngressRoutes
+    // sealed-secrets and traefik. Everything left (wave 5) needs any of them.
+    local operatorWaves = {
+      'sealed-secrets': 1,
+      'sops-operator': 1,
+      'cnpg-system': 1,
+      'nfs-provisioner': 1,
+      'cert-manager': 2,
+      traefik: 3,
+      monitoring: 4,
+    },
+    local lastWave = 5,
+
+    // Deleting the argocd Namespace would delete ArgoCD.
+    namespace: k.core.v1.namespace.new(ns)
+               + k.core.v1.namespace.metadata.withAnnotations({ 'argocd.argoproj.io/sync-options': 'Prune=false' }),
 
     resources: withNamespace(
       helm.template('argocd', '../../charts/argo-cd', {
@@ -436,6 +449,26 @@ local patchTargetDown(resources) = {
           configs: {
             params: {
               'reposerver.max.combined.directory.manifests.size': '30000000',
+            },
+            cm: {
+              // Application health, off by default since ArgoCD 1.8: the
+              // argocd Application waits on each wave's Applications being
+              // Healthy, not merely created (Resource Health docs, app of apps
+              // with sync waves).
+              'resource.customizations.health.argoproj.io_Application': |||
+                hs = {}
+                hs.status = "Progressing"
+                hs.message = ""
+                if obj.status ~= nil then
+                  if obj.status.health ~= nil then
+                    hs.status = obj.status.health.status
+                    if obj.status.health.message ~= nil then
+                      hs.message = obj.status.health.message
+                    end
+                  end
+                end
+                return hs
+              |||,
             },
           },
           // Metrics for the application controller, API server and repo server,
@@ -480,41 +513,98 @@ local patchTargetDown(resources) = {
       ns
     ),
 
-    // Application that points ArgoCD at this repo's rendered manifests
+    // ArgoCD manages itself: this directory holds its install, this
+    // Application, the operator Applications and the ApplicationSet. No
+    // finalizer, so deleting the Application never deletes ArgoCD.
     app: {
       apiVersion: 'argoproj.io/v1alpha1',
       kind: 'Application',
       metadata: {
-        name: 'lab',
+        name: 'argocd',
         namespace: ns,
       },
       spec: {
         project: 'default',
-        source: {
-          repoURL: 'https://github.com/ftzm/dots.git',
-          targetRevision: 'HEAD',
-          path: 'cluster/manifests/lab',
-        },
+        source: repo { path: 'cluster/manifests/argocd' },
         destination: {
           server: 'https://kubernetes.default.svc',
-          namespace: 'default',
+          namespace: ns,
         },
-        syncPolicy: {
-          automated: {
-            // false for the cut-over to per-namespace Applications
-            // (ARGOCD_APPLICATIONS_PLAN.md, task 9): lab must not prune
-            // anything before the new Applications have adopted it.
-            prune: false,
-            selfHeal: true,  // Auto-sync when cluster state drifts
-          },
-          syncOptions: [
-            'ServerSideApply=true',
-          ],
-        },
+        syncPolicy: syncPolicy,
       },
     },
 
-    // Traefik IngressRouteTCP for ArgoCD with TLS passthrough
+    // One Application per operator namespace. The finalizer makes removing
+    // one delete its resources.
+    operatorApps: {
+      [name]: {
+        apiVersion: 'argoproj.io/v1alpha1',
+        kind: 'Application',
+        metadata: {
+          name: name,
+          namespace: ns,
+          finalizers: ['resources-finalizer.argocd.argoproj.io'],
+        },
+        spec: {
+          project: 'default',
+          source: repo { path: 'cluster/manifests/' + name },
+          destination: {
+            server: 'https://kubernetes.default.svc',
+            namespace: name,
+          },
+          syncPolicy: syncPolicy,
+        },
+      } + wave(operatorWaves[name])
+      for name in std.objectFields(operatorWaves)
+    },
+
+    // Every other manifests/<namespace>/ directory is one service
+    // Application, named after it. ignoreApplicationDifferences lets one
+    // Application's automated sync be switched off (Forgejo's upgrade lock,
+    // restores) without the controller reverting it; only that one field, so
+    // the template's other syncPolicy fields still reach existing apps.
+    applicationSet: {
+      apiVersion: 'argoproj.io/v1alpha1',
+      kind: 'ApplicationSet',
+      metadata: {
+        name: 'services',
+        namespace: ns,
+      },
+      spec: {
+        generators: [{
+          git: {
+            repoURL: repo.repoURL,
+            revision: repo.targetRevision,
+            directories: [{ path: 'cluster/manifests/*' }] + [
+              { path: 'cluster/manifests/' + name, exclude: true }
+              for name in [ns] + std.objectFields(operatorWaves)
+            ],
+          },
+        }],
+        ignoreApplicationDifferences: [{
+          jsonPointers: ['/spec/syncPolicy/automated/enabled'],
+        }],
+        template: {
+          metadata: {
+            name: '{{path.basename}}',
+            finalizers: ['resources-finalizer.argocd.argoproj.io'],
+          },
+          spec: {
+            project: 'default',
+            source: repo { path: '{{path}}' },
+            destination: {
+              server: 'https://kubernetes.default.svc',
+              namespace: '{{path.basename}}',
+            },
+            syncPolicy: syncPolicy,
+          },
+        },
+      },
+    } + wave(lastWave),
+
+    // Traefik IngressRouteTCP for ArgoCD with TLS passthrough. It and the
+    // monitoring objects below sit in the last wave: they need traefik's and
+    // monitoring's CRDs.
     ingressRoute: {
       apiVersion: 'traefik.io/v1alpha1',
       kind: 'IngressRouteTCP',
@@ -535,7 +625,7 @@ local patchTargetDown(resources) = {
           passthrough: true,
         },
       },
-    },
+    } + wave(lastWave),
 
     // The chart only creates the metrics Services (its ServiceMonitors and
     // PrometheusRule are gated on helm capabilities that tanka does not
@@ -549,17 +639,17 @@ local patchTargetDown(resources) = {
       // means no argocd_app_info at all -- which ArgoCDAppMissing catches.
       { 'app.kubernetes.io/name': 'argocd-metrics' },
       'http-metrics'
-    ),
+    ) + wave(lastWave),
     serverServiceMonitor: alerts.serviceMonitor(
       'argocd-server', ns,
       { 'app.kubernetes.io/name': 'argocd-server-metrics' },
       'http-metrics'
-    ),
+    ) + wave(lastWave),
     repoServerServiceMonitor: alerts.serviceMonitor(
       'argocd-repo-server', ns,
       { 'app.kubernetes.io/name': 'argocd-repo-server-metrics' },
       'http-metrics'
-    ),
+    ) + wave(lastWave),
 
     // Alerts on sync failures, drift, controller liveness and reconcile
     // absence. `argocd_app_sync_total{phase="Failed|Error"}` increments
@@ -609,7 +699,7 @@ local patchTargetDown(resources) = {
         'ArgoCD controller has not reconciled in 30 minutes',
         'No app reconciliations in 30 minutes; healthy cadence is ~22/hour. The controller is likely wedged (counter resets on restart are handled by increase()).',
       ),
-    ]),
+    ]) + wave(lastWave),
   },
 
   // Sealed Secrets controller for encrypted secrets in git
@@ -693,12 +783,16 @@ local patchTargetDown(resources) = {
     // Cloudflare API token: environments/lab/secrets/cloudflare-api-token.enc.yaml
     // (SOPS-encrypted, copied to manifests/ during render, decrypted in-cluster by sops-secrets-operator)
 
-    // ClusterIssuer for Let's Encrypt using Cloudflare DNS-01
+    // ClusterIssuer for Let's Encrypt using Cloudflare DNS-01.
+    // Wave 1: cert-manager's own webhook (failurePolicy Fail; cluster-scoped
+    // objects are not exempted by its namespaceSelector) admits it, so on a
+    // fresh cluster it waits for the webhook Deployment to be Healthy.
     clusterIssuer: {
       apiVersion: 'cert-manager.io/v1',
       kind: 'ClusterIssuer',
       metadata: {
         name: 'letsencrypt',
+        annotations: { 'argocd.argoproj.io/sync-wave': '1' },
       },
       spec: {
         acme: {
@@ -1074,6 +1168,31 @@ local patchTargetDown(resources) = {
     local ns = 'monitoring',
 
     namespace: k.core.v1.namespace.new(ns),
+
+    // PodMonitor for Prometheus to scrape Traefik metrics. It lives in the
+    // traefik namespace but is emitted here, in the monitoring app: traefik's
+    // app needs nothing from monitoring then, while monitoring's IngressRoutes
+    // need traefik's CRDs -- so on a fresh cluster traefik syncs first
+    // (the argocd key's operator waves).
+    traefikPodMonitor: {
+      apiVersion: 'monitoring.coreos.com/v1',
+      kind: 'PodMonitor',
+      metadata: {
+        name: 'traefik',
+        namespace: 'traefik',
+      },
+      spec: {
+        selector: {
+          matchLabels: {
+            'app.kubernetes.io/name': 'traefik',
+          },
+        },
+        podMetricsEndpoints: [{
+          port: 'metrics',
+          path: '/metrics',
+        }],
+      },
+    },
 
     // kube-prometheus-stack: Prometheus + Grafana + Alertmanager
     prometheusStack: withNamespace(
