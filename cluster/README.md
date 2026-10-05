@@ -49,8 +49,8 @@ No global installs are required; the flake pins nixpkgs to ensure reproducibilit
 │
 ├── environments/
 │   └── lab/
-│       ├── spec.json               # Tanka environment metadata
-│       ├── main.jsonnet            # All cluster resources defined here
+│       ├── main.jsonnet            # One Tanka environment per namespace
+│       ├── lab.jsonnet             # All cluster resources defined here
 │       └── secrets/
 │           └── *.enc.yaml          # SOPS-encrypted secrets
 │
@@ -66,7 +66,8 @@ No global installs are required; the flake pins nixpkgs to ensure reproducibilit
 │       └── jsonnet-libs/           # k8s-libsonnet v1.34
 │
 ├── manifests/
-│   └── lab/                        # Rendered YAML manifests (ArgoCD reads these)
+│   ├── argocd/                     # ArgoCD, its Applications + ApplicationSet
+│   └── <namespace>/                # Rendered YAML, one dir per ArgoCD Application
 │
 ├── scripts/
 │   └── create-sealed-secret.sh     # Helper for creating SealedSecrets
@@ -84,7 +85,7 @@ No global installs are required; the flake pins nixpkgs to ensure reproducibilit
 | **Tanka** | Evaluates Jsonnet, templates Helm charts, exports Kubernetes YAML |
 | **Jsonnet** | Data-templating language used to compose all resources |
 | **Helm** | Charts are vendored and templated via Tanka's `helm.template()` — Helm is not used as a release manager |
-| **ArgoCD** | Watches `manifests/lab/` in this repo and syncs to the cluster |
+| **ArgoCD** | One Application per `manifests/<namespace>/` directory in this repo, synced to the cluster |
 | **SOPS + age** | Encrypts secrets at rest in git; decrypted in-cluster by sops-secrets-operator |
 | **Sealed Secrets** | Alternative secrets path using kubeseal + cluster-side controller |
 | **Renovate** | Automated PRs for chart and dependency version bumps |
@@ -95,26 +96,47 @@ No global installs are required; the flake pins nixpkgs to ensure reproducibilit
 ## Workflow: From Code to Cluster
 
 ```
- Edit main.jsonnet
+ Edit lab.jsonnet
         │
         ▼
  just render-lab          Tanka evaluates Jsonnet, templates Helm charts,
-        │                 writes YAML to manifests/lab/
+        │                 writes YAML to manifests/<namespace>/
         ▼
  git commit & push        Rendered manifests committed to repo
         │
         ▼
- ArgoCD detects drift     Watches manifests/lab/ on HEAD
+ ArgoCD detects drift     One Application per manifests/<namespace>/ on HEAD
         │
         ▼
  Cluster state updated    selfHeal: true auto-syncs on drift
 ```
 
-ArgoCD is configured with:
-- **selfHeal: true** — automatically reconciles when cluster state drifts from git.
-- **prune: false** — does not auto-delete resources removed from git (safety measure).
-- **ServerSideApply: true** — uses server-side apply for conflict resolution.
-- Source: `https://github.com/ftzm/cluster.git`, path `manifests/lab`.
+ArgoCD runs one Application per namespace, all defined in the `argocd` key of
+`lab.jsonnet` and rendered into `manifests/argocd/`:
+- **`argocd`** — manages `manifests/argocd/` itself: ArgoCD's install, the
+  Applications below and the ApplicationSet. No finalizer, so deleting it never
+  deletes ArgoCD; its Namespace is `Prune=false`.
+- **7 operator Applications**, synced in waves by the `argocd` Application so
+  each finds the CRDs and webhooks it needs on a fresh cluster: 1
+  `sealed-secrets`, `sops-operator`, `cnpg-system`, `nfs-provisioner`; 2
+  `cert-manager`; 3 `traefik`; 4 `monitoring`. The Application health check in
+  `argocd-cm` makes each wave wait until the previous one's Applications are
+  Healthy. Wave 5 holds the `services` ApplicationSet and ArgoCD's own
+  IngressRouteTCP, ServiceMonitors and PrometheusRule.
+- **The `services` ApplicationSet** — one Application per remaining
+  `manifests/<namespace>/` directory, named after it. A new namespace in
+  `main.jsonnet` gets its Application automatically, unless it is an operator
+  listed in the `argocd` key's waves. It ignores each app's
+  `/spec/syncPolicy/automated/enabled`, so one app's auto-sync can be switched
+  off (an upgrade lock, a restore) without the controller reverting it.
+
+Every Application syncs automatically with **prune** and **selfHeal**, and uses
+**ServerSideApply**. The operator and service Applications carry ArgoCD's
+resources finalizer: removing a `manifests/<namespace>/` directory deletes that
+namespace's resources. Source: `https://github.com/ftzm/dots.git`, `HEAD`.
+
+`scripts/bootstrap` installs all of this onto a cluster: a server-side apply of
+`manifests/argocd/`, after which the `argocd` Application takes over.
 
 ---
 
@@ -122,10 +144,12 @@ ArgoCD is configured with:
 
 ### Environment structure
 
-There is a single Tanka environment: `environments/lab/`.
+`environments/lab/` holds one Tanka inline environment per namespace:
 
-- **`spec.json`** — tells Tanka this is an environment (no hardcoded API server; uses current kubectl context).
-- **`main.jsonnet`** — the single source of truth for the entire cluster. Every resource (Helm-templated or hand-written) is defined here.
+- **`lab.jsonnet`** — the single source of truth for the entire cluster. Every resource (Helm-templated or hand-written) is defined here.
+- **`main.jsonnet`** — maps each top-level key of `lab.jsonnet` to its namespace (`observability` → `monitoring`) and returns one `Environment` per namespace. A key with no namespace fails the render. Adding a namespace means adding its key here.
+
+There is no `spec.json`: with one, Tanka treats the directory as a single static environment. Every environment keeps `spec.namespace: 'default'`, because Tanka puts that namespace on cluster-scoped kinds it does not know (`ClusterIssuer`, `ClusterImageCatalog`, `IngressClass`).
 
 ### How it works
 
@@ -171,16 +195,16 @@ Custom logic and configuration is defined in Jsonnet, not in the charts themselv
 
 | Command | Description |
 |---|---|
-| `just render-lab` | Delete old manifests, run `tk export` to regenerate YAML, copy encrypted secrets |
+| `just render-lab` | Export every environment into `manifests/<namespace>/`, copy each encrypted secret into its namespace's directory, swap `manifests/` only on success |
 | `just render-all` | Alias for `render-lab` (scales to multiple environments) |
-| `just diff-lab` | Show what would change if applied (`tk diff`) |
+| `just diff-lab` | Show what would change if applied (`tk diff`, one environment at a time) |
 | `just jb-install` | Install vendored Jsonnet dependencies |
 | `just jb-update` | Update Jsonnet dependencies to latest |
 | `just generate-renovate` | Regenerate `renovate.json` from the Jsonnet template + validate |
 | `just test-renovate` | Dry-run Renovate locally |
 
-The render step produces flat YAML files named `{name}-{kind}.yaml` under
-`manifests/lab/`, which is the directory ArgoCD watches.
+The render step produces YAML files named `{name}-{kind}.yaml` under
+`manifests/<namespace>/`, one directory per ArgoCD Application.
 
 ---
 
@@ -188,9 +212,9 @@ The render step produces flat YAML files named `{name}-{kind}.yaml` under
 
 ### Key concepts
 
-`environments/lab/main.jsonnet` is the primary file where cluster resources are defined. Other files are involved depending on the change — `chartfile.yaml` for adding Helm charts, `lib/config.libsonnet` for shared constants, `environments/lab/secrets/` for encrypted secrets.
+`environments/lab/lab.jsonnet` is the primary file where cluster resources are defined. Other files are involved depending on the change — `chartfile.yaml` for adding Helm charts, `lib/config.libsonnet` for shared constants, `environments/lab/secrets/` for encrypted secrets.
 
-The top of `main.jsonnet` establishes the imports and helpers used throughout:
+The top of `lab.jsonnet` establishes the imports and helpers used throughout:
 
 ```jsonnet
 local config = import '../../lib/config.libsonnet';
@@ -206,9 +230,9 @@ The `withNamespace(resources, ns)` helper is defined at the top of the file. It 
 
 ### After every change
 
-Every change to `main.jsonnet` requires rendering and committing:
+Every change to `lab.jsonnet` requires rendering and committing:
 
-1. Run `just render-lab` to regenerate the YAML manifests in `manifests/lab/`.
+1. Run `just render-lab` to regenerate the YAML manifests in `manifests/`.
 2. Commit **both** the Jsonnet source changes and the rendered manifests.
 3. Push — ArgoCD will detect the new manifests and sync automatically.
 
@@ -218,7 +242,7 @@ Forgetting to render or forgetting to commit the rendered output will cause the 
 
 If the chart is not yet vendored, add it to `chartfile.yaml` and run `tk tool charts vendor`.
 
-Then add a service block to `main.jsonnet`:
+Then add a service block to `lab.jsonnet`, and map its key to its namespace in `main.jsonnet`:
 
 ```jsonnet
 myService: {
@@ -369,7 +393,7 @@ separate IPs, creating isolated public and private ingress paths:
 **Public DNS (Cloudflare):** ddclient on the pi keeps `ftzmlab.xyz` and the `*.ftzmlab.xyz` wildcard pointed at the WAN IP, so public services need no per-service record. Other public records are declared as `DNSEndpoint` resources and published by **external-dns** (`external-dns` namespace, `--policy=upsert-only`, txt ownership registry with owner `lab`). It never deletes or rewrites records it did not create.
 
 - `lan-zone-cut` publishes `lan.ftzmlab.xyz TXT "reserved"`. A wildcard does not answer below an existing name (RFC 4592), so public lookups under `lan.ftzmlab.xyz` return NXDOMAIN instead of the WAN IP. Private names resolve only via Blocky.
-- To add a record, add an endpoint to a `DNSEndpoint` in `main.jsonnet` (`externalDns`).
+- To add a record, add an endpoint to a `DNSEndpoint` in `lab.jsonnet` (`externalDns`).
 
 ### TLS
 
@@ -392,7 +416,7 @@ Two complementary systems are available:
 Used for secrets that need to be stored as encrypted files in git.
 
 - `.sops.yaml` configures encryption rules: files matching `*.enc.yaml` have their `data` and `stringData` fields encrypted with an age public key.
-- Encrypted files live in `environments/lab/secrets/` and are copied to `manifests/lab/` during rendering.
+- Encrypted files live in `environments/lab/secrets/` and are copied to `manifests/<their metadata.namespace>/` during rendering; a secret whose namespace has no environment fails the render.
 - The **sops-secrets-operator** runs in-cluster, mounts the age private key, and decrypts `SopsSecret` CRDs into regular Kubernetes Secrets.
 
 ### Sealed Secrets
@@ -421,12 +445,12 @@ Used for secrets created interactively.
 - Dual-network reverse proxy (see [Networking and Routing](#networking-and-routing)).
 - Exports JSON access logs (collected by Alloy → Loki).
 - Prometheus metrics on port 9091 (avoids conflict with node-exporter on 9100).
-- Monitored via a `PodMonitor`.
+- Monitored via a `PodMonitor`, emitted by the `monitoring` key so the `traefik` Application needs nothing from `monitoring` (the operator waves above).
 
 ### GitOps — ArgoCD
 
-- Watches `manifests/lab/` in this repo.
-- Auto-heals drift; does not auto-prune (safe deletion requires manual action).
+- One Application per `manifests/<namespace>/` directory (see [Workflow](#workflow-from-code-to-cluster)).
+- Auto-heals drift and prunes resources removed from git.
 - Accessible at `argo.lan.ftzmlab.xyz` via TLS passthrough.
 
 ### Certificate Automation — cert-manager
@@ -511,7 +535,7 @@ All observability components live in the `monitoring` namespace.
 ### Cleanuparr — Malware Blocking for Sonarr/Radarr
 
 - `ghcr.io/cleanuparr/cleanuparr` in the `media` namespace, defined via
-  `lib/cleanuparr.libsonnet`; its settings are declared in `main.jsonnet`.
+  `lib/cleanuparr.libsonnet`; its settings are declared in `lab.jsonnet`.
 - Keeps executables and other dangerous files (Sonarr/Radarr's own extension
   list) out of the arr downloads:
   - torrents: the malware blocker sets matching files in Deluge to skip before
@@ -583,8 +607,14 @@ what to do by comparing the running server to the target rather than assuming
 an upgrade is underway — on an ordinary sync each is a single query and an
 exit.
 
-**`majorUpgradeGate` (PreSync).** If the running major already equals the
-target, it exits immediately. If they differ, it takes a dedicated
+**`majorUpgradeGate` (Sync hook, wave -1).** Not PreSync: PreSync runs before
+any Sync-phase resource exists, so on a fresh cluster its backup PVC would not
+exist and its pod would never schedule. It runs in wave -1 with that PVC, its
+static PV and its ServiceAccount/Role/RoleBinding; everything else, the
+`Cluster` included, is in wave 0, which ArgoCD does not start while the gate
+runs or after it failed. It first asks the API server for its `Cluster` object:
+absent means a fresh install and it exits 0. If the running major already
+equals the target, it exits immediately. If they differ, it takes a dedicated
 pre-upgrade dump and verifies the result is non-empty *and* readable by
 `pg_restore`. Failing that fails the sync, so the image change never reaches
 the cluster without a good dump behind it.
@@ -656,11 +686,15 @@ runs `forgejo migrate` in an initContainer on **every** pod start — so a schem
 migration fires the moment a new image rolls, with nothing in front of it.
 Reverting the image does not undo a migration that has already run.
 
-`forgejoDumpGate` (`lib/backup.libsonnet`) is a PreSync hook that asks the
-running instance what version it is, via `/api/v1/version`, and compares that
-to the tag of the image about to be deployed. When they differ it takes a
-`forgejo dump` and checks the tar is readable before letting the sync proceed.
-On an ordinary sync it is one HTTP request.
+`forgejoDumpGate` (`lib/backup.libsonnet`) is a Sync hook in wave -1, with
+the `forgejo-data` and `forgejo-backup` PVCs and the backup PV; the Deployment
+is in wave 0 (PreSync would run before those PVCs exist on a fresh cluster).
+With no `/data/gitea/gitea.db` it is a fresh install and exits 0. Otherwise it
+asks the running instance what version it is, via `/api/v1/version`, and
+compares that to the tag of the image about to be deployed. When they differ
+it takes a raw tar snapshot of `/data` (`forgejo dump` is not
+forward-compatible across schema versions) and checks the tar is readable
+before letting the sync proceed. On an ordinary sync it is one HTTP request.
 
 This exists because the nightly dump is not a substitute. It runs at 02:00 and
 can be nearly a day old when an upgrade lands, so restoring it would lose a
