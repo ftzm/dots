@@ -1,12 +1,9 @@
 # nuc as the fleet's deploy plane (FORGEJO_MIGRATION_PLAN.md -> Binary Cache).
 # The cache is live: harmonia serves nuc's store signed with the cache key,
-# and nix signs what nuc builds with it. The writer (fleetWriter) and the
+# and nix signs what nuc builds with it (verified: harmonia's narinfo
+# signatures check against nuc-fleet-1). The writer (fleetWriter) and the
 # hosts' agents come next.
-{
-  config,
-  lib,
-  ...
-}: {
+{config, ...}: {
   imports = [../../role/fleet-writer.nix];
 
   age.secrets.fleet-cache-key = {
@@ -18,7 +15,4 @@
     enable = true;
     signKeyFile = config.age.secrets.fleet-cache-key.path;
   };
-  # Until harmonia's signatures prove the key decrypts on nuc: a bad key here
-  # would fail every build nuc's daemon runs, comin's own included.
-  nix.settings.secret-key-files = lib.mkForce [];
 }
