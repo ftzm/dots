@@ -110,6 +110,11 @@ in {
   # Per-interface useDHCP will be mandatory in the future, so this generated config
   # replicates the default behaviour.
   boot.kernel.sysctl."net.ipv4.ip_unprivileged_port_start" = 53;
+  # traefik (private entrypoints) and blocky bind 100.64.0.2, which exists only
+  # once tailscale has logged in to headscale. Without this they crash-loop
+  # until then (bind: cannot assign requested address) -- for 12 minutes on
+  # 2026-10-05 while headscale was unreachable after a WAN IP change.
+  boot.kernel.sysctl."net.ipv4.ip_nonlocal_bind" = 1;
 
   networking.hostName = "nuc";
   networking.useDHCP = true;
