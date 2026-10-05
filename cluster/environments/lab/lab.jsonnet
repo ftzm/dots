@@ -11,6 +11,9 @@ local storage = import '../../lib/storage.libsonnet';
 local helm = (import 'tanka-util/helm.libsonnet').new(std.thisFile);
 local k = import 'k8s-libsonnet/main.libsonnet';
 
+// ArgoCD sync wave, as a mixin.
+local syncWave(n) = { metadata+: { annotations+: { 'argocd.argoproj.io/sync-wave': std.toString(n) } } };
+
 // Cluster-scoped kinds that should not have namespace set
 local clusterScoped = [
   'ClusterRole',
@@ -406,7 +409,7 @@ local patchTargetDown(resources) = {
         'ServerSideApply=true',
       ],
     },
-    local wave(n) = { metadata+: { annotations+: { 'argocd.argoproj.io/sync-wave': std.toString(n) } } },
+    local wave = syncWave,
 
     // Operators, by the wave the argocd Application syncs them in. On a fresh
     // cluster each wave needs CRDs or webhooks from an earlier one:
@@ -2620,8 +2623,9 @@ local patchTargetDown(resources) = {
     libraryPvc: libraryMount.pvc,
 
     // Static NFS PV/PVC for database backups
-    dbBackupPv: dbBackupMount.pv,
-    dbBackupPvc: dbBackupMount.pvc,
+    // Wave -1, with the upgrade gate that writes to them (lib/postgres.libsonnet).
+    dbBackupPv: dbBackupMount.pv + syncWave(-1),
+    dbBackupPvc: dbBackupMount.pvc + syncWave(-1),
 
     // CloudNativePG PostgreSQL cluster with VectorChord
     database: {
@@ -2747,8 +2751,9 @@ local patchTargetDown(resources) = {
     // ref both read pgMajor, so they cannot disagree.
     dbUpgradeGate: postgres.majorUpgradeGate(
       'immich-db-upgrade-gate', ns, images.cloudnativeVectorchord18,
-      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup', pgMajor
+      'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup', pgMajor, 'immich-database'
     ),
+    dbUpgradeGateAccess: postgres.majorUpgradeGateAccess('immich-db-upgrade-gate', ns, 'immich-database'),
     dbUpgradeFinalize: postgres.majorUpgradeFinalize(
       'immich-db-upgrade-finalize', ns, images.cloudnativeVectorchord18,
       'immich-database-rw', 'immich', 'immich', 'immich-database-app', 'immich-db-backup'
@@ -2883,8 +2888,9 @@ local patchTargetDown(resources) = {
     downloadsPvc: downloadsMount.pvc,
 
     // pg_dump target — static NFS path, also borg'd.
-    dbBackupPv: dbBackupMount.pv,
-    dbBackupPvc: dbBackupMount.pvc,
+    // Wave -1, with the upgrade gate that writes to them (lib/postgres.libsonnet).
+    dbBackupPv: dbBackupMount.pv + syncWave(-1),
+    dbBackupPvc: dbBackupMount.pvc + syncWave(-1),
 
     // Non-secret env (admin PASSWORD comes from the SopsSecret; DB_PASSWORD from
     // the CNPG-generated superuser secret).
@@ -2963,8 +2969,9 @@ local patchTargetDown(resources) = {
     // No managed extensions: this database has only plpgsql, which is builtin.
     dbUpgradeGate: postgres.majorUpgradeGate(
       'pinepods-db-upgrade-gate', ns, images.cnpgPostgres,
-      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup', pgMajor
+      'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup', pgMajor, 'pinepods-database'
     ),
+    dbUpgradeGateAccess: postgres.majorUpgradeGateAccess('pinepods-db-upgrade-gate', ns, 'pinepods-database'),
     dbUpgradeFinalize: postgres.majorUpgradeFinalize(
       'pinepods-db-upgrade-finalize', ns, images.cnpgPostgres,
       'pinepods-database-rw', 'postgres', 'pinepods_database', 'pinepods-database-superuser', 'pinepods-db-backup'
@@ -3005,8 +3012,9 @@ local patchTargetDown(resources) = {
     },
 
     // pg_dump target — static NFS path, also borg'd.
-    dbBackupPv: dbBackupMount.pv,
-    dbBackupPvc: dbBackupMount.pvc,
+    // Wave -1, with the upgrade gate that writes to them (lib/postgres.libsonnet).
+    dbBackupPv: dbBackupMount.pv + syncWave(-1),
+    dbBackupPvc: dbBackupMount.pvc + syncWave(-1),
 
     // Non-secret env. The image already sets LISTEN_ADDR=0.0.0.0:8080.
     // CREATE_ADMIN is idempotent: on every restart Miniflux skips creation when
@@ -3103,8 +3111,9 @@ local patchTargetDown(resources) = {
     // No managed extensions: this database has only plpgsql, which is builtin.
     dbUpgradeGate: postgres.majorUpgradeGate(
       'miniflux-db-upgrade-gate', ns, images.cnpgPostgres,
-      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup', pgMajor
+      'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup', pgMajor, 'miniflux-database'
     ),
+    dbUpgradeGateAccess: postgres.majorUpgradeGateAccess('miniflux-db-upgrade-gate', ns, 'miniflux-database'),
     dbUpgradeFinalize: postgres.majorUpgradeFinalize(
       'miniflux-db-upgrade-finalize', ns, images.cnpgPostgres,
       'miniflux-database-rw', 'miniflux', 'miniflux', 'miniflux-database-app', 'miniflux-db-backup'
@@ -3150,7 +3159,8 @@ local patchTargetDown(resources) = {
                + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
                + k.core.v1.persistentVolumeClaim.spec.withAccessModes(['ReadWriteOnce'])
                + k.core.v1.persistentVolumeClaim.spec.resources.withRequests({ storage: '20Gi' })
-               + k.core.v1.persistentVolumeClaim.spec.withStorageClassName('local-path'),
+               + k.core.v1.persistentVolumeClaim.spec.withStorageClassName('local-path')
+               + syncWave(-1),
 
       // Git-over-SSH via NodePort so clone URLs resolve from the LAN.
       // SSH_PORT below must match nodePort so Forgejo advertises the right URL.
@@ -3189,8 +3199,9 @@ local patchTargetDown(resources) = {
       // Runs as git (uid 1000, the server user) and writes uncompressed tar so
       // borg can dedup unchanged repos across days. The NFS dir is owned
       // 1000:1000 on the NAS so the git-uid job can write it (no_root_squash).
-      backupPv: backupMount.pv,
-      backupPvc: backupMount.pvc,
+      // Wave -1, with the upgrade gate that mounts them (lib/backup.libsonnet).
+      backupPv: backupMount.pv + syncWave(-1),
+      backupPvc: backupMount.pvc + syncWave(-1),
 
       // Gate on a fresh dump before an image change lands. `forgejo migrate`
       // runs in an initContainer on every pod start, so the schema migration

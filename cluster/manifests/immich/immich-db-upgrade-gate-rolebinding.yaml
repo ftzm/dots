@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  name: immich-db-upgrade-gate
+  namespace: immich
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: immich-db-upgrade-gate
+subjects:
+- kind: ServiceAccount
+  name: immich-db-upgrade-gate
+  namespace: immich

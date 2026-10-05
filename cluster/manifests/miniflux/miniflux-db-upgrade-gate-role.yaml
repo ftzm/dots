@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  name: miniflux-db-upgrade-gate
+  namespace: miniflux
+rules:
+- apiGroups:
+  - postgresql.cnpg.io
+  resourceNames:
+  - miniflux-database
+  resources:
+  - clusters
+  verbs:
+  - get

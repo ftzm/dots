@@ -47,7 +47,7 @@
     local parts = std.split(image, ':');
     parts[std.length(parts) - 1],
 
-  // PreSync gate for Forgejo -- the counterpart to the CloudNativePG gate in
+  // Upgrade gate for Forgejo -- the counterpart to the CloudNativePG gate in
   // lib/postgres.libsonnet, for a service that needs the same protection by a
   // different route.
   //
@@ -64,6 +64,13 @@
   // Asks the running instance what version it is, rather than inferring it
   // from anything on disk, and takes a dump only when that differs from the
   // image about to be deployed. On an ordinary sync it is one HTTP request.
+  //
+  // Sync hook in wave -1, not PreSync: PreSync runs before any Sync-phase
+  // resource exists, so on a fresh cluster the data and backup PVCs would not
+  // exist and the pod would never schedule. Wave -1 holds the gate with those
+  // PVCs and the backup PV; the Deployment is in wave 0, which ArgoCD does not
+  // start while the gate runs or after it failed. No database on the volume
+  // means a fresh install: nothing to protect, and no Forgejo to ask.
   forgejoDumpGate(name, ns, image, service, dataPvc, backupPvc):: {
     apiVersion: 'batch/v1',
     kind: 'Job',
@@ -71,7 +78,8 @@
       name: name,
       namespace: ns,
       annotations: {
-        'argocd.argoproj.io/hook': 'PreSync',
+        'argocd.argoproj.io/hook': 'Sync',
+        'argocd.argoproj.io/sync-wave': '-1',
         'argocd.argoproj.io/hook-delete-policy': 'BeforeHookCreation',
       },
     },
@@ -88,6 +96,11 @@
             set -eu
             expected="%(expected)s"
             url="http://%(service)s:3000/api/v1/version"
+
+            if [ ! -f /data/gitea/gitea.db ]; then
+              echo "no /data/gitea/gitea.db: fresh install, nothing to protect"
+              exit 0
+            fi
 
             # An ArgoCD retry can land while the pod is rolling from a change
             # an earlier attempt made, so tolerate that rather than failing a

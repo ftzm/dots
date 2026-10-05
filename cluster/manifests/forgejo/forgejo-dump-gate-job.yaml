@@ -2,8 +2,9 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   annotations:
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
   name: forgejo-dump-gate
   namespace: forgejo
 spec:
@@ -16,6 +17,11 @@ spec:
           set -eu
           expected="16.0.5"
           url="http://forgejo:3000/api/v1/version"
+
+          if [ ! -f /data/gitea/gitea.db ]; then
+            echo "no /data/gitea/gitea.db: fresh install, nothing to protect"
+            exit 0
+          fi
 
           # An ArgoCD retry can land while the pod is rolling from a change
           # an earlier attempt made, so tolerate that rather than failing a

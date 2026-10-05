@@ -124,7 +124,7 @@
   // uid 26 (the CNPG image's user) needs the storage group to write to the
   // NFS backup dir. Same reasoning as lib/backup.libsonnet -- omitting it
   // fails with EACCES.
-  local backupJob(name, ns, image, script, env, pvcName, annotations) = {
+  local backupJob(name, ns, image, script, env, pvcName, annotations, pre='', serviceAccount=null) = {
     apiVersion: 'batch/v1',
     kind: 'Job',
     metadata: { name: name, namespace: ns, annotations: annotations },
@@ -135,11 +135,12 @@
       template: { spec: {
         restartPolicy: 'Never',
         securityContext: { supplementalGroups: [1001] },
+        [if serviceAccount != null then 'serviceAccountName']: serviceAccount,
         containers: [{
           name: name,
           image: image,
           command: ['/bin/sh', '-c'],
-          args: ['set -eu\n' + waitForDatabase + script],
+          args: ['set -eu\n' + pre + waitForDatabase + script],
           env: env,
           volumeMounts: [{ name: 'backup', mountPath: '/backup' }],
         }],
@@ -148,7 +149,73 @@
     },
   },
 
-  // PreSync: if the running major already equals the target there is no
+  // Fresh install: no cnpg Cluster object yet, so there is no database to
+  // protect, and waiting for one would hang -- its -rw Service and the Cluster
+  // itself only arrive in the wave after the gate. Asks the API server for the
+  // Cluster object: psql cannot tell "no database" from "database down", a
+  // marker on the backup PVC outlives the cluster (static NFS PV), and DNS on
+  // the -rw Service would read a CoreDNS outage as a fresh install and skip the
+  // pre-upgrade dump. The images carry python3 but no curl, wget or kubectl.
+  local exitIfNoCluster = |||
+    rc=0
+    python3 -c '
+    import os, ssl, sys, urllib.error, urllib.request
+    sa = "/var/run/secrets/kubernetes.io/serviceaccount"
+    url = "https://{}:{}/apis/postgresql.cnpg.io/v1/namespaces/{}/clusters/{}".format(
+        os.environ["KUBERNETES_SERVICE_HOST"], os.environ["KUBERNETES_SERVICE_PORT"],
+        open(sa + "/namespace").read(), os.environ["CNPG_CLUSTER"])
+    req = urllib.request.Request(url, headers={"Authorization": "Bearer " + open(sa + "/token").read()})
+    try:
+        urllib.request.urlopen(req, context=ssl.create_default_context(cafile=sa + "/ca.crt"), timeout=30)
+    except urllib.error.HTTPError as e:
+        sys.exit(3 if e.code == 404 else 1)
+    ' || rc=$?
+    if [ "$rc" = 3 ]; then
+      echo "no Cluster $CNPG_CLUSTER: fresh install, nothing to protect"
+      exit 0
+    elif [ "$rc" != 0 ]; then
+      echo "FATAL: could not ask the API server for Cluster $CNPG_CLUSTER; the check did not run"
+      exit 1
+    fi
+  |||,
+
+  // What exitIfNoCluster needs: get on its one Cluster object. In the gate's
+  // wave (-1), so the Job's pod finds its ServiceAccount on a fresh cluster.
+  majorUpgradeGateAccess(name, ns, clusterName):: {
+    local wave = { metadata+: { annotations+: { 'argocd.argoproj.io/sync-wave': '-1' } } },
+    serviceAccount: {
+      apiVersion: 'v1',
+      kind: 'ServiceAccount',
+      metadata: { name: name, namespace: ns },
+    } + wave,
+    role: {
+      apiVersion: 'rbac.authorization.k8s.io/v1',
+      kind: 'Role',
+      metadata: { name: name, namespace: ns },
+      rules: [{
+        apiGroups: ['postgresql.cnpg.io'],
+        resources: ['clusters'],
+        resourceNames: [clusterName],
+        verbs: ['get'],
+      }],
+    } + wave,
+    roleBinding: {
+      apiVersion: 'rbac.authorization.k8s.io/v1',
+      kind: 'RoleBinding',
+      metadata: { name: name, namespace: ns },
+      roleRef: { apiGroup: 'rbac.authorization.k8s.io', kind: 'Role', name: name },
+      subjects: [{ kind: 'ServiceAccount', name: name, namespace: ns }],
+    } + wave,
+  },
+
+  // Sync hook in wave -1, not PreSync: PreSync runs before any Sync-phase
+  // resource exists, so on a fresh cluster the backup PVC would not exist and
+  // the pod would never schedule. Wave -1 holds the gate with its backup
+  // PV/PVC (and majorUpgradeGateAccess); the Cluster and everything else is in
+  // wave 0, which ArgoCD does not start while the gate runs or after it failed.
+  //
+  // No Cluster object -> fresh install, exit 0 (exitIfNoCluster). Otherwise:
+  // if the running major already equals the target there is no
   // upgrade pending and this exits immediately. If they differ, it takes a
   // dedicated pre-upgrade dump and verifies it is actually restorable. A
   // failure here fails the sync, so the image change never reaches the
@@ -157,7 +224,7 @@
   // This is the gate that matters: once pg_upgrade --link succeeds, the old
   // data directory shares inodes with the new one and is no longer a fallback.
   // This dump is the only way back.
-  majorUpgradeGate(name, ns, image, host, user, database, secretName, pvcName, targetMajor, secretKey='password')::
+  majorUpgradeGate(name, ns, image, host, user, database, secretName, pvcName, targetMajor, clusterName, secretKey='password')::
     backupJob(
       name, ns, image,
       |||
@@ -199,12 +266,15 @@
         pg_restore --list "$out" > /dev/null || { echo "FATAL: pre-upgrade dump is not readable"; exit 1; }
         echo "pre-upgrade dump verified: $(wc -c < "$out") bytes"
       ||| % { target: std.toString(targetMajor), name: name, vchord: $.vchordVersionOf(image) },
-      pgEnv(host, user, database, secretName, secretKey),
+      pgEnv(host, user, database, secretName, secretKey) + [{ name: 'CNPG_CLUSTER', value: clusterName }],
       pvcName,
       {
-        'argocd.argoproj.io/hook': 'PreSync',
+        'argocd.argoproj.io/hook': 'Sync',
+        'argocd.argoproj.io/sync-wave': '-1',
         'argocd.argoproj.io/hook-delete-policy': 'BeforeHookCreation',
       },
+      pre=exitIfNoCluster,
+      serviceAccount=name,
     ),
 
   // PostSync: runs after the sync is applied and resources report healthy.

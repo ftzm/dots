@@ -1,6 +1,6 @@
 apiVersion: v1
 data:
-  digest: f0a4e811288d6f88463017468a7cf571
+  digest: 1c1af1475ffa49b3b5ad16a1c38d765e
 kind: ConfigMap
 metadata:
   name: forgejo-dump-gate-revision
