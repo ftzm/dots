@@ -549,11 +549,10 @@ Nothing changes the source of truth until the manual paths are proven.
    negative checks: it is test data, deleted in step 3, and the OpenTofu job
    that declares Forgejo's configuration does not exist until then.
    The manual paths' weekly self-tests (nuc Down → Self-tests) in place
-   and green. Precondition for the laptop self-test: eachtrai's
-   node_exporter, through which its result is reported, is reachable —
-   on 2026-10-05 Prometheus's target `http://100.64.0.7:9002/metrics` was
-   down (`connect: connection refused`, `avg_over_time(up[30d])` 0) while
-   eachtrai ran the current commit, and no alert covered it.
+   and green — on saoiste (both self-tests) now; eachtrai's laptop
+   self-test is committed with the rest but reports only once eachtrai
+   runs a system that has node_exporter (Follow-ups → eachtrai), which does
+   not block this plan.
 2. **Build farm + agent.** The `dots` runner on nuc (Binary Cache → Design;
    the VM runner becomes the triage runner — re-registered to `ftzm/triage`,
    no longer instance-scoped, host mode with the nixpkgs module, its own store
@@ -1829,3 +1828,44 @@ in the push mirror's `last_error`, and that `branch_filter: master` pushes
 only `master`; that a single `nix build` holds temporary roots for its
 finished sub-builds until it exits under `min-free` pressure (if not, one
 `--out-link` for the linkFarm covers the window).
+
+---
+
+## Follow-ups
+
+Found while checking step 1; not blocking any step.
+
+### eachtrai runs an April system although comin reports its switches succeeded
+
+Facts (2026-10-05):
+
+- Prometheus's `node-exporter` target `http://100.64.0.7:9002/metrics` is
+  down (`connect: connection refused`; `avg_over_time(up[30d])` 0), and no
+  alert covered it. eachtrai has no `prometheus-node-exporter` unit: it was
+  added to eachtrai on 2026-09-12 (`bf86b68d`), after the system it runs.
+- `/run/current-system` and `/run/booted-system` are both
+  `1d9vdr17…-nixos-system-eachtrai-26.05.20260411.1304392`;
+  `/nix/var/nix/profiles/system` is `7nr313q8…-26.11.20260926.e158d9e`;
+  master builds `mqvq1h8w…-26.11.20261001.c59305b`.
+- `comin status` reports `Deployment succeeded`, `Operation switch`,
+  outpath `mqvq1h8w…`, profile `/nix/var/nix/profiles/system-profiles/comin-64-link`.
+  So comin records switches as successful that did not activate.
+
+Unverified: whether each `switch` since the 26.05 → 26.11 move exits 100
+(the new systemd's interface version differs from the running PID 1, the
+plan's deferred switch, Binary Cache → Design → Agent) and comin counts that
+as success; and which entry the bootloader boots next. To check, on
+eachtrai: `who -b`; `journalctl -u comin --since -2d | grep -iE
+'exit|status 100|reboot|switch-to-conf'`; `ls -l /nix/var/nix/profiles/
+/nix/var/nix/profiles/system-profiles/`; `bootctl status`.
+
+Then: reboot eachtrai into the current generation, confirm node_exporter
+answers on `:9002` and the laptop self-test reports. Under `fleet-agent`
+(step 2) this case is handled — a deferred switch sets
+`nixos_reboot_required{reason="deferred"}` — but that metric also travels
+through node_exporter, so it needs this fixed. The silent dead target is a
+gap of its own: laptops are excluded from the reachability alerts
+(`alwaysOn: false`), so nothing notices a laptop scrape that never
+succeeds while the host is otherwise up (its comin target answered); an
+alert on `up{job="node-exporter"} == 0` while that host's comin target is
+up would.
