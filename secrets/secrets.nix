@@ -32,4 +32,9 @@ in {
   "k3s.age".publicKeys = [personal saoiste eachtrai nuc];
   "forgejo-runner-token.age".publicKeys = [personal nuc];
   "cloudflare-api.age".publicKeys = [personal saoiste eachtrai nuc pi];
+  # Every sealed-secrets controller key (a kind: List of the labelled key
+  # Secrets), for cluster/scripts/bootstrap to restore before the controller
+  # first starts on a rebuilt cluster. Workstation-only: no host decrypts it.
+  # Key renewal is off (cluster lab.jsonnet sealedSecrets), so the set is fixed.
+  "sealed-secrets-keys.age".publicKeys = [personal];
 }
