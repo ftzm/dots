@@ -9,8 +9,15 @@
 # "no manual kubectl apply".
 #
 # Run from anywhere in the repo, against the cluster in $KUBECONFIG.
+#
+# The apply uses ArgoCD's own field manager, argocd-controller, so it is
+# exactly what the argocd Application's first sync of the same directory
+# writes. As the default `kubectl` manager it conflicts with fields ArgoCD
+# already owns on a live cluster, and forcing those would leave `kubectl`
+# co-owning every field here -- server-side apply removes a field only once
+# no manager owns it, so a field later dropped from the chart would stay.
 set -euo pipefail
 
 cluster_dir=$(cd "$(dirname "$0")/.." && pwd)
 
-kubectl apply --server-side -f "$cluster_dir/manifests/argocd/"
+kubectl apply --server-side --field-manager=argocd-controller -f "$cluster_dir/manifests/argocd/"

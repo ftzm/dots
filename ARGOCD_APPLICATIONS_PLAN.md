@@ -455,7 +455,8 @@ cut-over (step 4). Each task names its sections above for the detail.
    apps has a wave.
 6. **Bootstrap script** (step 6). `cluster/scripts/bootstrap`: server-side
    apply of `cluster/manifests/argocd/`
-   (`kubectl apply --server-side -f cluster/manifests/argocd/`).
+   (`kubectl apply --server-side --field-manager=argocd-controller -f
+   cluster/manifests/argocd/`: ArgoCD's own field manager, see task 11).
    *Verify:* `bash -n`; the file list it applies is `manifests/argocd/` only.
 7. **README** (step 2, Consumers). `cluster/README.md`: the eight
    `manifests/lab/` references and the hook descriptions.
@@ -480,12 +481,18 @@ cut-over (step 4). Each task names its sections above for the detail.
     13.
 11. **Run `cluster/scripts/bootstrap`** against the live cluster (the
     one-time cut-over `CLAUDE.md` allows). First, by hand, `kubectl apply
-    --server-side --dry-run=server -f cluster/manifests/argocd/`: the live
-    ArgoCD objects' fields are owned by the `argocd-controller` field
-    manager (`lab` syncs with `ServerSideApply=true`), and a field this
-    apply changes to a different value is a conflict. The rendered diff only
-    adds fields and objects, so none is expected; the dry run proves it
-    before anything is applied. Any conflict stops the cut-over here. The
+    --server-side --field-manager=argocd-controller --dry-run=server -f
+    cluster/manifests/argocd/`: the live ArgoCD objects' fields are owned by
+    the `argocd-controller` field manager (`lab` syncs with
+    `ServerSideApply=true`). As the default `kubectl` manager the apply
+    conflicted on 8 fields (`checksum/cm` on the controller StatefulSet and
+    the server and repo-server Deployments, 3 `.spec.ingress`, the
+    applicationset-controller's `NAMESPACE` `fieldRef`, a Secret's
+    `.stringData`); as `argocd-controller` it is what the `argocd`
+    Application's own first sync writes, and the dry run passes. Forcing the
+    conflicts as `kubectl` was rejected: `kubectl` would co-own every field,
+    and a field later dropped from the chart would never be removed. Any
+    conflict stops the cut-over here. The
     dry run stays out of the script: on a fresh cluster the Applications'
     CRDs arrive in the same apply, so a dry run there fails.
     *Verify:* the `argocd` Application exists and syncs wave by wave; the 7
