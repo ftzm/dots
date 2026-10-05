@@ -714,7 +714,14 @@ local patchTargetDown(resources) = {
     resources: withNamespace(
       helm.template('sealed-secrets', '../../charts/sealed-secrets', {
         namespace: ns,
-        values: {},
+        values: {
+          // No key renewal. The controller keeps every key it has made and
+          // seals with the newest, so a rebuilt cluster needs all of them;
+          // they are backed up in agenix (secrets/sealed-secrets-keys.age)
+          // for cluster/scripts/bootstrap. A renewal would add a key that
+          // backup lacks. Default: a new key every 30 days.
+          keyrenewperiod: '0',
+        },
       }),
       ns
     ),
