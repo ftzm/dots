@@ -176,6 +176,18 @@ in {
     startAt = "daily";
   };
 
+  # The upstream autoconnect unit waits TimeoutStartSec (90s) for tailscale to
+  # reach Running and then fails for good. When headscale is unreachable at
+  # boot (pi down, or ddclient not yet caught up with a new public IP) it
+  # stays failed after tailscale recovers. Keep retrying instead.
+  systemd.services.tailscaled-autoconnect = {
+    unitConfig.StartLimitIntervalSec = 0;
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSec = "30s";
+    };
+  };
+
   #############################################################################
 
   # Mediastack directory tree (arr stack + media services mount via NFS)
