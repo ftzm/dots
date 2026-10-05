@@ -5,14 +5,6 @@
   ...
 }: let
   hosts = {
-    leigheas = {
-      wg = {
-        ip = "10.0.100.2";
-        listenPort = 51820;
-        publicKey = "eLpLj1/WiCEW8w00A+HLPMkUGTGRCrRb1znESP43q0I=";
-        clientOnly = true;
-      };
-    };
     nas = {
       wg = {
         # LAN IP: 192.168.1.3
