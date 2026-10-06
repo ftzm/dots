@@ -909,9 +909,9 @@ writes the manifest or starts the writer: it polls the nas mirror itself.
     `fleet_writer_last_failure` (set from an `ERR` trap),
     `fleet_manifest_commit_info{commit}`.
   - There is no per-host testing mechanism: NixOS is atomic and a bad merge
-    is a revert commit. A manual switch on a host is undone by the agent's
-    next tick; when one must persist, stop the timer (nuc Down → Keeping a
-    manual switch).
+    is a revert commit. A manual switch on a host is undone by the agent
+    once it is 30 minutes old (below); when one must persist, stop the timer
+    (nuc Down → Keeping a manual switch).
 - **Agent** (`fleet-agent`, a NixOS role on every host including the pi): a
   systemd timer (2 min) running a short script:
   - One `curl --max-time 20` of the pointer `manifest` (a store path);
@@ -1014,9 +1014,18 @@ writes the manifest or starts the writer: it polls the nas mirror itself.
     `/var/lib/prometheus-node-exporter-text-files/` (the dir the role
     collects, scraped already): `fleet_deployed_commit_info{commit}`,
     `fleet_last_success_timestamp`, `fleet_last_failure`.
-  - A host that is off or off-LAN simply retries next tick. A manual
-    `nixos-rebuild` on a host is **reverted on the next tick**; to keep one,
-    stop the timer.
+  - A host that is off or off-LAN simply retries next tick. A running
+    system activated after the manifest was generated — comin applying a
+    commit before the writer published it during the cut-over, or a manual
+    `nixos-rebuild` — is left alone for 30 minutes, in which the writer
+    normally publishes what runs, and **reverted after that**; to keep one,
+    stop the timer. Without the grace period the agent would flip a host back
+    and forth across the cut-over (decided 2026-10-06).
+  - When the manifest's path is what runs, the agent points the `system`
+    profile at it. A system another deployer activated (comin until the
+    cut-over, a manual rebuild) leaves the profile behind, and the
+    deferred-reboot check and autoReboot read it: under comin it was left on
+    a July generation on saoiste, which autoReboot would have booted.
 - **Hosts** need: the role (agent, `trusted-public-keys` with nuc's cache
   key — the only key, `substituters` order, `connect-timeout = 5`, and
   **their own GC** — every manifest change is a new generation via `nix-env
@@ -1468,7 +1477,7 @@ itself publishes one, so rebuilding nuc is ordered:
 5. Only now do agent deploys resume, nuc's own included.
 
 **Keeping a manual switch (any time nuc is up).** The agent reverts a
-manual `nixos-rebuild` on its next tick. When a host must stay on something
+manual `nixos-rebuild` once it is 30 minutes old. When a host must stay on something
 master does not yet name — Forgejo down and an urgent fix on nas, say —
 `systemctl stop fleet-agent.timer` on that host first, push, and
 `systemctl start fleet-agent.timer` once master has the fix. A stopped timer

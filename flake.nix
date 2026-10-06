@@ -71,10 +71,6 @@
       url = "github:lukasl-dev/pi.nix";
     };
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
-    comin = {
-      url = "github:nlewo/comin";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     microvm = {
       url = "github:microvm-nix/microvm.nix";
       inputs.nixpkgs.follows = "nixpkgs";

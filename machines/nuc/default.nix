@@ -84,7 +84,6 @@ in {
     ./fleet.nix
     ../../role/fleet-host.nix
     ./tailnet-peers.nix
-    ../../role/comin.nix
     ../../role/resilience.nix
     ../../role/mailsort.nix
   ];
@@ -239,9 +238,9 @@ in {
       music_directory = "/mnt/nas/music";
       bind_to_address = "any";
     };
-    # Binding to "any" without this warns that clients may not reach mpd. Same
-    # reasoning as role/comin.nix: a no-op where networking.firewall.enable is
-    # false, stated so the intent survives the firewall ever being turned on.
+    # Binding to "any" without this warns that clients may not reach mpd. A
+    # no-op where networking.firewall.enable is false, stated so the intent
+    # survives the firewall ever being turned on.
     openFirewall = true;
   };
 

@@ -7,7 +7,7 @@
 # only ever dials out to the Forgejo instance.
 #
 # Version is Renovate-driven (see the custom manager in cluster/renovate.jsonnet
-# targeting this file) and deployed by comin, matching the rest of the fleet.
+# targeting this file) and deployed by fleet-agent, like the rest of the fleet.
 {
   pkgs,
   inputs,
@@ -15,7 +15,7 @@
   ...
 }: let
   # Renovate bumps this tag via the runnerImageManager in cluster/renovate.jsonnet
-  # (regex-matches this assignment); comin then deploys the update.
+  # (regex-matches this assignment); fleet-agent then deploys the update.
   runnerImage = "code.forgejo.org/forgejo/runner:13.2.0";
   instanceUrl = "https://forgejo.lan.ftzmlab.xyz";
   runnerName = "nuc-microvm";

@@ -14,7 +14,6 @@ in {
     inputs.agenix.nixosModules.age
     ./hardware.nix
     ../../role/network.nix
-    ../../role/comin.nix
     ../../role/resilience.nix
     ../../role/lab.nix
     ../../role/node-exporter.nix

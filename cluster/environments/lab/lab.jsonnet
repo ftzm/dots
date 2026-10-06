@@ -42,40 +42,28 @@ local withNamespace(resources, ns) = {
 // The fleet's hosts, scraped by node_exporter: lab machines by LAN (always on
 // the same subnet), laptops by tailscale IP (they roam/sleep). Instance label
 // is the host shortname so alerts read `instance="saoiste"` etc. `alwaysOn` is
-// the host class the reachability alerts split on -- see
-// CominTargetUnreachable and CominTargetStale below. `comin`: hosts still
-// running comin, whose exporter is scraped too (the pi never had it).
+// the host class the reachability alerts split on -- see HostUnreachable and
+// RoamingHostStale below.
 local fleetMachines = [
-  { instance: 'nuc', host: config.machines.nuc.lan, alwaysOn: true, comin: true },
-  { instance: 'nas', host: config.machines.nas.lan, alwaysOn: true, comin: true },
-  { instance: 'pi', host: config.machines.pi.lan, alwaysOn: true, comin: false },
-  { instance: 'saoiste', host: config.machines.saoiste.tailscale, alwaysOn: false, comin: true },
-  { instance: 'eachtrai', host: config.machines.eachtrai.tailscale, alwaysOn: false, comin: true },
+  { instance: 'nuc', host: config.machines.nuc.lan, alwaysOn: true },
+  { instance: 'nas', host: config.machines.nas.lan, alwaysOn: true },
+  { instance: 'pi', host: config.machines.pi.lan, alwaysOn: true },
+  { instance: 'saoiste', host: config.machines.saoiste.tailscale, alwaysOn: false },
+  { instance: 'eachtrai', host: config.machines.eachtrai.tailscale, alwaysOn: false },
 ];
-local cominMachines = [m for m in fleetMachines if m.comin];
 
 // Instance regex for one host class, so an alert expression and the scrape
 // targets it reasons about cannot drift apart.
 local fleetInstances(alwaysOn) =
   std.join('|', [m.instance for m in fleetMachines if m.alwaysOn == alwaysOn]);
-local cominInstances(alwaysOn) =
-  std.join('|', [m.instance for m in cominMachines if m.alwaysOn == alwaysOn]);
-
-local cominScrapeConfig = {
-  job_name: 'comin',
-  static_configs: [
-    { targets: [m.host + ':4243'], labels: { instance: m.instance } }
-    for m in cominMachines
-  ],
-};
 
 // node_exporter, from the same fleet list rather than a second copy of the
 // addresses. The previous version hardcoded 192.168.1.3/.4 and relabelled each
 // back to a hostname, which silently covered only the two lab machines -- the
 // roaming ones exported nothing, so nothing could alert on their kernels.
 //
-// `instance` is set directly, as the comin job does, rather than derived by
-// relabelling; the machine list is the single place a host's address lives.
+// `instance` is set directly rather than derived by relabelling; the machine
+// list is the single place a host's address lives.
 local nodeScrapeConfig = {
   job_name: 'host-node-exporter',
   static_configs: [
@@ -85,14 +73,10 @@ local nodeScrapeConfig = {
 };
 
 // The shipped TargetDown rule fires when >10% of a job's targets are down.
-// Laptops sleep, so the comin job (saoiste/eachtrai over tailscale) would
-// page constantly. Exclude that job from TargetDown; the comin rules below
-// alert on real failure via comin_last_*_failed, and `up` for laptops is
-// still queryable if ever needed.
-// Roaming machines are excluded by instance, not just by job: they now appear
-// in the node-exporter job too, and a closed laptop lid is not a down target.
-// Derived from the same list as the scrape config so the two cannot drift.
-local roamingSelector = 'job!="comin", instance!~"' + fleetInstances(false) + '"';
+// Laptops sleep, and a closed laptop lid is not a down target: exclude the
+// roaming machines by instance (RoamingHostStale covers them). Derived from
+// the same list as the scrape config so the two cannot drift.
+local roamingSelector = 'instance!~"' + fleetInstances(false) + '"';
 local targetDownExpr = '100 * (count(up{' + roamingSelector + '} == 0) BY (cluster, job, namespace, service) / count(up{' + roamingSelector + '}) BY (cluster, job, namespace, service)) > 10';
 local patchTargetDown(resources) = {
   [key]:
@@ -904,57 +888,33 @@ local patchTargetDown(resources) = {
     nodeUnitsPrometheusRule: alerts.prometheusRule('node-units', ns, [
       alerts.rule(
         'CriticalUnitNotActive',
-        'node_systemd_unit_state{name=~"k3s.service|comin.service|tailscaled.service|jellyfin.service|mosquitto.service|systemd-timesyncd.service|alloy.service",state=~"failed|inactive"} == 1',
+        'node_systemd_unit_state{name=~"k3s.service|fleet-agent.timer|fleet-writer.timer|harmonia.socket|tailscaled.service|jellyfin.service|mosquitto.service|systemd-timesyncd.service|alloy.service",state=~"failed|inactive"} == 1',
         '2m', 'critical',
         'Critical unit {{ $labels.name }} is {{ $labels.state }} on {{ $labels.instance }}',
         'A deploy/network-critical systemd unit is failed or inactive. Includes alloy.service (the nas log shipper) so the pipeline observes itself.',
       ),
     ]),
 
-    // comin (NixOS deploy agent) visibility — metrics verified 2026-09-01.
-    // This is the first observability saoiste/eachtrai get at all.
-    cominPrometheusRule: alerts.prometheusRule('comin', ns, [
+    // Host reachability and reboot need. The always-on hosts and the laptops
+    // get the signal that is true for each: `up == 0` means broken only for
+    // the always-on ones -- a single rule with a `for` long enough to cover a
+    // laptop paged every night (eachtrai was unscrapable for 76% of a
+    // measured three-day window in one 11h night and one 43h stretch), so
+    // laptops alert only when not scraped once in seven days.
+    hostsPrometheusRule: alerts.prometheusRule('hosts', ns, [
       alerts.rule(
-        'CominDeploymentFailed',
-        'comin_last_deployment_failed == 1',
-        '5m', 'critical',
-        'comin deploy failing on {{ $labels.instance }}',
-        'A machine has not successfully deployed its configuration. Check `journalctl -u comin` on {{ $labels.instance }}.',
-      ),
-      alerts.rule(
-        'CominFetchFailed',
-        'comin_last_fetch_failed == 1',
-        '1h', 'warning',
-        'comin fetch failing on {{ $labels.instance }}',
-        'git fetch from origin has been failing for 1h (1h grace for transient network loss).',
-      ),
-      // Every rule above is `metric == 1`, and an absent metric yields no
-      // series — so none of them can fire when the target is simply
-      // unreachable. TargetDown is deliberately excluded for job="comin"
-      // (laptops sleep), which removes the only other signal. Without a
-      // reachability rule a permanently-broken comin scrape is completely
-      // silent — the exact failure class this whole effort exists to
-      // eliminate.
-      //
-      // `up == 0` only carries that meaning for the always-on machines.
-      // A single rule with a `for` long enough to cover a laptop paged every
-      // night instead: eachtrai was unscrapable for 76% of a measured
-      // three-day window in one 11h night and one 43h stretch, so no
-      // duration separates "asleep" from "broken" there. The two classes get
-      // the signal that is true for them.
-      alerts.rule(
-        'CominTargetUnreachable',
-        'up{job="comin", instance=~"%s"} == 0' % cominInstances(true),
+        'HostUnreachable',
+        'up{job="node-exporter", instance=~"%s"} == 0' % fleetInstances(true),
         '30m', 'warning',
-        'comin metrics unreachable on {{ $labels.instance }} for 30m',
-        'Prometheus cannot scrape the comin exporter on an always-on lab machine. Every other Comin* alert is blind while this is true, so a deploy failure here would go unnoticed. Check host reachability over the LAN and that the exporter is listening on a routable address.',
+        'node_exporter on {{ $labels.instance }} unreachable for 30m',
+        'Prometheus cannot scrape node_exporter on an always-on lab machine. Every host alert for it -- deploys, reboot need, units -- is blind while this is true. Check host reachability over the LAN and that node_exporter listens on :9002.',
       ),
       alerts.rule(
-        'CominTargetStale',
-        'max_over_time(up{job="comin", instance=~"%s"}[7d]) == 0' % cominInstances(false),
+        'RoamingHostStale',
+        'max_over_time(up{job="node-exporter", instance=~"%s"}[7d]) == 0' % fleetInstances(false),
         '1h', 'warning',
-        'comin metrics stale on {{ $labels.instance }} for 7d',
-        'A roaming machine has not been scraped successfully once in seven days: either it has been off that whole time or its exporter is broken. Either way every other Comin* alert is blind for it, so a deploy failure would go unnoticed. Expect this after a long trip; otherwise check tailscale reachability and the exporter.',
+        'node_exporter on {{ $labels.instance }} not scraped for 7d',
+        'A roaming machine has not been scraped successfully once in seven days: either it has been off that whole time or its node_exporter is broken. Either way every host alert for it is blind, so a deploy failure would go unnoticed. Expect this after a long trip; otherwise check tailscale reachability and node_exporter.',
       ),
       // Replaces CominNeedToReboot, which fired on comin_need_to_reboot at
       // severity info and said only "a deployment is pending a reboot". That
@@ -1330,8 +1290,7 @@ local patchTargetDown(resources) = {
             prometheusSpec: {
               additionalScrapeConfigs: [
                 nodeScrapeConfig,
-                cominScrapeConfig,
-              ],
+                          ],
               storageSpec: {
                 volumeClaimTemplate: {
                   spec: {
@@ -1419,11 +1378,11 @@ local patchTargetDown(resources) = {
                   // Host/infra alerts carry no namespace label, so the default
                   // namespace grouping lumps them into one {} group where any
                   // membership change re-notifies everything in it
-                  // (CominDeploymentFailed notified 6x in 2h on 2026-09-03).
+                  // (comin's deploy-failure alert notified 6x in 2h on 2026-09-03).
                   // Group per alert+host instead so each fires independently
                   // and repeats on its own 12h clock.
                   {
-                    matchers: ['alertname =~ "Comin.*|Journal.*|CriticalUnit.*|K8sEvent.*|NodeSystemd.*"'],
+                    matchers: ['alertname =~ "Fleet.*|Host.*|Roaming.*|Deferred.*|OutdatedKernel.*|Journal.*|CriticalUnit.*|K8sEvent.*|NodeSystemd.*"'],
                     receiver: 'ntfy',
                     group_by: ['alertname', 'instance', 'host'],
                     group_wait: '30s',

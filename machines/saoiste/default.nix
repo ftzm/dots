@@ -27,7 +27,6 @@
     ../../role/comms.nix
     ../../role/emacs.nix
 
-    ../../role/comin.nix
     ../../role/manual-path-selftest.nix
     ../../role/fleet-host.nix
     ../../role/resilience.nix

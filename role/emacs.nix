@@ -37,7 +37,7 @@ in {
 
   systemd.user.services.emacs = {
     description = "Emacs daemon";
-    # Don't kill a running daemon on `switch` (incl. comin auto-deploys).
+    # Don't kill a running daemon on `switch` (incl. fleet-agent deploys).
     # Any change to the emacs derivation changes ExecStart's store path,
     # which would otherwise stop+restart the daemon mid-session. The new
     # version is picked up on reboot or `systemctl --user restart emacs`.

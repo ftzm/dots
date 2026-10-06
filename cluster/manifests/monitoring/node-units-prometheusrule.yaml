@@ -15,7 +15,7 @@ spec:
           Includes alloy.service (the nas log shipper) so the pipeline observes itself.
         summary: Critical unit {{ $labels.name }} is {{ $labels.state }} on {{ $labels.instance
           }}
-      expr: node_systemd_unit_state{name=~"k3s.service|comin.service|tailscaled.service|jellyfin.service|mosquitto.service|systemd-timesyncd.service|alloy.service",state=~"failed|inactive"}
+      expr: node_systemd_unit_state{name=~"k3s.service|fleet-agent.timer|fleet-writer.timer|harmonia.socket|tailscaled.service|jellyfin.service|mosquitto.service|systemd-timesyncd.service|alloy.service",state=~"failed|inactive"}
         == 1
       for: 2m
       labels:

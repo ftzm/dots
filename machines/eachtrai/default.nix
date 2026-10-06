@@ -27,7 +27,6 @@
     ../../role/git.nix
     ../../role/interface.nix
     ../../role/iosevka.nix
-    ../../role/comin.nix
     ../../role/resilience.nix
     ../../role/manual-path-selftest.nix
     ../../role/fleet-host.nix

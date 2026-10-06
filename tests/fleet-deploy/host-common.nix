@@ -11,6 +11,8 @@
     cacheUrl = "http://192.168.1.2:5000";
     cachePublicKey = lib.fileContents ./test-cache-key.pub;
     activationTimeout = "120s";
+    # The test waits out the grace for a foreign activation.
+    foreignGraceSeconds = 20;
     # The test starts the reboot service itself.
     autoReboot = {
       enable = true;

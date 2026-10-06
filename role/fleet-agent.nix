@@ -157,6 +157,16 @@
 
       if [ "$path" = "$current" ]; then
         if [ "$flagged" != "$path" ]; then
+          # The system profile is what boots next and what the deferred-reboot
+          # check and autoReboot compare against. A system another deployer
+          # activated (comin, until the cut-over; a manual rebuild) leaves it
+          # behind: point it at what runs, or a reboot would boot that older
+          # generation.
+          if ! ${lib.boolToString cfg.dryRun} && [ "$installed" != "$current" ]; then
+            echo "fleet-agent: system profile was $installed; pointing it at the running $current"
+            nix-env -p /nix/var/nix/profiles/system --set "$current"
+            prune
+          fi
           converged "$commit"
           exit 0
         fi
@@ -179,11 +189,31 @@
         failed "$path"
         exit 1
       fi
-      if [ "$path" = "$installed" ] && [ -z "$flagged" ]; then
+      generated=$(date -d "$(jq -er '.generated' "$ptr")" +%s)
+      activated=$(stat -c %Y /run/current-system)
+
+      # A running system activated after this manifest was generated came from
+      # another deployer -- comin applying a commit before the writer has
+      # published it (the cut-over), or a manual rebuild. Reverting it at once
+      # would flip the host back and forth; leave it for foreignGraceSeconds
+      # (30 minutes), in which the writer normally publishes what runs. After
+      # that the manifest wins.
+      if [ "$activated" -gt "$generated" ] && [ $(($(date +%s) - activated)) -lt ${toString cfg.foreignGraceSeconds} ]; then
+        echo "fleet-agent: the running system was activated after this manifest (by another deployer); not replacing it before the next manifest or ${toString cfg.foreignGraceSeconds}s"
+        write_metrics
+        exit 0
+      fi
+
+      # A deferred switch: the agent installed the path as the boot default and
+      # the running system predates the manifest. (A system activated after
+      # it is a manual switch, handled above, even if the profile still names
+      # the manifest's path.)
+      if [ "$path" = "$installed" ] && [ -z "$flagged" ] && [ "$activated" -le "$generated" ]; then
         echo "fleet-agent: $path installed, waiting for a reboot (deferred switch)"
         converged "$commit"
         exit 0
       fi
+
 
       if ${lib.boolToString cfg.dryRun}; then
         # Observing only (another deployer still owns this host): fetch and
@@ -258,6 +288,11 @@ in {
       type = lib.types.str;
       default = "2min";
       description = "Time between agent runs.";
+    };
+    foreignGraceSeconds = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 1800;
+      description = "How long a running system activated after the manifest (by comin, or by hand) is left alone before the manifest replaces it.";
     };
     dryRun = lib.mkOption {
       type = lib.types.bool;

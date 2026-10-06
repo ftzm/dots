@@ -3,50 +3,33 @@ kind: PrometheusRule
 metadata:
   labels:
     release: kube-prometheus-stack
-  name: comin
+  name: hosts
   namespace: monitoring
 spec:
   groups:
-  - name: comin
+  - name: hosts
     rules:
-    - alert: CominDeploymentFailed
+    - alert: HostUnreachable
       annotations:
-        description: A machine has not successfully deployed its configuration. Check
-          `journalctl -u comin` on {{ $labels.instance }}.
-        summary: comin deploy failing on {{ $labels.instance }}
-      expr: comin_last_deployment_failed == 1
-      for: 5m
-      labels:
-        severity: critical
-    - alert: CominFetchFailed
-      annotations:
-        description: git fetch from origin has been failing for 1h (1h grace for transient
-          network loss).
-        summary: comin fetch failing on {{ $labels.instance }}
-      expr: comin_last_fetch_failed == 1
-      for: 1h
-      labels:
-        severity: warning
-    - alert: CominTargetUnreachable
-      annotations:
-        description: Prometheus cannot scrape the comin exporter on an always-on lab
-          machine. Every other Comin* alert is blind while this is true, so a deploy
-          failure here would go unnoticed. Check host reachability over the LAN and
-          that the exporter is listening on a routable address.
-        summary: comin metrics unreachable on {{ $labels.instance }} for 30m
-      expr: up{job="comin", instance=~"nuc|nas"} == 0
+        description: Prometheus cannot scrape node_exporter on an always-on lab machine.
+          Every host alert for it -- deploys, reboot need, units -- is blind while
+          this is true. Check host reachability over the LAN and that node_exporter
+          listens on :9002.
+        summary: node_exporter on {{ $labels.instance }} unreachable for 30m
+      expr: up{job="node-exporter", instance=~"nuc|nas|pi"} == 0
       for: 30m
       labels:
         severity: warning
-    - alert: CominTargetStale
+    - alert: RoamingHostStale
       annotations:
         description: 'A roaming machine has not been scraped successfully once in
-          seven days: either it has been off that whole time or its exporter is broken.
-          Either way every other Comin* alert is blind for it, so a deploy failure
+          seven days: either it has been off that whole time or its node_exporter
+          is broken. Either way every host alert for it is blind, so a deploy failure
           would go unnoticed. Expect this after a long trip; otherwise check tailscale
-          reachability and the exporter.'
-        summary: comin metrics stale on {{ $labels.instance }} for 7d
-      expr: max_over_time(up{job="comin", instance=~"saoiste|eachtrai"}[7d]) == 0
+          reachability and node_exporter.'
+        summary: node_exporter on {{ $labels.instance }} not scraped for 7d
+      expr: max_over_time(up{job="node-exporter", instance=~"saoiste|eachtrai"}[7d])
+        == 0
       for: 1h
       labels:
         severity: warning

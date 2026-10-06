@@ -6,9 +6,34 @@
   config,
   lab,
   lib,
+  pkgs,
   ...
 }: let
   cfg = config.fleetHost;
+
+  # The cut-over's commit B removes comin while comin itself applies it; its
+  # unit carried X-StopOnRemoval=false, so the switch left it running. Stop it
+  # once no switch is in flight, drop its profile (its generations root old
+  # systems and list boot entries) once the system profile names what runs,
+  # and rewrite the boot entries without it. A no-op on a host without comin.
+  retireComin = pkgs.writeShellScript "fleet-retire-comin" ''
+    set -eu
+    PATH=${lib.makeBinPath [config.systemd.package pkgs.procps pkgs.coreutils]}
+    if systemctl is-active -q comin.service; then
+      if pgrep -f switch-to-configuration >/dev/null; then
+        echo "fleet-retire-comin: a switch is in flight; next tick"
+        exit 0
+      fi
+      systemctl stop comin.service
+      echo "fleet-retire-comin: stopped comin"
+    fi
+    if ls /nix/var/nix/profiles/system-profiles/comin* >/dev/null 2>&1 &&
+      [ "$(readlink -f /nix/var/nix/profiles/system)" = "$(readlink -f /run/current-system)" ]; then
+      rm -f /nix/var/nix/profiles/system-profiles/comin*
+      /run/current-system/bin/switch-to-configuration boot
+      echo "fleet-retire-comin: removed comin's profile, boot entries rewritten"
+    fi
+  '';
 in {
   imports = [./fleet-agent.nix ./lab.nix ./node-exporter.nix];
 
@@ -27,6 +52,21 @@ in {
       type = lib.types.ints.positive;
       default = 5;
       description = "System generations kept after each deploy.";
+    };
+  };
+
+  config.systemd.services.fleet-retire-comin = {
+    description = "Retire the comin the cut-over left running";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = retireComin;
+    };
+  };
+  config.systemd.timers.fleet-retire-comin = {
+    wantedBy = ["timers.target"];
+    timerConfig = {
+      OnActiveSec = "1min";
+      OnUnitActiveSec = "1min";
     };
   };
 

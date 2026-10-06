@@ -122,6 +122,7 @@ in
 
     testScript = ''
       import json
+      import time
 
       expected = {
       ${lib.concatMapStringsSep "\n" (v: ''"${v}": "${o.systems.${v}}",'') variantNames}
@@ -214,6 +215,31 @@ in
           assert f'fleet_deployed_commit_info{{commit="{c1}"}} 1' in agent_metrics()
           assert "fleet_last_failure 0" in agent_metrics()
           assert writer_metric("fleet_writer_last_failure") == "0"
+
+      with subtest("a stale system profile is pointed at the running system"):
+          # As after comin: the running system activated by another deployer,
+          # the system profile left on an older generation.
+          old = host.succeed("ls -d /nix/var/nix/profiles/system-*-link | head -1").strip()
+          host.succeed("nix-env -p /nix/var/nix/profiles/system --set $(readlink -f /run/booted-system)")
+          assert host.succeed("readlink -f /nix/var/nix/profiles/system").strip() != current()
+          assert agent() == 0
+          assert host.succeed("readlink -f /nix/var/nix/profiles/system").strip() == current()
+          host.succeed("journalctl -u fleet-agent.service -o cat | grep -q 'pointing it at the running'")
+
+      with subtest("a system activated after the manifest is left alone for the grace period"):
+          # As when comin applies a commit before the writer publishes it: the
+          # host runs something newer than the manifest names.
+          host.succeed("nix-store --realise ${o.systems.changed}")
+          host.succeed("${o.systems.changed}/bin/switch-to-configuration test")
+          assert current() == expected["changed"]
+          assert agent() == 0
+          assert current() == expected["changed"]
+          host.succeed("journalctl -u fleet-agent.service -o cat | grep -q 'activated after this manifest'")
+          # Past the grace period (20 s in this test, 30 min by default) the
+          # manifest wins.
+          time.sleep(25)
+          assert agent() == 0
+          assert current() == expected["base"]
 
       with subtest("an unchanged host makes no request beyond the manifest"):
           before = harmonia_requests()

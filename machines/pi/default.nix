@@ -203,8 +203,8 @@ inputs.nixos-raspberrypi.lib.nixosSystem {
     ../../role/fleet-host.nix
     ./headscale-state.nix
     {
-      # The pi's own deployer (it cannot build its system itself; comin stays
-      # off). 29 GB SD card with a 5 GiB closure: keep fewer generations.
+      # Deployed by fleet-agent: the pi cannot build its own system (it never
+      # ran comin). 29 GB SD card with a 5 GiB closure: keep fewer generations.
       fleetHost = {
         transport = "lan";
         keepGenerations = 3;
@@ -224,19 +224,5 @@ inputs.nixos-raspberrypi.lib.nixosSystem {
         noiseKeySha256 = "a26cf6c799470591d033b803d29d86c3562c1b3059cb1f40086b2d5116ac0c61";
       };
     })
-
-    inputs.comin.nixosModules.comin
-    {
-      services.comin = {
-        enable = false; # can't enable until we're positive caching works because pi can't build on its own.
-        remotes = [
-          {
-            name = "origin";
-            url = "https://github.com/ftzm/dots.git";
-            branches.main.name = "master";
-          }
-        ];
-      };
-    }
   ];
 }
