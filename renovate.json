@@ -198,6 +198,18 @@
          "matchStrings": [
             "runnerImage = \"(?<depName>[a-z0-9._/-]+):(?<currentValue>[^\"]+)\""
          ]
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "github-releases",
+         "depNameTemplate": "ftzm/iosevka-ftzm",
+         "extractVersionTemplate": "^v(?<version>.+)$",
+         "managerFilePatterns": [
+            "/pkgs/iosevka-ftzm\\.nix$/"
+         ],
+         "matchStrings": [
+            "version = \"(?<currentValue>[^\"]+)\";"
+         ]
       }
    ],
    "enabledManagers": [
@@ -223,6 +235,20 @@
             "ghcr.io/tensorchord/cloudnative-vectorchord"
          ],
          "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)-(?<patch>\\d+)\\.(?<build>\\d+)\\.(?<revision>\\d+)$"
+      },
+      {
+         "matchPackageNames": [
+            "ftzm/iosevka-ftzm"
+         ],
+         "postUpgradeTasks": {
+            "commands": [
+               "nix-update iosevka-ftzm --flake --version skip"
+            ],
+            "fileFilters": [
+               "pkgs/iosevka-ftzm.nix"
+            ]
+         },
+         "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<build>\\d+)$"
       }
    ],
    "platformAutomerge": true,

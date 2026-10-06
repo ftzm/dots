@@ -1,16 +1,6 @@
-{
-  inputs,
-  pkgs,
-  ...
-}: let
-  ios = let
-    iosevkaPkgs = inputs.nixpkgs-iosevka.legacyPackages.x86_64-linux;
-  in
-    iosevkaPkgs.iosevka.override {
-      privateBuildPlan = builtins.readFile ./iosevka-build-plan.toml;
-      extraParameters = builtins.readFile ./iosevka.toml;
-      set = "-ftzm";
-    };
+{pkgs, ...}: let
+  # Prebuilt release of github.com/ftzm/iosevka-ftzm; never built here.
+  ios = pkgs.callPackage ../pkgs/iosevka-ftzm.nix {};
 in {
   fonts.fontconfig.localConf = builtins.readFile ./symbols-iosevka.conf;
   fonts.packages = with pkgs; [

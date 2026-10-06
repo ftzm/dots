@@ -45,7 +45,7 @@ jobs:
         env:
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
           RENOVATE_GIT_AUTHOR: 'Renovate Bot <renovate@example.com>'
-          RENOVATE_ALLOWED_COMMANDS: '["^cd cluster && tk ", "^cd cluster && just "]'
+          RENOVATE_ALLOWED_COMMANDS: '["^cd cluster && tk ", "^cd cluster && just ", "^nix-update iosevka-ftzm --flake --version skip$"]'
           LOG_LEVEL: info
         run: |
           nix develop ./cluster --command renovate \

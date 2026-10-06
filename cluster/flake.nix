@@ -107,6 +107,8 @@
         jq
         just
         renovate
+        # Renovate's post-upgrade hash rewrite of pkgs/iosevka-ftzm.nix.
+        nix-update
 
         # Secrets management
         sops

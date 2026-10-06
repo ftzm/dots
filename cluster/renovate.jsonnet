@@ -58,10 +58,23 @@ local runnerImageManager = {
   datasourceTemplate: 'docker',
 };
 
+// The prebuilt Iosevka release dots fetches (pkgs/iosevka-ftzm.nix). Its tags
+// are v<iosevka version>-<build>. After Renovate rewrites `version`, nix-update
+// refetches and rewrites the hash: `--version skip`, because given the new
+// version it sees it already set and changes nothing.
+local iosevkaManager = {
+  customType: 'regex',
+  managerFilePatterns: ['/pkgs/iosevka-ftzm\\.nix$/'],
+  matchStrings: ['version = "(?<currentValue>[^"]+)";'],
+  depNameTemplate: 'ftzm/iosevka-ftzm',
+  datasourceTemplate: 'github-releases',
+  extractVersionTemplate: '^v(?<version>.+)$',
+};
+
 {
   '$schema': 'https://docs.renovatebot.com/renovate-schema.json',
   extends: ['config:recommended'],
-  customManagers: chartManagers + [imageManager, hostContainerImageManager, runnerImageManager],
+  customManagers: chartManagers + [imageManager, hostContainerImageManager, runnerImageManager, iosevkaManager],
   enabledManagers: ['custom.regex', 'github-actions', 'jsonnet-bundler'],
   prHourlyLimit: 10,
   prConcurrentLimit: 20,
@@ -102,6 +115,14 @@ local runnerImageManager = {
       // needs its own ALTER EXTENSION step. Neither is judgeable from the tag,
       // so this always goes through triage review.
       automerge: false,
+    },
+    {
+      matchPackageNames: ['ftzm/iosevka-ftzm'],
+      versioning: 'regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<build>\\d+)$',
+      postUpgradeTasks: {
+        commands: ['nix-update iosevka-ftzm --flake --version skip'],
+        fileFilters: ['pkgs/iosevka-ftzm.nix'],
+      },
     },
   ],
   postUpgradeTasks: {

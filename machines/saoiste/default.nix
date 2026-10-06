@@ -20,7 +20,6 @@
     ../../role/mpd.nix
     # ../../role/mail.nix
     ../../role/printing.nix
-    # ../../role/font.nix
     ../../role/audio.nix
     ../../role/git.nix
     ../../role/interface.nix

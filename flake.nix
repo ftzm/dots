@@ -45,15 +45,6 @@
     # node. When the next release ships, move this within the overlap month;
     # `lastModified` in flake.lock standing still is the only symptom.
     nixpkgs-ftzmlab.url = "github:NixOS/nixpkgs/nixos-26.05";
-    # A real pin, not a branch: this input exists so the font is built once and
-    # then served from cache forever, and 28e1ac9c ("pin nixpkgs for it") meant
-    # it to be one. It named a branch instead, so `nix flake update` re-resolved
-    # it every cycle for five years. nixpkgs builds iosevka with buildNpmPackage
-    # wired to `nodejs_latest`, so any bump that moves node invalidates the font:
-    # #241 spent 2h26m compiling nodejs 26.9.0 from source because that build
-    # fails upstream (NixOS/nixpkgs#564449) and Hydra had nothing to substitute.
-    # Bump this deliberately when you want a newer Iosevka; nothing else should.
-    nixpkgs-iosevka.url = "github:NixOS/nixpkgs/c7def046b9a883d46974757852106483d741586f";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager = {
       url = "github:nix-community/home-manager";
@@ -175,9 +166,19 @@
     # attribute at master's commit and publishes the manifest from it
     # (FORGEJO_MIGRATION_PLAN.md -> Binary Cache). The pi's aarch64 toplevel
     # is a plain reference here; its builder needs binfmt or a remote builder.
-    packages.${defaultSystem}.fleet =
-      nixpkgs-ftzmlab.legacyPackages.${defaultSystem}.linkFarm "fleet"
-      (builtins.mapAttrs (_: c: c.config.system.build.toplevel) inputs.self.nixosConfigurations);
+    packages.${defaultSystem} = {
+      # Prebuilt font release; exported so nix-update can bump its hash.
+      iosevka-ftzm = nixpkgs.legacyPackages.${defaultSystem}.callPackage ./pkgs/iosevka-ftzm.nix {};
+
+      # Every host's system in one build: a directory of one symlink per host
+      # to its toplevel. CI builds it; the fleet writer on nuc builds the same
+      # attribute at master's commit and publishes the manifest from it
+      # (FORGEJO_MIGRATION_PLAN.md -> Binary Cache). The pi's aarch64 toplevel
+      # is a plain reference here; its builder needs binfmt or a remote builder.
+      fleet =
+        nixpkgs-ftzmlab.legacyPackages.${defaultSystem}.linkFarm "fleet"
+        (builtins.mapAttrs (_: c: c.config.system.build.toplevel) inputs.self.nixosConfigurations);
+    };
 
     # Per host, the nixos-rebuild of that host's own nixpkgs, built for the
     # workstation: a newer release's passes switch-to-configuration flags an
