@@ -2,7 +2,13 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running 'nixos-help').
 {inputs}:
-inputs.nixos-raspberrypi.lib.nixosInstaller {
+# nixosSystem, not nixosInstaller: the installer variant is for building
+# installer media -- it adds NixOS's installation-device profile (console
+# autologin, empty root password, PermitRootLogin yes) and the RPi-optimised
+# overlays globally, whose ffmpeg rebuilt a python test chain under emulation
+# (headscale.yaml -> remarshal -> ... -> matplotlib -> ffmpeg dev). The
+# optimised packages stay available as pkgs.rpi.
+inputs.nixos-raspberrypi.lib.nixosSystem {
   specialArgs = inputs;
   modules = [
     {
@@ -11,6 +17,30 @@ inputs.nixos-raspberrypi.lib.nixosInstaller {
       imports = with inputs.nixos-raspberrypi.nixosModules; [
         raspberry-pi-3.base
       ];
+    }
+
+    # The system lives on the SD card it was installed from. Its layout,
+    # declared directly as upstream's demo does for an SD-resident Pi
+    # (nvmd/nixos-raspberrypi-demo, rpi02) instead of importing the sd-image
+    # module, which only an image build needs.
+    {
+      fileSystems = {
+        "/boot/firmware" = {
+          device = "/dev/disk/by-label/FIRMWARE";
+          fsType = "vfat";
+          options = [
+            "noatime"
+            "noauto"
+            "x-systemd.automount"
+            "x-systemd.idle-timeout=1min"
+          ];
+        };
+        "/" = {
+          device = "/dev/disk/by-label/NIXOS_SD";
+          fsType = "ext4";
+          options = ["noatime"];
+        };
+      };
     }
 
     ({
