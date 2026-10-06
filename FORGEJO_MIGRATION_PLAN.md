@@ -1615,6 +1615,31 @@ names `X` — a downgrade losing everything written since.
    ServiceAccount may patch only the `forgejo` Deployment and the Forgejo
    Application.
 
+**Tested 2026-10-06** (`lib/forgejo-upgrade.libsonnet`) on a throwaway
+second instance, `forgejo-upgrade-test` — the same `forgejoInstance()` and
+hooks, its own Application from the same ApplicationSet template — accepted as
+meeting step 3's precondition (no newer release than 16.0.5 exists to fail a
+PostSync check on the real instance):
+
+| Case | Outcome |
+|---|---|
+| 16.0.2 → 16.0.3, PostSync check forced to fail | pre-flight passed, rollout, check failed; SyncFail restored the 16.0.2 snapshot (a canary user survived), locked; 5 retries stopped at the gate |
+| lock lifted, check no longer forced | full procedure passed: baseline, marker, snapshot, pre-flight, rollout, check |
+| 16.0.3 → 16.0.2 (downgrade) | pre-flight refused it, 16.0.3 kept serving, locked; the gate quoted `/backup/upgrade-history.log` on every retry |
+| sync failing with no upgrade pending (temporary wave-0 hook) | SyncFail found no marker: no rollback, no lock; the revert synced normally |
+
+What testing changed: versions compare without Forgejo's `+gitea-…` suffix
+(the first live sync took 16.0.5 → 16.0.5 for an upgrade and locked; no data
+touched); `forgejo doctor` passes are judged against a baseline of the checks
+already failing, since its exit status ignores failed checks and even a
+database that does not open (`services/doctor/doctor.go:94-112`); busybox
+`grep -vxF -f <empty file>` prints nothing, so an empty baseline bypasses
+grep; a fresh volume gets a git-owned log dir and repository root
+(bootstrap-admin), without which doctor aborts; the SyncFail outcome goes to a
+history file, since retries recreate the Job under the same name and its log
+is lost. A test hook must change something ArgoCD diffs (the hook-revision
+ConfigMap), or no automated sync runs it.
+
 **Why only a failed upgrade locks.** The lock exists because "Automatic sync
 will not reattempt a sync if the previous sync attempt against the same
 commit-SHA and parameters had failed", yet any later commit is a new SHA and
