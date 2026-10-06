@@ -491,7 +491,7 @@ notes gets X's maintainers nothing they lack;
 | `runs-on: ubuntu-latest` | all | runner `nuc-microvm` (v13.2.0) currently advertises `docker`, `ubuntu-latest` | host-mode label (`nixos:host`) for the nix jobs |
 | `concurrency` | `renovate.yaml` | supported since v14; **default `cancel-in-progress: true` for push/PR** | `renovate.yml` sets `cancel-in-progress: false` explicitly; `ci.yml` keeps the default (a superseded PR build is cancelled) |
 | Renovate | `renovate.yaml` | `--platform=forgejo` exists; platform automerge supported on ≥ v10 | `--platform=forgejo --endpoint https://forgejo.lan.ftzmlab.xyz/api/v1`, `RENOVATE_TOKEN` = Forgejo PAT (repo rw, user r, issue rw), a `dots` repo secret |
-| Secrets `PAT_TOKEN`, `RENOVATE_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` | all | `GITHUB_TOKEN`/`FORGEJO_TOKEN` is automatic (what it may do to a protected branch is not stated in the docs — **checked on day one of step 1**: try a push and a merge to protected `master` from a job). `PUT /repos/{o}/{r}/actions/secrets/{name}` exists | no GitHub PAT at all, and the Claude token is no Actions secret (it stays with the proxy on nuc); the Forgejo OpenTofu job (Secrets) writes the repo secrets, so they are reproducible from the repo; the `triage` bot token — read on `dots`, no access to `ftzm/triage` — is a secret of `ftzm/triage` only; the `triage-dispatch` bot token — write on `ftzm/triage`, no access to `dots` — is a `dots` secret used only to dispatch; the `merge-repair` and `triage-verdict` jobs use a `merger` token (Workflow security) |
+| Secrets `PAT_TOKEN`, `RENOVATE_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` | all | `GITHUB_TOKEN`/`FORGEJO_TOKEN` is automatic. **Checked 2026-10-06** (a job on a private repo whose `main` had push and merge whitelists naming only the owner): `git push` to `main` is refused, to an unprotected branch allowed, and every pull-request API call (`POST /pulls`, so merge and `/pulls/{i}/update` too) returns 404 "Can't read pulls or can't read UnitTypeCode" — git access uses the task's own write permission (`GetActionRepoPermission`, `models/perm/access/repo_permission.go:143-165`), but the PR routes check the doer (`routers/api/v1/repo/pull.go:1166-1181`), the Actions bot user, which has no access to a private user-owned repo. So no PR operation on `dots` can use the automatic token. `PUT /repos/{o}/{r}/actions/secrets/{name}` exists | no GitHub PAT at all, and the Claude token is no Actions secret (it stays with the proxy on nuc); the Forgejo OpenTofu job (Secrets) writes the repo secrets, so they are reproducible from the repo; the `triage` bot token — read on `dots`, no access to `ftzm/triage` — is a secret of `ftzm/triage` only; the `triage-dispatch` bot token — write on `ftzm/triage`, no access to `dots` — is a `dots` secret used only to dispatch; the `merge-repair` and `triage-verdict` jobs use a `merger` token (Workflow security) |
 | ArgoCD ssh known hosts | `argocd-ssh-known-hosts-cm` (GitHub keys only) | chart-generated (`helm.sh/chart: argo-cd-10.9.2`) | nas's committed host public key (`secrets/secrets.nix`) through the chart value `configs.ssh.extraHosts` (`charts/argo-cd/values.yaml:530`) |
 | Branch protection | none on Forgejo yet | `POST branch_protections` supports `enable_status_check` + `status_check_contexts`, `block_on_outdated_branch`, `push_whitelist_deploy_keys` | `master`: required status = the build job, **`block_on_outdated_branch = true`** (CI must have run on the exact tree that merges — otherwise the writer's post-merge build silently becomes the real test). Every merge therefore makes every other open PR outdated. Auto-merge-armed PRs are brought current by `update-prs.yml` (the ported set) — including triage-repaired Renovate PRs, which Renovate itself stops updating once another user has committed to them ("If you push a new commit to a Renovate branch … Renovate stops all updates of that branch", Renovate docs); PRs without auto-merge (majors) are rebased by Renovate, `rebaseWhen: behind-base-branch` in `cluster/renovate.jsonnet` (the default `auto` rebases only `automerge: true` PRs). Cost, measured on 90 days of master: bot merges are 1–8 a day with one real wave, 12 Renovate/Dependabot PRs in twelve minutes on 2026-07-18. Those PRs touch `images.libsonnet`/`chartfile.yaml` — k8s manifests, **not** host closures — so each rebase re-runs a cached `nix build .#fleet` plus `render-lab`/`test-rules`: seconds to a minute each, ~10–15 min of nuc for a 12-PR wave. The expensive run (a nixpkgs bump changing all five closures) is one PR every three days, never a wave |
 | Runner shape | `machines/nuc/forgejo-runner.nix` | — | two runners, each registered to one repo (Workflow security, rule 2): nixpkgs' `services.gitea-actions-runner` in host mode on nuc, registered to `dots` (`nixos:host`), for CI and Renovate; and the existing VM, re-registered from instance scope to `ftzm/triage` and switched to the same module in host mode inside the guest (label `triage:host`), for the triage agent. Other repos' CI gets its own runner when needed (Later); see Binary Cache → Design |
@@ -509,7 +509,7 @@ runs on the `dots` runner; the triage workflow on the `ftzm/triage` runner
   - Job `merge-repair` — `needs: build`, only when the PR's author is `triage` (rule 1) and its base starts with `renovate/`. Runs `bin/repair-paths` from master's checkout — every trusted job runs `bin/` from master and treats the PR head as data — on `git diff --name-only $base...$tested_sha`; refuses a repair that touches a path outside Rule R's allowlist (Workflow security, Autonomy) and labels the Renovate PR `needs-review`. Otherwise `POST /repos/ftzm/dots/pulls/{i}/merge` with `head_commit_id` = `$tested_sha` (Forgejo refuses the merge if the head moved, `services/pull/merge_prepare.go:59`), so the check sees exactly the tree that merges. The Renovate PR then goes green and Renovate automerges it into master. `merger` has write on `dots` and is in master's merge whitelist (for `triage-verdict`), not its push whitelist. Master merges stay subject to the required `build` status.
   - `MERGER_TOKEN` is referenced only in the `env:` of the `merge-repair` merge step and the `nvd` comment step — no job-level `env:`, so no other step's process sees it.
 - **`triage-verdict.yml`** (`issue_comment`, which always runs the default branch's workflow, `modules/actions/github.go:40-47`) — acts on a review verdict. Only for a comment by `triage` on a PR authored by `renovate` (rule 1). Parses the comment's verdict line (`triage-verdict: merge <sha>` or `triage-verdict: needs-review`). Merges with `head_commit_id` = that sha only if: the verdict is exactly `merge`; no dependency in the PR is on the stateful list `bin/triage-stateful` (Postgres/CloudNativePG, vectorchord, valkey, forgejo, immich, audiobookshelf, navidrome — kept in the trusted job, not the prompt). Otherwise it adds the `needs-review` label. Uses `MERGER_TOKEN` in the merge step's `env:`.
-- **`update-prs.yml`** (`push` to `master`) — keeps auto-merge-armed PRs current with master, the pattern of [tibdex/auto-update](https://github.com/tibdex/auto-update) ("the missing piece to really automatically merge pull requests when strict status checks are set up"), ported because that action calls GitHub's endpoint. `bin/update-prs`: list open PRs whose head is a `dots` branch (not AGit) with auto-merge armed; for each behind master, `POST /repos/ftzm/dots/pulls/{i}/update` ("Merge PR's baseBranch into headBranch", `routers/api/v1/repo/pull.go:1240`). CI reruns on the updated head and the armed auto-merge completes. Token: the automatic one if it may call the endpoint (unverified), otherwise `MERGER_TOKEN` in this step's `env:` only. The merge into a `renovate/*` branch fires that branch's workflows as a push by the token's user; that branch's content is Renovate's plus triage repairs already refused if they touch `.forgejo/` (`merge-repair`).
+- **`update-prs.yml`** (`push` to `master`) — keeps auto-merge-armed PRs current with master, the pattern of [tibdex/auto-update](https://github.com/tibdex/auto-update) ("the missing piece to really automatically merge pull requests when strict status checks are set up"), ported because that action calls GitHub's endpoint. `bin/update-prs`: list open PRs whose head is a `dots` branch (not AGit) with auto-merge armed; for each behind master, `POST /repos/ftzm/dots/pulls/{i}/update` ("Merge PR's baseBranch into headBranch", `routers/api/v1/repo/pull.go:1240`). CI reruns on the updated head and the armed auto-merge completes. Token: `MERGER_TOKEN` in this step's `env:` only — the automatic token cannot call PR endpoints on a private repo (hurdles table, checked 2026-10-06). The merge into a `renovate/*` branch fires that branch's workflows as a push by the token's user; that branch's content is Renovate's plus triage repairs already refused if they touch `.forgejo/` (`merge-repair`).
 - **`renovate.yml`** — in `dots`, `RENOVATE_TOKEN` a `dots` repo secret; `runs-on: nixos:host`; targets `ftzm/dots`. Schedule (daily, as today) + dispatch only: the push-paths trigger existed to regenerate PRs conflicted by `images.libsonnet`, which the per-image split (step 1) removes, and outdated PRs are brought current by `update-prs.yml`. Otherwise as today with the Forgejo platform flags; `concurrency` explicit. **It owns `flake.lock`**: in `cluster/renovate.jsonnet` (the source; `renovate.json` is generated from it by `just generate-renovate`, `cluster/Justfile:54-56`, and every Renovate change in this plan goes there), `enabledManagers += ["nix"]`, `lockFileMaintenance = { enabled = true; schedule = ["every 3 days"]; automerge = true }` (its own `automerge`: the general rule matches only `minor`/`patch`/`digest`, `renovate.json:199-207`, and lockfile bumps automerge today, `cluster/renovate.jsonnet:67-70`) — Renovate runs `nix flake update` and opens one PR through its own PR handling (rebase policy, automerge rules, identity). **It also moves `nixpkgs-ftzmlab` (nas, nuc) to each new NixOS release**, instead of the manual move `flake.nix`'s comment asks for (community NixOS has no long-term branch; each release is supported until about a month after the next): a regex manager on `github:NixOS/nixpkgs/nixos-(?<currentValue>\d{2}\.\d{2})` for that input, datasource `github-tags`, `depName` `NixOS/nixpkgs`, versioning `regex:^(?<major>\d{2})\.(?<minor>\d{2})$` so the `-pre`/`-beta` tags are ignored (nixpkgs tags releases `26.05`, `26.05-beta`, `26.05-pre`). The PR opens when the release is tagged, a month before the old branch dies; a `packageRules` entry sets `automerge: false` for it, so it goes to the triage agent's review mode (release notes against this repo's config, merge or `needs-review`). The `flake.nix` comment is updated to say so. Verify on the first run that all 22 inputs are picked up (all `github:`, which the manager supports). **The post-upgrade render runs in the nix sandbox**, not as `just render-lab` in the job (Workflow security, Autonomy, Rule R): `cluster/flake.nix` exports `packages.x86_64-linux.render-lab`, a `runCommand` with `tanka`, `kubernetes-helm` and `go-jsonnet` that copies the flake's own tree and runs the recipe's `tk export … --skip-manifest` into `$out` plus each `secrets/*.enc.yaml` copied into its namespace's directory; the `render-lab` check compares that output with the committed `cluster/manifests`. `postUpgradeTasks.commands` become `cd cluster && tk tool charts vendor --prune` (unchanged; it fetches charts and executes no repo content) and `cd cluster && nix build --no-update-lock-file --out-link .render-lab "path:.#render-lab" && rm -rf manifests && cp -rL --no-preserve=mode .render-lab manifests && rm .render-lab`, with `RENOVATE_ALLOWED_COMMANDS` matching exactly those; `path:`, not the git reference, because the vendor step leaves new chart directories untracked and a `git+file` flake omits untracked files. Tested on a copy of HEAD's `cluster/`: the build ran in the sandbox, the copied output left `git status` clean (515 files, identical to the committed manifests), and the `path:` flake's tree included an untracked chart directory.
 - **`ftzm/triage`: `triage.yml`** (`workflow_dispatch` only, on that repo's runner) — the agent, in a repo whose credentials cannot write `dots` (Workflow security, "Where untrusted content runs"). Secret: `TRIAGE_TOKEN`, mapped only into the trusted gather and publish steps' `env:`. Agent scripts and prompts live in this repo. The agent runs as `claude -p` with `ANTHROPIC_BASE_URL` = the proxy on nuc, Bash as its only tool and every shell command in the sandbox, both set in the VM's managed settings (Workflow security, Containing the agent); its cwd is `agent/`, where it writes its patch, notes and verdict into `out/`, which the publish steps read as data. The trusted gather step assembles the agent's inputs (Workflow security, Autonomy, rule L), then by mode:
   - **fix** — `bin/distil-ci-failure` filters the failed job's log (`GET /repos/ftzm/dots/actions/jobs/{id}/logs`, as the `triage` bot) — ported from `.github/scripts/distil-ci-failure.sh`, whose comment records why (a raw failed log is ~20k lines of chatter; on #147 the agent spent all 40 turns grepping past it); adapted to Forgejo's log line format, magic-nix-cache patterns dropped, prefix handling checked against a real failed Forgejo job log. Then runs the repair agent; the publish step pushes its patch as `triage` by AGit (`refs/for/<renovate-branch>/<topic>`), opening a PR into the Renovate branch; master's `ci.yml` builds it and `merge-repair` acts on it.
@@ -548,6 +548,11 @@ Nothing changes the source of truth until the manual paths are proven.
    created by hand, like the throwaway repos and users of step 4's
    negative checks: it is test data, deleted in step 3, and the OpenTofu job
    that declares Forgejo's configuration does not exist until then.
+   **Step 1 status (2026-10-06): done.** Sealing keys renewal-off and
+   backed up; bootstrap restores them before the controller; one file per
+   image; `cluster/flake.nix` on `nixos-unstable`; the `leigheas` peer gone;
+   the temporary pull mirror created; the day-one checks run (Verified vs.
+   Unverified); the self-tests below deployed.
    The manual paths' weekly self-tests (nuc Down → Self-tests) in place
    and green — on saoiste (both self-tests) now; eachtrai's laptop
    self-test is committed with the rest but reports only once eachtrai
@@ -611,8 +616,9 @@ Nothing changes the source of truth until the manual paths are proven.
    hook Job in the Forgejo Application, the `kubernetes` state backend.
    Its first config declares `ftzm/dots` — taken over from the migrator by an
    OpenTofu `import` block, not created — with `private = true`, master's
-   protection, the push mirror and the `dots` repo secrets that exist by
-   then; step 4 adds the bot users, `ftzm/triage` and their secrets to it. Renovate and lockfile bumps pause
+   protection, the push mirror, the `dots` repo secrets that exist by
+   then, and the `monitor` bot with the runner-offline alert (Secrets →
+   Runner monitoring); step 4 adds the bot users, `ftzm/triage` and their secrets to it. Renovate and lockfile bumps pause
    until step 4. The writer's poll URL moves from GitHub to the nas mirror (hosts unaffected); the nas
    mirror (git user, keys, `receive.denyNonFastForwards`) and Forgejo's
    `master`-only push mirror to it, with its `last_error` alert; ArgoCD
@@ -1039,16 +1045,24 @@ writes the manifest or starts the writer: it polls the nas mirror itself.
   `routers/api/v1/api.go:501`), fetched once by the owner into agenix: the
   `dots` runner's on nuc, the triage runner's into the VM (Secrets). Builds
   serialise on nuc's daemon regardless of how many jobs run.
-- **Actions on a pull-mirror repo**: unverified. If they do not fire, step
-  1 exercises Actions on a plain non-mirror copy pushed from the workstation.
-  Five-minute check on day one of step 1.
+- **Actions on a pull-mirror repo** (checked 2026-10-06, Forgejo v16.0.5
+  source): they run once the repo's Actions unit is on — a mirror sync emits
+  an ordinary `push` (`SyncPushCommits`, `services/actions/notifier.go:646-679`),
+  gated only by that unit (`notifier_helper.go:155,163`); nothing in
+  `services/actions` checks `IsMirror`. Migrated mirrors start with the unit
+  off. The temporary `ftzm/dots` pull mirror (created 2026-10-06, private,
+  10-minute interval) keeps it off until `.forgejo/workflows/` exists in dots
+  — from then on Forgejo ignores `.github/`, so enabling it runs only the
+  ported workflows, never GitHub's Renovate and flake-update schedules on the
+  instance runner.
 - **nuc's daemon substituters**: the caches in `flake.nix`'s `nixConfig`
   (`nixos-raspberrypi.cachix.org`, `claude-code.cachix.org`, `pi.cachix.org`
   while it lasts) are client-side settings that an untrusted client cannot
   pass to the daemon. They go into nuc's `nix.settings.substituters` +
   `trusted-public-keys`, or the pi's kernel gets built under emulation. The
-  sizing numbers assume those caches; "pi cold build on nuc" is a
-  measurement to take.
+  sizing numbers assume those caches. Measured 2026-10-06: the writer's
+  first cold build of `.#fleet` on nuc (1246 derivations, 10.4 GiB fetched)
+  took 30 minutes, pi included, Iosevka prebuilt.
 - **`boot.binfmt.emulatedSystems = ["aarch64-linux"]` on nuc**, which also
   sets `extra-platforms`; nothing sets it today.
 - **Writer credentials**: a read-only key authorized on the nas mirror and
@@ -1228,13 +1242,15 @@ substituters (what a cold store must download / build):
 entirely config glue (units, etc files, initrds, module-shrinking, FHS
 wrappers for zoom/steam, the emacs-with-packages wrapper, vterm, treesit
 grammars). Emacs core and every kernel are substitutable. The one heavy
-from-source build is **`Iosevka-ftzm`** (custom build plan, `role/iosevka.nix`;
-absent from cache.nixos.org and pi.cachix.org) plus its npm-deps — rebuilt
-only when `nixpkgs-iosevka` or the toml changes. `nixpkgs-iosevka` is a
-commit pin; the worst case on the i5 is a nixpkgs revision Hydra has not
-built yet (#241 spent 2h26m compiling nodejs 26.9.0 from source). The pi's
-kernel/firmware come from `nixos-raspberrypi.cachix.org`; emulation covers
-only its 345 glue drvs.
+from-source build was **`Iosevka-ftzm`**; since 2026-10-06 it lives in its
+own repo, `github.com/ftzm/iosevka-ftzm`, whose release workflow builds it
+and attaches the TTFs, and dots fetches that asset by hash
+(`pkgs/iosevka-ftzm.nix`; Renovate bumps it, `nix-update --version skip`
+rewrites the hash) — no host or CI here builds it. The pi is built with
+`nixos-raspberrypi.lib.nixosSystem` (not `nixosInstaller`, whose global
+ffmpeg overlay rebuilt a python test chain under emulation); its
+kernel/firmware come from `nixos-raspberrypi.cachix.org`, the rest of it
+from cache.nixos.org, and emulation covers only glue (69 derivations).
 
 | Resource | Now | Target | Why |
 |---|---|---|---|
@@ -1254,9 +1270,6 @@ generation.
 
 ### Later
 
-- saoiste (24 threads, not always on) as an opportunistic `nix.buildMachines`
-  entry on nuc; Iosevka is the only build that would benefit.
-- Measure after the first cold fill: Iosevka build time on the i5.
 - **Shared runner, when other repos need CI** (and before the instance opens
   to the public): instance-scoped, one fresh microVM per job with a
   single-use registration (`POST /api/v1/admin/actions/runners` with
@@ -1299,6 +1312,7 @@ settings.
 | **`triage-dispatch` bot token** | minted by OpenTofu, held in its state | `dots` secret `TRIAGE_DISPATCH_TOKEN`, used only by `dispatch-triage`'s dispatch step; the user has write on `ftzm/triage` (dispatch needs Actions write) and no access to `dots`, so the VM never holds a credential that can change `ftzm/triage` | the OpenTofu job creates the user, its access, the token and the secret | taint the token resource, re-apply |
 | Actions secrets: `TRIAGE_DISPATCH_TOKEN`, `MERGER_TOKEN`, `RENOVATE_TOKEN` on `dots`; `TRIAGE_TOKEN` on `ftzm/triage` | the minted tokens from OpenTofu state | `forgejo_repository_action_secret`; never user- or instance-level secrets (Workflow security, rule 3) | the OpenTofu job | re-apply |
 | `RENOVATE_TOKEN` itself | a PAT of a dedicated **`renovate` bot user** (repo rw, user r, issue rw), not the owner's | Renovate | the OpenTofu job creates the user and mints the PAT | taint the token resource, re-apply |
+| **`monitor` bot token** | minted by OpenTofu (`read:admin`), held in its state | a Kubernetes Secret in the Forgejo namespace, read only by the runner-status CronJob (Runner monitoring) | the OpenTofu job creates the user, the token and the Secret | taint the token resource, re-apply |
 | Automatic `GITHUB_TOKEN` | Forgejo | jobs | — | — |
 | Cloudflare token (cert-manager), borgbase | SOPS / agenix (exist) | — | — | unchanged |
 
@@ -1316,7 +1330,7 @@ the provider's `forgejo_repository.private` defaults to `false`
 distilled CI log, the `dots` tree and the agent's notes), so leaving it
 out would create them public and keep re-asserting that at every sync —
 the bot users `renovate`,
-`triage` (read on `dots`), `triage-dispatch` (write on `ftzm/triage`) and `merger` (`forgejo_user`, `forgejo_collaborator`),
+`triage` (read on `dots`), `triage-dispatch` (write on `ftzm/triage`), `merger` and `monitor` (`forgejo_user`, `forgejo_collaborator`),
 their tokens (`forgejo_personal_access_token`), master's protection
 (`forgejo_branch_protection`: `enable_status_check`,
 `status_check_contexts`, `block_on_outdated_branch`, merge and push
@@ -1324,6 +1338,18 @@ whitelists), deploy keys and repo secrets
 (`forgejo_repository_action_secret`). The provider has no push-mirror
 resource, so the Job's last step creates the `master` push mirror to nas by
 API if absent.
+
+**Runner monitoring** (decided 2026-10-06, after the VM runner sat offline
+for ~30 hours after nuc's power loss with nothing alerting): Forgejo's
+Prometheus metrics have no runner state (`modules/metrics` in v16.0.5), so
+the OpenTofu job also creates a `monitor` bot user with a read-only admin
+token (`read:admin`), written to a Kubernetes Secret in the Forgejo
+namespace. A CronJob there (every 2 min) reads `GET /admin/actions/runners`
+with it and exposes `forgejo_runner_last_online_timestamp{runner}` (and
+`forgejo_runner_online{runner}`) for Prometheus; `ForgejoRunnerOffline`
+fires when a registered runner has not been online for 15 minutes. The
+token is declared like every other bot token, so a rebuilt Forgejo
+re-mints it at the next sync.
 
 - **Where it runs:** a PostSync hook Job in the Forgejo Application
   (`hook-delete-policy: BeforeHookCreation`), so it runs only when that
@@ -1804,10 +1830,19 @@ docs; the field exists in this cluster's `v3.5.3` CRD).
 The reference scripts are `scratchpad/t13/fleet-agent.sh` and
 `scratchpad/t14/fleet-write.sh` in a session scratchpad, not in the repo.
 
-**Unverified, to confirm on first use:** what the automatic token may do
-to a protected branch (a push and a merge to `master` from a job); the
-runner's host-mode label syntax; whether
-Actions run on a pull-mirror repo; how Forgejo's ssh push mirror verifies the
+**Verified in step 1 (2026-10-06):** the automatic token on a protected
+branch and on PR endpoints (hurdles table); Actions on a pull-mirror repo
+(Plumbing); a repo-scoped runner is invisible to other repos — a runner
+registered to one private repo took that repo's job at once while a job in a
+second repo with the same `runs-on` stayed `waiting`, and the runner was
+handed only the first repo's task; `render-lab`/`test-rules` as sandboxed
+derivations (`cluster/flake.nix` checks, CI builds them); the store-path
+manifest and the two profiles end to end (`checks.x86_64-linux.fleet-deploy`
+passes, and the writer's first manifest on nuc names exactly the systems
+comin deployed on saoiste, nuc and nas).
+
+**Unverified, to confirm on first use:** the
+runner's host-mode label syntax; how Forgejo's ssh push mirror verifies the
 remote's host key, and that a push mirror created by the OpenTofu job's API step pushes
 on commit (step 3); the Forgejo
 upgrade hooks end to end (step 3's deliberate failures); that the
@@ -1826,16 +1861,9 @@ workdir store inside the sandbox, evaluating every host `--offline` from
 what `nix flake archive` put there (import-from-derivation anywhere in the
 tree would need builds); the VM's 20 GiB volume against that store;
 that `nix-update` rewrites a `terraform-providers.mkProvider` call's version and both hashes (first provider bump);
-`render-lab`/`test-rules` as sandboxed
-derivations (tested only with networking removed, not inside the nix
-sandbox); `pull_request_target` firing for an AGit PR on the live instance;
+`pull_request_target` firing for an AGit PR on the live instance;
 Renovate automerging its PR after a repair merged into its branch (the
-armed auto-merge surviving another user's push); whether the automatic token
-may call `POST /pulls/{i}/update`; repo-scoped
-runner invisibility from other repos (check on day one with a throwaway
-public repo); the store-path manifest and the two profiles end to end (the
-`fleet-deploy` VM test);
-that nas's `receive.denyNonFastForwards` refusal of a mirror push surfaces
+armed auto-merge surviving another user's push); that nas's `receive.denyNonFastForwards` refusal of a mirror push surfaces
 in the push mirror's `last_error`, and that `branch_filter: master` pushes
 only `master`; that a single `nix build` holds temporary roots for its
 finished sub-builds until it exits under `min-free` pressure (if not, one
