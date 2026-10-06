@@ -3400,6 +3400,14 @@ local patchTargetDown(resources) = {
                 # first repo; `forgejo doctor` (the upgrade checks) fails on both.
                 install -d -o git -g git /data/gitea/log /data/git/repositories
                 chown git:git /data/gitea/log
+                # The setup also creates the git user's ~/.ssh as root; Forgejo
+                # (as git) then cannot write authorized_keys and exits. Not in
+                # `forgejo dump`, so a restore gets it from here: github.com's
+                # published host key (api.github.com/meta), pinned for the
+                # GitHub mirror.
+                install -d -m 700 -o git -g git /data/git/.ssh
+                echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' >/data/git/.ssh/known_hosts
+                chown -R git:git /data/git/.ssh
                 CONF=/data/gitea/conf/app.ini
                 su-exec git forgejo migrate --config "$CONF"
                 if su-exec git forgejo admin user list --config "$CONF" | awk 'NR>1{print $2}' | grep -qx "$ADMIN_USERNAME"; then
