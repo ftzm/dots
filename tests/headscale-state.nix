@@ -19,8 +19,20 @@ pkgs.testers.runNixOSTest ({nodes, ...}: {
     environment.systemPackages = [pkgs.sqlite];
   };
 
-  nodes.headscale = {
+  nodes.headscale = let
+    # Test-only noise key in headscale's format.
+    noiseKey = "privkey:${builtins.hashString "sha256" "headscale-state test"}";
+  in {
     imports = [headscaleStateModule];
+    headscaleState = {
+      noiseKeyFile = "/etc/headscale-test-noise.key";
+      noiseKeySha256 = builtins.hashString "sha256" noiseKey;
+    };
+    environment.etc."headscale-test-noise.key" = {
+      text = noiseKey;
+      user = "headscale";
+      mode = "0400";
+    };
     _module.args.lab.machines.nas.lan = nodes.nas.networking.primaryIPAddress;
     services.headscale = {
       enable = true;
@@ -84,6 +96,14 @@ pkgs.testers.runNixOSTest ({nodes, ...}: {
         # It keeps retrying (Restart=always) and recovers once the nas is back.
         nas.succeed("systemctl start nfs-server")
         headscale.wait_until_succeeds("headscale users list -o json | grep -q alice", timeout=120)
+
+    with subtest("a noise key other than the pinned one does not start"):
+        headscale.succeed("systemctl stop headscale")
+        headscale.succeed("cp /etc/headscale-test-noise.key /tmp/k && rm /etc/headscale-test-noise.key && echo privkey:00 > /etc/headscale-test-noise.key")
+        headscale.fail("systemctl start headscale")
+        headscale.succeed("journalctl -u headscale -o cat | grep -q 'is not the pinned noise key'")
+        headscale.succeed("rm /etc/headscale-test-noise.key && cp /tmp/k /etc/headscale-test-noise.key && chown headscale /etc/headscale-test-noise.key && chmod 0400 /etc/headscale-test-noise.key")
+        headscale.wait_until_succeeds("headscale users list -o json | grep -q alice", timeout=60)
 
     with subtest("a version change snapshots before the migration"):
         headscale.succeed("systemctl stop headscale")

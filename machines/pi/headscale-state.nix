@@ -12,9 +12,17 @@
 #   nodes and IPs. If the nas is unreachable, refuse to start rather than
 #   start empty. If the version changed, snapshot locally before headscale
 #   migrates the schema (an older headscale cannot read a migrated one).
+#
+# The server's identity, its noise private key, is declared
+# (headscaleState.noiseKeyFile; the pi's comes from agenix, carried over from
+# the key headscale generated). Its sha256 is pinned and checked before every
+# start, so a key that decrypts to anything else stops headscale instead of
+# handing the tailnet a new server identity. A deliberate rotation updates
+# both.
 {
   config,
   lab,
+  lib,
   pkgs,
   ...
 }: let
@@ -23,6 +31,8 @@
   stateDir = "/var/lib/headscale";
   backupDir = "/mnt/headscale-backup";
   sqlite = "${pkgs.sqlite}/bin/sqlite3";
+  noiseKey = config.headscaleState.noiseKeyFile;
+  noiseKeySha256 = config.headscaleState.noiseKeySha256;
 
   snapshot = pkgs.writeShellScript "headscale-snapshot" ''
     set -euo pipefail
@@ -43,6 +53,10 @@
   prepare = pkgs.writeShellScript "headscale-prepare-state" ''
     set -euo pipefail
     version=${hs.package.version}
+    if [ "$(sha256sum ${noiseKey} | cut -d' ' -f1)" != ${noiseKeySha256} ]; then
+      echo "headscale-prepare-state: ${noiseKey} is not the pinned noise key; not starting headscale with a new identity" >&2
+      exit 1
+    fi
     if [ ! -e ${db} ]; then
       # Fresh install, or lost state? Only the backups can tell; without
       # them headscale must not start empty.
@@ -69,21 +83,34 @@
 in {
   imports = [../../role/nfs-automount.nix];
 
-  nfsAutomounts.${backupDir} = {
+  options.headscaleState = {
+    noiseKeyFile = lib.mkOption {
+      type = lib.types.str;
+      description = "headscale's noise private key, readable by the headscale user.";
+    };
+    noiseKeySha256 = lib.mkOption {
+      type = lib.types.str;
+      description = "sha256 of noiseKeyFile; headscale does not start with any other key.";
+    };
+  };
+
+  config.services.headscale.settings.noise.private_key_path = noiseKey;
+
+  config.nfsAutomounts.${backupDir} = {
     device = "${lab.machines.nas.lan}:/headscale-backup";
     options = ["nfsvers=4.2" "soft" "timeo=100" "retrans=3" "noatime"];
   };
 
-  systemd.services.headscale.serviceConfig.ExecStartPre = ["+${prepare}"];
+  config.systemd.services.headscale.serviceConfig.ExecStartPre = ["+${prepare}"];
 
-  systemd.services.headscale-snapshot = {
+  config.systemd.services.headscale-snapshot = {
     description = "Snapshot headscale's database to the nas";
     serviceConfig = {
       Type = "oneshot";
       ExecStart = snapshot;
     };
   };
-  systemd.timers.headscale-snapshot = {
+  config.systemd.timers.headscale-snapshot = {
     wantedBy = ["timers.target"];
     timerConfig = {
       OnCalendar = "daily";

@@ -200,6 +200,19 @@ inputs.nixos-raspberrypi.lib.nixosSystem {
     inputs.agenix.nixosModules.age
     ../../role/lab.nix
     ./headscale-state.nix
+    ({config, ...}: {
+      age.secrets.headscale-noise-key = {
+        file = ../../secrets/headscale-noise-key.age;
+        owner = config.services.headscale.user;
+        group = config.services.headscale.group;
+        mode = "0400";
+      };
+      headscaleState = {
+        noiseKeyFile = config.age.secrets.headscale-noise-key.path;
+        # The key headscale generated on this pi, carried into agenix.
+        noiseKeySha256 = "a26cf6c799470591d033b803d29d86c3562c1b3059cb1f40086b2d5116ac0c61";
+      };
+    })
 
     inputs.comin.nixosModules.comin
     {

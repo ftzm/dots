@@ -41,4 +41,8 @@ in {
   # signs what nuc builds with it, harmonia what it serves. The public half,
   # nuc-fleet-1:..., is every host's trusted key (role/fleet-agent.nix).
   "fleet-cache-key.age".publicKeys = [personal nuc];
+  # headscale's noise private key -- the control server's identity, which
+  # clients hold its public half of. Declared so a rebuilt pi keeps it
+  # (machines/pi/headscale-state.nix covers the rest of its state).
+  "headscale-noise-key.age".publicKeys = [personal pi];
 }
