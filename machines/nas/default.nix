@@ -18,7 +18,6 @@ in {
     ../../role/lab.nix
     ../../role/node-exporter.nix
     ../../role/fleet-host.nix
-    ../../role/comin-retired.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when

@@ -1143,7 +1143,17 @@ writes the manifest or starts the writer: it polls the nas mirror itself.
   3. **Commit B** drops `role/comin.nix` (and with it `dryRun`) and the comin
      scrape job and `Comin*` rules. comin applies it; its unit is left
      running by the guard and a oneshot stops it once it has no switch in
-     flight. From then on the agents deploy.
+     flight. From then on the agents deploy. B must still import comin's
+     module, disabled: comin evaluates `config.services.comin.machineId` of
+     the configuration it is about to deploy and refuses one without the
+     option (`internal/executor/utils.go:22-46`) — it refused the first B,
+     4b0b1826, until `role/comin-retired.nix` (ca928b3d) supplied it; a later
+     commit, deployed by the agents, drops the module and the input.
+  **Done 2026-10-06:** every host runs its manifest path through fleet-agent,
+  with the system profile pointed at it (comin had left saoiste's on a July
+  generation, nas's on April, nuc's on June); comin is stopped everywhere and
+  its profile removed. The writer's commits and the pi's deploys go through
+  the agent.
   The `Fleet*` rules, the pi's node_exporter and scrape target, and
   `fleet_tailnet_peer_online` (nuc's view of the laptops on the tailnet,
   replacing comin's exporter as `RoamingNodeExporterDown`'s evidence that a

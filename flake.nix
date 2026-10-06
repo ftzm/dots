@@ -71,12 +71,6 @@
       url = "github:lukasl-dev/pi.nix";
     };
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
-    # Only for role/comin-retired.nix during the cut-over; pinned to the
-    # revision the fleet ran.
-    comin = {
-      url = "github:nlewo/comin/6814f2df92e702b188b1483b5f46b06bb36dcfb1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     microvm = {
       url = "github:microvm-nix/microvm.nix";
       inputs.nixpkgs.follows = "nixpkgs";

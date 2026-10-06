@@ -29,7 +29,6 @@
 
     ../../role/manual-path-selftest.nix
     ../../role/fleet-host.nix
-    ../../role/comin-retired.nix
     ../../role/resilience.nix
     ../../role/packages.nix
     ../../role/iosevka.nix
