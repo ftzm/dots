@@ -1798,10 +1798,16 @@ Steps (the `kubectl` here is the one-time bootstrap exception):
    the runner would act on it (rebasing already-merged PRs, re-dispatching
    dead tasks). So, over a `kubectl port-forward` to the pod (bootstrap
    exception): push `master` (from nas) and every open PR branch from the
-   workstation clone, which drives Forgejo's own push path — branch table synced, PRs
-   whose heads master now contains flip to merged (confirmed by the
-   rehearsal); `forgejo doctor check --all --fix` first, so the replay runs
-   current hooks; then cancel every Actions run that is `waiting`, `blocked`
+   workstation clone, which drives Forgejo's own push path where a ref
+   moves; `forgejo doctor check --all --fix` first, so the replay runs
+   current hooks. PRs merged after the dump do **not** flip by themselves
+   (rehearsal): after step 4 the pushes move no ref, so no PR check is
+   queued, and detection needs `AutodetectManualMerge`, off by default
+   (`services/pull/pull.go`). So each open PR whose head its base branch
+   contains is marked via `POST /repos/{o}/{r}/pulls/{n}/merge`
+   `{"Do":"manually-merged","MergeCommitID":<oldest first-parent base
+   commit containing the head>}`, after enabling `allow_manual_merge` (step
+   8's OpenTofu re-asserts repo settings); then cancel every Actions run that is `waiting`, `blocked`
    or `running` via `POST /repos/{o}/{r}/actions/runs/{id}/cancel` — the
    dump's queued jobs would otherwise dispatch the moment the runner connects
    (`cancel_abandoned_jobs` waits 24 h; only stale `running` tasks are failed
