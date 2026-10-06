@@ -28,7 +28,11 @@
       "Bash(grep -rn \"define-minor-mode symex-mode\\\\|define-globalized\\\\|defun symex-mode-interface\\\\|defun symex-mode \" ~/.config/emacs/elpaca/builds/symex*/)",
       "Bash(emacsclient -e '\\(with-current-buffer \"sqlite.sls\" *)",
       "Bash(kubectl exec -n forgejo:*)",
+      "Bash(bin/forgejo-api:*)",
       "Bash(kubectl annotate application:*)"
     ]
+  },
+   "env": {
+     "KUBECONFIG": "/home/ftzm/.kube/config-k3s"
   }
 }
