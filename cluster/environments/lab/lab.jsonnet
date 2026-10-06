@@ -1,4 +1,5 @@
 local backup = import '../../lib/backup.libsonnet';
+local forgejoUpgrade = import '../../lib/forgejo-upgrade.libsonnet';
 local cleanuparr = import '../../lib/cleanuparr.libsonnet';
 local alerts = import '../../lib/alerts.libsonnet';
 local logformats = import '../../lib/logformats.libsonnet';
@@ -969,6 +970,18 @@ local patchTargetDown(resources) = {
         '30m', 'warning',
         'node_exporter on {{ $labels.instance }} unreachable while the host is up',
         '{{ $labels.instance }} is online on the tailnet but its node_exporter (:9002) has not answered for 30m, so every node metric for it -- reboot-needed, deploys, the manual-path self-tests -- is missing. Check `systemctl status prometheus-node-exporter` on {{ $labels.instance }}.',
+      ),
+    ]),
+    // A failed Forgejo upgrade rolled itself back and switched off automated
+    // sync for the Forgejo Application (lib/forgejo-upgrade.libsonnet). Nothing
+    // else in the cluster is affected; Forgejo serves the previous version.
+    forgejoUpgradePrometheusRule: alerts.prometheusRule('forgejo-upgrade', ns, [
+      alerts.rule(
+        'ForgejoUpgradeLocked',
+        'argocd_app_info{name="forgejo", autosync_enabled="false"} == 1',
+        '5m', 'warning',
+        'Forgejo upgrade failed, rolled back and locked',
+        'An automatic Forgejo upgrade failed, was rolled back to the previous version from its pre-upgrade snapshot, and automated sync is off for the forgejo Application. Read the failed sync and the forgejo-upgrade-syncfail Job log for the phase and versions, then follow the Restore Runbook -> Forgejo upgrade lock.',
       ),
     ]),
     // fleet-agent and the writer (FORGEJO_MIGRATION_PLAN.md -> Binary Cache).
@@ -3207,8 +3220,12 @@ local patchTargetDown(resources) = {
   // The Actions *runner* is NOT here — it runs in an isolated microVM on nuc
   // (untrusted job code must not share a kernel with the cluster). This is only
   // the trusted instance; the runner dials in over the private ingress.
-  forgejo:
-    local ns = 'forgejo';
+  // One Forgejo instance: the real one (forgejo) and a throwaway that exercises
+  // the upgrade hooks on data nothing depends on (forgejo-upgrade-test).
+  // `prod` adds what only the real one has: its hostname, git-over-SSH, NFS
+  // backups shipped off-box, the nightly dump.
+  forgejoInstance(ns, app, image, sealedData, prod, failCheckForTest=false)::
+    local domain = if prod then 'forgejo.lan.ftzmlab.xyz' else ns + '.invalid';
     // Env shared by the app container and the admin-bootstrap init container, so
     // both render an identical app.ini (via the image's environment-to-ini step).
     local secretRef(name, key) = {
@@ -3216,9 +3233,9 @@ local patchTargetDown(resources) = {
       valueFrom: { secretKeyRef: { name: 'forgejo-secrets', key: key } },
     };
     local appEnv = [
-      k.core.v1.envVar.new('FORGEJO__server__DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
-      k.core.v1.envVar.new('FORGEJO__server__ROOT_URL', 'https://forgejo.lan.ftzmlab.xyz/'),
-      k.core.v1.envVar.new('FORGEJO__server__SSH_DOMAIN', 'forgejo.lan.ftzmlab.xyz'),
+      k.core.v1.envVar.new('FORGEJO__server__DOMAIN', domain),
+      k.core.v1.envVar.new('FORGEJO__server__ROOT_URL', 'https://' + domain + '/'),
+      k.core.v1.envVar.new('FORGEJO__server__SSH_DOMAIN', domain),
       k.core.v1.envVar.new('FORGEJO__server__SSH_PORT', '30022'),
       k.core.v1.envVar.new('FORGEJO__server__SSH_LISTEN_PORT', '22'),
       k.core.v1.envVar.new('FORGEJO__database__DB_TYPE', 'sqlite3'),
@@ -3233,6 +3250,21 @@ local patchTargetDown(resources) = {
     ];
     // NFS-backed volume for scheduled dumps (shipped off-box by the NAS borg job).
     local backupMount = storage.nfsMount('forgejo-backup', ns, '/pool-1/k8s/forgejo-backup', '10Gi');
+    local up = forgejoUpgrade.new({
+      name: 'forgejo-upgrade',
+      ns: ns,
+      app: app,
+      image: image,
+      controlImage: images.alpineK8s,
+      service: 'forgejo',
+      deployment: 'forgejo',
+      container: 'forgejo',
+      initContainer: 'bootstrap-admin',
+      podSelector: 'app.kubernetes.io/name=forgejo',
+      dataPvc: 'forgejo-data',
+      backupPvc: 'forgejo-backup',
+      failCheckForTest: failCheckForTest,
+    });
     {
       // Data (git repos + sqlite db + config, all under /data) lives on node-local
       // storage. The pod is pinned to nuc regardless, and SQLite/git over NFS carry
@@ -3247,7 +3279,7 @@ local patchTargetDown(resources) = {
 
       // Git-over-SSH via NodePort so clone URLs resolve from the LAN.
       // SSH_PORT below must match nodePort so Forgejo advertises the right URL.
-      sshService: {
+      [if prod then 'sshService']: {
         apiVersion: 'v1',
         kind: 'Service',
         metadata: { name: 'forgejo-ssh', namespace: ns },
@@ -3266,14 +3298,7 @@ local patchTargetDown(resources) = {
         kind: 'SealedSecret',
         metadata: { name: 'forgejo-secrets', namespace: ns },
         spec: {
-          encryptedData: {
-            SECRET_KEY: 'AgA8EUM3kOABz66x5TOIK0d3coVE88C5XiH9/ZF7268aDwrc5fGXpvfd2sMRivdMEovwHeUKHj9VEHiu9YNxFBkV4kFqFE9K9GZdlIGuMaOPlp7eoZsOt4AKIEq6v+PsTf4qsjP02k5fm79VLfaSxMQtlMhpr82C+EGo0x9H5mlcM7phwm9l+Xp1wHiMIfwkSnAadHxcwXZSNl2FK0Ppi6G+Gbx7UWg4Adi0Lmv5ZGf9K+kx70N3RZYcKRslcjLJD4d7I65hSYJkbFiDOHZfaFReDJ6wgK8e2WuWqIBgllsfMEhFjTnTFrounmoIAJEQMi4Daffp33Cozpx5blL2loDmxc5CJ7hFLjmpW7wMCwEsNUCjuEiGxUPi2/Jc66gE43PqPBAXelZeGOgcnwVqvf2NupgXONNIfce2o6MZY8CCzSbyReUSRvny9FXZZ5syXo03iY18BjpAOl5yQIoFuc+WA7NuzQsV7rEKz8nOZPxKBnkuQw4OYIKwNimc2znvpqaw0jQYeRWanit6AQuEPAMFnnqE8maOTV5m+h/CCTBDFjcC1d47ZhUhj+R4NfcDOzVFGED8Ow/D/pRrXQvQSyl6QmXe5v9xpVN4ZqDLte23fU0a/qqDXV5p7rORQ7ic2MnnOefcqv2PtlqDh8h3PcdlsyDkrwEd9Vr9zQQTYc0fPPrYE0nQczNpmddaJssr96LIJTmVb4+aOy6QvT1RLVYE0CD+uFbuoYRRnBd4/jiGC5VZpVrGJoAc2LTb',
-            INTERNAL_TOKEN: 'AgAJCIKnEg0aFqC/CBSUuYKifBt7COgv3BJUsEufqEmkk67rzuPoBPgFVFJYDC1FUDPzkZnKxD8jiLRK/D/JDzj+8bmcaJJHIDQOMY9p429l1n7giqFpfFaDCEUcW9662mILJEeMyyVMMnRy4WS8L6v24y6e5x0tFjDaJ43jf6Tu6pr3J8+jqC/FV5SnWFZV5kPVU5wIUzA6oSwlTeGelVSeJCcUvDPGqYr7MNGKplXFXVqWSB7MgYrvrmlXWqPYSgnE4KF/sGDiMSfQY1ljLkaWtnoXCxrHnPelMOk36fOuYi9jLKNh4lclL1MjD+QhQ/gO7KFQQ+LYebmF+W6PI6+0BkM5LVTzL2YZixClVwSXa/MaxZrMjZJ8Y1yiMauU4n1Dk3/Zq4N4p1wvte77FnsVPqHg66l05Jbkwg7v685LJKbBs1+Kq0N3MzlJ6jYuI3JaWWo0dYcs9gf0RPqyhptYynKHchh1rvxxEpFEjzXkXwisiWpp6KHvzVuWm2iOR2XrwYttS+C3U/gT/1ALAEaq2xUkRjr+EmEHfASmlaR2s0k9N5qyDKGoYF62ktwFSt9YcmjUj92JRDazfmve/QGZLsZqU2qQBxev8mBs+QzCj2Ql/oxnPCYcv2kMgchgcPSE8I7DJlQ46+OMnmolUKYMWMI3eQ65RwmSr3oLyuPG6xXKVnU97ZxvwyTFBVLQPcDhMiumHERRE3kwPiDl+UXYXCEAOm+HBv9bgwoVsyyvJCks4ypaN1W1kjsa9kaZq5fFVlG5debf+T11fqXT7UcUrFQYadzG6XdsM/Shr8U81jsA9KougLQUMly2aq9PYSOzsoB7YGQgvqg=',
-            JWT_SECRET: 'AgB5PluOwoXOFxqsBINzFFZIfWD5LU0sXCoTJE7Mfq1Cf05wOTIFikbWbANlYabJY8wTzqXfBnSSRcCwTb5Zx2nt+wNy3TQjz+7LGSfbntT1UihTyicRxna0a1jY9RVs0o3U1b6ZLauyqc1emGB6NUnOQZP1/y1wA2cRUYXNOTH5BSkb8Wt8piNWaPzcQESbkdq0EuPwQpTngc/lBOR6VI8fL8EIyjRAuea3Sy7uJ0FH5NwYNl6msd2QxTI/ziDSwHJQKNsVJ7VWcZBAwmqV/T6Iax7IA2swKrKTN38UzS+L5A8fk2rIEUeF8YZjNj3De82B0PkvTT1vocJ5j/B/6+bVre30Ehjhb/iqDPDPA5LpquA0fbWxzXwIGDvGKYSMEdw3EFTUOc8+3pfjgTCza6aDYFOKBVe8awHH8n3MXd2ut1/83r7kaY1UjjLB0yZJOlbje8qF9ZPBKoTz5J3FU23QsH3W9JHmF/ZnLtuPQexlSS60gMrJ2KvMd+WfUQiT5AprmqBKaFCfE3eIlxUzIHDwyMgx8J7KNklcVjhiFiRUAJUF/gIykiEKrQQluveG+VjVg6LjNbxGh3qr5auG9xY2+0NPqnhUFUVx7FHiYY/z9rKppaMzTMzKKLJRhYplOE8T+wBAizDKgTsX4XRnE1yMkKmhM9rYuuu8e8WwSvV5YAVzBC3Bjz1NR2pJ/0WGs4LY3b7085IT5oXvjoF9dzg49ibF/M8jO+SyF/eZ9288W6MpGAZ++wX9vLnI',
-            'admin-username': 'AgCKJOg1l9t8Z23TASf8wca6ZEejCvq9hQ0yGLGKQMtmC57V2HBC0nTjETKK+UfVs5tLNIDGZCcCcgIYmBD9+zMReQC+zyQafPqgTIMy1RMUFnWdwTQJrDfgbXrH4v2a+mQZCBYPcEpm8mD2NDNzgCRRMJVx3v+x2IUQdMNpFg3Au1j7gYOLZf7Ix98PE3qiuWw/l0CSDxtop+j8vhdJUVDHbDSm2QAOUL50cJc02Aqiy9KsBuylVNu5mQ9Qj9Yn4UWIYpfw4EZ8T/KDxn3q92/mdGaBuPVlGvlHRXnsmT6zftu33dgjSTKnVx9H3obXDraOfkr8gPyd0A47Bs8UGHIn2JjCue9wDY/ArsfRbCFYz4/BLTzKgl8WKT0zzzgL2Rmk2nBBh1RZqdZiJf3hfvyM5Y/OCQOyWiz4fA1tRcFKYANiBQgC87hMWTimA9j8+VZFPGp03Z4NQ1phN7eZXK2IOx+raJSo7VNcQzD+uAST7Z4K4Rhb70sQPej3QZKABceBOgcU0YOC45658ajiNYKOLG8aTKlB+3pmyjZum1D5tHsRWVePyKma8Za2uCX2ULJraWNzfunVgIyGNMY20i4sx3pHdyKO/J/F8NIOdocBZiRZrAFtAeYsHWs4YgE3huAr0c11TxiIqlpMk1v6mtq6SbqIEBnZtBNthvU2/tHgk9NWdGDjCP5zs++yFYijGN+n834H',
-            'admin-password': 'AgCPVswvWsyKNskel0+V7HeyfTyE4xjIAP0qwp6HV5ZQQP6su/SXmpBHVqWamXPpIJ+1Y42VQVCWZCPv8LMAZynMRUplsNmDIj31Tnjvd4x/v/M6rCnXVME1OBWxayjXubMNrboE6ke/lX8wbMl/S1E4YNAxC5gwubIC3u+V63liWi/60358Bl1Ia3siop91+Gc8WYuxChORCUqXp+Z+eXP7XRg6wgc7MXVNnEGqXVMbzdqvvxMUHbFrZSKalBoGOLwi0HJ2OYyFhaWX/jdw7v233K7fQX1ClDtoo3+fY1+LK7tNPbP0X94ZH8f/CqpNPlqMsNV5Tk1B7lGByesORA/ySR8b5t3rgD4FQS2HgsZX/o5j1D/qds0Ptjsk6hhVqe15wZvpL0uC7COR9gMDo+DGOZ0oqsyg73TUcEXDzORYlNCgfx/VHyVn1K6AdZINFnndHXWBXo2Uhpgl/S1A/p7rIySeGbmEYzQMQRURPZH3n4HEX9fFxk0n9sBJgrbc9kbvs9CJBTDuzoUsdXoagwSA8Ycr2qiloMTJ9DYYXYY4I4JxAqF/DJcFC+qI7NeWm8IWf8mkgDYSF/hnIeOblloOe45tFAjzMmN6Z53+znekSaYl/SWGdCJYQvpvSaPZKcZ6SUwibG9tEM9uOqTl47ZJdayLsUM5u3h4AZU+2OK9ySI1MZGt5j5jTDOdm1UHnHVv+I+3gKPj7BU5Xtk5cz1vCpiltg==',
-            'admin-email': 'AgAfFQ0ZGCbwTRvz6MUPEhBFp0kW4AQtyTMKPLOVuT2T2cwAq82X3TCXVfexT4DEvxqCOITueZVfp+Zp234yh4o5ZunzPadlZOJRE3ciEdDkhlgYkSfwWEjRYSJcNg38GE2g+2rqUAzcrNqLWwsEQUhDdKBSt5AOQDwmO/zlQx1PGOEiE4zOJ8BhmoyWgW3e4PcrdonVPFYebN9SqkgkdH+1exnCkD3BkUxPoQUL48yNfHJ/KOtLBZLnoei+a9yvA2lMfcM7M02mcX306cbMSOZvkEFouxRvsl8TAul63bOcwy+Mu9fw3TJpeKFXZIaruOhwua02hmgECSzNsac149/3Q2Bsw1PbZU6bP5i7ymirc6r5nRZ+1C0DNmMLaZtwzrKnkL7F8EP3NRbgOEnIQJT+wk9cAX+WX85MfzK/P5RHfN2rwd44n8xTosOS9AeckfqA+CXEINZIRCwRE6DvdO8HZlkg9nObei9OUbPQrhSIv90LFZdLir4K7o5DzTiiZHs4pC9lKgUDpzVaBOY+LHaHS9rgbsQW5dqLwxcwZvH/Alt5ULhBX/tP+E5WSuWWDPAlZ7mLkWH+SktB76ZHpV6Z2lMAJC1GbDzyIoEeC3P3xnEIV9nPIGzej9ScZhenEsKg3lYbQCL/j4o/nTqa/0a3y7baZG3gK14S+Qei5WV/U7ZFAcCFBsYg2T9z/N+cP0UYJ/jdGppBZmDL',
-          },
+          encryptedData: sealedData,
           template: { metadata: { name: 'forgejo-secrets', namespace: ns } },
         },
       },
@@ -3283,29 +3308,31 @@ local patchTargetDown(resources) = {
       // borg can dedup unchanged repos across days. The NFS dir is owned
       // 1000:1000 on the NAS so the git-uid job can write it (no_root_squash).
       // Wave -1, with the upgrade gate that mounts them (lib/backup.libsonnet).
-      backupPv: backupMount.pv + syncWave(-1),
-      backupPvc: backupMount.pvc + syncWave(-1),
+      [if prod then 'backupPv']: backupMount.pv + syncWave(-1),
+      backupPvc: if prod then backupMount.pvc + syncWave(-1) else
+        k.core.v1.persistentVolumeClaim.new('forgejo-backup')
+        + k.core.v1.persistentVolumeClaim.metadata.withNamespace(ns)
+        + k.core.v1.persistentVolumeClaim.spec.withAccessModes(['ReadWriteOnce'])
+        + k.core.v1.persistentVolumeClaim.spec.resources.withRequests({ storage: '2Gi' })
+        + k.core.v1.persistentVolumeClaim.spec.withStorageClassName('local-path')
+        + syncWave(-1),
 
-      // Gate on a fresh dump before an image change lands. `forgejo migrate`
-      // runs in an initContainer on every pod start, so the schema migration
-      // fires as soon as a new image rolls and reverting the image does not
-      // undo it. The nightly dump above can be nearly a day old by then.
-      // See lib/backup.libsonnet.
-      dumpGate: backup.forgejoDumpGate(
-        'forgejo-dump-gate', ns, images.forgejo, 'forgejo', 'forgejo-data', 'forgejo-backup'
-      ),
+      // Upgrades that roll themselves back: snapshot with Forgejo stopped,
+      // pre-flight the new image on a copy, check after the rollout, restore and
+      // lock on failure (lib/forgejo-upgrade.libsonnet).
+      upgrade: up,
 
       // ArgoCD leaves hook resources out of its diff, so a hook-only edit
       // never produces the sync that would run it. Same reasoning, and the
       // same remedy, as immich's dbHookRevision.
-      dumpGateRevision: {
+      upgradeHookRevision: {
         apiVersion: 'v1',
         kind: 'ConfigMap',
-        metadata: { name: 'forgejo-dump-gate-revision', namespace: ns },
-        data: { digest: std.md5(std.manifestJsonEx($.forgejo.dumpGate, '')) },
+        metadata: { name: 'forgejo-upgrade-hook-revision', namespace: ns },
+        data: { digest: std.md5(std.manifestJsonEx([up.gate, up.check, up.syncFail], '')) },
       },
 
-      dumpCronJob: {
+      [if prod then 'dumpCronJob']: {
         apiVersion: 'batch/v1',
         kind: 'CronJob',
         metadata: { name: 'forgejo-dump', namespace: ns },
@@ -3318,7 +3345,7 @@ local patchTargetDown(resources) = {
             restartPolicy: 'OnFailure',
             containers: [{
               name: 'dump',
-              image: images.forgejo,
+              image: image,
               command: ['/bin/bash', '-c'],
               args: [
                 |||
@@ -3340,17 +3367,23 @@ local patchTargetDown(resources) = {
           } } } },
         },
       },
-    } + selfhosted.new('forgejo', images.forgejo, 3000, 'forgejo.lan.ftzmlab.xyz') {
+    } + selfhosted.new('forgejo', image, 3000, domain, ns=ns) {
       // Use the node-local data mount instead of the default config PVC.
       configPvc:: null,
+      // The throwaway instance is reached by its hooks only.
+      [if !prod then 'ingressRoute']:: null,
+      [if !prod then 'namespace']: k.core.v1.namespace.new(ns),
       deployment+: {
-        spec+: { template+: { spec+: {
+        // With hooks present ArgoCD waits on each resource's health; a rollout
+        // that cannot progress must turn Degraded and fail the sync (so the
+        // upgrade rolls back) rather than leave it waiting.
+        spec+: { progressDeadlineSeconds: 600 } + { template+: { spec+: {
           // Reconcile the admin account to the sealed creds on every start
           // (secret-authoritative). Reuses the image's own setup so app.ini +
           // schema exist and are git-owned in both fresh and existing volumes.
           initContainers: [{
             name: 'bootstrap-admin',
-            image: images.forgejo,
+            image: image,
             env: appEnv + [
               secretRef('ADMIN_USERNAME', 'admin-username'),
               secretRef('ADMIN_PASSWORD', 'admin-password'),
@@ -3390,5 +3423,26 @@ local patchTargetDown(resources) = {
         k.core.v1.volume.fromPersistentVolumeClaim('data', 'forgejo-data'),
       ]),
     },
+
+  forgejo: $.forgejoInstance('forgejo', 'forgejo', images.forgejo, {
+            SECRET_KEY: 'AgA8EUM3kOABz66x5TOIK0d3coVE88C5XiH9/ZF7268aDwrc5fGXpvfd2sMRivdMEovwHeUKHj9VEHiu9YNxFBkV4kFqFE9K9GZdlIGuMaOPlp7eoZsOt4AKIEq6v+PsTf4qsjP02k5fm79VLfaSxMQtlMhpr82C+EGo0x9H5mlcM7phwm9l+Xp1wHiMIfwkSnAadHxcwXZSNl2FK0Ppi6G+Gbx7UWg4Adi0Lmv5ZGf9K+kx70N3RZYcKRslcjLJD4d7I65hSYJkbFiDOHZfaFReDJ6wgK8e2WuWqIBgllsfMEhFjTnTFrounmoIAJEQMi4Daffp33Cozpx5blL2loDmxc5CJ7hFLjmpW7wMCwEsNUCjuEiGxUPi2/Jc66gE43PqPBAXelZeGOgcnwVqvf2NupgXONNIfce2o6MZY8CCzSbyReUSRvny9FXZZ5syXo03iY18BjpAOl5yQIoFuc+WA7NuzQsV7rEKz8nOZPxKBnkuQw4OYIKwNimc2znvpqaw0jQYeRWanit6AQuEPAMFnnqE8maOTV5m+h/CCTBDFjcC1d47ZhUhj+R4NfcDOzVFGED8Ow/D/pRrXQvQSyl6QmXe5v9xpVN4ZqDLte23fU0a/qqDXV5p7rORQ7ic2MnnOefcqv2PtlqDh8h3PcdlsyDkrwEd9Vr9zQQTYc0fPPrYE0nQczNpmddaJssr96LIJTmVb4+aOy6QvT1RLVYE0CD+uFbuoYRRnBd4/jiGC5VZpVrGJoAc2LTb',
+            INTERNAL_TOKEN: 'AgAJCIKnEg0aFqC/CBSUuYKifBt7COgv3BJUsEufqEmkk67rzuPoBPgFVFJYDC1FUDPzkZnKxD8jiLRK/D/JDzj+8bmcaJJHIDQOMY9p429l1n7giqFpfFaDCEUcW9662mILJEeMyyVMMnRy4WS8L6v24y6e5x0tFjDaJ43jf6Tu6pr3J8+jqC/FV5SnWFZV5kPVU5wIUzA6oSwlTeGelVSeJCcUvDPGqYr7MNGKplXFXVqWSB7MgYrvrmlXWqPYSgnE4KF/sGDiMSfQY1ljLkaWtnoXCxrHnPelMOk36fOuYi9jLKNh4lclL1MjD+QhQ/gO7KFQQ+LYebmF+W6PI6+0BkM5LVTzL2YZixClVwSXa/MaxZrMjZJ8Y1yiMauU4n1Dk3/Zq4N4p1wvte77FnsVPqHg66l05Jbkwg7v685LJKbBs1+Kq0N3MzlJ6jYuI3JaWWo0dYcs9gf0RPqyhptYynKHchh1rvxxEpFEjzXkXwisiWpp6KHvzVuWm2iOR2XrwYttS+C3U/gT/1ALAEaq2xUkRjr+EmEHfASmlaR2s0k9N5qyDKGoYF62ktwFSt9YcmjUj92JRDazfmve/QGZLsZqU2qQBxev8mBs+QzCj2Ql/oxnPCYcv2kMgchgcPSE8I7DJlQ46+OMnmolUKYMWMI3eQ65RwmSr3oLyuPG6xXKVnU97ZxvwyTFBVLQPcDhMiumHERRE3kwPiDl+UXYXCEAOm+HBv9bgwoVsyyvJCks4ypaN1W1kjsa9kaZq5fFVlG5debf+T11fqXT7UcUrFQYadzG6XdsM/Shr8U81jsA9KougLQUMly2aq9PYSOzsoB7YGQgvqg=',
+            JWT_SECRET: 'AgB5PluOwoXOFxqsBINzFFZIfWD5LU0sXCoTJE7Mfq1Cf05wOTIFikbWbANlYabJY8wTzqXfBnSSRcCwTb5Zx2nt+wNy3TQjz+7LGSfbntT1UihTyicRxna0a1jY9RVs0o3U1b6ZLauyqc1emGB6NUnOQZP1/y1wA2cRUYXNOTH5BSkb8Wt8piNWaPzcQESbkdq0EuPwQpTngc/lBOR6VI8fL8EIyjRAuea3Sy7uJ0FH5NwYNl6msd2QxTI/ziDSwHJQKNsVJ7VWcZBAwmqV/T6Iax7IA2swKrKTN38UzS+L5A8fk2rIEUeF8YZjNj3De82B0PkvTT1vocJ5j/B/6+bVre30Ehjhb/iqDPDPA5LpquA0fbWxzXwIGDvGKYSMEdw3EFTUOc8+3pfjgTCza6aDYFOKBVe8awHH8n3MXd2ut1/83r7kaY1UjjLB0yZJOlbje8qF9ZPBKoTz5J3FU23QsH3W9JHmF/ZnLtuPQexlSS60gMrJ2KvMd+WfUQiT5AprmqBKaFCfE3eIlxUzIHDwyMgx8J7KNklcVjhiFiRUAJUF/gIykiEKrQQluveG+VjVg6LjNbxGh3qr5auG9xY2+0NPqnhUFUVx7FHiYY/z9rKppaMzTMzKKLJRhYplOE8T+wBAizDKgTsX4XRnE1yMkKmhM9rYuuu8e8WwSvV5YAVzBC3Bjz1NR2pJ/0WGs4LY3b7085IT5oXvjoF9dzg49ibF/M8jO+SyF/eZ9288W6MpGAZ++wX9vLnI',
+            'admin-username': 'AgCKJOg1l9t8Z23TASf8wca6ZEejCvq9hQ0yGLGKQMtmC57V2HBC0nTjETKK+UfVs5tLNIDGZCcCcgIYmBD9+zMReQC+zyQafPqgTIMy1RMUFnWdwTQJrDfgbXrH4v2a+mQZCBYPcEpm8mD2NDNzgCRRMJVx3v+x2IUQdMNpFg3Au1j7gYOLZf7Ix98PE3qiuWw/l0CSDxtop+j8vhdJUVDHbDSm2QAOUL50cJc02Aqiy9KsBuylVNu5mQ9Qj9Yn4UWIYpfw4EZ8T/KDxn3q92/mdGaBuPVlGvlHRXnsmT6zftu33dgjSTKnVx9H3obXDraOfkr8gPyd0A47Bs8UGHIn2JjCue9wDY/ArsfRbCFYz4/BLTzKgl8WKT0zzzgL2Rmk2nBBh1RZqdZiJf3hfvyM5Y/OCQOyWiz4fA1tRcFKYANiBQgC87hMWTimA9j8+VZFPGp03Z4NQ1phN7eZXK2IOx+raJSo7VNcQzD+uAST7Z4K4Rhb70sQPej3QZKABceBOgcU0YOC45658ajiNYKOLG8aTKlB+3pmyjZum1D5tHsRWVePyKma8Za2uCX2ULJraWNzfunVgIyGNMY20i4sx3pHdyKO/J/F8NIOdocBZiRZrAFtAeYsHWs4YgE3huAr0c11TxiIqlpMk1v6mtq6SbqIEBnZtBNthvU2/tHgk9NWdGDjCP5zs++yFYijGN+n834H',
+            'admin-password': 'AgCPVswvWsyKNskel0+V7HeyfTyE4xjIAP0qwp6HV5ZQQP6su/SXmpBHVqWamXPpIJ+1Y42VQVCWZCPv8LMAZynMRUplsNmDIj31Tnjvd4x/v/M6rCnXVME1OBWxayjXubMNrboE6ke/lX8wbMl/S1E4YNAxC5gwubIC3u+V63liWi/60358Bl1Ia3siop91+Gc8WYuxChORCUqXp+Z+eXP7XRg6wgc7MXVNnEGqXVMbzdqvvxMUHbFrZSKalBoGOLwi0HJ2OYyFhaWX/jdw7v233K7fQX1ClDtoo3+fY1+LK7tNPbP0X94ZH8f/CqpNPlqMsNV5Tk1B7lGByesORA/ySR8b5t3rgD4FQS2HgsZX/o5j1D/qds0Ptjsk6hhVqe15wZvpL0uC7COR9gMDo+DGOZ0oqsyg73TUcEXDzORYlNCgfx/VHyVn1K6AdZINFnndHXWBXo2Uhpgl/S1A/p7rIySeGbmEYzQMQRURPZH3n4HEX9fFxk0n9sBJgrbc9kbvs9CJBTDuzoUsdXoagwSA8Ycr2qiloMTJ9DYYXYY4I4JxAqF/DJcFC+qI7NeWm8IWf8mkgDYSF/hnIeOblloOe45tFAjzMmN6Z53+znekSaYl/SWGdCJYQvpvSaPZKcZ6SUwibG9tEM9uOqTl47ZJdayLsUM5u3h4AZU+2OK9ySI1MZGt5j5jTDOdm1UHnHVv+I+3gKPj7BU5Xtk5cz1vCpiltg==',
+            'admin-email': 'AgAfFQ0ZGCbwTRvz6MUPEhBFp0kW4AQtyTMKPLOVuT2T2cwAq82X3TCXVfexT4DEvxqCOITueZVfp+Zp234yh4o5ZunzPadlZOJRE3ciEdDkhlgYkSfwWEjRYSJcNg38GE2g+2rqUAzcrNqLWwsEQUhDdKBSt5AOQDwmO/zlQx1PGOEiE4zOJ8BhmoyWgW3e4PcrdonVPFYebN9SqkgkdH+1exnCkD3BkUxPoQUL48yNfHJ/KOtLBZLnoei+a9yvA2lMfcM7M02mcX306cbMSOZvkEFouxRvsl8TAul63bOcwy+Mu9fw3TJpeKFXZIaruOhwua02hmgECSzNsac149/3Q2Bsw1PbZU6bP5i7ymirc6r5nRZ+1C0DNmMLaZtwzrKnkL7F8EP3NRbgOEnIQJT+wk9cAX+WX85MfzK/P5RHfN2rwd44n8xTosOS9AeckfqA+CXEINZIRCwRE6DvdO8HZlkg9nObei9OUbPQrhSIv90LFZdLir4K7o5DzTiiZHs4pC9lKgUDpzVaBOY+LHaHS9rgbsQW5dqLwxcwZvH/Alt5ULhBX/tP+E5WSuWWDPAlZ7mLkWH+SktB76ZHpV6Z2lMAJC1GbDzyIoEeC3P3xnEIV9nPIGzej9ScZhenEsKg3lYbQCL/j4o/nTqa/0a3y7baZG3gK14S+Qei5WV/U7ZFAcCFBsYg2T9z/N+cP0UYJ/jdGppBZmDL',
+  }, prod=true),
+
+  // A throwaway Forgejo that exercises the upgrade hooks on data nothing depends
+  // on, before they guard the real one (FORGEJO_MIGRATION_PLAN.md -> step 3
+  // preconditions). Its image is set by hand per test case, outside Renovate.
+  forgejoUpgradeTest: $.forgejoInstance('forgejo-upgrade-test', 'forgejo-upgrade-test', 'codeberg.org/forgejo/forgejo:16.0.2', {
+    SECRET_KEY: 'AgCh7htfqnRdthCHC12PUxNdA0L8+nOZ1CJLNwFYqWjoMPKT8NIv+7CoV9QGp2mHbnWVoZpZalZu+tsk5A70J9NtrYw3y5A4zUSr0sOpgJ+qDBEU4AAq3y9lsGExycymMlJpdyjBr+VpoTIaHZelw9Pw3H9TY32MTx35INHUPwrP6H4YGdLtDPTLPAucpBD3aztf/z2a1oIArQTR8rLF73J/2YvfsYUZtLuCTwQpsfwuB/K7v40hNwIiwxDMXdAqOYNhkzJKtvzso1wJYt6TyY861Z7Ci582bOmw2bYFWL/MYt5wXotFWrHyH4LwtKk3LmVM3siVp4dvx2ujokAsyeGobneYQdJxTamrnRgSokQTBqCz/MKKC/w+ktwbRJiXmiv4+K7cAygcXN02TXtHK+TQcRWmrN5Ax/7rHAnCTil6HlWxkDtN7wa7szj+jnQa7ocQjcp+PCpsnRjQnzCQSp58hTpzV5kK6SkA/oTben97FrnO5PwO95zpY42I5m+YHOBPHfU5s8tMf+HggyM5u9Fd0DgkmZnwnrhNNRALipj5/D5oG7AcOhdChX0Gfqbn2YbtNF50CFyv2CQ7TUm/mMSqfK5H+Y1ezda4WIUXM0rCsWLdCqajt36vEKgDZmjRxO9MAzNzNRtyH/JtnWJI+/14Dy0AMIvgxHj+dnaAz4Su+ufq3janzyHbJW9Vxm1hgazN+pjsedx+d9hRsKrRZkAp8bXbWWV35lE5FxCRx9b1HVxy5MNQTnnGkH5a',
+    INTERNAL_TOKEN: 'AgBALg0JO14tfma7zVaVsHXiqErOKV+XsrPnFRzSM1v1HCL4IcJKbOLSAEhMy6VApoxS4Lio2rWA6CUHtj9nUKSrjjcw+/Rz+V6F2ZWBSmr8TWcRKNCipghAqBh6yPBwJOFE4Fuk4EB5/mQWTOpHJKf4TgSMBbhFpVozmIEzpe7zPYbCiHwrsClPDeaNu+6XyFXffVhvevvNmIGuLb8JYLG1AkdYkgXjHsGs17h20lu8FtRzLwu6No0GyPU8K14Qvbut899tppmQfXDko1SiDVti0xflG5wFX04LkQUFxadpI2dozH1MEowABo5zWIMl+31krDkitRaih3IoIR8aIej3D4fXW2ZLTjYUIiGTy53hFmkGFJfiee0qq6SsJS1GT5xY52/PWXR3xtTJIYMPV8XryGOHTq18YDyz6S64QG0N51YW4d6Z/+CxT9SmefUT2YNubXzJh2v+vQpdHzUyJhhKZeqhetM08ApgxjIFKh7n49Hsp1Dp7hCKewPdOq79DHES4MLYnNqqUxsSI+ZpXuTFjld1Pz5NTrx/WMFMTFPOjrwgXEOubK9leiY8IqQAcvxNu+12lgwNQ8bP/EjVrRVARHk5JPgIe0kI0QweU5cCnSMPYaWmpKg86sLxMJqwP81fAHJlkxqW9W/ppF4yrk1kGJYiER/VkDrQglAgbpPl/kXnVK/0UU8+JvK21EDO4frjoFgZmVDQCccdqhtX51MdpR7r5O7g02VS6voaSdRukZs0hhka6FQ02f9XD8VzUmAZ5C3EnX4Fz6vHytUMSqO8dxDXCd+aff9Vl78PtPv7UroLVW+CUoHMH2BOd86R8eohraSsGRNqXFw=',
+    JWT_SECRET: 'AgAa01glBH6ycbUeDbzRWVRgtOrS1SfTOmuxxkB2qmUnDEPw8cQ5MQVKOELcmzimOeSU3KIKHcJXacPtOZVHkybU+8YmNIuTGRu97EgggVcE3n4cUR2PwqsvgFVudr6squMbB4yHmwDKqpEBHYJCv4wpbJO3OHO0Ir2RFdTg+eiHsCefuBRO3+Z1LKyAKUG8O+EmuyqWdOn2r/a5zWlNDEejb6ivSxP/FYg8jXFdigGUnQytcfY8Y7CdZFj04ZOG0l/1siuhn7ZohYgeVcEuwEsDTdHDK6MoOefthwMxs1Qy03CGRBKSdD46CgPero98QfacQfaScJjJAPBfqcv3D/XQAnwes8eCDp8umv0Cyj7/HEOx/KTzXDwjfROdT2ZLq5ykmlTF/qqlU/m6s9Gld2vAOF5ET22mSITlc2U7s5mGIztlx6ttRKpGvWENuOCxLYExZcc9kJ9BqNp5+C2FGBPjF6apPglXbdDi6bYOsMONMpax2b4K0KaMtQZ+4CIU2bMjBxcWT50bprgbWQ4//Riwv2QJfLIs1BfEPoRApzW9BPyRkll1wJXHnVb5HJ4f0SML3CpeIgYXXR0FXefaAaZKM1kjhh2Rt6pK4Fu2tw3rpcbhbSGGzyw+6e090RULZC4eM5pH6KfjRp6n7+T3wcqlqXXMzzGYBC0zgvXFpPvUFWKXFmB91c1iIFOwH8SpdpaX280Jb4414G3NbiozwwWCiTTL+3CxSBijiIR0RLW4pA8UUi0YLYNxcJVa',
+    'admin-username': 'AgDkYSXr2oiW3KVDmKQDKcWdDmMLol3cht4eO+fVEg8791+xOMWlwTar2pk/p38+RjnS2A4tS2d58UV1eVa6s+L32m3lVWj6fgxz3d8Z7rOH7Lv2DkaqPolVmhwS5ZWGE5pDaqQ1hM66y7yY55sUKBBacBBDU0blaOg6nXtdOBgps2yxp2uZxEi1G2eMJei2qY7LiIRFA0OzmfETMnGWi7ZsSmqx3xixlUTwiqFjp6f3Q6WSJSavDWQzHlsFyND6TPyKtY+OzURmQCLI0wLg3bzK5zQwz4+hEyVts7IpVRS8IQAFP3B7NaiWS1CJ4WeiGA8O5+Je7Wagc/YfFanTwou0poIFkG3x6U0br99/wXsNqy5R3UR7bVDs7TeSmD02xyY+Wy703H6c47YgdYi8DYZO6d+YYUb4H7IibnsLCB21m+D2Uu08dusAe7ojKSRBkq5+0wu4IbtQ77m8bptaAaaRBl77rhQ6zi/RdT7pRGFAnDZgk28hat3vGoZEHgB1YoxdXf9Q5MLiWA7MVWshzemWfGh9Y7h990JRGvFzLd7jELxZ24SaEwNgCZjqe9mRwzDRUOR4FTIi+Xc/uZzTykVaIqGk+vrDZMpgI2/EqVpQmh/EUkWOOXdkTMn+l/1z/hzs93WzgNUVkFkSBlj6D4G8m2usfT0IJodQXCluQ1zEkG+K9oYOXfgWT2beb3gMGB0Hgf4JcoP0GCf5',
+    'admin-password': 'AgC4comPqxoImL2KJe4sYoQkXT3fobecSHDbZ56iOsR/Nej0Ou1SeLuFzX5oFJ5nj1hs+fYuUzcvOm15WQ166yu0FLsycKPTEctDAxlNDmQRiki/yMmd92id3KD7C7c2ruZYFXD8Fgnjlzp+O+wTgJcrZrpUxUrt9E2P6WSgjmjhODQiRfrrUsWmqrpEP2PtzlMJqUPCCfZmqDv/9liiAGWeNADChlip6mBviZWlReM8w3VixkYXXFhdEqsw33cq2AoHE1P6iHvBgHA3tuuxlYLBfx67ciUAHoOSUeoocZYZ9mT1pXNdWk4i0WcxvlgfBw3OwqAg93AcgQOZTlftO5FAnMhYYOm7scPelf3Qt4NKd4iQCyjJZniDNn2yRGCgbeB1tuT41ZwYpE4x1Y5ud8hIDG29urtiXrAz0Q4aUPvKgdNYUUPZr0oBtI7gM8DuBKqpYQTjLDGZ/q2PoOe4uMwyIjvUxV90Oke9e1RvKKpe5jI7dKk6CLNZwGEMiVziLkYP/4iO5445InZnHVl25dnrTp7VUUYyv+sHFlXCafUBHQbl/wrNBfd37OIl7j3xBJSjeB518XItyshQrKM/J/EF3m1TzB5K4fYRr6RFA3ex1NDwoNotvHtFlB5FfraC88a2A1F12HP/Jl+JdEXT/9zZ42nmf+4GMp9SWT9okkD8T342EOKGR1NcJ0QBwJgvTY7wzdT6Bz+oBWHSqDwITS1uxfuesthQBOkuETI5MvcSzg==',
+    'admin-email': 'AgBaZ7cgQw0/I8yhEggvFTvBMbmaA6bssVEztQiDX9B88KNagniic9x/LyV6Kch+v/CIyGwvb2sokKI7+KqT4YrKKGo7SPZ0epCfHu4O1iiCuDl0M5sx+W1MyC6v+tuucBowkiSaXGJkLPn3CxKIS9mh/ierQ63VrKtIFr7GgLc3Fn15MOkq73+JwPjECOBU/x0TxmYFNzKQStwXkTG19hBDiO1maVCZCE+J2N784nWT5cUpAUIjU9ro1Ik3MUS7pLgRtprS6di8oQKCSy/7CSuu78t2OEn8iBqp++dMUv1efYd2v0sHVXC08K6hmDnKbYbeMwsITCpfTQobGs3ddaUBOgCOUqcuQ6SRYURWT0GnTRkc5jUfGCfjZb3IiaJhdRCsflntNYezZ2RNa/6ozn/GhnVQhk8JmUudv3C6T4PCSfzPjgMZAUaybHetBdSV9qK3o1uCMUGdfk2NrgnhM5mdv4gNEirHoKwxXpzAam7HWRTTuOF2KuuseQKe7CczIJdOjZrCz2F9TrzrV31POY8J055C165T6a5oAn0986KJ1KMgA4Vb/9yTi+EjaGUMySzYyVlDgsjC6q9fcTUPlx0zcCaDtmNBF7RlNXeyDUHFQ7E0f/oi9YhqzceQivOGocIjVHseJVMkO/vafZ39/i0jDNl4Ci2roELfSb8bSyag75QHV3DTk5zJGuJq2RjDhEZtnLGh6IsRi0HGGgkiiDGrwzlrWwMBjcpCPQ==',
+  }, prod=false),
 
 }

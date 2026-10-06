@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  digest: 9cc9b6b1d1293a40f65b0813d9d3deb2
+kind: ConfigMap
+metadata:
+  name: forgejo-upgrade-hook-revision
+  namespace: forgejo

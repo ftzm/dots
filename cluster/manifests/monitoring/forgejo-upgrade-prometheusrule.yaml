@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: kube-prometheus-stack
+  name: forgejo-upgrade
+  namespace: monitoring
+spec:
+  groups:
+  - name: forgejo-upgrade
+    rules:
+    - alert: ForgejoUpgradeLocked
+      annotations:
+        description: An automatic Forgejo upgrade failed, was rolled back to the previous
+          version from its pre-upgrade snapshot, and automated sync is off for the
+          forgejo Application. Read the failed sync and the forgejo-upgrade-syncfail
+          Job log for the phase and versions, then follow the Restore Runbook -> Forgejo
+          upgrade lock.
+        summary: Forgejo upgrade failed, rolled back and locked
+      expr: argocd_app_info{name="forgejo", autosync_enabled="false"} == 1
+      for: 5m
+      labels:
+        severity: warning

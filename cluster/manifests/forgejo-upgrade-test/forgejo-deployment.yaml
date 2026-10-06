@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: forgejo
-  namespace: forgejo
+  namespace: forgejo-upgrade-test
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -19,11 +19,11 @@ spec:
       containers:
       - env:
         - name: FORGEJO__server__DOMAIN
-          value: forgejo.lan.ftzmlab.xyz
+          value: forgejo-upgrade-test.invalid
         - name: FORGEJO__server__ROOT_URL
-          value: https://forgejo.lan.ftzmlab.xyz/
+          value: https://forgejo-upgrade-test.invalid/
         - name: FORGEJO__server__SSH_DOMAIN
-          value: forgejo.lan.ftzmlab.xyz
+          value: forgejo-upgrade-test.invalid
         - name: FORGEJO__server__SSH_PORT
           value: "30022"
         - name: FORGEJO__server__SSH_LISTEN_PORT
@@ -51,7 +51,7 @@ spec:
             secretKeyRef:
               key: JWT_SECRET
               name: forgejo-secrets
-        image: codeberg.org/forgejo/forgejo:16.0.5
+        image: codeberg.org/forgejo/forgejo:16.0.2
         name: forgejo
         ports:
         - containerPort: 3000
@@ -79,11 +79,11 @@ spec:
         - -c
         env:
         - name: FORGEJO__server__DOMAIN
-          value: forgejo.lan.ftzmlab.xyz
+          value: forgejo-upgrade-test.invalid
         - name: FORGEJO__server__ROOT_URL
-          value: https://forgejo.lan.ftzmlab.xyz/
+          value: https://forgejo-upgrade-test.invalid/
         - name: FORGEJO__server__SSH_DOMAIN
-          value: forgejo.lan.ftzmlab.xyz
+          value: forgejo-upgrade-test.invalid
         - name: FORGEJO__server__SSH_PORT
           value: "30022"
         - name: FORGEJO__server__SSH_LISTEN_PORT
@@ -126,7 +126,7 @@ spec:
             secretKeyRef:
               key: admin-email
               name: forgejo-secrets
-        image: codeberg.org/forgejo/forgejo:16.0.5
+        image: codeberg.org/forgejo/forgejo:16.0.2
         name: bootstrap-admin
         volumeMounts:
         - mountPath: /data

@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  name: forgejo-upgrade
+  namespace: forgejo-upgrade-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: forgejo-upgrade
+subjects:
+- kind: ServiceAccount
+  name: forgejo-upgrade
+  namespace: forgejo-upgrade-test

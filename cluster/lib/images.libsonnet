@@ -23,4 +23,5 @@
   valkey: import 'images/valkey.libsonnet',
   cnpgPostgres: import 'images/cnpgPostgres.libsonnet',
   healthchecks: import 'images/healthchecks.libsonnet',
+  alpineK8s: import 'images/alpineK8s.libsonnet',
 }
