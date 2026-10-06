@@ -30,6 +30,7 @@
     ../../role/resilience.nix
     ../../role/manual-path-selftest.nix
     ../../role/fleet-host.nix
+    ../../role/comin-retired.nix
   ];
 
   nix = {

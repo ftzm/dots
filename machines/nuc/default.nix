@@ -83,6 +83,7 @@ in {
     ./forgejo-runner.nix
     ./fleet.nix
     ../../role/fleet-host.nix
+    ../../role/comin-retired.nix
     ./tailnet-peers.nix
     ../../role/resilience.nix
     ../../role/mailsort.nix
