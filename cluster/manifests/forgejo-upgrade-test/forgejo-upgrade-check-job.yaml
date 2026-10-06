@@ -45,7 +45,7 @@ spec:
             echo "CHECK FAILED: forgejo answers '$version', expected 16.0.3"; exit 1
           fi
           doctor_ok /data/gitea/conf/app.ini "$baseline" || { echo "CHECK FAILED: doctor"; exit 1; }
-          echo "CHECK FAILED: forced for the upgrade test (failCheckForTest)"; exit 1
+
           su-exec git forgejo doctor check --all --config /data/gitea/conf/app.ini 2>&1 \
             | tr -d '\033' | sed 's/\[[0-9;]*m//g' | awk '/^\[[0-9]+\] /{t=$0; sub(/^\[[0-9]+\] /,"",t)} /^ERROR$/{print t}' > /backup/.doctor-baseline
           rm -f /backup/.upgrade-attempt /backup/.upgrade-baseline

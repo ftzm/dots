@@ -169,6 +169,7 @@
                 enabled=$(kubectl get application -n argocd %(app)s -o jsonpath='{.spec.syncPolicy.automated.enabled}')
                 if [ "$enabled" = "false" ]; then
                   echo "LOCKED: upgrade $from -> %(target)s is locked (automated sync disabled after a failed upgrade); see the Restore Runbook -> Forgejo upgrade lock"
+                  echo "last failed upgrade: $(tail -n 1 /backup/upgrade-history.log 2>/dev/null || echo unrecorded)"
                   exit 1
                 fi
                 # The baseline: which doctor checks fail on the running version.
@@ -364,6 +365,10 @@
                   ;;
               esac
               rm -f %(marker)s
+              # Retries recreate this Job (and the gate) under the same names, so
+              # its log does not survive; the history does, and the gate quotes
+              # it while the lock holds.
+              echo "$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ) $from -> $to failed at $stage: rolled back to $from, %(app)s locked" >> /backup/upgrade-history.log
               echo "ROLLED BACK: upgrade $from -> $to failed at $stage; forgejo serves $from, %(app)s locked until lifted by hand"
               exit 1
             ||| % {

@@ -59,6 +59,10 @@ spec:
               ;;
           esac
           rm -f /backup/.upgrade-attempt
+          # Retries recreate this Job (and the gate) under the same names, so
+          # its log does not survive; the history does, and the gate quotes
+          # it while the lock holds.
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $from -> $to failed at $stage: rolled back to $from, forgejo-upgrade-test locked" >> /backup/upgrade-history.log
           echo "ROLLED BACK: upgrade $from -> $to failed at $stage; forgejo serves $from, forgejo-upgrade-test locked until lifted by hand"
           exit 1
         command:
