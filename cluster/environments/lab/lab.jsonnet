@@ -3448,25 +3448,6 @@ local patchTargetDown(resources) = {
     'admin-username': 'AgDkYSXr2oiW3KVDmKQDKcWdDmMLol3cht4eO+fVEg8791+xOMWlwTar2pk/p38+RjnS2A4tS2d58UV1eVa6s+L32m3lVWj6fgxz3d8Z7rOH7Lv2DkaqPolVmhwS5ZWGE5pDaqQ1hM66y7yY55sUKBBacBBDU0blaOg6nXtdOBgps2yxp2uZxEi1G2eMJei2qY7LiIRFA0OzmfETMnGWi7ZsSmqx3xixlUTwiqFjp6f3Q6WSJSavDWQzHlsFyND6TPyKtY+OzURmQCLI0wLg3bzK5zQwz4+hEyVts7IpVRS8IQAFP3B7NaiWS1CJ4WeiGA8O5+Je7Wagc/YfFanTwou0poIFkG3x6U0br99/wXsNqy5R3UR7bVDs7TeSmD02xyY+Wy703H6c47YgdYi8DYZO6d+YYUb4H7IibnsLCB21m+D2Uu08dusAe7ojKSRBkq5+0wu4IbtQ77m8bptaAaaRBl77rhQ6zi/RdT7pRGFAnDZgk28hat3vGoZEHgB1YoxdXf9Q5MLiWA7MVWshzemWfGh9Y7h990JRGvFzLd7jELxZ24SaEwNgCZjqe9mRwzDRUOR4FTIi+Xc/uZzTykVaIqGk+vrDZMpgI2/EqVpQmh/EUkWOOXdkTMn+l/1z/hzs93WzgNUVkFkSBlj6D4G8m2usfT0IJodQXCluQ1zEkG+K9oYOXfgWT2beb3gMGB0Hgf4JcoP0GCf5',
     'admin-password': 'AgC4comPqxoImL2KJe4sYoQkXT3fobecSHDbZ56iOsR/Nej0Ou1SeLuFzX5oFJ5nj1hs+fYuUzcvOm15WQ166yu0FLsycKPTEctDAxlNDmQRiki/yMmd92id3KD7C7c2ruZYFXD8Fgnjlzp+O+wTgJcrZrpUxUrt9E2P6WSgjmjhODQiRfrrUsWmqrpEP2PtzlMJqUPCCfZmqDv/9liiAGWeNADChlip6mBviZWlReM8w3VixkYXXFhdEqsw33cq2AoHE1P6iHvBgHA3tuuxlYLBfx67ciUAHoOSUeoocZYZ9mT1pXNdWk4i0WcxvlgfBw3OwqAg93AcgQOZTlftO5FAnMhYYOm7scPelf3Qt4NKd4iQCyjJZniDNn2yRGCgbeB1tuT41ZwYpE4x1Y5ud8hIDG29urtiXrAz0Q4aUPvKgdNYUUPZr0oBtI7gM8DuBKqpYQTjLDGZ/q2PoOe4uMwyIjvUxV90Oke9e1RvKKpe5jI7dKk6CLNZwGEMiVziLkYP/4iO5445InZnHVl25dnrTp7VUUYyv+sHFlXCafUBHQbl/wrNBfd37OIl7j3xBJSjeB518XItyshQrKM/J/EF3m1TzB5K4fYRr6RFA3ex1NDwoNotvHtFlB5FfraC88a2A1F12HP/Jl+JdEXT/9zZ42nmf+4GMp9SWT9okkD8T342EOKGR1NcJ0QBwJgvTY7wzdT6Bz+oBWHSqDwITS1uxfuesthQBOkuETI5MvcSzg==',
     'admin-email': 'AgBaZ7cgQw0/I8yhEggvFTvBMbmaA6bssVEztQiDX9B88KNagniic9x/LyV6Kch+v/CIyGwvb2sokKI7+KqT4YrKKGo7SPZ0epCfHu4O1iiCuDl0M5sx+W1MyC6v+tuucBowkiSaXGJkLPn3CxKIS9mh/ierQ63VrKtIFr7GgLc3Fn15MOkq73+JwPjECOBU/x0TxmYFNzKQStwXkTG19hBDiO1maVCZCE+J2N784nWT5cUpAUIjU9ro1Ik3MUS7pLgRtprS6di8oQKCSy/7CSuu78t2OEn8iBqp++dMUv1efYd2v0sHVXC08K6hmDnKbYbeMwsITCpfTQobGs3ddaUBOgCOUqcuQ6SRYURWT0GnTRkc5jUfGCfjZb3IiaJhdRCsflntNYezZ2RNa/6ozn/GhnVQhk8JmUudv3C6T4PCSfzPjgMZAUaybHetBdSV9qK3o1uCMUGdfk2NrgnhM5mdv4gNEirHoKwxXpzAam7HWRTTuOF2KuuseQKe7CczIJdOjZrCz2F9TrzrV31POY8J055C165T6a5oAn0986KJ1KMgA4Vb/9yTi+EjaGUMySzYyVlDgsjC6q9fcTUPlx0zcCaDtmNBF7RlNXeyDUHFQ7E0f/oi9YhqzceQivOGocIjVHseJVMkO/vafZ39/i0jDNl4Ci2roELfSb8bSyag75QHV3DTk5zJGuJq2RjDhEZtnLGh6IsRi0HGGgkiiDGrwzlrWwMBjcpCPQ==',
-  }, prod=false) + {
-    // Test 4 only: a sync that fails with no upgrade pending. Reverted next.
-    tempFailingHook: {
-      apiVersion: 'batch/v1',
-      kind: 'Job',
-      metadata: {
-        name: 'temp-failing-hook',
-        namespace: 'forgejo-upgrade-test',
-        annotations: {
-          'argocd.argoproj.io/hook': 'Sync',
-          'argocd.argoproj.io/sync-wave': '0',
-          'argocd.argoproj.io/hook-delete-policy': 'BeforeHookCreation',
-        },
-      },
-      spec: { backoffLimit: 0, template: { spec: {
-        restartPolicy: 'Never',
-        containers: [{ name: 'fail', image: images.alpineK8s, command: ['/bin/sh', '-c', 'echo "deliberate failure, no upgrade pending"; exit 1'] }],
-      } } },
-    },
-  },
+  }, prod=false),
 
 }
