@@ -698,28 +698,45 @@ runs `forgejo migrate` in an initContainer on **every** pod start — so a schem
 migration fires the moment a new image rolls, with nothing in front of it.
 Reverting the image does not undo a migration that has already run.
 
-`forgejoDumpGate` (`lib/backup.libsonnet`) is a Sync hook in wave -1, with
-the `forgejo-data` and `forgejo-backup` PVCs and the backup PV; the Deployment
-is in wave 0 (PreSync would run before those PVCs exist on a fresh cluster).
-With no `/data/gitea/gitea.db` it is a fresh install and exits 0. Otherwise it
-asks the running instance what version it is, via `/api/v1/version`, and
-compares that to the tag of the image about to be deployed. When they differ
-it takes a raw tar snapshot of `/data` (`forgejo dump` is not
-forward-compatible across schema versions) and checks the tar is readable
-before letting the sync proceed. On an ordinary sync it is one HTTP request.
+`lib/forgejo-upgrade.libsonnet` puts three hooks in front of it, added by
+`forgejoInstance()` in `lab.jsonnet`:
 
-This exists because the nightly dump is not a substitute. It runs at 02:00 and
+| Hook | When | What |
+|---|---|---|
+| `forgejo-upgrade-gate` | Sync, wave -1 (PVCs exist; the Deployment is wave 0) | Fresh install, or the running version (`/api/v1/version`, `+gitea-…` stripped) equals the image tag: exit 0. Otherwise: refuse if the Application is locked, quoting the last line of `/backup/upgrade-history.log`; record a `forgejo doctor` baseline; write the marker `/backup/.upgrade-attempt`; scale to 0; tar.gz snapshot of `/data`; run the **new** image's `forgejo migrate` and `doctor` on a scratch copy (pre-flight); on failure scale back to 1 and fail the sync |
+| `forgejo-upgrade-check` | PostSync | The running version equals the image, and `doctor` fails no check beyond the baseline; then delete the marker and refresh the baseline |
+| `forgejo-upgrade-syncfail` | SyncFail | No marker: a sync that failed without an upgrade, exit 0. Otherwise lock the Application (`spec.syncPolicy.automated.enabled: false`); if the rollout happened, scale 0, restore the snapshot, set the image back, scale 1 and wait for the old version; append the outcome to the history log |
+
+The doctor baseline exists because `forgejo doctor`'s exit status ignores
+failed checks, even a database that does not open; a pass means no check fails
+that was not already failing. The lock is lifted by hand after the cause is
+fixed (Restore Runbook -> Forgejo upgrade lock); `ForgejoUpgradeLocked` fires
+while it holds. All four failure modes (failed check, failed pre-flight,
+lock lifted, failing sync with no upgrade) were exercised on a throwaway
+instance; the results are in `FORGEJO_MIGRATION_PLAN.md`.
+
+The nightly dump is not a substitute for the snapshot. It runs at 02:00 and
 can be nearly a day old when an upgrade lands, so restoring it would lose a
-day of activity — and "the backup is probably fine" is the assumption worth
-removing in front of a one-way migration.
+day of activity.
 
-What the gate does **not** do is judge the release. Forgejo 16.0.0 removed the
+What the hooks do **not** do is judge the release. Forgejo 16.0.0 removed the
 `REVERSE_PROXY_TRUSTED_PROXIES = *` default (CVE-2026-20896), stopped git
 mirrors following HTTP redirects, and changed scheduled Actions syntax. The
 first does not apply here — reverse-proxy authentication is not enabled — but
 the other two live in instance data on the PVC rather than in git, so nothing
 in this repo can confirm them. They need checking against the running
 instance.
+
+### Restore from the nightly dump
+
+`scripts/forgejo-restore --rehearse` runs the Restore Runbook against a
+scratch namespace (`forgejo-restore-test`): the newest `forgejo-*.tar` from the
+dump share, integrity-checked, extracted into a fresh volume, refs brought
+current from the live Forgejo, Forgejo started without a Service or
+IngressRoute, branches replayed through its push path, PRs merged after the
+dump marked merged, unfinished Actions runs cancelled, then branches, open PRs
+and runs compared with the live instance. `--rehearse --cleanup` removes the
+namespace and its PV.
 
 ---
 
