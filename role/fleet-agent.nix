@@ -21,10 +21,11 @@
 #
 # A failed activation is remembered in /var/lib/fleet-agent/failed (the
 # store path). It can leave /run/current-system pointing at the failed path
-# (the activation script links it before the unit phase), so the agent does
-# not retry a path that is already current; the failure stays reported until
-# a later activation succeeds or is deferred, or the host boots the flagged
-# path (which completes the switch).
+# (the activation script links it before the unit phase). Such a path is
+# retried once, 30 minutes after the failure: a transient clears, a broken
+# unit or a hang costs one more bounded attempt. After that the failure stays
+# reported until a later activation succeeds or is deferred, or the host
+# boots the flagged path (which completes the switch).
 #
 # Metrics, in node_exporter's textfile dir: fleet_deployed_commit_info,
 # fleet_last_success_timestamp, fleet_last_failure.
@@ -68,7 +69,7 @@
 
   agent = pkgs.writeShellApplication {
     name = "fleet-agent";
-    runtimeInputs = [config.nix.package pkgs.curl pkgs.jq pkgs.coreutils config.systemd.package];
+    runtimeInputs = [config.nix.package pkgs.curl pkgs.jq pkgs.coreutils pkgs.findutils config.systemd.package];
     text = ''
       host=${lib.escapeShellArg config.networking.hostName}
       url=${lib.escapeShellArg cfg.manifestUrl}
@@ -155,13 +156,28 @@
       fi
 
       if [ "$path" = "$current" ]; then
-        if [ "$flagged" = "$path" ]; then
-          echo "fleet-agent: $path is current but its activation failed; not retrying (reboot or a new commit clears it)"
-          write_metrics
-        else
+        if [ "$flagged" != "$path" ]; then
           converged "$commit"
+          exit 0
         fi
-        exit 0
+        # Current but its activation failed. Retried once, 30 minutes on: a
+        # transient (a user session closing mid-switch) clears; a broken unit
+        # or a hang costs one more bounded attempt and then stays reported.
+        if [ "$(cat ${stateDir}/retried 2>/dev/null || true)" = "$path" ] ||
+          [ -z "$(find "$flag" -mmin +30)" ]; then
+          echo "fleet-agent: $path is current but its activation failed; not retrying now (reboot or a new commit clears it)"
+          write_metrics
+          exit 0
+        fi
+        echo "$path" > ${stateDir}/retried
+        echo "fleet-agent: retrying the failed activation of $path once"
+        if activate "$path" switch; then
+          rm -f "$flag"
+          converged "$commit"
+          exit 0
+        fi
+        failed "$path"
+        exit 1
       fi
       if [ "$path" = "$installed" ] && [ -z "$flagged" ]; then
         echo "fleet-agent: $path installed, waiting for a reboot (deferred switch)"

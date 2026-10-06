@@ -66,7 +66,7 @@
       echo "fleet-deploy test repo" > $out/README
     '';
 
-  variantNames = ["base" "changed" "agent-change" "hang" "dbus" "interface"];
+  variantNames = ["base" "changed" "agent-change" "flaky" "hang" "dbus" "interface"];
 
   # What the writer will find already built: each variant's system and its
   # fleet linkFarm, evaluated exactly as the inner flake evaluates them.
@@ -264,6 +264,21 @@ in
           assert current() == expected["agent-change"]
           host.succeed("systemctl show -p Environment fleet-agent.service | grep -q FLEET_TEST=agent-change")
 
+      with subtest("a transient activation failure is retried once and clears"):
+          commit("flaky", variant="flaky")
+          assert write() == 0
+          assert agent() != 0
+          assert current() == expected["flaky"]
+          assert "fleet_last_failure 1" in agent_metrics()
+          # Not before 30 minutes.
+          assert agent() == 0
+          assert "fleet_last_failure 1" in agent_metrics()
+          host.wait_until_succeeds("systemctl is-active fleet-test-flaky.service")
+          host.succeed("touch -d '-31 min' /var/lib/fleet-agent/failed")
+          assert agent() == 0
+          assert "fleet_last_failure 0" in agent_metrics()
+          host.succeed("test ! -e /var/lib/fleet-agent/failed")
+
       with subtest("a hung activation is bounded and reported; booting it clears the flag"):
           commit("hang", variant="hang")
           assert write() == 0
@@ -273,6 +288,15 @@ in
           host.succeed("test \"$(cat /var/lib/fleet-agent/failed)\" = ${o.systems.hang}")
           # Not left blocked, and not retried: the next run only reads the manifest.
           host.succeed("! systemctl is-active fleet-agent.service")
+          before = harmonia_requests()
+          assert agent() == 0
+          assert harmonia_requests() == before
+          assert "fleet_last_failure 1" in agent_metrics()
+          # Retried once after 30 minutes, which hangs again; then never again.
+          host.succeed("touch -d '-31 min' /var/lib/fleet-agent/failed")
+          assert agent() != 0
+          host.succeed("journalctl -u fleet-agent.service -o cat | grep -q 'retrying the failed activation'")
+          host.succeed("touch -d '-31 min' /var/lib/fleet-agent/failed")
           before = harmonia_requests()
           assert agent() == 0
           assert harmonia_requests() == before

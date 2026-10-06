@@ -26,9 +26,15 @@
     useBootLoader = true;
     useEFIBoot = true;
     memorySize = 2048;
-    # Room for a few systems above min-free, so no auto-GC muddies the runs.
+    # Room for a few systems above min-free, so no auto-GC muddies the runs:
+    # the writable store overlay on this disk, not on a RAM-sized tmpfs.
     diskSize = 8192;
+    writableStoreUseTmpfs = false;
   };
   boot.loader.systemd-boot.enable = true;
+  # The boot-loader disk is a prebuilt image whose root partition keeps the
+  # image's size; grow it into the disk.
+  boot.growPartition = true;
+  virtualisation.fileSystems."/".autoResize = true;
   documentation.enable = false;
 }

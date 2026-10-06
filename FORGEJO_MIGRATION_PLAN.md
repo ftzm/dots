@@ -926,8 +926,12 @@ writes the manifest or starts the writer: it polls the nas mirror itself.
     script links it at its end (`activation-script.nix:79`), before
     `switch-to-configuration` stops, starts and restarts units, so a
     `switch` that fails or times out in the unit phase leaves the path
-    "current" — the agent does not retry it, and a reboot boots it in full
-    (the boot entry is already installed). The flag is cleared, and
+    "current", and a reboot boots it in full (the boot entry is already
+    installed). The agent retries such a path once, 30 minutes after the
+    failure (decided 2026-10-06; `/var/lib/fleet-agent/retried`): a
+    transient — nuc's first cache deploy exited 4 because a user session was
+    closing mid-switch — clears on its own; a broken unit or a hang costs one
+    more bounded attempt and then stays reported. The flag is cleared, and
     `fleet_last_failure` set to 0, when a later activation succeeds or is
     deferred, or when `readlink -f /run/booted-system` equals the flagged
     path: the host has booted the system that failed to switch, which
