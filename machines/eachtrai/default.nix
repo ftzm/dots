@@ -30,6 +30,7 @@
     ../../role/comin.nix
     ../../role/resilience.nix
     ../../role/manual-path-selftest.nix
+    ../../role/fleet-host.nix
   ];
 
   nix = {
@@ -37,11 +38,9 @@
     extraOptions = ''
       experimental-features = nix-command flakes
     '';
-    gc = {
-      automatic = true;
-      persistent = true;
-      options = "--delete-older-than 20d";
-    };
+    # GC comes from role/fleet-agent.nix: weekly, no age option -- the agent
+    # keeps a count of system generations, and `--delete-older-than` would
+    # remove the boot menu's rollback target after a quiet spell.
   };
 
   nixpkgs = {
@@ -160,6 +159,7 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   manualPathSelftest.laptop.enable = true;
+  fleetHost.transport = "tailscale";
 
   networking.hostName = "eachtrai";
   networking.networkmanager.enable = true;

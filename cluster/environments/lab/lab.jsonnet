@@ -39,20 +39,25 @@ local withNamespace(resources, ns) = {
   for key in std.objectFields(resources)
 };
 
-// Comin exporter scrape targets: lab machines by LAN (always on the same
-// subnet), laptops by tailscale IP (they roam/sleep). Instance label is the
-// host shortname so alerts read `instance="saoiste"` etc. `alwaysOn` is the
-// host class the reachability alerts split on -- see CominTargetUnreachable
-// and CominTargetStale below.
-local cominMachines = [
-  { instance: 'nuc', host: config.machines.nuc.lan, alwaysOn: true },
-  { instance: 'nas', host: config.machines.nas.lan, alwaysOn: true },
-  { instance: 'saoiste', host: config.machines.saoiste.tailscale, alwaysOn: false },
-  { instance: 'eachtrai', host: config.machines.eachtrai.tailscale, alwaysOn: false },
+// The fleet's hosts, scraped by node_exporter: lab machines by LAN (always on
+// the same subnet), laptops by tailscale IP (they roam/sleep). Instance label
+// is the host shortname so alerts read `instance="saoiste"` etc. `alwaysOn` is
+// the host class the reachability alerts split on -- see
+// CominTargetUnreachable and CominTargetStale below. `comin`: hosts still
+// running comin, whose exporter is scraped too (the pi never had it).
+local fleetMachines = [
+  { instance: 'nuc', host: config.machines.nuc.lan, alwaysOn: true, comin: true },
+  { instance: 'nas', host: config.machines.nas.lan, alwaysOn: true, comin: true },
+  { instance: 'pi', host: config.machines.pi.lan, alwaysOn: true, comin: false },
+  { instance: 'saoiste', host: config.machines.saoiste.tailscale, alwaysOn: false, comin: true },
+  { instance: 'eachtrai', host: config.machines.eachtrai.tailscale, alwaysOn: false, comin: true },
 ];
+local cominMachines = [m for m in fleetMachines if m.comin];
 
 // Instance regex for one host class, so an alert expression and the scrape
 // targets it reasons about cannot drift apart.
+local fleetInstances(alwaysOn) =
+  std.join('|', [m.instance for m in fleetMachines if m.alwaysOn == alwaysOn]);
 local cominInstances(alwaysOn) =
   std.join('|', [m.instance for m in cominMachines if m.alwaysOn == alwaysOn]);
 
@@ -75,7 +80,7 @@ local nodeScrapeConfig = {
   job_name: 'host-node-exporter',
   static_configs: [
     { targets: [m.host + ':9002'], labels: { job: 'node-exporter', instance: m.instance } }
-    for m in cominMachines
+    for m in fleetMachines
   ],
 };
 
@@ -87,7 +92,7 @@ local nodeScrapeConfig = {
 // Roaming machines are excluded by instance, not just by job: they now appear
 // in the node-exporter job too, and a closed laptop lid is not a down target.
 // Derived from the same list as the scrape config so the two cannot drift.
-local roamingSelector = 'job!="comin", instance!~"' + cominInstances(false) + '"';
+local roamingSelector = 'job!="comin", instance!~"' + fleetInstances(false) + '"';
 local targetDownExpr = '100 * (count(up{' + roamingSelector + '} == 0) BY (cluster, job, namespace, service) / count(up{' + roamingSelector + '}) BY (cluster, job, namespace, service)) > 10';
 local patchTargetDown(resources) = {
   [key]:
@@ -974,25 +979,88 @@ local patchTargetDown(resources) = {
       // inhibitor changed, or the new systemd cannot replace the running PID 1
       // live. Nothing of the new configuration runs until a reboot, kernel or
       // not, so it gets its own message.
+      //
+      // The always-on hosts reboot into it themselves in a nightly window
+      // (fleetAgent.autoReboot), so for them it is news only once that window
+      // has passed: 26h. Laptops reboot by hand; for them, 1h.
       alerts.rule(
         'DeferredSwitchNeedsReboot',
-        'nixos_reboot_required{reason="deferred"} == 1',
+        'nixos_reboot_required{reason="deferred", instance=~"%s"} == 1' % fleetInstances(false),
         '1h', 'warning',
         '{{ $labels.instance }} has a deployed system waiting for a reboot',
         '{{ $labels.instance }} installed its deployed system as the boot default but could not activate it live (a switch inhibitor changed, or the new systemd cannot replace the running one). It keeps running the previous system -- no config change since applies -- until a manual reboot. This will not clear on its own.',
       ),
+      alerts.rule(
+        'DeferredSwitchRebootMissed',
+        'nixos_reboot_required{reason="deferred", instance=~"%s"} == 1' % fleetInstances(true),
+        '26h', 'warning',
+        '{{ $labels.instance }} did not reboot into its deferred system',
+        '{{ $labels.instance }} has had a deployed system waiting for a reboot for 26h, past its nightly fleetAgent.autoReboot window. Either the reboot did not happen or the host did not come up as that system (the agent reboots once per path). Check `journalctl -u fleet-agent-reboot` and the boot entries on {{ $labels.instance }}.',
+      ),
       // A laptop whose node_exporter never answers while the host itself is
       // up: laptops are outside the reachability alerts (they sleep), so
       // without this a dead exporter is silent -- eachtrai's was down for 30
-      // days with no alert (FORGEJO_MIGRATION_PLAN.md -> Follow-ups). comin's
-      // own target answering is the evidence the host is up.
+      // days with no alert (FORGEJO_MIGRATION_PLAN.md -> Follow-ups). The
+      // evidence the host is up: nuc's tailscaled sees it online
+      // (fleet_tailnet_peer_online, machines/nuc/tailnet-peers.nix).
       alerts.rule(
         'RoamingNodeExporterDown',
-        'up{job="node-exporter", instance=~"%s"} == 0 and on(instance) up{job="comin"} == 1' % cominInstances(false),
+        'up{job="node-exporter", instance=~"%s"} == 0 and on(instance) label_replace(fleet_tailnet_peer_online == 1, "instance", "$1", "host", "(.*)")' % fleetInstances(false),
         '30m', 'warning',
         'node_exporter on {{ $labels.instance }} unreachable while the host is up',
-        '{{ $labels.instance }} answers on its comin exporter but not on node_exporter (:9002) for 30m, so every node metric for it -- reboot-needed, units, the manual-path self-tests -- is missing. Check `systemctl status prometheus-node-exporter` on {{ $labels.instance }}.',
+        '{{ $labels.instance }} is online on the tailnet but its node_exporter (:9002) has not answered for 30m, so every node metric for it -- reboot-needed, deploys, the manual-path self-tests -- is missing. Check `systemctl status prometheus-node-exporter` on {{ $labels.instance }}.',
       ),
+    ]),
+    // fleet-agent and the writer (FORGEJO_MIGRATION_PLAN.md -> Binary Cache).
+    // Each host reports the manifest commit it runs (or has installed as its
+    // boot default); nuc's writer the commit it published.
+    fleetPrometheusRule: alerts.prometheusRule('fleet', ns, [
+      // A host on another commit than the published manifest. Laptops off or
+      // asleep are not scraped and so never lag; an awake host converges
+      // within one agent tick (2 min) of a publish.
+      alerts.rule(
+        'FleetHostLagging',
+        'max by (instance, commit) (fleet_deployed_commit_info) unless on (commit) max by (commit) (fleet_manifest_commit_info)',
+        '30m', 'warning',
+        '{{ $labels.instance }} runs commit {{ $labels.commit }}, not the published manifest',
+        '{{ $labels.instance }} has reported a deployed commit other than the manifest nuc publishes for 30m. Check `journalctl -u fleet-agent` on {{ $labels.instance }}: a failed or blocked deploy, or the agent unable to reach nuc.',
+      ),
+      // 45m: a failed activation that left its path current is retried once,
+      // 30 minutes on (role/fleet-agent.nix); only a second failure is news.
+      alerts.rule(
+        'FleetDeployFailing',
+        'fleet_last_failure == 1',
+        '45m', 'warning',
+        'Deploy to {{ $labels.instance }} failing',
+        'fleet-agent on {{ $labels.instance }} failed to activate the manifest\'s system, and its one retry did not clear it. The host runs (or boots into) a partially switched system. Check `journalctl -u fleet-agent -u fleet-agent-switch` on {{ $labels.instance }}; a reboot into that system or a new commit clears it.',
+      ),
+      // The writer retries a head that failed after 10 minutes; 15m covers one
+      // retry.
+      alerts.rule(
+        'FleetWriterFailing',
+        'fleet_writer_last_failure == 1',
+        '15m', 'critical',
+        'The fleet writer cannot publish master',
+        'fleet-write on nuc has failed for 15m: master does not build on nuc, or the deploy source cannot be read. Nothing deploys anywhere until it publishes. Check `journalctl -u fleet-writer` on nuc.',
+      ),
+      // The agent ticks every 2 minutes on the always-on hosts.
+      alerts.rule(
+        'FleetAgentStale',
+        'time() - fleet_last_success_timestamp{instance=~"%s"} > 900' % fleetInstances(true),
+        '15m', 'warning',
+        'fleet-agent on {{ $labels.instance }} has not completed a run for 15m',
+        'fleet-agent on {{ $labels.instance }} has not finished a run in over 15 minutes: nuc unreachable, its manifest or cache unavailable, or the agent itself failing. Check `journalctl -u fleet-agent` on {{ $labels.instance }}.',
+      ),
+    ] + [
+      alerts.rule(
+        'FleetAgentMissing',
+        'absent(fleet_last_success_timestamp{instance="%s"})' % m.instance,
+        '30m', 'warning',
+        'No fleet-agent metrics from %s' % m.instance,
+        'Prometheus has no fleet_last_success_timestamp from %s: the agent is not installed or has never completed a run, or node_exporter is not scraped. %s is not being deployed.' % [m.instance, m.instance],
+      )
+      for m in fleetMachines
+      if m.alwaysOn
     ]),
     // The manual deploy paths' weekly self-tests (role/manual-path-selftest.nix):
     // a laptop rebuilding itself, the workstation pushing to a lab host. They

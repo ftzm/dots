@@ -185,6 +185,17 @@
         exit 0
       fi
 
+      if ${lib.boolToString cfg.dryRun}; then
+        # Observing only (another deployer still owns this host): fetch and
+        # verify, so the closure is here when the agent takes over, but
+        # activate nothing and claim no deploy.
+        echo "fleet-agent: dry run -- would deploy $path (commit $commit)"
+        nix-store --realise "$path" --add-root ${stateDir}/system >/dev/null
+        date +%s > ${stateDir}/last-success
+        write_metrics
+        exit 0
+      fi
+
       echo "fleet-agent: deploying $path (commit $commit)"
       # Rooted from the moment it is valid: the auto-GC a min-free host runs
       # inside this very call must not collect it before the profile does.
@@ -248,6 +259,11 @@ in {
       default = "2min";
       description = "Time between agent runs.";
     };
+    dryRun = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Fetch, verify and download what the manifest names, but activate nothing -- while another deployer (comin) still owns the host.";
+    };
     autoReboot = {
       enable = lib.mkEnableOption "rebooting into a deferred switch in a nightly window (always-on hosts only)";
       at = lib.mkOption {
@@ -295,7 +311,7 @@ in {
       # Not restarted by the switch it performs.
       restartIfChanged = false;
     };
-    systemd.services.fleet-agent-reboot = lib.mkIf cfg.autoReboot.enable {
+    systemd.services.fleet-agent-reboot = lib.mkIf (cfg.autoReboot.enable && !cfg.dryRun) {
       description = "Reboot into a deferred fleet deploy";
       serviceConfig = {
         Type = "oneshot";
@@ -303,7 +319,7 @@ in {
         StateDirectory = "fleet-agent";
       };
     };
-    systemd.timers.fleet-agent-reboot = lib.mkIf cfg.autoReboot.enable {
+    systemd.timers.fleet-agent-reboot = lib.mkIf (cfg.autoReboot.enable && !cfg.dryRun) {
       wantedBy = ["timers.target"];
       # No Persistent: a host that was off at the window must not reboot as
       # soon as it boots.

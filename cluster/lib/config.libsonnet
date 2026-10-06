@@ -4,6 +4,7 @@
 local machines = {
   nuc: { lan: '192.168.1.4', wg: '10.0.100.4', tailscale: '100.64.0.2' },
   nas: { lan: '192.168.1.3' },
+  pi: { lan: '192.168.1.12' },
   saoiste: { tailscale: '100.64.0.1' },
   // Live tailnet node is `eachtrai-5k2mrtvr` (the bare `eachtrai` and two
   // stale registrations are offline — see INCIDENT-2026-08-wireguard-transport.md).

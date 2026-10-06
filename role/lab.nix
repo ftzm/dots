@@ -16,6 +16,14 @@
     pi = {
       lan = "192.168.1.12";
     };
+    # The laptops, by tailnet address (as in cluster/lib/config.libsonnet;
+    # eachtrai's live tailnet node is `eachtrai-5k2mrtvr`).
+    saoiste = {
+      tailscale = "100.64.0.1";
+    };
+    eachtrai = {
+      tailscale = "100.64.0.7";
+    };
   };
 
   # Internal service endpoints — direct IP:port, no DNS needed

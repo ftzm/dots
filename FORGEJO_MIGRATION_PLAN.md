@@ -1113,13 +1113,32 @@ writes the manifest or starts the writer: it polls the nas mirror itself.
   takes its URLs from `lab.services`; the `microvm-egress` table takes its
   addresses from `lab.machines`; ArgoCD's `repoURL` comes
   from `config.libsonnet`'s nas entry.
-- **Host cut-over (step 2)**: writer first (on its timer against GitHub
-  master) so a manifest exists; then one commit enabling `fleet-agent` and
-  removing comin, deployed to every host by `make <host>` from the
-  workstation — not by comin, which runs `switch-to-configuration` as its own
-  child (comin `internal/executor/utils.go:254`) and would kill that switch
-  when it stops its own removed unit. The agent's first tick finds its path
-  already current.
+- **Host cut-over (step 2)**, two commits, no hand pushes but the pi's
+  (decided 2026-10-06, replacing one commit pushed by `make <host>` to every
+  host):
+  1. **Commit A** adds `fleet-agent` (`role/fleet-host.nix`) to every host.
+     On the comin hosts (nas, nuc, saoiste, eachtrai) comin deploys it, and
+     the agent runs in `dryRun` (`role/comin.nix` sets it): it fetches and
+     verifies the manifest and downloads the closure but activates nothing,
+     since comin switches to a commit minutes before the writer publishes it
+     and a live agent would switch back meanwhile. A also gives comin's unit
+     `X-StopOnRemoval=false`: `switch-to-configuration` stops a removed unit
+     only if its *current* unit says so (`switch-to-configuration-ng`
+     `main.rs:1248`), so the later removal of comin cannot kill the switch
+     comin itself runs. The pi, which has no deployer, gets its first agent
+     system by one push from saoiste (`boot`, then a reboot: its kernel and
+     dbus implementation change).
+  2. **Gate:** every comin host *runs* A — `fleet_last_success_timestamp`
+     from it in Prometheus, i.e. its running system has the agent. eachtrai
+     needs a reboot for that (Follow-ups).
+  3. **Commit B** drops `role/comin.nix` (and with it `dryRun`) and the comin
+     scrape job and `Comin*` rules. comin applies it; its unit is left
+     running by the guard and a oneshot stops it once it has no switch in
+     flight. From then on the agents deploy.
+  The `Fleet*` rules, the pi's node_exporter and scrape target, and
+  `fleet_tailnet_peer_online` (nuc's view of the laptops on the tailnet,
+  replacing comin's exporter as `RoamingNodeExporterDown`'s evidence that a
+  laptop is up) land with A.
 
 ### Deploy test
 

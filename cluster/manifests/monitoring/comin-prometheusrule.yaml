@@ -71,20 +71,33 @@ spec:
           previous system -- no config change since applies -- until a manual reboot.
           This will not clear on its own.'
         summary: '{{ $labels.instance }} has a deployed system waiting for a reboot'
-      expr: nixos_reboot_required{reason="deferred"} == 1
+      expr: nixos_reboot_required{reason="deferred", instance=~"saoiste|eachtrai"}
+        == 1
       for: 1h
+      labels:
+        severity: warning
+    - alert: DeferredSwitchRebootMissed
+      annotations:
+        description: '{{ $labels.instance }} has had a deployed system waiting for
+          a reboot for 26h, past its nightly fleetAgent.autoReboot window. Either
+          the reboot did not happen or the host did not come up as that system (the
+          agent reboots once per path). Check `journalctl -u fleet-agent-reboot` and
+          the boot entries on {{ $labels.instance }}.'
+        summary: '{{ $labels.instance }} did not reboot into its deferred system'
+      expr: nixos_reboot_required{reason="deferred", instance=~"nuc|nas|pi"} == 1
+      for: 26h
       labels:
         severity: warning
     - alert: RoamingNodeExporterDown
       annotations:
-        description: '{{ $labels.instance }} answers on its comin exporter but not
-          on node_exporter (:9002) for 30m, so every node metric for it -- reboot-needed,
-          units, the manual-path self-tests -- is missing. Check `systemctl status
+        description: '{{ $labels.instance }} is online on the tailnet but its node_exporter
+          (:9002) has not answered for 30m, so every node metric for it -- reboot-needed,
+          deploys, the manual-path self-tests -- is missing. Check `systemctl status
           prometheus-node-exporter` on {{ $labels.instance }}.'
         summary: node_exporter on {{ $labels.instance }} unreachable while the host
           is up
       expr: up{job="node-exporter", instance=~"saoiste|eachtrai"} == 0 and on(instance)
-        up{job="comin"} == 1
+        label_replace(fleet_tailnet_peer_online == 1, "instance", "$1", "host", "(.*)")
       for: 30m
       labels:
         severity: warning

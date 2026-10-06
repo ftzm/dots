@@ -82,6 +82,8 @@ in {
     ../../role/node-exporter.nix
     ./forgejo-runner.nix
     ./fleet.nix
+    ../../role/fleet-host.nix
+    ./tailnet-peers.nix
     ../../role/comin.nix
     ../../role/resilience.nix
     ../../role/mailsort.nix

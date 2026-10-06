@@ -1,0 +1,88 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: kube-prometheus-stack
+  name: fleet
+  namespace: monitoring
+spec:
+  groups:
+  - name: fleet
+    rules:
+    - alert: FleetHostLagging
+      annotations:
+        description: '{{ $labels.instance }} has reported a deployed commit other
+          than the manifest nuc publishes for 30m. Check `journalctl -u fleet-agent`
+          on {{ $labels.instance }}: a failed or blocked deploy, or the agent unable
+          to reach nuc.'
+        summary: '{{ $labels.instance }} runs commit {{ $labels.commit }}, not the
+          published manifest'
+      expr: max by (instance, commit) (fleet_deployed_commit_info) unless on (commit)
+        max by (commit) (fleet_manifest_commit_info)
+      for: 30m
+      labels:
+        severity: warning
+    - alert: FleetDeployFailing
+      annotations:
+        description: fleet-agent on {{ $labels.instance }} failed to activate the
+          manifest's system, and its one retry did not clear it. The host runs (or
+          boots into) a partially switched system. Check `journalctl -u fleet-agent
+          -u fleet-agent-switch` on {{ $labels.instance }}; a reboot into that system
+          or a new commit clears it.
+        summary: Deploy to {{ $labels.instance }} failing
+      expr: fleet_last_failure == 1
+      for: 45m
+      labels:
+        severity: warning
+    - alert: FleetWriterFailing
+      annotations:
+        description: 'fleet-write on nuc has failed for 15m: master does not build
+          on nuc, or the deploy source cannot be read. Nothing deploys anywhere until
+          it publishes. Check `journalctl -u fleet-writer` on nuc.'
+        summary: The fleet writer cannot publish master
+      expr: fleet_writer_last_failure == 1
+      for: 15m
+      labels:
+        severity: critical
+    - alert: FleetAgentStale
+      annotations:
+        description: 'fleet-agent on {{ $labels.instance }} has not finished a run
+          in over 15 minutes: nuc unreachable, its manifest or cache unavailable,
+          or the agent itself failing. Check `journalctl -u fleet-agent` on {{ $labels.instance
+          }}.'
+        summary: fleet-agent on {{ $labels.instance }} has not completed a run for
+          15m
+      expr: time() - fleet_last_success_timestamp{instance=~"nuc|nas|pi"} > 900
+      for: 15m
+      labels:
+        severity: warning
+    - alert: FleetAgentMissing
+      annotations:
+        description: 'Prometheus has no fleet_last_success_timestamp from nuc: the
+          agent is not installed or has never completed a run, or node_exporter is
+          not scraped. nuc is not being deployed.'
+        summary: No fleet-agent metrics from nuc
+      expr: absent(fleet_last_success_timestamp{instance="nuc"})
+      for: 30m
+      labels:
+        severity: warning
+    - alert: FleetAgentMissing
+      annotations:
+        description: 'Prometheus has no fleet_last_success_timestamp from nas: the
+          agent is not installed or has never completed a run, or node_exporter is
+          not scraped. nas is not being deployed.'
+        summary: No fleet-agent metrics from nas
+      expr: absent(fleet_last_success_timestamp{instance="nas"})
+      for: 30m
+      labels:
+        severity: warning
+    - alert: FleetAgentMissing
+      annotations:
+        description: 'Prometheus has no fleet_last_success_timestamp from pi: the
+          agent is not installed or has never completed a run, or node_exporter is
+          not scraped. pi is not being deployed.'
+        summary: No fleet-agent metrics from pi
+      expr: absent(fleet_last_success_timestamp{instance="pi"})
+      for: 30m
+      labels:
+        severity: warning

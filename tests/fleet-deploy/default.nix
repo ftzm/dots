@@ -66,7 +66,7 @@
       echo "fleet-deploy test repo" > $out/README
     '';
 
-  variantNames = ["base" "changed" "agent-change" "flaky" "hang" "dbus" "interface"];
+  variantNames = ["base" "changed" "agent-change" "flaky" "hang" "dbus" "interface" "observe"];
 
   # What the writer will find already built: each variant's system and its
   # fleet linkFarm, evaluated exactly as the inner flake evaluates them.
@@ -351,11 +351,29 @@ in
           assert current() == expected["interface"]
           assert reboot_reason() == ("", "0")
 
+      with subtest("dryRun downloads the published system but activates nothing"):
+          commit("observe", variant="observe")
+          assert write() == 0
+          # The live agent installs the observing system (deferred: the host
+          # runs the interface variant, whose dbus and systemd differ), and the
+          # host boots it...
+          assert agent() == 0
+          reboot()
+          assert current() == expected["observe"]
+          # ...whose agent then only fetches what the next commit names.
+          c = commit("changed again", variant="changed")
+          assert write() == 0
+          assert agent() == 0
+          assert current() == expected["observe"]
+          host.succeed("nix-store --check-validity ${o.systems.changed}")
+          host.succeed("journalctl -u fleet-agent.service -o cat | grep -q 'dry run -- would deploy ${o.systems.changed}'")
+          assert f'fleet_deployed_commit_info{{commit="{c}"}}' not in agent_metrics()
+
       with subtest("GC keeps both published generations"):
           nuc.succeed("nix-store --gc")
           gens = nuc.succeed("ls /nix/var/nix/profiles/per-user/fleet-writer/").split()
           assert len([g for g in gens if g.startswith("fleet-") and g.endswith("-link") and "manifest" not in g]) == 2, gens
-          for v in ["dbus", "interface"]:
+          for v in ["observe", "changed"]:
               nuc.succeed(f"nix-store --check-validity {expected[v]}")
     '';
   })

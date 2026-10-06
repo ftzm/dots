@@ -17,6 +17,12 @@
 
   # Publishes the manifest for master. Reads GitHub until the flip, then the
   # nas mirror (lab.services.nasMirror, with a read-only key).
+  # nuc deploys itself from its own manifest (no canary, as under comin).
+  fleetHost = {
+    transport = "lan";
+    autoRebootAt = "04:30";
+  };
+
   fleetWriter = {
     enable = true;
     repo = "https://github.com/ftzm/dots.git";

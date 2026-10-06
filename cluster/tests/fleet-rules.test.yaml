@@ -1,0 +1,106 @@
+# Unit tests for the fleet-agent and writer alerts. Run with `just test-rules`.
+
+rule_files:
+  - .rules/fleet-prometheusrule.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # A host on an older commit than the manifest pages after 30m; a host on
+  # the manifest's commit does not.
+  - interval: 1m
+    input_series:
+      - series: 'fleet_manifest_commit_info{instance="nuc", commit="bbbb"}'
+        values: '1+0x40'
+      - series: 'fleet_deployed_commit_info{instance="nas", commit="aaaa"}'
+        values: '1+0x40'
+      - series: 'fleet_deployed_commit_info{instance="nuc", commit="bbbb"}'
+        values: '1+0x40'
+      - series: 'fleet_last_success_timestamp{instance="nas"}'
+        values: '0+60x40'
+      - series: 'fleet_last_success_timestamp{instance="nuc"}'
+        values: '0+60x40'
+      - series: 'fleet_last_success_timestamp{instance="pi"}'
+        values: '0+60x40'
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: FleetHostLagging
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: FleetHostLagging
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: nas
+              commit: aaaa
+            exp_annotations:
+              summary: 'nas runs commit aaaa, not the published manifest'
+              description: 'nas has reported a deployed commit other than the manifest nuc publishes for 30m. Check `journalctl -u fleet-agent` on nas: a failed or blocked deploy, or the agent unable to reach nuc.'
+      - eval_time: 30m
+        alertname: FleetAgentMissing
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: FleetAgentStale
+        exp_alerts: []
+
+  # A failed deploy pages only after 45m (one retry at 30m); a writer failure
+  # after 15m.
+  - interval: 1m
+    input_series:
+      - series: 'fleet_last_failure{instance="nas"}'
+        values: '1+0x60'
+      - series: 'fleet_writer_last_failure{instance="nuc"}'
+        values: '1+0x60'
+    alert_rule_test:
+      - eval_time: 44m
+        alertname: FleetDeployFailing
+        exp_alerts: []
+      - eval_time: 45m
+        alertname: FleetDeployFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: nas
+            exp_annotations:
+              summary: 'Deploy to nas failing'
+              description: "fleet-agent on nas failed to activate the manifest's system, and its one retry did not clear it. The host runs (or boots into) a partially switched system. Check `journalctl -u fleet-agent -u fleet-agent-switch` on nas; a reboot into that system or a new commit clears it."
+      - eval_time: 15m
+        alertname: FleetWriterFailing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              instance: nuc
+            exp_annotations:
+              summary: 'The fleet writer cannot publish master'
+              description: 'fleet-write on nuc has failed for 15m: master does not build on nuc, or the deploy source cannot be read. Nothing deploys anywhere until it publishes. Check `journalctl -u fleet-writer` on nuc.'
+
+  # An always-on host whose agent stopped completing runs, and one that never
+  # reported at all. Laptops are covered by neither.
+  - interval: 1m
+    input_series:
+      - series: 'fleet_last_success_timestamp{instance="nas"}'
+        values: '0+0x60'
+      - series: 'fleet_last_success_timestamp{instance="nuc"}'
+        values: '0+60x60'
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: FleetAgentStale
+        exp_alerts: []
+      - eval_time: 31m
+        alertname: FleetAgentStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: nas
+            exp_annotations:
+              summary: 'fleet-agent on nas has not completed a run for 15m'
+              description: 'fleet-agent on nas has not finished a run in over 15 minutes: nuc unreachable, its manifest or cache unavailable, or the agent itself failing. Check `journalctl -u fleet-agent` on nas.'
+      - eval_time: 31m
+        alertname: FleetAgentMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: pi
+            exp_annotations:
+              summary: 'No fleet-agent metrics from pi'
+              description: 'Prometheus has no fleet_last_success_timestamp from pi: the agent is not installed or has never completed a run, or node_exporter is not scraped. pi is not being deployed.'

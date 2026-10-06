@@ -18,6 +18,7 @@ in {
     ../../role/resilience.nix
     ../../role/lab.nix
     ../../role/node-exporter.nix
+    ../../role/fleet-host.nix
   ];
 
   # make members of wheel group trusted users, allowing them additional rights when
@@ -147,6 +148,12 @@ in {
           shares}
       '';
     };
+  };
+
+  fleetHost = {
+    transport = "lan";
+    # First of the staggered reboots: nuc's pods mount its NFS shares.
+    autoRebootAt = "04:00";
   };
 
   #############################################################################

@@ -192,14 +192,25 @@ inputs.nixos-raspberrypi.lib.nixosSystem {
       };
 
       # Open ports in the firewall.
-      networking.firewall.allowedTCPPorts = [8443];
+      # 8443 headscale; 9002 node_exporter, scraped by the cluster over the LAN.
+      networking.firewall.allowedTCPPorts = [8443 9002];
 
       system.stateVersion = "21.05"; # Did you read the comment?
     })
 
     inputs.agenix.nixosModules.age
     ../../role/lab.nix
+    ../../role/fleet-host.nix
     ./headscale-state.nix
+    {
+      # The pi's own deployer (it cannot build its system itself; comin stays
+      # off). 29 GB SD card with a 5 GiB closure: keep fewer generations.
+      fleetHost = {
+        transport = "lan";
+        keepGenerations = 3;
+        autoRebootAt = "05:00";
+      };
+    }
     ({config, ...}: {
       age.secrets.headscale-noise-key = {
         file = ../../secrets/headscale-noise-key.age;

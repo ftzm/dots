@@ -29,6 +29,7 @@
 
     ../../role/comin.nix
     ../../role/manual-path-selftest.nix
+    ../../role/fleet-host.nix
     ../../role/resilience.nix
     ../../role/packages.nix
     ../../role/iosevka.nix
@@ -136,6 +137,8 @@
   # saoiste is both a laptop and the workstation that pushes to the lab hosts
   # when nuc is down (FORGEJO_MIGRATION_PLAN.md -> nuc Down). By LAN IP, as
   # the Makefile pushes.
+  fleetHost.transport = "tailscale";
+
   manualPathSelftest = {
     laptop.enable = true;
     push.targets = {
