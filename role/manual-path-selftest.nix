@@ -87,11 +87,12 @@
         elif [ -z "$rev" ] && ! rev=$(fetch); then
           record workstation-push ${target} fail
           failed=1
-        # The target's own nixos-rebuild: one from a newer release passes
+        # The target's own release's nixos-rebuild, built for this machine
+        # (flake.nix nixos-rebuild-for): one from a newer release passes
         # switch-to-configuration flags its systemd rejects (26.11's
         # `systemd-run --output=cat` against 26.05). The Makefile does the same.
         elif tool=$(nix build --no-link --print-out-paths \
-          "$(flake "$rev" nixosConfigurations.${target}.config.system.build.nixos-rebuild)") &&
+          "$(flake "$rev" nixos-rebuild-for.${target})") &&
           "$tool/bin/nixos-rebuild" dry-activate --no-reexec --accept-flake-config \
           --flake "$(flake "$rev" ${target})" \
           --target-host ${lib.escapeShellArg dest} --sudo; then
