@@ -975,9 +975,17 @@ writes the manifest or starts the writer: it polls the nas mirror itself.
     `fleet_deployed_commit_info` set to the new commit (it is the installed
     boot default), generations pruned as after a switch. The host runs the
     new generation from its next reboot; the pending reboot is reported by
-    `nixos_reboot_required{reason="deferred"}` (Plumbing). Reboots stay
-    manual, as under comin. Any other non-zero exit from either activation
-    is a failure.
+    `nixos_reboot_required{reason="deferred"}` (Plumbing). On the
+    always-on hosts the agent reboots into it (`fleetAgent.autoReboot`,
+    decided 2026-10-06): a nightly timer, staggered so dependent hosts never
+    reboot together — nas 04:00, nuc 04:30, pi 05:00 — reboots when the
+    system profile differs from what runs and no activation failed, once per
+    installed path (`/var/lib/fleet-agent/rebooted-for`), so a system that
+    does not come up as itself is not rebooted into again; the timer is not
+    `Persistent`, so a host that was off at the window does not reboot on
+    boot. Laptops keep reboots manual, reported by
+    `DeferredSwitchNeedsReboot`. Any other non-zero exit from either
+    activation is a failure.
 
     **`RuntimeMaxSec=15min` bounds each activation.** Without it a hung
     activation blocks `systemd-run --wait` forever; `fleet-agent.service`

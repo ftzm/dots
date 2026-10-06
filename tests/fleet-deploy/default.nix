@@ -296,9 +296,17 @@ in
           before = harmonia_requests()
           assert agent() == 0
           assert harmonia_requests() == before
-          reboot()
+
+      with subtest("autoReboot reboots into the deferred system, once"):
+          host.succeed("systemctl start --no-block fleet-agent-reboot.service")
+          host.wait_for_shutdown()
+          host.start()
+          host.wait_for_unit("multi-user.target")
           assert current() == expected["dbus"]
           assert reboot_reason() == ("", "0")
+          # Nothing pending now: the window passes without a reboot.
+          host.succeed("systemctl start fleet-agent-reboot.service")
+          host.succeed("true")
 
       with subtest("a systemd whose interface version differs defers (switch exits 100)"):
           commit("interface", variant="interface")
@@ -310,6 +318,11 @@ in
           assert reboot_reason() == ("deferred", "1")
           assert "fleet_last_failure 0" in agent_metrics()
           assert "cannot be switched to live" in host.succeed("journalctl -u fleet-agent.service -o cat")
+          # A system that does not come up as itself is not rebooted into twice.
+          host.succeed("echo ${o.systems.interface} > /var/lib/fleet-agent/rebooted-for")
+          host.fail("systemctl start fleet-agent-reboot.service")
+          host.succeed("journalctl -u fleet-agent-reboot.service -o cat | grep -q 'already rebooted once'")
+          host.succeed("rm /var/lib/fleet-agent/rebooted-for")
           reboot()
           assert current() == expected["interface"]
           assert reboot_reason() == ("", "0")

@@ -11,6 +11,11 @@
     cacheUrl = "http://192.168.1.2:5000";
     cachePublicKey = lib.fileContents ./test-cache-key.pub;
     activationTimeout = "120s";
+    # The test starts the reboot service itself.
+    autoReboot = {
+      enable = true;
+      at = "*-01-01 04:00";
+    };
   };
   # The test drives every run; the timer must not race it.
   systemd.timers.fleet-agent.timerConfig.OnBootSec = lib.mkForce "1d";

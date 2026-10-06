@@ -28,6 +28,12 @@
 #
 # Metrics, in node_exporter's textfile dir: fleet_deployed_commit_info,
 # fleet_last_success_timestamp, fleet_last_failure.
+#
+# autoReboot (always-on hosts only): a nightly timer reboots the host when a
+# deferred switch is pending -- the system profile differs from what runs and
+# no activation failed -- once per installed path, so a system that does not
+# come up as itself is never rebooted into again by this. Laptops leave it
+# off and keep the DeferredSwitchNeedsReboot alert.
 {
   config,
   lib,
@@ -36,6 +42,29 @@
 }: let
   cfg = config.fleetAgent;
   stateDir = "/var/lib/fleet-agent";
+
+  rebooter = pkgs.writeShellApplication {
+    name = "fleet-agent-reboot";
+    runtimeInputs = [pkgs.coreutils config.systemd.package];
+    text = ''
+      installed=$(readlink -f /nix/var/nix/profiles/system)
+      current=$(readlink -f /run/current-system)
+      if [ "$installed" = "$current" ]; then
+        exit 0
+      fi
+      if [ -e ${stateDir}/failed ]; then
+        echo "fleet-agent-reboot: an activation failed; not rebooting into $installed"
+        exit 0
+      fi
+      if [ "$(cat ${stateDir}/rebooted-for 2>/dev/null || true)" = "$installed" ]; then
+        echo "fleet-agent-reboot: already rebooted once for $installed and it is not running; leaving it to the operator" >&2
+        exit 1
+      fi
+      echo "$installed" > ${stateDir}/rebooted-for
+      echo "fleet-agent-reboot: deferred switch pending, rebooting into $installed"
+      systemctl reboot
+    '';
+  };
 
   agent = pkgs.writeShellApplication {
     name = "fleet-agent";
@@ -203,6 +232,14 @@ in {
       default = "2min";
       description = "Time between agent runs.";
     };
+    autoReboot = {
+      enable = lib.mkEnableOption "rebooting into a deferred switch in a nightly window (always-on hosts only)";
+      at = lib.mkOption {
+        type = lib.types.str;
+        example = "04:30";
+        description = "Daily time (systemd OnCalendar) to reboot when a deferred switch is pending. Stagger hosts that depend on each other.";
+      };
+    };
     activationTimeout = lib.mkOption {
       type = lib.types.str;
       default = "15min";
@@ -242,6 +279,21 @@ in {
       # Not restarted by the switch it performs.
       restartIfChanged = false;
     };
+    systemd.services.fleet-agent-reboot = lib.mkIf cfg.autoReboot.enable {
+      description = "Reboot into a deferred fleet deploy";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = lib.getExe rebooter;
+        StateDirectory = "fleet-agent";
+      };
+    };
+    systemd.timers.fleet-agent-reboot = lib.mkIf cfg.autoReboot.enable {
+      wantedBy = ["timers.target"];
+      # No Persistent: a host that was off at the window must not reboot as
+      # soon as it boots.
+      timerConfig.OnCalendar = cfg.autoReboot.at;
+    };
+
     systemd.timers.fleet-agent = {
       wantedBy = ["timers.target"];
       timerConfig = {
