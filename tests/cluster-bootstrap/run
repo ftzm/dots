@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Drives the Cluster Bootstrap rehearsal (FORGEJO_MIGRATION_PLAN.md -> Cluster
+# Bootstrap) in the scratch network of tests/cluster-bootstrap/default.nix.
+#
+#   run up       fresh nightly-style dump of the live Forgejo, git mirrors of
+#                its repos, then boot the VMs; prints the bootstrap command
+#   (you)        KUBECONFIG=<dir>/kubeconfig cluster/scripts/bootstrap
+#                -- it decrypts the sealing keys with agenix
+#   run status   Applications not Synced+Healthy, and what DNS refused
+#   run restore  the Restore Runbook against the scratch Forgejo: refs from
+#                the fake nas's mirrors, verified against the live instance
+#   run down     stop the VMs
+#
+# State in ~/.cache/cluster-bootstrap-rehearsal (VM disks included).
+set -euo pipefail
+
+repo_dir=$(cd "$(dirname "$0")/../.." && pwd)
+dir=${REHEARSAL_DIR:-$HOME/.cache/cluster-bootstrap-rehearsal}
+export REHEARSAL_DIR=$dir
+api="$repo_dir/bin/forgejo-api"
+live=https://forgejo.lan.ftzmlab.xyz
+scratch=(env KUBECONFIG="$dir/kubeconfig")
+
+case "${1:-}" in
+up)
+  mkdir -p "$dir/dump" "$dir/git" "$dir/vm"
+  rm -f "$dir/ready" "$dir/stop" "$dir/kubeconfig" "$dir"/dump/*.tar
+  rm -rf "${dir:?}"/git/*
+
+  echo "== dump: a run of the nightly CronJob"
+  job=forgejo-dump-rehearsal
+  kubectl delete job -n forgejo "$job" --ignore-not-found >/dev/null
+  kubectl create job -n forgejo "$job" --from=cronjob/forgejo-dump >/dev/null
+  kubectl wait -n forgejo --for=condition=complete "job/$job" --timeout=600s >/dev/null
+  kubectl delete job -n forgejo "$job" >/dev/null
+  newest=$(ssh -o BatchMode=yes admin@192.168.1.3 'ls -1t /pool-1/k8s/forgejo-backup/forgejo-*.tar | head -1')
+  scp -q "admin@192.168.1.3:$newest" "$dir/dump/"
+  echo "   $(basename "$newest")"
+
+  echo "== git mirrors of the live repos"
+  token=$(<"$HOME/.config/forgejo/claude-token")
+  for repo in $("$api" GET '/repos/search?limit=50' | jq -r '.data[].full_name'); do
+    git clone --quiet --mirror -c http.extraHeader="Authorization: token $token" \
+      "$live/$repo.git" "$dir/git/$repo.git"
+    echo "   $repo"
+  done
+  unset token
+
+  echo "== VMs (driver log: $dir/driver.log)"
+  driver=$(nix build --no-link --print-out-paths "$repo_dir#cluster-bootstrap-rehearsal")
+  (cd "$dir/vm" && TMPDIR="$dir/vm" setsid "$driver/bin/nixos-test-driver" \
+    --output_directory "$dir" >"$dir/driver.log" 2>&1 &)
+  until [ -e "$dir/ready" ]; do
+    if ! pgrep -f "$driver/bin" >/dev/null; then
+      tail -20 "$dir/driver.log" >&2
+      echo "run: the driver exited" >&2
+      exit 1
+    fi
+    sleep 5
+  done
+  "${scratch[@]}" kubectl get nodes
+  cat <<EOF
+
+Scratch cluster up. Bootstrap it (agenix decrypts the sealing keys):
+
+  ! cd $repo_dir/cluster && KUBECONFIG=$dir/kubeconfig nix develop --command scripts/bootstrap
+EOF
+  ;;
+status)
+  "${scratch[@]}" kubectl get applications -n argocd -o json | jq -r '
+    .items[] | select(.status.sync.status != "Synced" or .status.health.status != "Healthy")
+    | "\(.metadata.name)\t\(.status.sync.status)\t\(.status.health.status)"' | column -t
+  echo "-- names queried outside the allowlist (refused):"
+  allowed=$(nix eval --raw --impure --expr "builtins.concatStringsSep \"|\" (import $repo_dir/tests/cluster-bootstrap/allowed.nix)")
+  grep -oE 'query\[[A-Z]+\] [^ ]+ from' "$dir/driver.log" | awk '{print $2}' | sort -u \
+    | grep -vE "(^|\\.)(${allowed//./\\.})\$" | grep -vE 'cluster\.local$|lan\.ftzmlab\.xyz$' || true
+  ;;
+restore)
+  KUBECONFIG="$dir/kubeconfig" "$repo_dir/cluster/scripts/forgejo-restore" --restore \
+    --refs-url git://192.168.1.3 --refs-url-local git://127.0.0.1:19418 --compare-live
+  ;;
+down)
+  touch "$dir/stop"
+  ;;
+*)
+  echo "usage: $0 up|status|restore|down" >&2
+  exit 2
+  ;;
+esac

@@ -181,10 +181,21 @@
     # older systemd rejects (26.11's `systemd-run --output=cat` on 26.05),
     # and the host's own package is aarch64 for the pi (it would run under
     # emulation). The Makefile and role/manual-path-selftest.nix push with it.
-    legacyPackages.${defaultSystem}.nixos-rebuild-for =
-      nixpkgs.legacyPackages.${defaultSystem}.lib.mapAttrs
-      (_: c: (import c.pkgs.path {system = defaultSystem;}).nixos-rebuild-ng)
-      inputs.self.nixosConfigurations;
+    legacyPackages.${defaultSystem} = {
+      nixos-rebuild-for =
+        nixpkgs.legacyPackages.${defaultSystem}.lib.mapAttrs
+        (_: c: (import c.pkgs.path {system = defaultSystem;}).nixos-rebuild-ng)
+        inputs.self.nixosConfigurations;
+
+      # The Cluster Bootstrap rehearsal's VMs (tests/cluster-bootstrap): a
+      # driver run by tests/cluster-bootstrap/run outside the sandbox, so not
+      # a check.
+      cluster-bootstrap-rehearsal =
+        (import ./tests/cluster-bootstrap {
+          pkgs = nixpkgs-ftzmlab.legacyPackages.${defaultSystem};
+        })
+        .driver;
+    };
 
     nixosConfigurations = {
       saoiste = nixpkgs.lib.nixosSystem {
