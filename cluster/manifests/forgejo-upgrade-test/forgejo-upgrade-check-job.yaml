@@ -41,19 +41,19 @@ spec:
             echo "first check: baseline is $(tr '\n' ';' < "$baseline")"
           fi
           version=$(curl -sf http://forgejo:3000/api/v1/version | sed -n 's/.*"version":"\([^"+]*\).*/\1/p')
-          if [ "$version" != "16.0.2" ]; then
-            echo "CHECK FAILED: forgejo answers '$version', expected 16.0.2"; exit 1
+          if [ "$version" != "16.0.3" ]; then
+            echo "CHECK FAILED: forgejo answers '$version', expected 16.0.3"; exit 1
           fi
           doctor_ok /data/gitea/conf/app.ini "$baseline" || { echo "CHECK FAILED: doctor"; exit 1; }
 
           su-exec git forgejo doctor check --all --config /data/gitea/conf/app.ini 2>&1 \
             | tr -d '\033' | sed 's/\[[0-9;]*m//g' | awk '/^\[[0-9]+\] /{t=$0; sub(/^\[[0-9]+\] /,"",t)} /^ERROR$/{print t}' > /backup/.doctor-baseline
           rm -f /backup/.upgrade-attempt /backup/.upgrade-baseline
-          echo "forgejo 16.0.2 passes; upgrade (if any) complete"
+          echo "forgejo 16.0.3 passes; upgrade (if any) complete"
         command:
         - /bin/bash
         - -c
-        image: codeberg.org/forgejo/forgejo:16.0.2
+        image: codeberg.org/forgejo/forgejo:16.0.3
         name: check
         volumeMounts:
         - mountPath: /data
