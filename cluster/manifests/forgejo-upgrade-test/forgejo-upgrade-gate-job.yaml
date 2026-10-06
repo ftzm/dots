@@ -18,11 +18,11 @@ spec:
           [ "$(cat /work/decision)" = preflight ] || exit 0
           if [ "$(cat /work/preflight)" != ok ]; then
             kubectl scale -n forgejo-upgrade-test deploy/forgejo --replicas=1
-            echo "PRE-FLIGHT FAILED: forgejo $(cat /work/from) -> 16.0.3; the old version keeps serving"
+            echo "PRE-FLIGHT FAILED: forgejo $(cat /work/from) -> 16.0.2; the old version keeps serving"
             exit 1
           fi
           sed -i 's/ preflight$/ rollout/' /backup/.upgrade-attempt
-          echo "pre-flight passed: rolling out 16.0.3"
+          echo "pre-flight passed: rolling out 16.0.2"
         command:
         - /bin/bash
         - -c
@@ -51,13 +51,13 @@ spec:
           done
           # The API reports e.g. 16.0.5+gitea-1.22.0; the image tag is 16.0.5.
           from=$(curl -sf http://forgejo:3000/api/v1/version | jq -r '.version | split("+")[0]')
-          if [ "$from" = "16.0.3" ]; then
+          if [ "$from" = "16.0.2" ]; then
             echo "forgejo $from matches the image: no upgrade pending"
             exit 0
           fi
           enabled=$(kubectl get application -n argocd forgejo-upgrade-test -o jsonpath='{.spec.syncPolicy.automated.enabled}')
           if [ "$enabled" = "false" ]; then
-            echo "LOCKED: upgrade $from -> 16.0.3 is locked (automated sync disabled after a failed upgrade); see the Restore Runbook -> Forgejo upgrade lock"
+            echo "LOCKED: upgrade $from -> 16.0.2 is locked (automated sync disabled after a failed upgrade); see the Restore Runbook -> Forgejo upgrade lock"
             echo "last failed upgrade: $(tail -n 1 /backup/upgrade-history.log 2>/dev/null || echo unrecorded)"
             exit 1
           fi
@@ -69,11 +69,11 @@ spec:
             | tr -d '\033' | sed 's/\[[0-9;]*m//g' | awk '/^\[[0-9]+\] /{t=$0; sub(/^\[[0-9]+\] /,"",t)} /^ERROR$/{print t}' > /work/baseline
           echo "baseline (checks failing on $from): $(tr '\n' ';' < /work/baseline)"
 
-          snap=/backup/forgejo-preupgrade-$from-to-16.0.3-$(date +%Y%m%d-%H%M%S).tar.gz
+          snap=/backup/forgejo-preupgrade-$from-to-16.0.2-$(date +%Y%m%d-%H%M%S).tar.gz
           cp /work/baseline /backup/.upgrade-baseline
-          echo "$from 16.0.3 $snap preflight" > /backup/.upgrade-attempt
+          echo "$from 16.0.2 $snap preflight" > /backup/.upgrade-attempt
           echo "$from" > /work/from
-          echo "UPGRADE: forgejo $from -> 16.0.3; marker written"
+          echo "UPGRADE: forgejo $from -> 16.0.2; marker written"
 
           # Stopped, so the snapshot is a point in time, not a live SQLite.
           kubectl scale -n forgejo-upgrade-test deploy/forgejo --replicas=0
@@ -127,7 +127,7 @@ spec:
         command:
         - /bin/bash
         - -c
-        image: codeberg.org/forgejo/forgejo:16.0.3
+        image: codeberg.org/forgejo/forgejo:16.0.2
         name: preflight
         volumeMounts:
         - mountPath: /data
