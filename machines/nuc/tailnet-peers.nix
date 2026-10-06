@@ -1,9 +1,15 @@
-# Whether each laptop is on the tailnet, as nuc's tailscaled sees it, for
+# Whether each laptop answers on the tailnet, seen from nuc, for
 # node_exporter: fleet_tailnet_peer_online{host}. The laptops are excluded
 # from the reachability alerts (they sleep), so this is the evidence that a
 # laptop is up when its node_exporter is not answering
 # (RoamingNodeExporterDown) -- comin's exporter used to be, and it goes with
 # comin.
+#
+# A ping over the tailnet, not tailscaled's peer `Online` flag: that flag is
+# headscale's view of the control session, and headscale 0.28 leaves a node
+# marked offline when it reconnects (the old session's disconnect is logged
+# after the new session's connect; eachtrai on 2026-10-06, data path up the
+# whole time).
 {
   config,
   lab,
@@ -15,13 +21,12 @@
   out = "${config.nodeExporterTextfileDir}/fleet-tailnet-peers.prom";
   script = pkgs.writeShellScript "fleet-tailnet-peers" ''
     set -eu
-    status=$(${config.services.tailscale.package}/bin/tailscale status --json)
     tmp=$(mktemp "${out}.XXXXXX")
     {
-      echo "# HELP fleet_tailnet_peer_online 1 while nuc's tailscaled sees the host online."
+      echo "# HELP fleet_tailnet_peer_online 1 while the host answers a ping from nuc over the tailnet."
       echo "# TYPE fleet_tailnet_peer_online gauge"
       ${lib.concatStrings (lib.mapAttrsToList (host: m: ''
-        v=$(${pkgs.jq}/bin/jq -r --arg ip ${m.tailscale} '[.Peer[] | select(.TailscaleIPs | index($ip)) | .Online] | if any then 1 else 0 end' <<<"$status")
+        if ${pkgs.iputils}/bin/ping -c 1 -W 2 ${m.tailscale} >/dev/null 2>&1; then v=1; else v=0; fi
         echo "fleet_tailnet_peer_online{host=\"${host}\"} $v"
       '')
       laptops)}
@@ -31,7 +36,7 @@
   '';
 in {
   systemd.services.fleet-tailnet-peers = {
-    description = "Publish the laptops' tailnet presence for node_exporter";
+    description = "Publish whether the laptops answer on the tailnet, for node_exporter";
     after = ["tailscaled.service"];
     serviceConfig = {
       Type = "oneshot";
