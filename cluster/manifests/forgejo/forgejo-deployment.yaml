@@ -67,6 +67,11 @@ spec:
           set -e
           export GITEA_CUSTOM=/data/gitea
           bash /etc/s6/gitea/setup
+          # On a fresh volume the setup above (as root) leaves the log
+          # dir root-owned, and the repository root appears only with the
+          # first repo; `forgejo doctor` (the upgrade checks) fails on both.
+          install -d -o git -g git /data/gitea/log /data/git/repositories
+          chown git:git /data/gitea/log
           CONF=/data/gitea/conf/app.ini
           su-exec git forgejo migrate --config "$CONF"
           if su-exec git forgejo admin user list --config "$CONF" | awk 'NR>1{print $2}' | grep -qx "$ADMIN_USERNAME"; then
