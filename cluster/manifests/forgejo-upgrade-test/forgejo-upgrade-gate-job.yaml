@@ -49,7 +49,8 @@ spec:
             [ "$(date +%s)" -lt "$deadline" ] || { echo "FATAL: forgejo did not answer within 300s"; exit 1; }
             echo "waiting for forgejo to answer..."; sleep 5
           done
-          from=$(curl -sf http://forgejo:3000/api/v1/version | jq -r .version)
+          # The API reports e.g. 16.0.5+gitea-1.22.0; the image tag is 16.0.5.
+          from=$(curl -sf http://forgejo:3000/api/v1/version | jq -r '.version | split("+")[0]')
           if [ "$from" = "16.0.2" ]; then
             echo "forgejo $from matches the image: no upgrade pending"
             exit 0

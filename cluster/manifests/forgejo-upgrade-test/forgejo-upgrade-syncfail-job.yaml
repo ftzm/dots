@@ -33,7 +33,7 @@ spec:
               kubectl scale -n forgejo-upgrade-test deploy/forgejo --replicas=1
               ;;
             rollout)
-              running=$(curl -sf http://forgejo:3000/api/v1/version | jq -r .version || true)
+              running=$(curl -sf http://forgejo:3000/api/v1/version | jq -r '.version | split("+")[0]' || true)
               if [ "$running" != "$from" ]; then
                 kubectl scale -n forgejo-upgrade-test deploy/forgejo --replicas=0
                 kubectl wait -n forgejo-upgrade-test --for=delete pod -l app.kubernetes.io/name=forgejo --timeout=300s
@@ -44,7 +44,7 @@ spec:
                 kubectl scale -n forgejo-upgrade-test deploy/forgejo --replicas=1
               fi
               deadline=$(( $(date +%s) + 600 ))
-              until [ "$(curl -sf http://forgejo:3000/api/v1/version | jq -r .version 2>/dev/null)" = "$from" ]; do
+              until [ "$(curl -sf http://forgejo:3000/api/v1/version | jq -r '.version | split("+")[0]' 2>/dev/null)" = "$from" ]; do
                 [ "$(date +%s)" -lt "$deadline" ] || { echo "FATAL: forgejo did not come back as $from"; exit 1; }
                 sleep 5
               done

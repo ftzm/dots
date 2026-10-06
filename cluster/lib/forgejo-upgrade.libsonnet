@@ -160,7 +160,8 @@
                   [ "$(date +%%s)" -lt "$deadline" ] || { echo "FATAL: forgejo did not answer within 300s"; exit 1; }
                   echo "waiting for forgejo to answer..."; sleep 5
                 done
-                from=$(curl -sf %(url)s | jq -r .version)
+                # The API reports e.g. 16.0.5+gitea-1.22.0; the image tag is 16.0.5.
+                from=$(curl -sf %(url)s | jq -r '.version | split("+")[0]')
                 if [ "$from" = "%(target)s" ]; then
                   echo "forgejo $from matches the image: no upgrade pending"
                   exit 0
@@ -277,7 +278,7 @@
                   | %(errorTitles)s > "$baseline"
                 echo "first check: baseline is $(tr '\n' ';' < "$baseline")"
               fi
-              version=$(curl -sf %(url)s | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
+              version=$(curl -sf %(url)s | sed -n 's/.*"version":"\([^"+]*\).*/\1/p')
               if [ "$version" != "%(target)s" ]; then
                 echo "CHECK FAILED: forgejo answers '$version', expected %(target)s"; exit 1
               fi
@@ -337,7 +338,7 @@
                   kubectl scale -n %(ns)s deploy/%(deployment)s --replicas=1
                   ;;
                 rollout)
-                  running=$(curl -sf %(url)s | jq -r .version || true)
+                  running=$(curl -sf %(url)s | jq -r '.version | split("+")[0]' || true)
                   if [ "$running" != "$from" ]; then
                     kubectl scale -n %(ns)s deploy/%(deployment)s --replicas=0
                     kubectl wait -n %(ns)s --for=delete pod -l %(selector)s --timeout=300s
@@ -348,7 +349,7 @@
                     kubectl scale -n %(ns)s deploy/%(deployment)s --replicas=1
                   fi
                   deadline=$(( $(date +%%s) + 600 ))
-                  until [ "$(curl -sf %(url)s | jq -r .version 2>/dev/null)" = "$from" ]; do
+                  until [ "$(curl -sf %(url)s | jq -r '.version | split("+")[0]' 2>/dev/null)" = "$from" ]; do
                     [ "$(date +%%s)" -lt "$deadline" ] || { echo "FATAL: forgejo did not come back as $from"; exit 1; }
                     sleep 5
                   done

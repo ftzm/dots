@@ -40,7 +40,7 @@ spec:
               | tr -d '\033' | sed 's/\[[0-9;]*m//g' | awk '/^\[[0-9]+\] /{t=$0; sub(/^\[[0-9]+\] /,"",t)} /^ERROR$/{print t}' > "$baseline"
             echo "first check: baseline is $(tr '\n' ';' < "$baseline")"
           fi
-          version=$(curl -sf http://forgejo:3000/api/v1/version | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
+          version=$(curl -sf http://forgejo:3000/api/v1/version | sed -n 's/.*"version":"\([^"+]*\).*/\1/p')
           if [ "$version" != "16.0.5" ]; then
             echo "CHECK FAILED: forgejo answers '$version', expected 16.0.5"; exit 1
           fi
