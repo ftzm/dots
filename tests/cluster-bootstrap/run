@@ -49,9 +49,9 @@ up)
   echo "== VMs (driver log: $dir/driver.log)"
   driver=$(nix build --no-link --print-out-paths "$repo_dir#cluster-bootstrap-rehearsal")
   (cd "$dir/vm" && TMPDIR="$dir/vm" setsid "$driver/bin/nixos-test-driver" \
-    --output_directory "$dir" >"$dir/driver.log" 2>&1 &)
+    --output_directory "$dir" >"$dir/driver.log" 2>&1 & echo $! >"$dir/driver.pid")
   until [ -e "$dir/ready" ]; do
-    if ! pgrep -f "$driver/bin" >/dev/null; then
+    if ! kill -0 "$(<"$dir/driver.pid")" 2>/dev/null; then
       tail -20 "$dir/driver.log" >&2
       echo "run: the driver exited" >&2
       exit 1

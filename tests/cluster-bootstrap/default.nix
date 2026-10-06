@@ -127,8 +127,9 @@ in
       imports = [uplink (at 4)];
       networking.nameservers = ["192.168.1.3"];
       networking.firewall.enable = false;
-      # Every private and tailnet destination outside the test network: the
-      # host (10.0.2.2), the real LAN, the tailnet.
+      # New connections to every private and tailnet destination outside the
+      # test network: the host (10.0.2.2), the real LAN, the tailnet. Replies
+      # pass: the host's forwarded API port arrives from 10.0.2.2.
       networking.nftables = {
         enable = true;
         tables.contain = {
@@ -140,12 +141,14 @@ in
             }
             chain egress {
               type filter hook output priority 0;
+              ct state established,related accept
               ip daddr 192.168.1.0/24 accept
               ip daddr 10.0.2.3 accept
               ip daddr @blocked drop
             }
             chain forwarded {
               type filter hook forward priority 0;
+              ct state established,related accept
               ip daddr 192.168.1.0/24 accept
               ip daddr @blocked drop
             }
