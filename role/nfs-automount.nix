@@ -62,6 +62,10 @@ in {
   };
 
   config = {
+    # The mount helper (nfs-utils) and its services: without them a mount
+    # fails with "mount program didn't pass remote address".
+    boot.supportedFilesystems = lib.mkIf (cfg != {}) ["nfs"];
+
     systemd.mounts =
       lib.mapAttrsToList (where: share: {
         inherit where;

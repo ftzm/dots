@@ -161,6 +161,9 @@ in {
       "/pool-1/vaultwarden"
       "/pool-1/k8s/immich-db-backup"
       "/pool-1/k8s/forgejo-backup"
+      # headscale's database, snapshotted daily by the pi
+      # (machines/pi/headscale-state.nix).
+      "/pool-1/headscale-backup"
       "/pool-1/k8s/pinepods-downloads"
       "/pool-1/k8s/pinepods-db-backup"
       "/pool-1/k8s/miniflux-db-backup"
@@ -209,6 +212,9 @@ in {
     # Forgejo dumps are written by the git user (uid 1000) inside the CronJob;
     # own the dir 1000:1000 so it can write over NFS (no_root_squash preserves uid).
     "d /pool-1/k8s/forgejo-backup 0755 1000 1000 -"
+    # Written as root by the pi over NFS (no_root_squash); holds the
+    # tailnet's node registrations, so root-only.
+    "d /pool-1/headscale-backup 0700 root root -"
     # PinePods downloads + DB dumps. Kept single-level (not nested): on a `switch`,
     # systemd-tmpfiles does not create a newly-added nested dir whose parent is also
     # brand-new, so these mirror the other flat /pool-1/k8s dirs. Both are written

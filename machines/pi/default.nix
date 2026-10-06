@@ -198,6 +198,8 @@ inputs.nixos-raspberrypi.lib.nixosSystem {
     })
 
     inputs.agenix.nixosModules.age
+    ../../role/lab.nix
+    ./headscale-state.nix
 
     inputs.comin.nixosModules.comin
     {

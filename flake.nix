@@ -142,6 +142,11 @@
         fleetWriterModule = ./role/fleet-writer.nix;
         nodeExporterModule = ./role/node-exporter.nix;
       };
+      # headscale's snapshot / restore-before-start against an NFS "nas".
+      headscale-state = import ./tests/headscale-state.nix {
+        pkgs = nixpkgs-ftzmlab.legacyPackages.${defaultSystem};
+        headscaleStateModule = ./machines/pi/headscale-state.nix;
+      };
       pre-commit-check = git-hooks.lib.${defaultSystem}.run {
         src = ./.;
         hooks = {
