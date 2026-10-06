@@ -159,6 +159,9 @@ in {
           # --user=0:0: read the root-owned .runner and drive the root:podman
           # podman.sock (see the register service for the rationale).
           extraOptions = ["--pull=always" "--user=0:0"];
+          # Hand the daemon's stdout/stderr to its unit (not podman's journald
+          # driver), which mirrors them to the serial console below.
+          log-driver = "passthrough";
         };
       };
 
@@ -167,7 +170,15 @@ in {
       systemd.services."podman-forgejo-runner" = {
         requires = ["podman.socket" "forgejo-runner-register.service"];
         after = ["podman.socket" "forgejo-runner-register.service"];
-        serviceConfig.Restart = lib.mkForce "always";
+        serviceConfig = {
+          Restart = lib.mkForce "always";
+          # The guest has no shell and its journal never leaves it: mirror the
+          # daemon's output to the serial console, which lands in the host
+          # journal (microvm@forgejo-runner). It was silent after nuc's
+          # 2026-10-05 reboot -- running, never polling -- with no way to see why.
+          StandardOutput = "journal+console";
+          StandardError = "journal+console";
+        };
       };
     };
   };
