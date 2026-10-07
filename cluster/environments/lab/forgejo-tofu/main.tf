@@ -73,6 +73,9 @@ resource "forgejo_repository" "dots" {
   description = "NixOS and k3s homelab configuration"
   private     = true
   has_wiki    = false
+  # Its migration source, which the API reports; left out, the provider
+  # plans it empty and fails ("inconsistent result after apply").
+  clone_addr = "https://github.com/ftzm/dots.git"
   # Off until the workflows are ported to .forgejo/workflows: with that
   # directory absent Forgejo runs .github/workflows
   # (modules/actions/workflows.go ListWorkflows), the GitHub workflows,
