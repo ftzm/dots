@@ -22,6 +22,18 @@ api="$repo_dir/bin/forgejo-api"
 live=https://forgejo.lan.ftzmlab.xyz
 scratch=(env KUBECONFIG="$dir/kubeconfig")
 
+# The driver, detached: its own session, stdio on the log and /dev/null, its
+# own PID recorded. Backgrounding a `cd && ...` list instead records the
+# wrapper subshell, which holds the caller's stdout (a pipe never closes).
+start_driver() {
+  (
+    cd "$dir/vm"
+    XDG_RUNTIME_DIR="$dir/vm" TMPDIR="$dir/vm" setsid "$driver/bin/nixos-test-driver" \
+      "$@" --output_directory "$dir" </dev/null >"$dir/driver.log" 2>&1 &
+    echo $! >"$dir/driver.pid"
+  )
+}
+
 case "${1:-}" in
 up)
   mkdir -p "$dir/dump" "$dir/git" "$dir/vm"
@@ -52,8 +64,7 @@ up)
   # The driver keeps VM disks under $XDG_RUNTIME_DIR (a small tmpfs,
   # /run/user/<uid>); nuc's image filled it and the guest went read-only.
   rm -rf "${dir:?}"/vm/vm-state-*
-  (cd "$dir/vm" && XDG_RUNTIME_DIR="$dir/vm" TMPDIR="$dir/vm" setsid "$driver/bin/nixos-test-driver" \
-    --output_directory "$dir" >"$dir/driver.log" 2>&1 & echo $! >"$dir/driver.pid")
+  start_driver
   until [ -e "$dir/ready" ]; do
     if ! kill -0 "$(<"$dir/driver.pid")" 2>/dev/null; then
       tail -20 "$dir/driver.log" >&2
@@ -77,8 +88,7 @@ restart)
   while kill -0 "$(<"$dir/driver.pid")" 2>/dev/null; do sleep 2; done
   rm -f "$dir/ready" "$dir/stop"
   driver=$(nix build --no-link --print-out-paths "$repo_dir#cluster-bootstrap-rehearsal")
-  (cd "$dir/vm" && XDG_RUNTIME_DIR="$dir/vm" TMPDIR="$dir/vm" setsid "$driver/bin/nixos-test-driver" \
-    --keep-machine-state --output_directory "$dir" >"$dir/driver.log" 2>&1 & echo $! >"$dir/driver.pid")
+  start_driver --keep-machine-state
   until [ -e "$dir/ready" ]; do
     kill -0 "$(<"$dir/driver.pid")" 2>/dev/null || { tail -20 "$dir/driver.log" >&2; exit 1; }
     sleep 5

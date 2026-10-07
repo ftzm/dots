@@ -54,7 +54,7 @@ in
     name = "cluster-bootstrap";
     # The driver kills the VMs after an hour by default; run holds them up
     # for the whole rehearsal.
-    globalTimeout = 24 * 3600;
+    globalTimeout = 30 * 24 * 3600;
 
     nodes.nas = {
       imports = [uplink (at 3) ../../role/garage.nix];
