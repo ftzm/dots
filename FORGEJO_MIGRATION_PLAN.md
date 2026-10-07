@@ -1718,6 +1718,43 @@ against a scratch single-node k3s NixOS VM on the workstation, restoring the
 latest nightly, and finish with runbook step 10's checks against it. Time
 it; that number goes here.
 
+**Done 2026-10-07** (`tests/cluster-bootstrap`, driven by its `run`): a
+scratch k3s "nuc" and a fake "nas" on a private VLAN at the real addresses,
+contained by construction (DNS allowlist of GitHub and the registries; no
+route to the real LAN or tailnet; the real nas exports `/pool-1` rw to
+`*`). Clean run: `scripts/bootstrap` 08:21:00 → application controller Ready
+08:21:33; ArgoCD's waves reached Forgejo at 08:24:26; `forgejo-restore
+--restore` (refs from the fake nas's mirrors) passed steps 0–10 in **42 s**
+— about 5 minutes from an empty cluster to a restored, verified Forgejo.
+What it found, each fixed and rerun:
+
+- `bootstrap`: one apply of `manifests/argocd/` cannot bootstrap (kinds
+  resolved before their CRDs exist; the namespace applied after its
+  objects; ServiceMonitor/PrometheusRule/IngressRouteTCP have no CRD until
+  wave 3–4) → three passes, unserved kinds left to the `argocd`
+  Application, which got `SkipDryRunOnMissingResource`; nothing created
+  `argocd-redis` (the chart's init Job is disabled) → bootstrap creates it;
+  a rerun stripped ArgoCD's tracking annotation (server-side apply under its
+  field manager) → create-only applies.
+- The SOPS age key existed only in the live cluster → agenix backup,
+  bootstrap step 1b (Secrets).
+- The database upgrade gates deadlocked on the Secret cnpg creates with the
+  Cluster → `optional` password.
+- 23 dynamic NFS volumes were named by PV UID, so a rebuild would have
+  orphaned every app's state → stable `pathPattern`, `onDelete: retain`;
+  20 moved by `scripts/nfs-stable-paths` (the three database volumes are
+  recovered from backups instead, Database Backup and Recovery).
+- thelounge failed on a fresh volume (root-owned) → init chown; Forgejo
+  likewise (`~/.ssh`) → `bootstrap-admin`.
+- `forgejo-restore`: step 9 read the previous sync's phase → waits for its
+  own.
+
+Unhealthy at the end, all containment: cert-manager (ACME unresolvable),
+traefik (its `lan-wildcard` certificate needs ACME), media (jellyseerr
+fetches pnpm from npm at every start — a real dependency on npm, open),
+`argocd` (inherits cert-manager's state). The scratch network is kept up
+for later rehearsals (`run restart` keeps its state).
+
 ## Restore Runbook
 
 For: nuc's disk lost, `forgejo-data` PVC gone, SQLite corrupted by a migration.
@@ -1859,6 +1896,17 @@ API checks of step 10 — the replay is the part `ls-remote` cannot validate,
 so the rehearsal must include a PR that was merged after the dump and confirm
 it shows as merged afterwards. Delete the namespace after. Time it; that
 number goes here.
+
+**Done 2026-10-06/07** (`scripts/forgejo-restore --rehearse`): 24 s against
+a dump taken with a PR open (merged after) and a queued Actions run; the PR
+came back merged at its real merge commit, the run cancelled, branches and
+open PRs equal to live. Found and fixed: the token's trailing newline broke
+git's POSTs (HTTP 400); `admin regenerate keys` in a Job writes lines
+Forgejo refuses and 16.x has no `regenerate hooks` (step 5 rewritten); with
+Actions off the Actions API is not served (step 6 keeps them on); merged
+PRs do not flip by replay (step 7 marks them); a failed Job hung the
+script; repos absent from the refs source are kept from the dump. The real
+mode (`--restore`) then passed in the Cluster Bootstrap rehearsal above.
 
 ---
 
