@@ -17,6 +17,8 @@
 #     fresh key on first start and no existing SealedSecret decrypts -- so
 #     the script asserts every key is present before the controller
 #     Deployment is applied.
+#  1b. The SOPS age key (secrets/sops-age-key.age) as sops-operator's
+#     sops-age-key Secret, before ArgoCD starts the operator.
 #  2. ArgoCD: a server-side apply of cluster/manifests/argocd/ -- ArgoCD's
 #     install, the self-managing `argocd` Application, the operator
 #     Applications and the services ApplicationSet -- CRDs first, then the
@@ -69,6 +71,17 @@ echo "bootstrap: $have sealing keys present"
 
 "${apply[@]}" -f "$ss_dir/"
 kubectl rollout status -n "$ss_ns" deploy/sealed-secrets --timeout=5m
+
+# --- 1b. The SOPS age key ----------------------------------------------------
+
+# sops-operator decrypts every SopsSecret with it (SOPS_AGE_KEY_FILE
+# /mnt/age/key). Not in git and in no Application, like the sealing keys;
+# without it no SopsSecret becomes a Secret. Created only when missing.
+"${apply[@]}" -f "$cluster_dir/manifests/sops-operator/sops-operator-namespace.yaml"
+if ! kubectl get secret -n sops-operator sops-age-key >/dev/null 2>&1; then
+  (cd "$repo_dir/secrets" && agenix -d sops-age-key.age) |
+    kubectl create secret generic -n sops-operator sops-age-key --from-file=key=/dev/stdin
+fi
 
 # --- 2. ArgoCD ---------------------------------------------------------------
 

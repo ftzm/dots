@@ -37,6 +37,11 @@ in {
   # first starts on a rebuilt cluster. Workstation-only: no host decrypts it.
   # Key renewal is off (cluster lab.jsonnet sealedSecrets), so the set is fixed.
   "sealed-secrets-keys.age".publicKeys = [personal];
+  # The cluster's SOPS age key (sops-operator's sops-age-key Secret, key
+  # "key"; recipient age1v3vw... in cluster/.sops.yaml). Until 2026-10-07 its
+  # only copy was the live Secret. cluster/scripts/bootstrap restores it
+  # before sops-operator first starts. Workstation-only, like the above.
+  "sops-age-key.age".publicKeys = [personal];
   # nuc's binary-cache signing key (FORGEJO_MIGRATION_PLAN.md -> Secrets): nix
   # signs what nuc builds with it, harmonia what it serves. The public half,
   # nuc-fleet-1:..., is every host's trusted key (role/fleet-agent.nix).
