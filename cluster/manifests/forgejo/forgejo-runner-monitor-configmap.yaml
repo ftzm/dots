@@ -1,0 +1,23 @@
+apiVersion: v1
+data:
+  config.yml: |-
+    "modules":
+      "runners":
+        "http_client_config":
+          "authorization":
+            "credentials_file": "/token/token"
+            "type": "token"
+        "metrics":
+        - "help": "A runner registered with Forgejo, by status"
+          "labels":
+            "runner": "{.name}"
+            "status": "{.status}"
+          "name": "forgejo_runner"
+          "path": "{[*]}"
+          "type": "object"
+          "values":
+            "info": 1
+kind: ConfigMap
+metadata:
+  name: forgejo-runner-monitor
+  namespace: forgejo

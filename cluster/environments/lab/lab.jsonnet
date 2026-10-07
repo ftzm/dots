@@ -1,5 +1,6 @@
 local backup = import '../../lib/backup.libsonnet';
 local forgejoUpgrade = import '../../lib/forgejo-upgrade.libsonnet';
+local forgejoTofu = import '../../lib/forgejo-tofu.libsonnet';
 local cleanuparr = import '../../lib/cleanuparr.libsonnet';
 local alerts = import '../../lib/alerts.libsonnet';
 local logformats = import '../../lib/logformats.libsonnet';
@@ -3544,5 +3545,18 @@ local patchTargetDown(resources) = {
             'admin-password': 'AgCPVswvWsyKNskel0+V7HeyfTyE4xjIAP0qwp6HV5ZQQP6su/SXmpBHVqWamXPpIJ+1Y42VQVCWZCPv8LMAZynMRUplsNmDIj31Tnjvd4x/v/M6rCnXVME1OBWxayjXubMNrboE6ke/lX8wbMl/S1E4YNAxC5gwubIC3u+V63liWi/60358Bl1Ia3siop91+Gc8WYuxChORCUqXp+Z+eXP7XRg6wgc7MXVNnEGqXVMbzdqvvxMUHbFrZSKalBoGOLwi0HJ2OYyFhaWX/jdw7v233K7fQX1ClDtoo3+fY1+LK7tNPbP0X94ZH8f/CqpNPlqMsNV5Tk1B7lGByesORA/ySR8b5t3rgD4FQS2HgsZX/o5j1D/qds0Ptjsk6hhVqe15wZvpL0uC7COR9gMDo+DGOZ0oqsyg73TUcEXDzORYlNCgfx/VHyVn1K6AdZINFnndHXWBXo2Uhpgl/S1A/p7rIySeGbmEYzQMQRURPZH3n4HEX9fFxk0n9sBJgrbc9kbvs9CJBTDuzoUsdXoagwSA8Ycr2qiloMTJ9DYYXYY4I4JxAqF/DJcFC+qI7NeWm8IWf8mkgDYSF/hnIeOblloOe45tFAjzMmN6Z53+znekSaYl/SWGdCJYQvpvSaPZKcZ6SUwibG9tEM9uOqTl47ZJdayLsUM5u3h4AZU+2OK9ySI1MZGt5j5jTDOdm1UHnHVv+I+3gKPj7BU5Xtk5cz1vCpiltg==',
             'admin-email': 'AgAfFQ0ZGCbwTRvz6MUPEhBFp0kW4AQtyTMKPLOVuT2T2cwAq82X3TCXVfexT4DEvxqCOITueZVfp+Zp234yh4o5ZunzPadlZOJRE3ciEdDkhlgYkSfwWEjRYSJcNg38GE2g+2rqUAzcrNqLWwsEQUhDdKBSt5AOQDwmO/zlQx1PGOEiE4zOJ8BhmoyWgW3e4PcrdonVPFYebN9SqkgkdH+1exnCkD3BkUxPoQUL48yNfHJ/KOtLBZLnoei+a9yvA2lMfcM7M02mcX306cbMSOZvkEFouxRvsl8TAul63bOcwy+Mu9fw3TJpeKFXZIaruOhwua02hmgECSzNsac149/3Q2Bsw1PbZU6bP5i7ymirc6r5nRZ+1C0DNmMLaZtwzrKnkL7F8EP3NRbgOEnIQJT+wk9cAX+WX85MfzK/P5RHfN2rwd44n8xTosOS9AeckfqA+CXEINZIRCwRE6DvdO8HZlkg9nObei9OUbPQrhSIv90LFZdLir4K7o5DzTiiZHs4pC9lKgUDpzVaBOY+LHaHS9rgbsQW5dqLwxcwZvH/Alt5ULhBX/tP+E5WSuWWDPAlZ7mLkWH+SktB76ZHpV6Z2lMAJC1GbDzyIoEeC3P3xnEIV9nPIGzej9ScZhenEsKg3lYbQCL/j4o/nTqa/0a3y7baZG3gK14S+Qei5WV/U7ZFAcCFBsYg2T9z/N+cP0UYJ/jdGppBZmDL',
   }, prod=true),
+
+  // Forgejo's configuration as OpenTofu, and the runner monitoring it
+  // provisions (lib/forgejo-tofu.libsonnet).
+  forgejoTofu: forgejoTofu.new({
+    ns: 'forgejo',
+    forgejoUrl: 'http://forgejo.forgejo.svc:3000',
+    // nix-built, imported into k3s on nuc (machines/nuc, k3sLocalImages).
+    image: 'localhost/forgejo-tofu:nix',
+    jsonExporterImage: images.jsonExporter,
+    mainTf: importstr 'forgejo-tofu/main.tf',
+    lockFile: importstr 'forgejo-tofu/.terraform.lock.hcl',
+    alerts: alerts,
+  }),
 
 }

@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"
+  name: forgejo-tofu
+  namespace: forgejo
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: forgejo-tofu
+    spec:
+      containers:
+      - args:
+        - |
+          set -euo pipefail
+          mkdir -p /tmp/work && cp /config/main.tf /config/.terraform.lock.hcl /tmp/work/
+          cd /tmp/work
+          tofu init -input=false -no-color -lockfile=readonly
+          tofu apply -input=false -no-color -auto-approve
+        command:
+        - /bin/bash
+        - -c
+        env:
+        - name: FORGEJO_HOST
+          value: http://forgejo.forgejo.svc:3000
+        - name: FORGEJO_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: admin-username
+              name: forgejo-secrets
+        - name: FORGEJO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: admin-password
+              name: forgejo-secrets
+        image: localhost/forgejo-tofu:nix
+        imagePullPolicy: Never
+        name: tofu
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          readOnly: true
+      nodeSelector:
+        kubernetes.io/hostname: nuc
+      restartPolicy: Never
+      serviceAccountName: forgejo-tofu
+      volumes:
+      - configMap:
+          name: forgejo-tofu
+        name: config

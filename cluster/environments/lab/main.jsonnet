@@ -12,6 +12,7 @@ local namespaceOf = {
   cnpg: 'cnpg-system',
   externalDns: 'external-dns',
   forgejo: 'forgejo',
+  forgejoTofu: 'forgejo',
   healthchecks: 'healthchecks',
   helloWorld: 'hello-world',
   homepage: 'homepage',

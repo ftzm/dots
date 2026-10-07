@@ -1,0 +1,32 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    release: kube-prometheus-stack
+  name: forgejo-runners
+  namespace: forgejo
+spec:
+  groups:
+  - name: forgejo-runners
+    rules:
+    - alert: ForgejoRunnerOffline
+      annotations:
+        description: 'Forgejo reports the runner {{ $labels.runner }} offline for
+          15 minutes, so no Actions job that needs it runs. Check its host (the nuc-microvm
+          runner: `systemctl status microvm@*` on nuc) and its logs.'
+        summary: Forgejo runner {{ $labels.runner }} offline
+      expr: forgejo_runner_info{status="offline"} == 1
+      for: 15m
+      labels:
+        severity: warning
+    - alert: ForgejoRunnerMonitorDown
+      annotations:
+        description: 'No forgejo_runner_info for 15 minutes: json_exporter (forgejo-runner-monitor)
+          cannot read /admin/actions/runners, or Forgejo lists no runners. Check the
+          exporter''s logs and the forgejo-monitor-token Secret, which the forgejo-tofu
+          Job writes.'
+        summary: Forgejo runner state unknown
+      expr: absent(forgejo_runner_info)
+      for: 15m
+      labels:
+        severity: warning

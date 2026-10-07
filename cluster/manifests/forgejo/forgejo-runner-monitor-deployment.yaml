@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: forgejo-runner-monitor
+  name: forgejo-runner-monitor
+  namespace: forgejo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: forgejo-runner-monitor
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: forgejo-runner-monitor
+    spec:
+      containers:
+      - args:
+        - --config.file=/config/config.yml
+        image: quay.io/prometheuscommunity/json-exporter:v0.8.0
+        name: json-exporter
+        ports:
+        - containerPort: 7979
+          name: http
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          readOnly: true
+        - mountPath: /token
+          name: token
+          readOnly: true
+      volumes:
+      - configMap:
+          name: forgejo-runner-monitor
+        name: config
+      - name: token
+        secret:
+          optional: true
+          secretName: forgejo-monitor-token

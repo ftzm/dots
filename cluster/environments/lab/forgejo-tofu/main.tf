@@ -1,0 +1,59 @@
+# Forgejo's configuration, applied by the forgejo-tofu PostSync Job in the
+# Forgejo Application (FORGEJO_MIGRATION_PLAN.md -> Secrets -> Forgejo
+# configuration as OpenTofu). Providers are pinned by .terraform.lock.hcl.
+# Credentials: the sealed Forgejo admin (FORGEJO_HOST, FORGEJO_USERNAME,
+# FORGEJO_PASSWORD) -- tokens can only be created with basic auth.
+
+terraform {
+  required_providers {
+    forgejo    = { source = "svalabs/forgejo", version = "1.6.1" }
+    kubernetes = { source = "hashicorp/kubernetes", version = "3.3.0" }
+    random     = { source = "hashicorp/random", version = "3.9.1" }
+  }
+  # State, and the tokens it mints, in a Secret in the forgejo namespace.
+  backend "kubernetes" {
+    secret_suffix     = "forgejo"
+    namespace         = "forgejo"
+    in_cluster_config = true
+  }
+}
+
+provider "forgejo" {}
+
+provider "kubernetes" {}
+
+# --- Runner monitoring ---------------------------------------------------
+# Forgejo's metrics have no runner state; json_exporter reads
+# GET /admin/actions/runners with this bot's read:admin token
+# (lab.jsonnet forgejo runner monitoring, ForgejoRunnerOffline).
+
+resource "random_password" "monitor" {
+  length  = 40
+  special = false
+}
+
+resource "forgejo_user" "monitor" {
+  login                = "monitor"
+  email                = "monitor@forgejo.invalid"
+  full_name            = "Runner monitor (OpenTofu)"
+  password             = random_password.monitor.result
+  admin                = true # /admin/actions/runners needs a site admin
+  must_change_password = false
+  visibility           = "private"
+}
+
+resource "forgejo_personal_access_token" "monitor" {
+  user   = forgejo_user.monitor.login
+  name   = "runner-monitor"
+  scopes = ["read:admin"]
+}
+
+resource "kubernetes_secret_v1" "monitor_token" {
+  metadata {
+    name      = "forgejo-monitor-token"
+    namespace = "forgejo"
+  }
+  data = {
+    token = forgejo_personal_access_token.monitor.token
+  }
+}

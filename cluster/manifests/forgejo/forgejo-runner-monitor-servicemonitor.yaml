@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: forgejo-runner-monitor
+  namespace: forgejo
+spec:
+  endpoints:
+  - interval: 60s
+    params:
+      module:
+      - runners
+      target:
+      - http://forgejo.forgejo.svc:3000/api/v1/admin/actions/runners
+    path: /probe
+    port: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: forgejo-runner-monitor
