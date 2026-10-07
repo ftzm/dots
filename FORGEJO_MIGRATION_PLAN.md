@@ -39,7 +39,7 @@ Current state:
 |---|---|---|
 | Source of truth | GitHub | Forgejo (in-cluster) for development; its `master` mirrored to nas, which ArgoCD and the writer deploy from |
 | Host deploy | comin pulls `master` from GitHub, evaluates and builds on each host | **`fleet-agent`** on every host (pi included): reads the manifest pointer from nuc's `:5001/fleet/` over LAN (`192.168.1.4`: nas, pi) or Tailscale (`100.64.0.2`: laptops), realises the manifest (a store path signed by nuc's cache key), substitutes its own path, switches. No git, no evaluation, no comin |
-| ArgoCD `repoURL` | GitHub https | bare mirror `ssh://git@192.168.1.3/dots.git` on nas, fed by a Forgejo push mirror; read-only key |
+| ArgoCD `repoURL` | GitHub https | bare mirror `ssh://git@192.168.1.3/pool-1/git/dots.git` on nas, fed by a Forgejo push mirror; read-only key |
 | CI | GitHub-hosted, ephemeral | Forgejo Actions: a host-mode runner on nuc registered to `dots` only (its CI and Renovate); the existing microVM registered to `ftzm/triage` only (the triage agent). No `dots` job runs on an instance-wide runner (Workflow security, rule 2) |
 | Build artifacts | discarded | built pre-merge by **nuc's own nix daemon** (trusted jobs use it over the local socket), signed by nuc, served by harmonia on nuc; a writer on nuc publishes the manifest; hosts substitute |
 | Deploy model | comin pull, evaluate + build per host | `fleet-agent` pull: manifest, substitute, switch — no evaluation anywhere but nuc |
@@ -134,7 +134,7 @@ bootstrap. Keeping the GitOps source outside what it deploys is the standard
 fix for this known antipattern. The source is a git repo, not Forgejo:
 
 - Forgejo push-mirrors `master` of `dots` to a bare repo on nas,
-  `ssh://git@192.168.1.3/dots.git`, with `sync_on_commit: true` and
+  `ssh://git@192.168.1.3/pool-1/git/dots.git`, with `sync_on_commit: true` and
   `branch_filter: master` (`modules/structs/mirror.go:14-16`; without a
   filter it pushes every branch with `+refs/heads/*`,
   `services/mirror/mirror_push.go:78`), declared by the Forgejo OpenTofu job (Secrets).
