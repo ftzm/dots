@@ -36,6 +36,8 @@ spec:
           value: "true"
         - name: FORGEJO__actions__ENABLED
           value: "true"
+        - name: FORGEJO__migrations__ALLOWED_DOMAINS
+          value: external,192.168.1.3/32
         - name: FORGEJO__security__SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -114,6 +116,8 @@ spec:
           value: "true"
         - name: FORGEJO__actions__ENABLED
           value: "true"
+        - name: FORGEJO__migrations__ALLOWED_DOMAINS
+          value: external,192.168.1.3/32
         - name: FORGEJO__security__SECRET_KEY
           valueFrom:
             secretKeyRef:

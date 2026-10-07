@@ -117,8 +117,10 @@ data:
     }
 
     resource "forgejo_personal_access_token" "monitor" {
-      user   = forgejo_user.monitor.login
-      name   = "runner-monitor"
+      user = forgejo_user.monitor.login
+      # The name forces a new token: the provider does not see a change of
+      # scopes (read:repository added, no diff). Rename it to change scopes.
+      name   = "monitor-2"
       # read:repository for the push mirrors' last_error (ForgejoPushMirrorFailing).
       scopes = ["read:admin", "read:repository"]
     }
