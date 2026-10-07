@@ -15,6 +15,7 @@ in {
     ./hardware.nix
     ../../role/network.nix
     ../../role/garage.nix
+    ../../role/git-mirror.nix
     ../../role/resilience.nix
     ../../role/lab.nix
     ../../role/node-exporter.nix
@@ -174,6 +175,24 @@ in {
     buckets.cnpg-backups = ["cnpg"];
   };
 
+  # The deploy source of truth (FORGEJO_MIGRATION_PLAN.md -> Decisions):
+  # ssh://git@192.168.1.3/dots.git, forward-only. Forgejo's push-mirror key
+  # joins writeKeys when the OpenTofu job creates the mirror.
+  gitMirror = {
+    enable = true;
+    root = "/pool-1/git";
+    writeKeys = [
+      # The workstation: fixes go here while Forgejo is down.
+      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
+    ];
+    readKeys = [
+      # The fleet writer on nuc (secrets/fleet-writer-nas-key.age).
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEe5zdgFHsQ+cp7rTxGVoGVgukBQULu7MnVXobMKYOS5 fleet-writer@nuc"
+      # ArgoCD (the nas-mirror-repo-creds SealedSecret).
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL9D44w73ZLuRNcAR8/CLh4y6W6XVsI1Tnen5aBofGxW argocd@cluster"
+    ];
+  };
+
   age.secrets.borgbase-key.file = ../../secrets/borgbase_key.age;
   age.secrets.borgbase-passphrase.file = ../../secrets/borgbase_passphrase.age;
 
@@ -192,6 +211,8 @@ in {
       # Garage's data and metadata (with its auto-snapshots): the database
       # base backups and WAL archives.
       "/pool-1/garage"
+      # The nas mirror: master, never behind Forgejo's last push.
+      "/pool-1/git"
     ];
     exclude = [];
     repo = "d6hr008k@d6hr008k.repo.borgbase.com:repo";

@@ -47,6 +47,9 @@ in {
   # same key, sealed, is the garage-cnpg Secret in each database namespace).
   "garage-env.age".publicKeys = [personal nas];
   "garage-cnpg-key.age".publicKeys = [personal nas];
+  # The fleet writer's read-only key for the nas mirror (role/git-mirror.nix
+  # readKeys on nas); the writer polls the mirror once it is the source.
+  "fleet-writer-nas-key.age".publicKeys = [personal nuc];
   # nuc's binary-cache signing key (FORGEJO_MIGRATION_PLAN.md -> Secrets): nix
   # signs what nuc builds with it, harmonia what it serves. The public half,
   # nuc-fleet-1:..., is every host's trusted key (role/fleet-agent.nix).

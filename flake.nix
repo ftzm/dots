@@ -134,6 +134,11 @@
         pkgs = nixpkgs-ftzmlab.legacyPackages.${defaultSystem};
         headscaleStateModule = ./machines/pi/headscale-state.nix;
       };
+      # The nas mirror's forward-only and read-only guarantees.
+      git-mirror = import ./tests/git-mirror.nix {
+        pkgs = nixpkgs-ftzmlab.legacyPackages.${defaultSystem};
+        gitMirrorModule = ./role/git-mirror.nix;
+      };
       pre-commit-check = git-hooks.lib.${defaultSystem}.run {
         src = ./.;
         hooks = {

@@ -397,6 +397,29 @@ local patchTargetDown(resources) = {
   argocd: {
     local ns = 'argocd',
 
+    // Read-only credential for the nas mirror (role/git-mirror.nix readKeys
+    // on nas). Inert until repoURL moves to ssh://git@192.168.1.3/dots.git
+    // (FORGEJO_MIGRATION_PLAN.md step 3); the private key exists only here.
+    nasMirrorRepoCreds: {
+      apiVersion: 'bitnami.com/v1alpha1',
+      kind: 'SealedSecret',
+      metadata: { name: 'nas-mirror-repo-creds', namespace: ns },
+      spec: {
+        encryptedData: {
+          sshPrivateKey: 'AgCIos8mx8Cp81lQHrdxMXPD1GZnSy/yY+z10Trpg6SHdcIZoXvheo6Awt19vsHQlqSqwx+pYbwSsbQo+7xPLvB+ODtvH4Aefz+5qejj8RedKOY2e/zxvfxbIVWuzaNNt03nrsF1LD544Wvq6tzF6SZoOBJQnGzBIuH3nZm+Abdrur4ZL23MOglw/2zmOek9V0fRHSsRPN7PCTMgLt8x8/iL5SgHMoaC2LywC5oUgNY7Qki0iRWW/iroUjIhU/gtw1932QhowDUa0YTEsl8++foGl/W1jHy+YgkRlMYWmv39bT757aX6PRx7uJJTkriKZJoC87qXocNnoKnjBF/xfgDEEmATQb8ko+8+nZ64A8cTLxXKPIHGq702Xtt0tG+/dT1i/462XL5/wGD6RIFT0yi5Jqp9hRR6Q/A+uyYQ3ojKWBJf5UazM4jnzmbYSVJShO+ymBCo1U9IcTW5+C9XcljnRWp5qTAW75eSMtai1IdUne02MGLOpq69h6I9l2aLVOBM+e6Y+2TEH6Y/xKC6a6T3tnBeGut1VccP9ME8Lz/3xH+4zy1KiKBgrzxs+06Zfp60UQ9cq1YktxkaUiF3louThs1q8SRHd+ZujHITpuEbRteJLLZ24YHUIMtBA3SUpHpBICFltNu75eILNfSjyITboZYbQj0wH0d5YELRts6F6Eohxg1Ote1gk+0Jqez+gcTvtbkKrB+pmTr1UgkyWAY/VjKeg+L7rUNc+GQPB4aQUIdoq9uXBwG1fu1EmUsX7F7IVE/2BuCPKY9t1kLbzR72ro/042+2l+5mJTt+4D3N45Ra3AD77IeAX1Se5KFu+P+qCnE0MEa5rSOFDAIw+DD+6LlwtB/JHdJHVG+zztbc+gE2x20ajUhnuXqRCJG7Kyxp4Id8H6xtF/ttUEN50PODPliAcrjRv1mSBdTvnH01pXbd/QSJJcPQj0ruqzgFD6VP11OPHdFwD+fKsJTSLlTljZOjtxIqh7VGXA0iNlyh9mSFHLwcQst2GzSJ5GuRmLdHBlYUqtQJiXw79eDcvKI6uYOypdrzIXMxTuKPOldYFQUL5k5srdwy+7b6Wu3fAWGWoH+IJu63BZIqzmBFe+yBqO6lCASfiX4WxU7uMokd/fPN3un9N7Qo8qCjAXasRxPosVcHlMmYvEQ2qACJhLlhVYsXi6rQFa4+1XRaeetpXPvJ4z9Qg0523ng8TU6f/4L6tPqnCiZ24PAzSHClvXRmPPxY3dtP7YcId84=',
+          type: 'AgCVSlgfBvMBe+LXZ1X31mYtXLQRd/iVc6fYdYqQ9Lc2o8tZ2mnwPwGXBvNRn6wamQbhcCmhPg81TRy2BkpwP9UlnkrnjNGGCKZW42RVJMwnYUUoPofhyK1N4+Mdwp8KELl9SF0SjvpVxmUFUogYW7TD4MwefO6tjgiBVswzTtYbPgJqpD9o+OcLb88gCRLxa5hCHDqAkX8AKM2gVfwIdyHBrpmwAMIWP26eQWbNVPPiyMb38Y6+A1hPiH+q2myXMNKqBROcO92ic4MUbbkKJlN+JaDad2Z3ogTZl6+BWm1zPlynZGy1PhZqmkHa3XVCS9JUuF70jPMCh4NbpK1/rq9n71uxxc7iomZE2znkHtAMDd+Lfu0mmJznewiA4ZkPeDRxdH53Gq7m2zdJca14t5PMOtGbvnYY7d4Lk4xzG2loEedf00DzqEcrVKYYl2jiN/qX/QlOKcgDjcT5YqaUfzzdctKqCGlODEyMTQhSKRMjdOvDbHdbRu55+KV5jeO8soGu/q2+xTL83xkj18TQIxq4t4oUegCiVKG4og/XSMooFnaM/mNuuKwvAk9ynuOf+yzuYdY3IucykDd+ieyakypPutuLqiy9xTbfsyqhJlF9plSL86EhR2jsq/i/DBU+4e+Qv220bRnnSu3pbXVeCNYYUbn2T8g5VoFkdgrfuOYgDkuVowfIk3EM47MEvLEkqAqRq6M=',
+          url: 'AgA6NewBtsdsl0h26N2pw7InSCi+RNxPJgki4qdraeQ7S/t5IJngD51L5MQdXHx+EpyomnipagCKlYBfOVmfpOhFED7c2oFLBcw0rxcRcITASynkZqSRkBoO2ZDuRHGz1ezER1z9Lnt9uLhHIDKwgHocSmH/bMB7SBoxcvjCpQg1+joUn/wmv1EfMwQLDweb2ZpTh05AXQucVXucEhFDJAVr/WtWwfA9ZkC7RHQbnLrwJXEuKEAOUpezbiQx5vI5JN4V9roECepWJVvpHBwdI6v7w1anNfaOgAu5RwpZbta0DGP5mqfNrq+BrSjx9qOs/XyUTes0A5YcC8/qseahl7/MdprOVL5b8xbNpZG+gBqca9+a1M0vwjCi5D2ApOCRHoMbqfHgrS9P7A93CAIrG0quJIoMrVodV4vwZGQf1Vj5Rq09gCyDi84x8xUsZEg137HwtJJwzsk3XytLnhTbd4qpooVmWpcRWZGq/6GbBhMdSGXXNY1sYf2DXpmVolIfqINVwJmEm+ZfqWH2xQnEzmChIhBFsS/NDS4qwq0QHGFBi5wdL/EqDJQjoqfOWSkzKUdc3Ay9wc7vJWe6JxJJ0wekbuchAxbRjAYuLLd6UM+UgjvOg6FeD7Dy5z56cxgdjx3OjHk4aQiovg5jsb9avuG6Mx/bryKxwNCBPl+BRN3UWV63TUyRBCIMfuoyoZSJFgxAiHeKq0Yze8dBLAAP1UpPwoqmrQs=',
+        },
+        template: {
+          metadata: {
+            name: 'nas-mirror-repo-creds',
+            namespace: ns,
+            labels: { 'argocd.argoproj.io/secret-type': 'repo-creds' },
+          },
+        },
+      },
+    },
+
     // The git source of every Application below and of the ApplicationSet.
     local repo = {
       repoURL: 'https://github.com/ftzm/dots.git',
