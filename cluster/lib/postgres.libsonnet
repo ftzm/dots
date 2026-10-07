@@ -480,8 +480,26 @@
   // `generation` names the archive this Cluster writes, <cluster>-g<n>.
   // Credentials: the garage-cnpg Secret in the namespace (ACCESS_KEY_ID,
   // ACCESS_SECRET_KEY, REGION).
-  barmanBackup(cluster, ns, generation, nasIP, retention='30d'):: {
+  //
+  // Rebuild: set recoverFrom to the generation to recover (the current one)
+  // and generation to the next, never used before -- cnpg checks the new
+  // archive is empty. bootstrap(...) then yields bootstrap.recovery and the
+  // Cluster gains the archive as its externalClusters source; with
+  // recoverFrom null both are as before (FORGEJO_MIGRATION_PLAN.md ->
+  // Database Backup and Recovery).
+  barmanBackup(cluster, ns, generation, nasIP, retention='30d', recoverFrom=null):: {
     local store = cluster + '-backup',
+    recovering:: recoverFrom != null,
+    // The Cluster's spec.bootstrap: `initdb` as declared, or the recovery.
+    bootstrap(initdb):: if recoverFrom == null then initdb else { recovery: { source: 'archive' } },
+    // The Cluster's spec.externalClusters, when recovering.
+    externalClusters:: [{
+      name: 'archive',
+      plugin: {
+        name: 'barman-cloud.cloudnative-pg.io',
+        parameters: { barmanObjectName: store, serverName: '%s-g%d' % [cluster, recoverFrom] },
+      },
+    }],
     local secret(key) = { name: 'garage-cnpg', key: key },
     objectStore: {
       apiVersion: 'barmancloud.cnpg.io/v1',

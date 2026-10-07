@@ -2792,7 +2792,7 @@ local patchTargetDown(resources) = {
         postgresql: {
           shared_preload_libraries: ['vchord.so'],
         },
-        bootstrap: {
+        bootstrap: barman.bootstrap({
           initdb: {
             database: 'immich',
             owner: 'immich',
@@ -2801,7 +2801,8 @@ local patchTargetDown(resources) = {
               'CREATE EXTENSION earthdistance CASCADE;',
             ],
           },
-        },
+        }),
+        [if barman.recovering then 'externalClusters']: barman.externalClusters,
       },
     },
 
@@ -3023,7 +3024,8 @@ local patchTargetDown(resources) = {
         imageCatalogRef: postgres.catalogRef('postgresql', pgMajor),
         enableSuperuserAccess: true,
         storage: { size: '5Gi', storageClass: 'nfs' },
-        bootstrap: { initdb: { database: 'pinepods_database', owner: 'pinepods' } },
+        bootstrap: barman.bootstrap({ initdb: { database: 'pinepods_database', owner: 'pinepods' } }),
+        [if barman.recovering then 'externalClusters']: barman.externalClusters,
       },
     },
 
@@ -3176,7 +3178,8 @@ local patchTargetDown(resources) = {
         plugins: barman.plugins,
         imageCatalogRef: postgres.catalogRef('postgresql', pgMajor),
         storage: { size: '5Gi', storageClass: 'nfs' },
-        bootstrap: { initdb: { database: 'miniflux', owner: 'miniflux' } },
+        bootstrap: barman.bootstrap({ initdb: { database: 'miniflux', owner: 'miniflux' } }),
+        [if barman.recovering then 'externalClusters']: barman.externalClusters,
       },
     },
 

@@ -451,6 +451,7 @@ Used for secrets created interactively.
 - Connects to a NAS at `192.168.1.3:/pool-1/k8s`.
 - Creates a default `StorageClass` named `nfs`.
 - All PersistentVolumeClaims in the cluster (Prometheus, Loki, Tempo, Grafana, ntfy) are dynamically provisioned here.
+- Each claim gets the directory `<namespace>-<claim>` (`pathPattern`), not one named after the PV's random UID, so a rebuilt cluster's claims find their data; `onDelete: retain` leaves a deleted claim's directory for its recreation. `scripts/nfs-stable-paths NAMESPACE...` moved the volumes provisioned before this (2026-10-07); the cnpg database volumes were left UID-named, their recovery is from backups (below).
 
 ### Ingress — Traefik v3
 
@@ -688,6 +689,19 @@ document:
   extension format change, and if the result misbehaves you cannot tell which
   caused it.
 
+
+### Backups and recovery
+
+Every Cluster backs up continuously through CloudNativePG's Barman Cloud
+plugin (`cnpg-system`) into Garage on nas (`role/garage.nix`, bucket
+`cnpg-backups`, inside nas's borgbase job): WAL archived as written, a base
+backup daily at 02:30, 30 days kept. `postgres.barmanBackup` adds a Cluster's
+`ObjectStore`, `ScheduledBackup` and `spec.plugins`; its credentials are the
+`garage-cnpg` SealedSecret in the namespace. Recovery bootstraps a new
+Cluster from the archive: set `recoverFrom` to the generation it was
+archiving and `generation` to the next, unused one, and commit
+(`FORGEJO_MIGRATION_PLAN.md` -> Database Backup and Recovery). The `pg_dump`
+CronJobs still run alongside until these backups have a track record.
 ---
 
 ## Forgejo Upgrades

@@ -1702,7 +1702,10 @@ files from `cluster/manifests`, which ArgoCD adopts unchanged. In order:
    the same wave, sees no database and passes; its SSH host key comes from
    its SealedSecret). The immich, miniflux and pinepods gates pass the same
    way: no cnpg `Cluster` yet (`ARGOCD_APPLICATIONS_PLAN.md` → Hooks and
-   waves). An
+   waves; their database password is `optional` since the rehearsal found
+   them deadlocked on the Secret cnpg creates with the Cluster). Their
+   databases come back by Database Backup and Recovery → Rebuild runbook, not
+   empty `initdb`. An
    empty Forgejo is harmless: ArgoCD does not read it, and it has no push
    mirror, runners or tokens configured.
 3. **Restore Runbook steps 0–10** against it.
@@ -1856,6 +1859,98 @@ API checks of step 10 — the replay is the part `ls-remote` cannot validate,
 so the rehearsal must include a PR that was merged after the dump and confirm
 it shows as merged afterwards. Delete the namespace after. Time it; that
 number goes here.
+
+---
+
+## Database Backup and Recovery (CloudNativePG)
+
+The immich, miniflux and pinepods databases are cnpg Clusters. Until
+2026-10-07 their only backup was a nightly `pg_dump` CronJob, and a rebuilt
+cluster had no way back to their data. cnpg's own position (Backup docs,
+operator 1.30.1): logical dumps "are **not suitable for business continuity**
+and are **not managed** by CloudNativePG"; it supports physical backups only,
+through the **Barman Cloud plugin** (object store, continuous WAL archiving;
+the in-tree `barmanObjectStore` "is being progressively phased out" since
+1.26) or CSI VolumeSnapshots — which nfs-subdir-external-provisioner cannot
+take ("`VolumeSnapshot` support is only available for CSI drivers"). And
+"recovery is not performed in-place on an existing cluster. Instead, it is
+used to bootstrap a new cluster from a physical backup."
+
+**What runs (live since 2026-10-07):**
+
+- **Garage 2.4.1 on nas** (`role/garage.nix`, nixpkgs `garage_2`; plain
+  `garage` is still 1.3.1): one node, data and metadata on `pool-1`, SQLite
+  metadata (Garage's guide: LMDB "has a tendency of becoming corrupted after
+  an unclean shutdown") with 6-hourly consistent metadata snapshots,
+  `/pool-1/garage` in the borgbase job. Bucket `cnpg-backups`, key `cnpg`;
+  `garage-provision` reconciles layout, key (imported through the admin API)
+  and bucket after every start. Secrets: `garage-env.age`,
+  `garage-cnpg-key.age`; the key sealed as `garage-cnpg` per database
+  namespace. Chosen over MinIO (community edition archived, no longer
+  maintained since February 2026) and RustFS (on cnpg's tested list, but 1.0
+  only on 2026-09-16 and not in nixpkgs); Garage is actively developed
+  (v2.4.1 2026-09-07), needs 1 GB RAM (nas: 4 cores, 13 GB, load ~0.2;
+  the three databases total ~370 MB) and accepts the CRC32 checksums boto3
+  sends since 1.36, the usual break with S3 lookalikes. Its own caveat stands:
+  one node gives no redundancy of its own; ZFS and borg do.
+- **The Barman Cloud plugin** (chart 0.8.1, plugin v0.15.1) in `cnpg-system`,
+  certificates from cert-manager. `postgres.barmanBackup` gives each Cluster
+  an `ObjectStore` (`s3://cnpg-backups/<namespace>`, 30-day retention, gzip),
+  a daily `ScheduledBackup` (02:30, `immediate`) and `spec.plugins`
+  archiving WAL as `<cluster>-g<generation>`.
+- Live state at enablement: all three `ContinuousArchiving: True`, a first
+  base backup each, 105 MB in the bucket.
+
+**Rehearsed** in the Cluster Bootstrap scratch network (Garage on the fake
+nas): miniflux and immich (VectorChord 1.1.1) archive, take base backups and
+recover into new Clusters with rows written *after* the base backup (WAL
+replay); a full miniflux rebuild from the archive (Cluster deleted,
+recreated with `bootstrap.recovery`) came back with its data, the app
+connected with cnpg's regenerated `-app` credentials, and the new generation
+archived and backed up. Not rehearsed: pinepods (same `postgresql` image as
+miniflux), point-in-time recovery to a chosen target.
+
+**Findings:**
+
+- cnpg refuses to recover into a non-empty archive
+  (`barman-cloud-check-wal-archive`): **every recovery archives to a
+  generation never used before.** A raced test that had written `g2` made the
+  next recovery fail until `g3`.
+- cnpg's webhook accepts changing an existing Cluster's `bootstrap` from
+  `initdb` to `recovery`, so a rebuild is a commit.
+- Enabling the plugin on a running Cluster: the `ScheduledBackup`'s immediate
+  backup fires before the instance restarts with the plugin's sidecar and
+  fails (`requested plugin is not available`); a `Backup` right after
+  succeeds. Clusters created with the plugin (rebuilds) have the sidecar from
+  the start.
+- A recovered instance on a reused stable directory (the `nfs` class's
+  `pathPattern`, `onDelete: retain`) is fine: the recovery job replaces the
+  old PGDATA. The three database volumes on live are still UID-named and were
+  left so by `scripts/nfs-stable-paths`; recovery does not need them.
+- cnpg's webhook defaults `plugins[].enabled`; declared, or the Clusters stay
+  OutOfSync.
+
+**Rebuild runbook** (after the Cluster Bootstrap has cnpg-system, the plugin
+and the `garage-cnpg` SealedSecrets up; Garage on nas untouched):
+
+1. One commit: for each database, `postgres.barmanBackup(cluster, ns,
+   generation=N+1, nasIP, recoverFrom=N)` where N is the generation it was
+   archiving (`lab.jsonnet`). The Cluster's `bootstrap` becomes
+   `recovery` from `<cluster>-gN` (`externalClusters` source `archive`), and it
+   archives to `<cluster>-g(N+1)`.
+2. ArgoCD syncs; each Cluster bootstraps from its newest base backup and
+   replays the archived WAL. The upgrade gates pass (no Cluster exists when
+   they run, `optional` password).
+3. Verify: Cluster healthy, `ContinuousArchiving: True`, the app reaches its
+   data; a `Backup` into the new generation completes.
+4. Leave `recoverFrom` set: `bootstrap` only acts at creation, and the next
+   rebuild moves N on again.
+
+**Still to do:** retire the `pg_dump` CronJobs once these backups have run
+for a while; check what the custom major-upgrade hooks do beyond the dump
+(immich's `vchord` reindex in particular) against immich's and VectorChord's
+upgrade docs before replacing them with cnpg's native in-place `pg_upgrade`
+preceded by an on-demand `Backup`; rehearse point-in-time recovery.
 
 ---
 
