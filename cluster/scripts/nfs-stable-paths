@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# One-time move of dynamically provisioned NFS volumes from the provisioner's
+# UID-named directories (<ns>-<pvc>-pvc-<uid>) to the stable names the `nfs`
+# StorageClass now provisions (<ns>-<pvc>, its pathPattern), so a rebuilt
+# cluster's PVCs find their data (FORGEJO_MIGRATION_PLAN.md -> Cluster
+# Bootstrap, found by its rehearsal). The one-time-migration exception to "no
+# manual kubectl": each step is undone by the next, and git is unchanged.
+#
+#   nfs-stable-paths NAMESPACE...
+#
+# Per namespace, for each `nfs` PVC not owned by a cnpg Cluster (database
+# volumes are cnpg's; see its own recovery):
+#   1  pause the namespace's Application (selfHeal would undo the scale-down)
+#   2  scale every workload mounting one to 0 -- through the Prometheus or
+#      Alertmanager object when the operator owns the StatefulSet
+#   3  PV reclaim policy -> Retain, then delete the PVC and the PV: the data
+#      stays on nas, untouched
+#   4  rename the directory on nas, in a Job mounting /pool-1/k8s (refuses
+#      if the stable name exists)
+#   5  restore the replicas, resume and sync: ArgoCD (or the StatefulSet)
+#      recreates the PVC, the provisioner reuses the renamed directory
+#   6  verify: each new PV's path is the stable one, its file count is the
+#      old one's, every workload is ready again
+#
+# Run in the cluster dev shell, with $KUBECONFIG set.
+set -euo pipefail
+
+nas=${NFS_SERVER:-192.168.1.3}
+root=/pool-1/k8s
+[ $# -gt 0 ] || { echo "usage: $0 NAMESPACE..." >&2; exit 2; }
+
+log() { echo "[$1] $2"; }
+
+# Run a shell script against /pool-1/k8s in a Job in $ns; print its log.
+nas_job() {
+  local ns=$1 name=$2 script=$3
+  kubectl delete job -n "$ns" "$name" --ignore-not-found >/dev/null
+  kubectl apply -f - >/dev/null <<EOF
+apiVersion: batch/v1
+kind: Job
+metadata: { name: $name, namespace: $ns }
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: run
+          image: alpine/k8s:1.35.8 # images.alpineK8s
+          command: [/bin/sh, -c]
+          args: [$(jq -Rs . <<<"$script")]
+          volumeMounts: [{ name: k8s, mountPath: /k8s }]
+      volumes:
+        - { name: k8s, nfs: { server: $nas, path: $root } }
+EOF
+  local st=''
+  for _ in $(seq 100); do
+    st=$(kubectl get job -n "$ns" "$name" -o jsonpath='{.status.succeeded}/{.status.failed}')
+    case $st in 1/*) break ;; */[1-9]*) break ;; esac
+    sleep 3
+  done
+  kubectl logs -n "$ns" "job/$name"
+  [[ $st == 1/* ]] || { echo "nfs-stable-paths: job $name failed ($st)" >&2; exit 1; }
+}
+
+for ns in "$@"; do
+  # PVC name -> old directory, for every nfs PVC to move.
+  declare -A old=()
+  while read -r pvc pv owner; do
+    [ "$owner" = Cluster ] && continue
+    dir=$(kubectl get pv "$pv" -o jsonpath='{.spec.nfs.path}')
+    dir=${dir##*/}
+    [ "$dir" = "$ns-$pvc" ] && continue
+    old[$pvc]=$dir
+  done < <(kubectl get pvc -n "$ns" -o json | jq -r '.items[]
+    | select(.spec.storageClassName == "nfs")
+    | "\(.metadata.name) \(.spec.volumeName) \((.metadata.ownerReferences // [])[0].kind // "-")"')
+  if [ ${#old[@]} -eq 0 ]; then
+    log "$ns" "nothing to move"
+    unset old
+    continue
+  fi
+  log "$ns" "moving: ${!old[*]}"
+
+  # Workloads mounting them, as kind/name (the object whose replicas count).
+  workloads=$(kubectl get pods -n "$ns" -o json | jq -r --argjson pvcs "$(printf '%s\n' "${!old[@]}" | jq -R . | jq -s .)" '
+    .items[] | select([.spec.volumes[]?.persistentVolumeClaim.claimName] | any(. as $c | $pvcs | index($c)))
+    | .metadata.ownerReferences[0] | "\(.kind)/\(.name)"' | sort -u)
+  targets=()
+  for w in $workloads; do
+    kind=${w%%/*} name=${w#*/}
+    case $kind in
+      ReplicaSet) targets+=("deployment/$(kubectl get rs -n "$ns" "$name" -o jsonpath='{.metadata.ownerReferences[0].name}')") ;;
+      StatefulSet)
+        op=$(kubectl get sts -n "$ns" "$name" -o jsonpath='{.metadata.ownerReferences[0].kind}/{.metadata.ownerReferences[0].name}')
+        case $op in
+          Prometheus/* | Alertmanager/*) targets+=("${op,,}") ;;
+          *) targets+=("statefulset/$name") ;;
+        esac ;;
+      *) echo "nfs-stable-paths: $ns: pod owned by $w, not handled" >&2; exit 1 ;;
+    esac
+  done
+  mapfile -t targets < <(printf '%s\n' "${targets[@]}" | sort -u)
+  declare -A replicas=()
+  for t in "${targets[@]}"; do replicas[$t]=$(kubectl get -n "$ns" "$t" -o jsonpath='{.spec.replicas}'); done
+
+  log "$ns" "1: pause the Application"
+  kubectl patch application -n argocd "$ns" --type merge \
+    -p '{"spec":{"syncPolicy":{"automated":{"enabled":false}}}}' >/dev/null
+
+  log "$ns" "2: scale to 0: ${targets[*]}"
+  for t in "${targets[@]}"; do
+    kubectl patch -n "$ns" "$t" --type merge -p '{"spec":{"replicas":0}}' >/dev/null
+  done
+  for pvc in "${!old[@]}"; do
+    until [ -z "$(kubectl get pods -n "$ns" -o json | jq -r --arg c "$pvc" \
+      '.items[] | select([.spec.volumes[]?.persistentVolumeClaim.claimName] | index($c)) | .metadata.name')" ]; do
+      sleep 2
+    done
+  done
+
+  log "$ns" "3: retain, then delete PVC and PV objects (data stays)"
+  declare -A count=()
+  for pvc in "${!old[@]}"; do
+    pv=$(kubectl get pvc -n "$ns" "$pvc" -o jsonpath='{.spec.volumeName}')
+    kubectl patch pv "$pv" -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}' >/dev/null
+    kubectl delete pvc -n "$ns" "$pvc" --wait=true >/dev/null
+    kubectl delete pv "$pv" --wait=true >/dev/null
+  done
+
+  log "$ns" "4: rename on nas"
+  script='set -eu'
+  for pvc in "${!old[@]}"; do
+    script+="
+o=/k8s/${old[$pvc]} n=/k8s/$ns-$pvc
+[ -d \"\$o\" ] || { echo \"missing \$o\"; exit 1; }
+[ ! -e \"\$n\" ] || { echo \"exists \$n\"; exit 1; }
+c=\$(find \"\$o\" | wc -l)
+mv \"\$o\" \"\$n\"
+echo \"$pvc \$c\""
+  done
+  while read -r pvc c; do count[$pvc]=$c; echo "   ${old[$pvc]} -> $ns-$pvc ($c entries)"; done \
+    < <(nas_job "$ns" nfs-stable-paths "$script")
+
+  log "$ns" "5: restore replicas, resume and sync"
+  for t in "${targets[@]}"; do
+    kubectl patch -n "$ns" "$t" --type merge -p "{\"spec\":{\"replicas\":${replicas[$t]:-1}}}" >/dev/null
+  done
+  kubectl patch application -n argocd "$ns" --type merge \
+    -p '{"spec":{"syncPolicy":{"automated":{"enabled":true}}},"operation":{"initiatedBy":{"username":"nfs-stable-paths"},"sync":{}}}' >/dev/null
+
+  log "$ns" "6: verify"
+  fail=0
+  for pvc in "${!old[@]}"; do
+    for _ in $(seq 100); do
+      [ "$(kubectl get pvc -n "$ns" "$pvc" -o jsonpath='{.status.phase}' 2>/dev/null)" = Bound ] && break
+      sleep 3
+    done
+    pv=$(kubectl get pvc -n "$ns" "$pvc" -o jsonpath='{.spec.volumeName}')
+    path=$(kubectl get pv "$pv" -o jsonpath='{.spec.nfs.path}')
+    [ "$path" = "$root/$ns-$pvc" ] && echo "   ok   $pvc -> $path" || { echo "   FAIL $pvc -> $path"; fail=1; }
+  done
+  script='set -eu'
+  for pvc in "${!old[@]}"; do script+="
+echo \"$pvc \$(find /k8s/$ns-$pvc | wc -l)\""; done
+  while read -r pvc c; do
+    # The app may have written since; fewer entries than before is the failure.
+    [ "$c" -ge "${count[$pvc]}" ] && echo "   ok   $pvc: $c entries (was ${count[$pvc]})" \
+      || { echo "   FAIL $pvc: $c entries (was ${count[$pvc]})"; fail=1; }
+  done < <(nas_job "$ns" nfs-stable-paths-verify "$script")
+  for t in "${targets[@]}"; do
+    case $t in
+      deployment/* | statefulset/*) kubectl rollout status -n "$ns" "$t" --timeout=10m >/dev/null && echo "   ok   $t ready" || { echo "   FAIL $t not ready"; fail=1; } ;;
+      *) kubectl wait -n "$ns" --for=condition=Available "$t" --timeout=10m >/dev/null && echo "   ok   $t available" || { echo "   FAIL $t not available"; fail=1; } ;;
+    esac
+  done
+  [ $fail = 0 ] || { echo "nfs-stable-paths: $ns failed verification" >&2; exit 1; }
+  unset old replicas count
+done

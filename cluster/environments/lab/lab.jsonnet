@@ -126,6 +126,17 @@ local patchTargetDown(resources) = {
           storageClass: {
             name: 'nfs',
             defaultClass: true,
+            // A directory per PVC named by namespace and claim, not by the PV's
+            // random UID: a rebuilt cluster's PVCs find their data again
+            // (provisioner MkdirAll reuses it). No '/' -- Delete acts on the
+            // path's basename. Found by the Cluster Bootstrap rehearsal;
+            // existing volumes moved by scripts/nfs-stable-paths.
+            pathPattern: '${.PVC.namespace}-${.PVC.name}',
+            // Deleting a PVC leaves its directory where a recreated PVC of the
+            // same name reuses it (archiveOnDelete would rename it away).
+            onDelete: 'retain',
+            // StorageClass parameters are immutable.
+            annotations: { 'argocd.argoproj.io/sync-options': 'Replace=true' },
           },
         },
       }),
