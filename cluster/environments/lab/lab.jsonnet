@@ -135,8 +135,9 @@ local patchTargetDown(resources) = {
             // Deleting a PVC leaves its directory where a recreated PVC of the
             // same name reuses it (archiveOnDelete would rename it away).
             onDelete: 'retain',
-            // StorageClass parameters are immutable.
-            annotations: { 'argocd.argoproj.io/sync-options': 'Replace=true' },
+            // StorageClass parameters are immutable, even to a replace (PUT):
+            // ArgoCD deletes and recreates it. Existing PVs are unaffected.
+            annotations: { 'argocd.argoproj.io/sync-options': 'Force=true,Replace=true' },
           },
         },
       }),
