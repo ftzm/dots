@@ -176,6 +176,10 @@
       # attribute at master's commit and publishes the manifest from it
       # (FORGEJO_MIGRATION_PLAN.md -> Binary Cache). The pi's aarch64 toplevel
       # is a plain reference here; its builder needs binfmt or a remote builder.
+      # The Forgejo OpenTofu job's provider (pkgs/terraform-provider-forgejo.nix).
+      terraform-provider-forgejo =
+        nixpkgs-ftzmlab.legacyPackages.${defaultSystem}.callPackage ./pkgs/terraform-provider-forgejo.nix {};
+
       fleet =
         nixpkgs-ftzmlab.legacyPackages.${defaultSystem}.linkFarm "fleet"
         (builtins.mapAttrs (_: c: c.config.system.build.toplevel) inputs.self.nixosConfigurations);
