@@ -48,7 +48,10 @@ up)
 
   echo "== VMs (driver log: $dir/driver.log)"
   driver=$(nix build --no-link --print-out-paths "$repo_dir#cluster-bootstrap-rehearsal")
-  (cd "$dir/vm" && TMPDIR="$dir/vm" setsid "$driver/bin/nixos-test-driver" \
+  # The driver keeps VM disks under $XDG_RUNTIME_DIR (a small tmpfs,
+  # /run/user/<uid>); nuc's image filled it and the guest went read-only.
+  rm -rf "${dir:?}"/vm/vm-state-*
+  (cd "$dir/vm" && XDG_RUNTIME_DIR="$dir/vm" TMPDIR="$dir/vm" setsid "$driver/bin/nixos-test-driver" \
     --output_directory "$dir" >"$dir/driver.log" 2>&1 & echo $! >"$dir/driver.pid")
   until [ -e "$dir/ready" ]; do
     if ! kill -0 "$(<"$dir/driver.pid")" 2>/dev/null; then
