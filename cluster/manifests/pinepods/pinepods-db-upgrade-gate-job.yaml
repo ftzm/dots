@@ -96,6 +96,7 @@ spec:
             secretKeyRef:
               key: password
               name: pinepods-database-superuser
+              optional: true
         - name: CNPG_CLUSTER
           value: pinepods-database
         image: ghcr.io/cloudnative-pg/postgresql:18.6

@@ -2661,7 +2661,18 @@ local patchTargetDown(resources) = {
   // The Lounge: IRC client
   thelounge: selfhosted.new('thelounge', images.thelounge, 9000, 'irc.lan.ftzmlab.xyz') {
     deployment+: {
-      spec+: { template+: { spec+: { containers: [
+      spec+: { template+: { spec+: {
+        // The app (uid 1000) chmods its home and gets EPERM on a fresh volume,
+        // which the provisioner creates root-owned (found by the Cluster
+        // Bootstrap rehearsal). The live directory is owned 1000.
+        initContainers: [{
+          name: 'chown',
+          image: images.thelounge,
+          securityContext: { runAsUser: 0 },
+          command: ['chown', '1000:1000', '/var/opt/thelounge'],
+          volumeMounts: [{ name: 'config', mountPath: '/var/opt/thelounge' }],
+        }],
+        containers: [
         super.containers[0] {
           volumeMounts: [
             if v.mountPath == '/config' then v { mountPath: '/var/opt/thelounge' } else v

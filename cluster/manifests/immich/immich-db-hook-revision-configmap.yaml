@@ -1,6 +1,6 @@
 apiVersion: v1
 data:
-  digest: a7a94bb2c1505f84184f290811163428
+  digest: 91a7df8cf37ee579faaa16270fb74a53
 kind: ConfigMap
 metadata:
   name: immich-db-hook-revision

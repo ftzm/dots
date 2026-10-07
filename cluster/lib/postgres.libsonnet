@@ -83,11 +83,11 @@
   // to the target, not by assuming an upgrade is happening.
 
   // Shared env for a job that talks to the cluster as the application user.
-  local pgEnv(host, user, database, secretName, secretKey) = [
+  local pgEnv(host, user, database, secretName, secretKey, optional=false) = [
     { name: 'PGHOST', value: host },
     { name: 'PGUSER', value: user },
     { name: 'PGDATABASE', value: database },
-    { name: 'PGPASSWORD', valueFrom: { secretKeyRef: { name: secretName, key: secretKey } } },
+    { name: 'PGPASSWORD', valueFrom: { secretKeyRef: { name: secretName, key: secretKey } + (if optional then { optional: true } else {}) } },
   ],
 
   // Every hook waits for the database before deciding anything.
@@ -266,7 +266,12 @@
         pg_restore --list "$out" > /dev/null || { echo "FATAL: pre-upgrade dump is not readable"; exit 1; }
         echo "pre-upgrade dump verified: $(wc -c < "$out") bytes"
       ||| % { target: std.toString(targetMajor), name: name, vchord: $.vchordVersionOf(image) },
-      pgEnv(host, user, database, secretName, secretKey) + [{ name: 'CNPG_CLUSTER', value: clusterName }],
+      // The password is optional: cnpg creates its Secret with the Cluster,
+      // which on a fresh cluster comes after this Sync hook, so a required
+      // one would keep the pod from starting and exitIfNoCluster from ever
+      // running (found by the Cluster Bootstrap rehearsal). With a Cluster
+      // and no Secret, psql fails and so does the gate.
+      pgEnv(host, user, database, secretName, secretKey, optional=true) + [{ name: 'CNPG_CLUSTER', value: clusterName }],
       pvcName,
       {
         'argocd.argoproj.io/hook': 'Sync',

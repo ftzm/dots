@@ -96,6 +96,7 @@ spec:
             secretKeyRef:
               key: password
               name: miniflux-database-app
+              optional: true
         - name: CNPG_CLUSTER
           value: miniflux-database
         image: ghcr.io/cloudnative-pg/postgresql:18.6
