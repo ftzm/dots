@@ -774,6 +774,16 @@ local patchTargetDown(resources) = {
       ns
     ),
 
+    // Barman Cloud plugin: continuous backup of the Clusters to Garage on nas
+    // (postgres.barmanBackup). Its certificates come from cert-manager.
+    barmanCloud: withNamespace(
+      helm.template('plugin-barman-cloud', '../../charts/plugin-barman-cloud', {
+        namespace: ns,
+        values: {},
+      }),
+      ns
+    ),
+
     // Cluster-scoped, so one catalog serves Clusters in any namespace.
     // Each catalog lists only the majors actually in use — moving a database
     // to a new major means adding its image here and changing that Cluster's
@@ -2752,6 +2762,17 @@ local patchTargetDown(resources) = {
     dbBackupPv: dbBackupMount.pv + syncWave(-1),
     dbBackupPvc: dbBackupMount.pvc + syncWave(-1),
 
+    // Continuous backup to Garage on nas; the generation is the archive this
+    // Cluster writes (bumped by a recovery, lib/postgres.libsonnet).
+    local barman = postgres.barmanBackup('immich-database', ns, 1, config.nasIP),
+    backupStore: barman.objectStore,
+    backupSchedule: barman.scheduledBackup,
+    garageCredentials: postgres.garageCredentials(ns, {
+      ACCESS_KEY_ID: 'AgCsBH8w/Mnm280HkHOWkmKvrKlHVjru89rMT2YSn6PUfqwhjGBnv1KNCm5vDG9k8aC8MGs1BkKF1d4Z2t6ZEJCA3pYZuMlshSQjTbdSioygz6uldLyEaR1TpRPfhB1S+yzT5O1R20O2F21yYMcxdbfhkw4rsucMxtv2WIpMuxYUsQP/3J9lkSkvDWAd8diYx50PX9x2WKJ3G/dmbAD1Mitzb3y8PFqoXa/q2+jsmdnL5jXlOe7XAFHadsMGmG528drDiq6mK9/2JyH405iKYvRJyxdTDtSCYVcKCr1BCnm7bLKusNcqqyhI6Ckc2bcOs9HaFb/zsBK7D9ACRL+0lC4Lf787A2XeE2AXL3SFUgqq1LLYG9Lkg7XR3DxWc8SH0yjH87Hf8OPg/CHMplAt7g9zJYqh9LxWuswFevRlXAD3X4AnpKWxjQcsxUrXVncBZg+SAG5+wO+6BymfxgX/lX5TfivEH4iMmRsT5brvKMqiL2yjhS5t6HoEo0dVKNj0WbfY4GdN/5JW/xJNt8OQTiPdC3px3y2JM6KzL8QvL44h/RAASkIZdchg3naKUDwomQVunByhKaryJkG0WdormM3buJB74RwxKZT+Hwnhlb21VL7ytiOAqiAgwkMHlg81eh9bkQ/RFoPVCv14uZTICuYkkCBidYNb23qgsdQPx5WKWhxZpYis5bDfoVkcb1FSYuMi315FCtFhRBff5ltIblWyxb1wnY46YIDH7g==',
+      ACCESS_SECRET_KEY: 'AgA5ABWw+2qJ4z1gzim2KU4itMaljuMrzWxSEnkeS15oh/JpV1pO4CYd/JWcyLgZARIu46yJreqmibnhDirpNjO623YRkNjmCAFbIL5nbAj37Z2JWmWdviZq9azwY1x9xcCV/SQEEwECKwLaiJsGdXybVbMxJQF+AqUB0C8a1KpdasntsHkL+t4i43n8IYZQhkBR+o+s0a0u4VY7rcNpMM5KPSwEIB44VUkfmVqHCPr3NERj95Ig1GxFQ17MZ+cHel7m2p823NfdhA6ShO3VO4v1I2oL0kmB/tv7MeAsBBHj9ubeCqVfxW2sFQfZoOHet3NTafOlcgV3hzf5QM62H0whh5i4N/ioLGtGa6JLTTTcuOiDUCqJ5RNSJMgf9ugQab+C84TXiy2mkET7dIQGFhVaPjGXcFrcnKZsioiSSbP+B5OQUZWFin1CTzNrW4NFZVFB6HUEEjER7vsWK+3QHL/tVZjrT0hoQQt8AUWEA98SkeVi839YBrfWswBKCbALlSK3cf7AFLvh5fPE6ChBavq179eO4kg1LF3ZQQ8KQWQzkv1HsWYmmTUhc8somHIYW+RAGj+xgaE6XeKuq2UetHvXUH4lPqOLKm77dPmdKlxfy792UgdIm9CdNybzbjPXggvG9pSml4BF9IjTxP5HfWe3A332njNinbDHIub/qvqCcZaWwC2nLIDyhPBgXa8awOtUQ1DRN24zjtZIHkDC0yG14CeefYBxxc5EDdshImHNMVPMnUOFtDiOER8pVBC7Y1MXdrkECFyVvB8loSg8lNCZ',
+      REGION: 'AgAocYEFJciplkGmkL9CHxYI6vir2UTORaAz1KT4Hyrw16wMFWjYS8xagHhp03Mdo4VocMtjTKXkKVBpV+mMDk1wR3gUQQFxz+MOYQbAZCWCFsZjIMkdUB3p3MrFSWK4E3yE/ClXqlEdqcUGLPN4LUt4j9EoAiVs3RmtGDezqzFrQgkjCRmdPogWLYlCkKhjYiWnzD/wXQSNmIjyEVUS9nM0FLLeQq/iIJ4V/yyXdz+28TvY441MBj3wp/AK7JQBe7Jni00wfSLWXarPwky38etZBUvu/siiGJF75QscsBrCxGnbjuLnBFh/lFkwS5bm9SNsX+e1j655cv+vAXoP3UM17x7G2h0WLpMhwc30ConmQ9FS0jYELIxCFBdDLZjoZF/cvs5eVPNaLG2EpmEcCU/fR2Tv7coP61D337HaT29kxVFM9dbIkEBGVunjbLcSBOolXGRcLMpmUPg6bOiKt2v5AsggbdpaJVCJ1G4LQ6SsYkTV1LNScfeT82BPEhetY7pPXDRdumS/jtMbCrSdyUFsNbUzLnU0SMFY/8hDT7TQdbYxXno9C+xcS/PyMtg+5gMtVWrdDdLh+jpzvuHYXhykkOJK+5ff+kmAb5F/yQdv0I2A/5bh+rEYRDOGPrwZ7gw2gcPQEPGxsYxPUBNiH7EAHEFVIyt6yUbS+wJRQjCsZsLWK+5jA29BdWgX2JadnvgAgGJb0EY=',
+    }),
+
     // CloudNativePG PostgreSQL cluster with VectorChord
     database: {
       apiVersion: 'postgresql.cnpg.io/v1',
@@ -2762,6 +2783,7 @@ local patchTargetDown(resources) = {
       },
       spec: {
         instances: 1,
+        plugins: barman.plugins,
         imageCatalogRef: postgres.catalogRef('vectorchord', pgMajor),
         storage: {
           size: '5Gi',
@@ -2981,12 +3003,23 @@ local patchTargetDown(resources) = {
     // superuser and runs CREATE DATABASE, so superuser access is enabled and the
     // app points at it (matches upstream compose). The operator generates the
     // superuser password in the `pinepods-database-superuser` secret.
+    // Continuous backup to Garage on nas (lib/postgres.libsonnet).
+    local barman = postgres.barmanBackup('pinepods-database', ns, 1, config.nasIP),
+    backupStore: barman.objectStore,
+    backupSchedule: barman.scheduledBackup,
+    garageCredentials: postgres.garageCredentials(ns, {
+      ACCESS_KEY_ID: 'AgBj2Zl1Hv5sZQRSrOO1ZXRvSlo8jx96/wF0zYfBU1P2ptmpaS2gduzd3kq8+RQXof3LOfanKhiGiL3e6emvpcKKVN1sMOAVPAQkMSL9F3wMk+ZE2uFrOZU9YkTDVX5v08yAF1yWpDg1EBhifFHW3QuMpyk9M6CG9Zpap/FVnMC6949ATqPQeYcC++HW45+utMQEBYJlKNNj9qR9yjVCU6W0PVojNBkKn72o9txv1ctQbx2eev1gTDc9uRlcNVWw07hlDYLzyWrS1eRyvfJuj1wIlcdxPEg7xb90t/6/6bWWgO/nffaluKC3TpAUBoCq14c0wQ5wq6/EY5onzbwqaWFkO35e5KpsH+KoB9wJMKpgeYdPkrjRaxPRyElQXz+RYkodU8F6ClDW3H28JgMs7l2kYYv21XTVG+3mHkOcdh6hZxK28n0oYv25i9Ooow2xzJvoIHFdyXr/k0cagtzG8sneT8KbDlXeEEU5zIXS+ZkG3sigi6NzeNHBkrNwN2j020rbeXV/xOthZFwQBik/Ot/ONd+uM0+zAOZ22zHAIP0jRHphtSmx6FYfnmlla3DBc7fJwOgr/v1e5WXGF17Du41AdrzTTqxJKdpCRV8kSZpt0FPV2dG2HpIlC8QLrchHKhIChaew0EUqIyJRpwr9RjCY0cLR73cMGnSIxwCSyBdrzByU66WRl7TN0l2BsnTq+KTQ6Si2vXTz7ojOZ9rQKXT7Xv8WaOu395pYgw==',
+      ACCESS_SECRET_KEY: 'AgB8QTXN2ckImWpIO8nWsTCaVdmwdLLLzUTx9OPbTycdphrVWqo5rlQgHpW/pnic67w7xzDreUAToIX3Q97S0or/sOTKGZsVBybt4CEUfSb/kUaNCt26IkfY/Nfs4UHk78v40ErQEZ1HC4yPapTOPF6wGv8ehZXvuatvzyr6DPgja2omNuMYHwfhROlKCRS+IvtwswT2WIFJZFQD8Gi6ohyrhfb3vKzf+JyAwNuvLpiHVkyL+2Y18SCem73ydun3LwcLHPlZC+EBmbEq6gCII9/5pdw5YM+a/OFh2XDFYhqrva5AKaB54nFCrfslP7Nn1zkgvehzkTe0ajsXMWCVpTImQ/X6icmsACVq06yy0AtpY65FgwiGAYlpIysrGVudF8qAAewkc+FhF6EwZIHrNH875HNnpEXIl7Ggd0zum0zH6w0Z+VdtjOeqP5huK2Ya/r9CdRiMdFt9x1JSrMdNTMOjpFEeTYOmByjZlMWn1r+Fsssil930fwdx8tpf1aueU34epCS1jBnhtJHyI1HMXWPjpgsW6MJob89+IZpvukA3VU3R7OTSUeMAcvig0DW50Us0BiLZ/PnQ4S1PvwurWwweYogIf3RZF18ShjSJ1L0tbEyUJoaqMzKeFPamhx2I7Qe4ISkgPzHvhvU7pPdnZegTwuvLHi6v/F77rOCxNHg3a1eMcjwWyCZfwn9wbfK3OngAiHn4TzSr3SlIw+IrydXgJ+Uo3OcEX7gZT9ksJRy5FbmmPiBxrFTZIVSYqAmfW2V+Hu+PUF9EhJ4iSiTCwM7c',
+      REGION: 'AgAlps6i4ewVhvtRVGaQyUB075zLmnK5PIya5GG1PJBU6uERo8IMAelr+2dQSDKgGpb3EnVBURiCXt/FL0bk5q7/1Kricb4wWmyE03jtaL5VR2z696Fi38B8OK0hPom7uPO4u2u5zv2Tyho5efpJ+gtPAb2i4jOoy1lwjprRxDPDjXtLopqXTmD0Gj58aibj/iM1p6QZnJklSkt+t2acEKggVqmQU4pTNj9FaVNGfeytX5vfxnFVjOBYmgyvWppfGo3vIejtjErmn66c6ZnCseXs34Y16dDj8ShZwSz5hFDUCalEzprZIF86otOqDNI4v4oM2HEHDlyGPf78Vf/D7XVqov6sUngeWpKOnJjDkcI3puxme6e23Xuhh6guFJH6L06jMyDHBthG2gMRwUUuT8BTV2eZNQJ+W8KTF97l6ukNaksTfJuV9Zh8ktwCZ1q4v35s4mPWpDfXDrYLCWsFNwVQweSMuQxhGhRo59qLPRVE1z/1L9mm5Mfbsspt6k/F5F5UccDJUiH4fhrEJ2skqu8ypvwXAXj9IBzxnxLSfOTP4cSBbIkIkLPk3YFwetuVZKGMWMoCLSowtTGQ/+idPPIBcbpBAiRbwfITNgsymNgzW48JwNChUQS7iZzcpaJALbwlrPPzkO5cgQa3fJFcfsMp0jIIAxuFa7nfKbYyJY3yyzRVXl+x2uxPxFNUi89nmar1xHfJAQE=',
+    }),
+
     database: {
       apiVersion: 'postgresql.cnpg.io/v1',
       kind: 'Cluster',
       metadata: { name: 'pinepods-database', namespace: ns },
       spec: {
         instances: 1,
+        plugins: barman.plugins,
         imageCatalogRef: postgres.catalogRef('postgresql', pgMajor),
         enableSuperuserAccess: true,
         storage: { size: '5Gi', storageClass: 'nfs' },
@@ -3124,12 +3157,23 @@ local patchTargetDown(resources) = {
     // extensions (HSTORE stopped being a requirement in 2.0.27), so it connects
     // as the database owner that CNPG creates, using the operator-generated
     // `miniflux-database-app` secret.
+    // Continuous backup to Garage on nas (lib/postgres.libsonnet).
+    local barman = postgres.barmanBackup('miniflux-database', ns, 1, config.nasIP),
+    backupStore: barman.objectStore,
+    backupSchedule: barman.scheduledBackup,
+    garageCredentials: postgres.garageCredentials(ns, {
+      ACCESS_KEY_ID: 'AgBPRrxwmdUOUsHfysOdolVjgAHliF0dYK6rVenEAuQmhXb7X0LrIRgM0al4AuA0E1q3w4pUCgVYoydXFwKIXkpoJMo2su4jQJqizKLKdPR4dTxdWTx2qaf5XP2aMaBti4Em45nOZJixzZZpFVRhDCymIUtRR6VfjSrw6oOGEzVdEoWFN6/G5u/FOHI5lSEggXqwWBxlV7gPtHKl2FYqjocaqgLisf6Y1PmDZSA0hZCYNu7xBzNq8ON2Byij0Ie1M59oFYLW2ft5ZbFFupx31hFmgs3WkFcvg+csjlz6O+c7A581C6Fyoxh5HwuKhg6J7KJJEEGEQvLPLV5elkzaEon2ltcm3daZTzSuyPrsMA2W9GVSkDcET32qBe0fBQZwpbwSxg2okZ9i0RAXy+yhnS9Yt7Tw8l7P32dL7S1TpIcyjpEANhLtAzQqtIXtENk1BKl3PUpv1wndBxU48EhqN815F5mU4hgjPqQp/MxgWReV4v2ftVMTCcWX3mG7yKSWCzOkKWE6hVNR9bRoroKPuHMjrSrv7dRfETYmmULPjUHWJA5gBy5sPOFeA90njutyywDsO8jKb4HmD+T3aCfJaaWdeI9X2W6b0AqqAPb9DPpnvAA6Asi+m3BCZdVNOpm/24nzVf/UW57SqB5Ngv/i8DMzmR351JROAUkz4enpnphkwoOv/rfaqtpt3aGdxGdPB1PtRiMa482A693nIyJVCgSW/NbIY/qm9RhzBw==',
+      ACCESS_SECRET_KEY: 'AgDh9UJ9raJWwtECM7ck14X0tWeAsRHUfCYe/0sXF33+wUUcBTHfW0bs3I67oA/jvFxgPmg43nNf4PDyslDuabXtUbEJp5NJkykCjzytD+e19MFBs+H/M6a9h3+iBLBHQP1k4RX0xSAiplB/pf68BTcgzQrpL4Ngb6iHzYrul+9PWu2CLb6f6JqsjQoDuLkmPfHB7ImTiXDO12fZmTDycsuZslYJw6Z6aYzxtzK1YgoiXIGxRUdkMHkCra/IlGRTC+CfxyYjCv6znK2DYmNkLeD5CJ+uF6xdZjqH0C/snQDFLBHbFrnfdXO7Si0ig13Qj5eaFsZ/qiVYhMflOG76E2FX1GMotokM6GN8Hr3/3jshqK4HnOqPk6y+hyK388DhDXBIgVn0F0SugKYsO5/KE8nmMUjxcwvEZEyuYb2CLxy9CKGp8vDfLTXHio8oA9xvdpXnVLBwNNp9wUpnhbsNBf8yObhCvLJeWk3DB3/bOxcLVXXf08LsZiD06FN/twq4yDv3eETB4NgDeKEBOhfGRjA1IzM6ccitReG1b5n1VS+v18zk9hu2o62DQAoCsnGaXi+J35w5VVFfz/lhCycRjzi4hbqwAlMLc7LMolPtJlsJS/gW2mxV3SiOar8DvK0pwLTkz9MqurhImIhy/Pg9XpQScSDliR85PEqkt3r0Mk5K+4AFvoG19fMBreF7Q6z47ohyxGRx5S+oDmYZzCJibdKIEzIjaTGtl2r7xgqcoY1YwTJNwJRc+EAEhh9xrM5401VcO9tcY/4lc76g5esoZhqe',
+      REGION: 'AgCyGs4xGrPjdw8+G3MN/BJz1tofBjJl63Csz1376euy0qLPjY1Ln7fR32FE+4hB85rxxM4ImRfAENxTA921hv1TF/4f4It0VUoEkLYfCc+0DxjwTEv3zgGRe7HLFhZIjdQUU4E52MZkj1f4naosAfLwH1y3SYnlB+5HaAMPrRgN6yGsdoU1GqZl8mEGqxy0I/vVodRyTPDqJqH9u4VR+Qy8S15W6EQrpYCtwgfyYQW1hoX1hg15dsWQd09RgBrTgTK8XuRofQjCPV/BfiaPeKdu8fhsEDoDqdeRXISx8zIbzf77O48dvg6fVNyv1DWWFxmJTsmVFO5siFrx+WQEfvDxaGZesQXj4eAIfuHTX3R0c1OO5k8jYLyaLx3UNnbAjgBaplc+YQD+RUTay7hjbKx8LDXid8tUk/T9DhJcwAXrgfjhMgVbdAFX6UVTLa5Fv+tX6aWbP0MMtprpnMr1D1Vxt22cCHMMKmuJENrTJ6fk0YRJ1LzHJYp5kzmsFIpurihyrzPrJ2n1kje3w3AY/ssC0fgKrLSn1Nwo/CwFrWLDc0d45zwfE3O8qFXJG+bp8IgQreWZZzPzEsm/4UHsnnjR1sAohIxpVPb0ZL1UtCHGhnoOAw4K2z3GJuHe0qx3i0pcxYyHpY6MCOoCLJG3QrYvBlHjAlTuckZPM6Y11uPpgJKWAXz96NFTmu/tSnGQPNzER5UNL6s=',
+    }),
+
     database: {
       apiVersion: 'postgresql.cnpg.io/v1',
       kind: 'Cluster',
       metadata: { name: 'miniflux-database', namespace: ns },
       spec: {
         instances: 1,
+        plugins: barman.plugins,
         imageCatalogRef: postgres.catalogRef('postgresql', pgMajor),
         storage: { size: '5Gi', storageClass: 'nfs' },
         bootstrap: { initdb: { database: 'miniflux', owner: 'miniflux' } },

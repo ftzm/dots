@@ -15,6 +15,12 @@ spec:
     major: 18
     name: postgresql
   instances: 1
+  plugins:
+  - isWALArchiver: true
+    name: barman-cloud.cloudnative-pg.io
+    parameters:
+      barmanObjectName: pinepods-database-backup
+      serverName: pinepods-database-g1
   storage:
     size: 5Gi
     storageClass: nfs

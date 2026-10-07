@@ -471,6 +471,70 @@
   //
   // CloudNativePG reconciles only the extensions listed here, so extensions the
   // application manages through its own migrations are left alone.
+  // Continuous physical backup, CloudNativePG's supported way: the Barman
+  // Cloud plugin archives every WAL segment and takes daily base backups into
+  // Garage on nas (role/garage.nix), bucket cnpg-backups, one prefix per
+  // namespace. Logical dumps are "not suitable for business continuity"
+  // (cnpg Backup docs). Recovery always bootstraps a new Cluster
+  // (bootstrap.recovery), which then archives under the next generation:
+  // `generation` names the archive this Cluster writes, <cluster>-g<n>.
+  // Credentials: the garage-cnpg Secret in the namespace (ACCESS_KEY_ID,
+  // ACCESS_SECRET_KEY, REGION).
+  barmanBackup(cluster, ns, generation, nasIP, retention='30d'):: {
+    local store = cluster + '-backup',
+    local secret(key) = { name: 'garage-cnpg', key: key },
+    objectStore: {
+      apiVersion: 'barmancloud.cnpg.io/v1',
+      kind: 'ObjectStore',
+      metadata: { name: store, namespace: ns },
+      spec: {
+        retentionPolicy: retention,
+        configuration: {
+          destinationPath: 's3://cnpg-backups/' + ns,
+          endpointURL: 'http://%s:3900' % nasIP,
+          s3Credentials: {
+            accessKeyId: secret('ACCESS_KEY_ID'),
+            secretAccessKey: secret('ACCESS_SECRET_KEY'),
+            region: secret('REGION'),
+          },
+          wal: { compression: 'gzip' },
+          data: { compression: 'gzip' },
+        },
+      },
+    },
+    scheduledBackup: {
+      apiVersion: 'postgresql.cnpg.io/v1',
+      kind: 'ScheduledBackup',
+      metadata: { name: cluster + '-daily', namespace: ns },
+      spec: {
+        schedule: '0 30 2 * * *',  // seconds first
+        immediate: true,
+        backupOwnerReference: 'self',
+        cluster: { name: cluster },
+        method: 'plugin',
+        pluginConfiguration: { name: 'barman-cloud.cloudnative-pg.io' },
+      },
+    },
+    // The Cluster's spec.plugins.
+    plugins: [{
+      name: 'barman-cloud.cloudnative-pg.io',
+      isWALArchiver: true,
+      parameters: { barmanObjectName: store, serverName: '%s-g%d' % [cluster, generation] },
+    }],
+  },
+
+  // The garage-cnpg Secret barmanBackup reads: the access key on nas
+  // (secrets/garage-cnpg-key.age), sealed per namespace.
+  garageCredentials(ns, encryptedData):: {
+    apiVersion: 'bitnami.com/v1alpha1',
+    kind: 'SealedSecret',
+    metadata: { name: 'garage-cnpg', namespace: ns },
+    spec: {
+      encryptedData: encryptedData,
+      template: { metadata: { name: 'garage-cnpg', namespace: ns } },
+    },
+  },
+
   managedExtensions(name, ns, cluster, database, owner, extensions):: {
     apiVersion: 'postgresql.cnpg.io/v1',
     kind: 'Database',

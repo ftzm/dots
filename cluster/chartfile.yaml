@@ -52,6 +52,8 @@ requires:
     version: "0.12.0"
   - chart: cloudnative-pg/cloudnative-pg
     version: "0.29.1"
+  - chart: cloudnative-pg/plugin-barman-cloud
+    version: "0.8.1"
   - chart: jameswynn/homepage
     version: "2.1.0"
   - chart: external-dns/external-dns

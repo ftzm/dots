@@ -148,6 +148,18 @@
       {
          "customType": "regex",
          "datasourceTemplate": "helm",
+         "depNameTemplate": "plugin-barman-cloud",
+         "managerFilePatterns": [
+            "/cluster/chartfile\\.yaml$/"
+         ],
+         "matchStrings": [
+            "- chart: cloudnative-pg/plugin-barman-cloud\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?"
+         ],
+         "registryUrlTemplate": "https://cloudnative-pg.github.io/charts"
+      },
+      {
+         "customType": "regex",
+         "datasourceTemplate": "helm",
          "depNameTemplate": "homepage",
          "managerFilePatterns": [
             "/cluster/chartfile\\.yaml$/"

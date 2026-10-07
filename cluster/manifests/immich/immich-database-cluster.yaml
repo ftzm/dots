@@ -17,6 +17,12 @@ spec:
     major: 18
     name: vectorchord
   instances: 1
+  plugins:
+  - isWALArchiver: true
+    name: barman-cloud.cloudnative-pg.io
+    parameters:
+      barmanObjectName: immich-database-backup
+      serverName: immich-database-g1
   postgresql:
     shared_preload_libraries:
     - vchord.so

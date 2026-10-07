@@ -1,0 +1,9 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: Helmraiser
+  name: plugin-barman-cloud-selfsigned-issuer
+  namespace: cnpg-system
+spec:
+  selfSigned: {}
