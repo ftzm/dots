@@ -46,6 +46,17 @@ ss_dir=$cluster_dir/manifests/sealed-secrets
 ss_ns=sealed-secrets
 key_label=sealedsecrets.bitnami.com/sealed-secrets-key
 apply=(kubectl apply --server-side --field-manager=argocd-controller)
+# Applies only the files whose object does not exist yet. On a running
+# cluster ArgoCD owns them, and server-side apply under its field manager of
+# a manifest without its tracking annotation removes that annotation (the
+# same manager no longer sets the field): a rerun left every object
+# untracked and OutOfSync (found by the Cluster Bootstrap rehearsal). So a
+# rerun is a no-op for whatever already exists.
+apply_new() {
+  local f new=()
+  for f; do kubectl get -f "$f" >/dev/null 2>&1 || new+=(-f "$f"); done
+  [ ${#new[@]} -eq 0 ] || "${apply[@]}" "${new[@]}"
+}
 
 # --- 1. Sealing keys, then the sealed-secrets controller ---------------------
 
@@ -59,7 +70,7 @@ keys=$(cd "$repo_dir/secrets" && agenix -d sealed-secrets-keys.age |
 want=$(yq '[.items[] | select(.metadata.labels["'"$key_label"'"] == "active")] | length' <<<"$keys")
 [ "$want" -gt 0 ] || { echo "bootstrap: no labelled key in the backup" >&2; exit 1; }
 
-"${apply[@]}" -f "$ss_dir/sealed-secrets-namespace.yaml"
+apply_new "$ss_dir/sealed-secrets-namespace.yaml"
 kubectl apply --server-side -f - <<<"$keys"
 
 have=$(kubectl get secret -n "$ss_ns" -l "$key_label=active" -o name | wc -l)
@@ -69,7 +80,7 @@ if [ "$have" -lt "$want" ]; then
 fi
 echo "bootstrap: $have sealing keys present"
 
-"${apply[@]}" -f "$ss_dir/"
+apply_new "$ss_dir"/*.yaml
 kubectl rollout status -n "$ss_ns" deploy/sealed-secrets --timeout=5m
 
 # --- 1b. The SOPS age key ----------------------------------------------------
@@ -77,7 +88,7 @@ kubectl rollout status -n "$ss_ns" deploy/sealed-secrets --timeout=5m
 # sops-operator decrypts every SopsSecret with it (SOPS_AGE_KEY_FILE
 # /mnt/age/key). Not in git and in no Application, like the sealing keys;
 # without it no SopsSecret becomes a Secret. Created only when missing.
-"${apply[@]}" -f "$cluster_dir/manifests/sops-operator/sops-operator-namespace.yaml"
+apply_new "$cluster_dir/manifests/sops-operator/sops-operator-namespace.yaml"
 if ! kubectl get secret -n sops-operator sops-age-key >/dev/null 2>&1; then
   (cd "$repo_dir/secrets" && agenix -d sops-age-key.age) |
     kubectl create secret generic -n sops-operator sops-age-key --from-file=key=/dev/stdin
@@ -91,11 +102,11 @@ fi
 argocd_dir=$cluster_dir/manifests/argocd
 crds=() rest=()
 for f in "$argocd_dir"/*.yaml; do
-  [ "$(yq '.kind' "$f")" = CustomResourceDefinition ] && crds+=(-f "$f")
+  [ "$(yq '.kind' "$f")" = CustomResourceDefinition ] && crds+=("$f")
 done
-"${apply[@]}" "${crds[@]}"
-kubectl wait --for=condition=Established --timeout=2m "${crds[@]}" >/dev/null
-"${apply[@]}" -f "$argocd_dir/argocd-namespace.yaml"
+apply_new "${crds[@]}"
+for f in "${crds[@]}"; do kubectl wait --for=condition=Established --timeout=2m -f "$f" >/dev/null; done
+apply_new "$argocd_dir/argocd-namespace.yaml"
 # redis's password, read by every ArgoCD component. The chart's
 # redisSecretInit Job would create it but is disabled (lab.jsonnet), so a
 # fresh cluster has none and redis never starts. Cluster-local like the
@@ -115,9 +126,9 @@ for f in "$argocd_dir"/*.yaml; do
     echo "bootstrap: $(basename "$f"): $kind not served yet, left to the argocd Application"
     continue
   fi
-  rest+=(-f "$f")
+  rest+=("$f")
 done
-"${apply[@]}" "${rest[@]}"
+apply_new "${rest[@]}"
 for d in $(kubectl get deploy -n argocd -o name); do
   kubectl rollout status -n argocd "$d" --timeout=5m
 done

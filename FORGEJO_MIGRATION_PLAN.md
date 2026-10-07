@@ -1352,7 +1352,9 @@ settings.
 | `RENOVATE_TOKEN` itself | a PAT of a dedicated **`renovate` bot user** (repo rw, user r, issue rw), not the owner's | Renovate | the OpenTofu job creates the user and mints the PAT | taint the token resource, re-apply |
 | **`monitor` bot token** | minted by OpenTofu (`read:admin`), held in its state | a Kubernetes Secret in the Forgejo namespace, read only by the runner-status CronJob (Runner monitoring) | the OpenTofu job creates the user, the token and the Secret | taint the token resource, re-apply |
 | Automatic `GITHUB_TOKEN` | Forgejo | jobs | — | — |
-| Cloudflare token (cert-manager), borgbase | SOPS / agenix (exist) | — | — | unchanged |
+| **Cluster SOPS age key** (recipient `age1v3vw…`, `cluster/.sops.yaml`) | agenix `secrets/sops-age-key.age`, `personal` only — backed up 2026-10-07; until then its only copy was the live `sops-age-key` Secret, so losing nuc would have lost every SopsSecret (found by the Cluster Bootstrap rehearsal) | the `sops-age-key` Secret in `sops-operator` (key `key`, `SOPS_AGE_KEY_FILE=/mnt/age/key`), from which sops-operator decrypts every SopsSecret | `cluster/scripts/bootstrap` step 1b, before ArgoCD starts sops-operator (rehearsed: all six SopsSecrets Healthy) | new key, re-encrypt every `*.enc.yaml`, re-encrypt the backup, replace the Secret |
+| Cloudflare token (cert-manager, external-dns), vaultwarden env, homepage, healthchecks, cleanuparr | SopsSecrets, decrypted by the age key above | — | sops-operator | re-encrypt the `*.enc.yaml` |
+| borgbase | agenix (exists) | — | — | unchanged |
 
 No GitHub token remains (`PAT_TOKEN` goes). A github.com read token for
 Renovate's datasource rate limits is added only if Renovate gets
