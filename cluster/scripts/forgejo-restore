@@ -299,11 +299,14 @@ done
 if [ "$mode" = restore ]; then
 # --- 9. expose and resume ------------------------------------------------------
 log "step 9: resume automated sync and sync (IngressRoute, ssh Service back)"
+before=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 kubectl patch application -n argocd forgejo --type merge \
   -p '{"spec":{"syncPolicy":{"automated":{"enabled":true}}},"operation":{"initiatedBy":{"username":"forgejo-restore"},"sync":{}}}' >/dev/null
+# Until this sync has finished: the phase read first is the previous one's.
 for _ in $(seq 120); do
-  phase=$(kubectl get application -n argocd forgejo -o jsonpath='{.status.operationState.phase}')
-  [ "$phase" = Running ] || break
+  read -r started phase < <(kubectl get application -n argocd forgejo \
+    -o jsonpath='{.status.operationState.startedAt} {.status.operationState.phase}{"\n"}')
+  [[ "$started" > "$before" || "$started" == "$before" ]] && [ "$phase" != Running ] && break
   sleep 5
 done
 kubectl get application -n argocd forgejo -o jsonpath='{.status.sync.status} {.status.health.status} op={.status.operationState.phase}{"\n"}'
