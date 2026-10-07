@@ -3342,12 +3342,14 @@ local patchTargetDown(resources) = {
       k.core.v1.envVar.new('FORGEJO__service__DISABLE_REGISTRATION', 'true'),
       k.core.v1.envVar.new('FORGEJO__security__INSTALL_LOCK', 'true'),
       k.core.v1.envVar.new('FORGEJO__actions__ENABLED', 'true'),
-      // Migrations and mirrors may reach public hosts (the default) and the
-      // nas mirror, nothing else private: a push mirror to 192.168.1.3 is
-      // otherwise refused ("Permission denied"; the allow list holds only
-      // public hosts unless ALLOW_LOCALNETWORKS, which would open the whole
-      // LAN and the cluster's own addresses).
-      k.core.v1.envVar.new('FORGEJO__migrations__ALLOWED_DOMAINS', 'external,192.168.1.3/32'),
+      // The hosts migrations and mirrors may reach: GitHub (dots' migration,
+      // the ci-test/forgejo-mirrors push mirrors) and the nas mirror. A push
+      // mirror to 192.168.1.3 is otherwise refused ("Permission denied": by
+      // default only public hosts; ALLOW_LOCALNETWORKS would open the whole
+      // LAN and the cluster's own addresses). Hostname wildcards only -- no
+      // CIDRs or builtins here (hostmatcher.ParseSimpleMatchList); add a
+      // host before migrating from it.
+      k.core.v1.envVar.new('FORGEJO__migrations__ALLOWED_DOMAINS', 'github.com,*.github.com,192.168.1.3'),
       // Pinned crypto keys (sealed). Without these Forgejo self-mints a transient
       // SECRET_KEY each boot; pinning makes a fresh PVC reproducible.
       secretRef('FORGEJO__security__SECRET_KEY', 'SECRET_KEY'),
