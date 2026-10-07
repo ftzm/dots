@@ -57,7 +57,27 @@ in
     globalTimeout = 24 * 3600;
 
     nodes.nas = {
-      imports = [uplink (at 3)];
+      imports = [uplink (at 3) ../../role/garage.nix];
+      # /pool-1 (every PV, the dump, Garage) lives on the root disk; the
+      # default size filled up and postgres failed with ENOSPC.
+      virtualisation.diskSize = 30000;
+      virtualisation.fileSystems."/".autoResize = true;
+      # Test-only credentials; the real nas's come from agenix.
+      garageNode = {
+        enable = true;
+        dataDir = "/pool-1/garage/data";
+        metadataDir = "/pool-1/garage/meta";
+        capacity = "20G";
+        secretsFile = pkgs.writeText "garage-test-secrets" ''
+          GARAGE_RPC_SECRET=${builtins.hashString "sha256" "cluster-bootstrap rpc"}
+          GARAGE_ADMIN_TOKEN=${builtins.hashString "sha256" "cluster-bootstrap admin"}
+        '';
+        keys.cnpg = pkgs.writeText "garage-test-cnpg-key" (builtins.toJSON {
+          accessKeyId = "GK" + builtins.substring 0 24 (builtins.hashString "sha256" "cluster-bootstrap cnpg id");
+          secretAccessKey = builtins.hashString "sha256" "cluster-bootstrap cnpg secret";
+        });
+        buckets.cnpg-backups = ["cnpg"];
+      };
       networking.nameservers = ["127.0.0.1"];
       networking.firewall.enable = false;
       services.dnsmasq = {
@@ -204,6 +224,7 @@ in
       nas.wait_for_unit("nfs-server.service")
       nas.wait_for_unit("dnsmasq.service")
       nas.wait_for_unit("git-mirror.service")
+      nas.wait_for_unit("garage-provision.service")
       nuc.wait_for_unit("k3s.service")
       nuc.wait_until_succeeds("k3s kubectl get node nuc | grep -w Ready", timeout=600)
       # Into the driver's output directory (run passes $REHEARSAL_DIR).

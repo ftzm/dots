@@ -42,6 +42,11 @@ in {
   # only copy was the live Secret. cluster/scripts/bootstrap restores it
   # before sops-operator first starts. Workstation-only, like the above.
   "sops-age-key.age".publicKeys = [personal];
+  # Garage on nas (role/garage.nix): GARAGE_RPC_SECRET and GARAGE_ADMIN_TOKEN,
+  # and the access key CloudNativePG's Barman Cloud plugin archives with (the
+  # same key, sealed, is the garage-cnpg Secret in each database namespace).
+  "garage-env.age".publicKeys = [personal nas];
+  "garage-cnpg-key.age".publicKeys = [personal nas];
   # nuc's binary-cache signing key (FORGEJO_MIGRATION_PLAN.md -> Secrets): nix
   # signs what nuc builds with it, harmonia what it serves. The public half,
   # nuc-fleet-1:..., is every host's trusted key (role/fleet-agent.nix).

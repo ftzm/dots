@@ -14,6 +14,7 @@ in {
     inputs.agenix.nixosModules.age
     ./hardware.nix
     ../../role/network.nix
+    ../../role/garage.nix
     ../../role/resilience.nix
     ../../role/lab.nix
     ../../role/node-exporter.nix
@@ -158,6 +159,21 @@ in {
   #############################################################################
   # Borg Backup
 
+  # Garage: S3 store for the cluster's database backups (CloudNativePG's
+  # Barman Cloud plugin, cluster/lib/postgres.libsonnet barmanBackup), off nuc
+  # and inside the borgbase job below.
+  age.secrets.garage-env.file = ../../secrets/garage-env.age;
+  age.secrets.garage-cnpg-key.file = ../../secrets/garage-cnpg-key.age;
+  garageNode = {
+    enable = true;
+    dataDir = "/pool-1/garage/data";
+    metadataDir = "/pool-1/garage/meta";
+    capacity = "500G";
+    secretsFile = config.age.secrets.garage-env.path;
+    keys.cnpg = config.age.secrets.garage-cnpg-key.path;
+    buckets.cnpg-backups = ["cnpg"];
+  };
+
   age.secrets.borgbase-key.file = ../../secrets/borgbase_key.age;
   age.secrets.borgbase-passphrase.file = ../../secrets/borgbase_passphrase.age;
 
@@ -173,6 +189,9 @@ in {
       "/pool-1/k8s/pinepods-downloads"
       "/pool-1/k8s/pinepods-db-backup"
       "/pool-1/k8s/miniflux-db-backup"
+      # Garage's data and metadata (with its auto-snapshots): the database
+      # base backups and WAL archives.
+      "/pool-1/garage"
     ];
     exclude = [];
     repo = "d6hr008k@d6hr008k.repo.borgbase.com:repo";
