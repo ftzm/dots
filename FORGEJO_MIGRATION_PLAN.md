@@ -611,8 +611,8 @@ Nothing changes the source of truth until the manual paths are proven.
    sync) — issues, PRs, labels, milestones, releases, numbers kept,
    so `#246`-style references in commit messages still resolve (GitHub
    Actions run logs do not migrate). Then the **Forgejo OpenTofu job** lands
-   (Secrets → Forgejo configuration as OpenTofu): the
-   `terraform-provider-forgejo` package, the nix-built image, the PostSync
+   (Secrets → Forgejo configuration as OpenTofu): the upstream OpenTofu
+   image with the provider pinned by `.terraform.lock.hcl`, the PostSync
    hook Job in the Forgejo Application, the `kubernetes` state backend.
    Its first config declares `ftzm/dots` — taken over from the migrator by an
    OpenTofu `import` block, not created — with `private = true`, master's
@@ -1396,35 +1396,17 @@ re-mints it at the next sync.
   Application syncs — a change to the config, which lives in an ordinary
   ConfigMap of the app, makes it OutOfSync — and only once its resources are
   Healthy, so Forgejo's API is up. Unrelated commits run nothing.
-- **Image:** nix-built, `opentofu.withPlugins` with the provider; nothing
-  downloads at run time. The provider is not in `nixpkgs-ftzmlab` (no
-  Forgejo entry in its terraform-providers set), so the repo packages it
-  with nixpkgs' `terraform-providers.mkProvider` (owner `svalabs`, repo
-  `terraform-provider-forgejo`, pinned version, `hash` and `vendorHash`),
-  exported as `packages.x86_64-linux.terraform-provider-forgejo`, its
-  expression in `pkgs/terraform-provider-forgejo.nix` — outside Rule R's
-  allowlist — importing nothing from `role/` or `machines/`: `nix-update`
-  evaluates impurely (`nix-instantiate --eval --strict` on its `eval.nix`,
-  which loads the flake by `getFlake`, `nix_update/eval.py:115-150`; flake
-  code loaded that way read `$HOME` and `/etc/hostname`, where pure `nix
-  eval` refused both), inside the Renovate job with `RENOVATE_TOKEN` and
-  the runner's `.runner` in reach, so only owner- or Renovate-authored code
-  may be on that evaluation's path; flake outputs are lazy, so it forces
-  only this attribute. Renovate
-  keeps it current: a regex manager in `cluster/renovate.jsonnet` on its
-  `version`, datasource `github-releases`, `depName`
-  `svalabs/terraform-provider-forgejo`; a `postUpgradeTasks` command
-  `nix-update terraform-provider-forgejo --flake --version {{newVersion}}`,
-  which rewrites the version and recomputes both `hash` and `vendorHash`
-  (nix-update handles `buildGoModule`'s `vendorHash`), with
-  `fileFilters` limited to the package file; `renovate.yml`'s
-  `RENOVATE_ALLOWED_COMMANDS` gains
-  `^nix-update terraform-provider-forgejo --flake --version [0-9.]+$` next
-  to the `tk` and render entries (`renovate.yml`), and
-  `nix-update` joins the cluster dev shell Renovate runs in. Forgejo is a
-  supported Renovate platform with no post-upgrade-task restriction
-  (renovate `lib/modules/platform/forgejo/readme.md`; `allowedCommands` is
-  the current name of `allowedPostUpgradeCommands`).
+- **Image:** the upstream `ghcr.io/opentofu/opentofu`, pinned in
+  `cluster/lib/images/` like every other image. The provider downloads at
+  `tofu init` from the OpenTofu registry (svalabs/forgejo, published with
+  signed SHA256 sums), pinned by version and by the hashes in the committed
+  `.terraform.lock.hcl`, which OpenTofu verifies. (Decided 2026-10-07; this
+  replaces a nix-built image with the provider baked in, whose "nothing
+  downloads at run time" bought nothing the lock file does not: every other
+  workload pulls from a public registry too.) A run fails only if GitHub,
+  where the provider's releases live, is unreachable during a sync of the
+  Forgejo Application; the next sync reapplies. Renovate's own Terraform
+  manager keeps the provider version and the lock file current.
 - **State:** OpenTofu's `kubernetes` backend, a Secret in the Forgejo
   namespace; it also holds the minted tokens. Lost state is rebuilt with
   `tofu import` or by re-minting the tokens.
@@ -2087,7 +2069,7 @@ with the managed settings of Containing the agent; the agent's `nix` on a
 workdir store inside the sandbox, evaluating every host `--offline` from
 what `nix flake archive` put there (import-from-derivation anywhere in the
 tree would need builds); the VM's 20 GiB volume against that store;
-that `nix-update` rewrites a `terraform-providers.mkProvider` call's version and both hashes (first provider bump);
+that Renovate's Terraform manager bumps the provider and updates `.terraform.lock.hcl` together (first provider bump);
 `pull_request_target` firing for an AGit PR on the live instance;
 Renovate automerging its PR after a repair merged into its branch (the
 armed auto-merge surviving another user's push); that nas's `receive.denyNonFastForwards` refusal of a mirror push surfaces
