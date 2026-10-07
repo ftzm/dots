@@ -518,6 +518,7 @@
     // The Cluster's spec.plugins.
     plugins: [{
       name: 'barman-cloud.cloudnative-pg.io',
+      enabled: true,  // cnpg's webhook defaults it; declared so ArgoCD sees no diff
       isWALArchiver: true,
       parameters: { barmanObjectName: store, serverName: '%s-g%d' % [cluster, generation] },
     }],
