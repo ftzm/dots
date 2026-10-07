@@ -611,9 +611,11 @@ Nothing changes the source of truth until the manual paths are proven.
    sync) — issues, PRs, labels, milestones, releases, numbers kept,
    so `#246`-style references in commit messages still resolve (GitHub
    Actions run logs do not migrate). Then the **Forgejo OpenTofu job** lands
-   (Secrets → Forgejo configuration as OpenTofu): the upstream OpenTofu
-   image with the provider pinned by `.terraform.lock.hcl`, the PostSync
-   hook Job in the Forgejo Application, the `kubernetes` state backend.
+   (Secrets → Forgejo configuration as OpenTofu): the nix-built image
+   imported on nuc, providers pinned by `.terraform.lock.hcl`, the PostSync
+   hook Job in the Forgejo Application, the `kubernetes` state backend
+   (built and live 2026-10-07, provisioning runner monitoring; the `dots`
+   parts below wait for the migration).
    Its first config declares `ftzm/dots` — taken over from the migrator by an
    OpenTofu `import` block, not created — with `private = true`, master's
    protection, the push mirror, the `dots` repo secrets that exist by
@@ -1380,33 +1382,42 @@ resource, so the Job's last step creates the `master` push mirror to nas by
 API if absent.
 
 **Runner monitoring** (decided 2026-10-06, after the VM runner sat offline
-for ~30 hours after nuc's power loss with nothing alerting): Forgejo's
-Prometheus metrics have no runner state (`modules/metrics` in v16.0.5), so
-the OpenTofu job also creates a `monitor` bot user with a read-only admin
-token (`read:admin`), written to a Kubernetes Secret in the Forgejo
-namespace. A CronJob there (every 2 min) reads `GET /admin/actions/runners`
-with it and exposes `forgejo_runner_last_online_timestamp{runner}` (and
-`forgejo_runner_online{runner}`) for Prometheus; `ForgejoRunnerOffline`
-fires when a registered runner has not been online for 15 minutes. The
-token is declared like every other bot token, so a rebuilt Forgejo
-re-mints it at the next sync.
+for ~30 hours after nuc's power loss with nothing alerting; live
+2026-10-07): Forgejo's Prometheus metrics have no runner state
+(`modules/metrics` in v16.0.5), so the OpenTofu job creates a `monitor` bot
+user (a site admin: `/admin/actions/runners` requires one) with a
+`read:admin` token, written to the `forgejo-monitor-token` Secret in the
+Forgejo namespace. The API gives each runner a `status` (`offline`, `idle`,
+`active`) but no last-online time, and a CronJob cannot be scraped, so
+`forgejo-runner-monitor` (prometheus-community json_exporter) reads
+`GET /admin/actions/runners` with that token on every scrape and exposes
+`forgejo_runner_info{runner, status}`. `ForgejoRunnerOffline` fires when a
+runner has been `offline` for 15 minutes; `ForgejoRunnerMonitorDown` when
+the metric is absent for 15 minutes (exporter or token broken, or no runner
+registered). The token is declared like every other bot token, so a
+rebuilt Forgejo re-mints it at the next sync (`lib/forgejo-tofu.libsonnet`).
 
 - **Where it runs:** a PostSync hook Job in the Forgejo Application
   (`hook-delete-policy: BeforeHookCreation`), so it runs only when that
   Application syncs — a change to the config, which lives in an ordinary
   ConfigMap of the app, makes it OutOfSync — and only once its resources are
   Healthy, so Forgejo's API is up. Unrelated commits run nothing.
-- **Image:** the upstream `ghcr.io/opentofu/opentofu`, pinned in
-  `cluster/lib/images/` like every other image. The provider downloads at
-  `tofu init` from the OpenTofu registry (svalabs/forgejo, published with
-  signed SHA256 sums), pinned by version and by the hashes in the committed
-  `.terraform.lock.hcl`, which OpenTofu verifies. (Decided 2026-10-07; this
-  replaces a nix-built image with the provider baked in, whose "nothing
-  downloads at run time" bought nothing the lock file does not: every other
-  workload pulls from a public registry too.) A run fails only if GitHub,
-  where the provider's releases live, is unreachable during a sync of the
-  Forgejo Application; the next sync reapplies. Renovate's own Terraform
-  manager keeps the provider version and the lock file current.
+- **Image:** nix-built (`pkgs/forgejo-tofu-image.nix`: OpenTofu from
+  nixpkgs, bash, curl, jq, CA certificates), imported into k3s on nuc by
+  `role/k3s-local-images.nix` — a oneshot that re-imports it whenever it
+  changes (k3s imports tarballs only at startup) and pins it
+  (`io.cri-containerd.pinned`) against image GC; the Job uses it with
+  `imagePullPolicy: Never` and a nuc nodeSelector, so it updates when nuc
+  deploys. Not the upstream `ghcr.io/opentofu/opentofu`: "Starting with
+  OpenTofu 1.10, direct usage of the official images is no longer
+  supported." The providers download at `tofu init` from the OpenTofu
+  registry, pinned by version and by the hashes in the committed
+  `.terraform.lock.hcl`, which OpenTofu verifies (decided 2026-10-07; baking
+  them into the image bought nothing the lock file does not). A run fails
+  only if GitHub, where the provider releases live, is unreachable during a
+  sync of the Forgejo Application; the next sync reapplies. Renovate's
+  Terraform manager keeps the provider versions and the lock file current;
+  OpenTofu itself moves with nixpkgs.
 - **State:** OpenTofu's `kubernetes` backend, a Secret in the Forgejo
   namespace; it also holds the minted tokens. Lost state is rebuilt with
   `tofu import` or by re-minting the tokens.
