@@ -752,6 +752,23 @@ dump marked merged, unfinished Actions runs cancelled, then branches, open PRs
 and runs compared with the live instance. `--rehearse --cleanup` removes the
 namespace and its PV.
 
+
+### Configuration as OpenTofu
+
+`lib/forgejo-tofu.libsonnet`: `environments/lab/forgejo-tofu/main.tf` (and its
+`.terraform.lock.hcl`) is a ConfigMap of the Forgejo Application, applied by
+the `forgejo-tofu` PostSync Job as the sealed Forgejo admin, state in the
+`kubernetes` backend (`tfstate-default-forgejo`). Edit `main.tf`, regenerate
+the lock file when providers change (`tofu providers lock
+-platform=linux_amd64` in that directory), render, commit; the next sync
+applies it. The Job's image is nix-built (`pkgs/forgejo-tofu-image.nix`) and
+imported into k3s on nuc by `role/k3s-local-images.nix` (`imagePullPolicy:
+Never`), so it updates when nuc deploys.
+
+Today it provisions the `monitor` bot and its `read:admin` token
+(`forgejo-monitor-token`), which `forgejo-runner-monitor` (json_exporter)
+uses to turn `/admin/actions/runners` into `forgejo_runner_info{runner,
+status}`; `ForgejoRunnerOffline` fires after 15 minutes offline.
 ---
 
 ## Dependency Automation (Renovate)
