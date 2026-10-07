@@ -1,6 +1,7 @@
 # The nas mirror (FORGEJO_MIGRATION_PLAN.md -> Decisions -> nas `master` is
 # the deploy source of truth): bare repos served by this host's own sshd to a
-# `git` user whose login shell is git-shell -- no dependency on k3s, traefik,
+# `git` user whose login shell is git-shell, as ssh://git@<host><root>/<repo>.git
+# (an absolute path: ssh:// paths are not home-relative) -- no dependency on k3s, traefik,
 # cert-manager or nuc. Forward-only: receive.denyNonFastForwards and
 # receive.denyDeletes, so a stale Forgejo (restored dump, force-push) has its
 # push refused instead of rewinding what ArgoCD and the fleet writer deploy.

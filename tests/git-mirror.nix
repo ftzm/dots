@@ -48,7 +48,8 @@ in
       )
       def git(key, cmd):
           return f"cd /work && GIT_SSH_COMMAND='ssh -i /root/.ssh/{key} -o IdentitiesOnly=yes -o BatchMode=yes' git {cmd}"
-      url = "git@nas:dots.git"
+      # The absolute form real clients use (ssh:// paths are not home-relative).
+      url = "ssh://git@nas/srv/git/dots.git"
 
       with subtest("the write key pushes master"):
           client.succeed(git("writer", f"push {url} master"))
