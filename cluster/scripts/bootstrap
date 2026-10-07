@@ -83,6 +83,14 @@ done
 "${apply[@]}" "${crds[@]}"
 kubectl wait --for=condition=Established --timeout=2m "${crds[@]}" >/dev/null
 "${apply[@]}" -f "$argocd_dir/argocd-namespace.yaml"
+# redis's password, read by every ArgoCD component. The chart's
+# redisSecretInit Job would create it but is disabled (lab.jsonnet), so a
+# fresh cluster has none and redis never starts. Cluster-local like the
+# sealing keys: in no Application, never replaced once it exists.
+if ! kubectl get secret -n argocd argocd-redis >/dev/null 2>&1; then
+  head -c 24 /dev/urandom | base64 | tr -d '\n' |
+    kubectl create secret generic -n argocd argocd-redis --from-file=auth=/dev/stdin
+fi
 # The rest, except kinds not yet served: the ServiceMonitors, PrometheusRule
 # and IngressRouteTCP come from operators ArgoCD itself deploys (waves 3-4);
 # the argocd Application creates them in wave 5.
