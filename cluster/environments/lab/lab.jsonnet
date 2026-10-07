@@ -399,8 +399,7 @@ local patchTargetDown(resources) = {
     local ns = 'argocd',
 
     // Read-only credential for the nas mirror (role/git-mirror.nix readKeys
-    // on nas). Inert until repoURL moves to ssh://git@192.168.1.3/dots.git
-    // (FORGEJO_MIGRATION_PLAN.md step 3); the private key exists only here.
+    // on nas), matched by URL prefix; the private key exists only here.
     nasMirrorRepoCreds: {
       apiVersion: 'bitnami.com/v1alpha1',
       kind: 'SealedSecret',
@@ -421,9 +420,11 @@ local patchTargetDown(resources) = {
       },
     },
 
-    // The git source of every Application below and of the ApplicationSet.
+    // The git source of every Application below and of the ApplicationSet:
+    // the nas mirror, the deploy source of truth (FORGEJO_MIGRATION_PLAN.md
+    // -> Decisions), read with nasMirrorRepoCreds.
     local repo = {
-      repoURL: 'https://github.com/ftzm/dots.git',
+      repoURL: 'ssh://git@192.168.1.3/pool-1/git/dots.git',
       targetRevision: 'HEAD',
     },
     local syncPolicy = {
@@ -476,6 +477,8 @@ local patchTargetDown(resources) = {
             enabled: false,
           },
           configs: {
+            // nas's host key (secrets/secrets.nix), for the nas mirror.
+            ssh: { extraHosts: '192.168.1.3 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoyzVr7G3uC7YJI4vH8jhYI+sJcIlcckhwzeMVZOYqn' },
             params: {
               'reposerver.max.combined.directory.manifests.size': '30000000',
             },

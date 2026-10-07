@@ -14,7 +14,7 @@ spec:
   project: default
   source:
     path: cluster/manifests/sops-operator
-    repoURL: https://github.com/ftzm/dots.git
+    repoURL: ssh://git@192.168.1.3/pool-1/git/dots.git
     targetRevision: HEAD
   syncPolicy:
     automated:
