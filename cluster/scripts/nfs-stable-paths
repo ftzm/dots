@@ -8,18 +8,21 @@
 #
 #   nfs-stable-paths NAMESPACE...
 #
-# Per namespace, for each `nfs` PVC not owned by a cnpg Cluster (database
-# volumes are cnpg's; see its own recovery):
+# Per namespace, for each UID-named directory on nas that is not a cnpg
+# database volume (those are cnpg's; see its own recovery). Resumable: a rerun
+# after a failure picks up from what is left.
 #   1  pause the namespace's Application (selfHeal would undo the scale-down)
-#   2  scale every workload mounting one to 0 -- through the Prometheus or
-#      Alertmanager object when the operator owns the StatefulSet
-#   3  PV reclaim policy -> Retain, then delete the PVC and the PV: the data
-#      stays on nas, untouched
-#   4  rename the directory on nas, in a Job mounting /pool-1/k8s (refuses
+#   2  PV reclaim policy -> Retain, before anything scales (a StatefulSet with
+#      whenScaled: Delete deletes its PVC on scale-down)
+#   3  scale every workload mounting one to 0 -- through the Prometheus or
+#      Alertmanager object when the operator owns the StatefulSet; the
+#      original replicas are kept in a ConfigMap until verified
+#   4  delete the PVC and PV objects: the data stays on nas, untouched
+#   5  rename the directory on nas, in a Job mounting /pool-1/k8s (refuses
 #      if the stable name exists)
-#   5  restore the replicas, resume and sync: ArgoCD (or the StatefulSet)
+#   6  restore the replicas, resume and sync: ArgoCD (or the StatefulSet)
 #      recreates the PVC, the provisioner reuses the renamed directory
-#   6  verify: each new PV's path is the stable one, its file count is the
+#   7  verify: each new PV's path is the stable one, its file count is the
 #      old one's, every workload is ready again
 #
 # Run in the cluster dev shell, with $KUBECONFIG set.
@@ -65,17 +68,17 @@ EOF
 }
 
 for ns in "$@"; do
-  # PVC name -> old directory, for every nfs PVC to move.
+  # What to move comes from nas, the ground truth: every <ns>-<pvc>-pvc-<uid>
+  # directory, minus cnpg's database volumes (<cluster>-<n>). A rerun after a
+  # failure resumes from wherever the objects were left.
+  skip=$(kubectl get clusters.postgresql.cnpg.io -n "$ns" -o name 2>/dev/null | sed 's|.*/||')
   declare -A old=()
-  while read -r pvc pv owner; do
-    [ "$owner" = Cluster ] && continue
-    dir=$(kubectl get pv "$pv" -o jsonpath='{.spec.nfs.path}')
-    dir=${dir##*/}
-    [ "$dir" = "$ns-$pvc" ] && continue
+  while read -r dir; do
+    pvc=${dir#"$ns"-}
+    pvc=${pvc%-pvc-*}
+    for c in $skip; do [[ $pvc =~ ^$c-[0-9]+$ ]] && continue 2; done
     old[$pvc]=$dir
-  done < <(kubectl get pvc -n "$ns" -o json | jq -r '.items[]
-    | select(.spec.storageClassName == "nfs")
-    | "\(.metadata.name) \(.spec.volumeName) \((.metadata.ownerReferences // [])[0].kind // "-")"')
+  done < <(nas_job "$ns" nfs-stable-paths-list "ls /k8s | grep -E '^$ns-.+-pvc-[0-9a-f-]{36}\$' || true")
   if [ ${#old[@]} -eq 0 ]; then
     log "$ns" "nothing to move"
     unset old
@@ -83,34 +86,52 @@ for ns in "$@"; do
   fi
   log "$ns" "moving: ${!old[*]}"
 
-  # Workloads mounting them, as kind/name (the object whose replicas count).
-  workloads=$(kubectl get pods -n "$ns" -o json | jq -r --argjson pvcs "$(printf '%s\n' "${!old[@]}" | jq -R . | jq -s .)" '
-    .items[] | select([.spec.volumes[]?.persistentVolumeClaim.claimName] | any(. as $c | $pvcs | index($c)))
-    | .metadata.ownerReferences[0] | "\(.kind)/\(.name)"' | sort -u)
-  targets=()
-  for w in $workloads; do
-    kind=${w%%/*} name=${w#*/}
-    case $kind in
-      ReplicaSet) targets+=("deployment/$(kubectl get rs -n "$ns" "$name" -o jsonpath='{.metadata.ownerReferences[0].name}')") ;;
-      StatefulSet)
-        op=$(kubectl get sts -n "$ns" "$name" -o jsonpath='{.metadata.ownerReferences[0].kind}/{.metadata.ownerReferences[0].name}')
-        case $op in
-          Prometheus/* | Alertmanager/*) targets+=("${op,,}") ;;
-          *) targets+=("statefulset/$name") ;;
-        esac ;;
-      *) echo "nfs-stable-paths: $ns: pod owned by $w, not handled" >&2; exit 1 ;;
-    esac
-  done
-  mapfile -t targets < <(printf '%s\n' "${targets[@]}" | sort -u)
+  # Workloads mounting them and their replicas, kept in a ConfigMap until
+  # verified: a rerun finds them scaled to 0 and must restore the originals.
+  state=nfs-stable-paths-state
   declare -A replicas=()
-  for t in "${targets[@]}"; do replicas[$t]=$(kubectl get -n "$ns" "$t" -o jsonpath='{.spec.replicas}'); done
+  if kubectl get configmap -n "$ns" "$state" >/dev/null 2>&1; then
+    while IFS='=' read -r t r; do replicas[$t]=$r; done < <(kubectl get configmap -n "$ns" "$state" -o json \
+      | jq -r '.data | to_entries[] | "\(.key | gsub("_"; "/"))=\(.value)"')
+  else
+    workloads=$(kubectl get pods -n "$ns" -o json | jq -r --argjson pvcs "$(printf '%s\n' "${!old[@]}" | jq -R . | jq -s .)" '
+      .items[] | select([.spec.volumes[]?.persistentVolumeClaim.claimName] | any(. as $c | $pvcs | index($c)))
+      | .metadata.ownerReferences[0] | "\(.kind)/\(.name)"' | sort -u)
+    for w in $workloads; do
+      kind=${w%%/*} name=${w#*/}
+      case $kind in
+        ReplicaSet) t="deployment/$(kubectl get rs -n "$ns" "$name" -o jsonpath='{.metadata.ownerReferences[0].name}')" ;;
+        StatefulSet)
+          op=$(kubectl get sts -n "$ns" "$name" -o jsonpath='{.metadata.ownerReferences[0].kind}/{.metadata.ownerReferences[0].name}')
+          case $op in
+            Prometheus/* | Alertmanager/*) t=${op,,} ;;
+            *) t="statefulset/$name" ;;
+          esac ;;
+        *) echo "nfs-stable-paths: $ns: pod owned by $w, not handled" >&2; exit 1 ;;
+      esac
+      replicas[$t]=$(kubectl get -n "$ns" "$t" -o jsonpath='{.spec.replicas}')
+    done
+    args=()
+    for t in "${!replicas[@]}"; do args+=(--from-literal="${t//\//_}=${replicas[$t]}"); done
+    kubectl create configmap -n "$ns" "$state" "${args[@]}" >/dev/null
+  fi
+  log "$ns" "workloads: $(for t in "${!replicas[@]}"; do printf '%s=%s ' "$t" "${replicas[$t]}"; done)"
 
   log "$ns" "1: pause the Application"
   kubectl patch application -n argocd "$ns" --type merge \
     -p '{"spec":{"syncPolicy":{"automated":{"enabled":false}}}}' >/dev/null
 
-  log "$ns" "2: scale to 0: ${targets[*]}"
-  for t in "${targets[@]}"; do
+  # Before anything scales: a StatefulSet with whenScaled: Delete (loki)
+  # deletes its PVC on scale-down, and the PV must not follow.
+  log "$ns" "2: PVs to Retain"
+  for pvc in "${!old[@]}"; do
+    pv=$(kubectl get pv -o json | jq -r --arg ns "$ns" --arg c "$pvc" \
+      '.items[] | select(.spec.claimRef.namespace == $ns and .spec.claimRef.name == $c) | .metadata.name')
+    [ -n "$pv" ] && kubectl patch pv "$pv" -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}' >/dev/null
+  done
+
+  log "$ns" "3: scale to 0: ${!replicas[*]}"
+  for t in "${!replicas[@]}"; do
     kubectl patch -n "$ns" "$t" --type merge -p '{"spec":{"replicas":0}}' >/dev/null
   done
   for pvc in "${!old[@]}"; do
@@ -120,22 +141,22 @@ for ns in "$@"; do
     done
   done
 
-  log "$ns" "3: retain, then delete PVC and PV objects (data stays)"
-  declare -A count=()
+  log "$ns" "4: delete PVC and PV objects (data stays)"
   for pvc in "${!old[@]}"; do
-    pv=$(kubectl get pvc -n "$ns" "$pvc" -o jsonpath='{.spec.volumeName}')
-    kubectl patch pv "$pv" -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}' >/dev/null
-    kubectl delete pvc -n "$ns" "$pvc" --wait=true >/dev/null
-    kubectl delete pv "$pv" --wait=true >/dev/null
+    kubectl delete pvc -n "$ns" "$pvc" --ignore-not-found --wait=true >/dev/null
+    for pv in $(kubectl get pv -o json | jq -r --arg ns "$ns" --arg c "$pvc" \
+      '.items[] | select(.spec.claimRef.namespace == $ns and .spec.claimRef.name == $c) | .metadata.name'); do
+      kubectl delete pv "$pv" --wait=true >/dev/null
+    done
   done
 
-  log "$ns" "4: rename on nas"
+  log "$ns" "5: rename on nas"
+  declare -A count=()
   script='set -eu'
   for pvc in "${!old[@]}"; do
     script+="
 o=/k8s/${old[$pvc]} n=/k8s/$ns-$pvc
-[ -d \"\$o\" ] || { echo \"missing \$o\"; exit 1; }
-[ ! -e \"\$n\" ] || { echo \"exists \$n\"; exit 1; }
+[ ! -e \"\$n\" ] || { echo \"exists \$n\" >&2; exit 1; }
 c=\$(find \"\$o\" | wc -l)
 mv \"\$o\" \"\$n\"
 echo \"$pvc \$c\""
@@ -143,14 +164,14 @@ echo \"$pvc \$c\""
   while read -r pvc c; do count[$pvc]=$c; echo "   ${old[$pvc]} -> $ns-$pvc ($c entries)"; done \
     < <(nas_job "$ns" nfs-stable-paths "$script")
 
-  log "$ns" "5: restore replicas, resume and sync"
-  for t in "${targets[@]}"; do
-    kubectl patch -n "$ns" "$t" --type merge -p "{\"spec\":{\"replicas\":${replicas[$t]:-1}}}" >/dev/null
+  log "$ns" "6: restore replicas, resume and sync"
+  for t in "${!replicas[@]}"; do
+    kubectl patch -n "$ns" "$t" --type merge -p "{\"spec\":{\"replicas\":${replicas[$t]}}}" >/dev/null
   done
   kubectl patch application -n argocd "$ns" --type merge \
     -p '{"spec":{"syncPolicy":{"automated":{"enabled":true}}},"operation":{"initiatedBy":{"username":"nfs-stable-paths"},"sync":{}}}' >/dev/null
 
-  log "$ns" "6: verify"
+  log "$ns" "7: verify"
   fail=0
   for pvc in "${!old[@]}"; do
     for _ in $(seq 100); do
@@ -169,12 +190,13 @@ echo \"$pvc \$(find /k8s/$ns-$pvc | wc -l)\""; done
     [ "$c" -ge "${count[$pvc]}" ] && echo "   ok   $pvc: $c entries (was ${count[$pvc]})" \
       || { echo "   FAIL $pvc: $c entries (was ${count[$pvc]})"; fail=1; }
   done < <(nas_job "$ns" nfs-stable-paths-verify "$script")
-  for t in "${targets[@]}"; do
+  for t in "${!replicas[@]}"; do
     case $t in
       deployment/* | statefulset/*) kubectl rollout status -n "$ns" "$t" --timeout=10m >/dev/null && echo "   ok   $t ready" || { echo "   FAIL $t not ready"; fail=1; } ;;
       *) kubectl wait -n "$ns" --for=condition=Available "$t" --timeout=10m >/dev/null && echo "   ok   $t available" || { echo "   FAIL $t not available"; fail=1; } ;;
     esac
   done
-  [ $fail = 0 ] || { echo "nfs-stable-paths: $ns failed verification" >&2; exit 1; }
+  [ $fail = 0 ] || { echo "nfs-stable-paths: $ns failed verification; rerun resumes" >&2; exit 1; }
+  kubectl delete configmap -n "$ns" "$state" >/dev/null
   unset old replicas count
 done
