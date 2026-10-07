@@ -176,12 +176,14 @@ in {
   };
 
   # The deploy source of truth (FORGEJO_MIGRATION_PLAN.md -> Decisions):
-  # ssh://git@192.168.1.3/dots.git, forward-only. Forgejo's push-mirror key
-  # joins writeKeys when the OpenTofu job creates the mirror.
+  # ssh://git@192.168.1.3/pool-1/git/dots.git, forward-only.
   gitMirror = {
     enable = true;
     root = "/pool-1/git";
     writeKeys = [
+      # Forgejo's push mirror of ftzm/dots master (created by the
+      # forgejo-tofu Job; Forgejo holds the private half in its DB).
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP73kluJMvuDHf9MqT/QhtkVyToDm61hRlmhlOC6A3I5 forgejo-push-mirror-dots"
       # The workstation: fixes go here while Forgejo is down.
       "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjXUsGrBVN0jkm39AqfoEIG4PLxmefofNJPUtJeRnIoLZGMaS8Lw/tReVKx64+ttFWLAdkfi+djJHATxwMhhD8BwfJoP5RCz+3P97p1lQh6CjM0XrzTE9Ol6X1/D/mgS4oVa5YaVw3VszxN6Hm2BimKobvfHuIK5w/f0BoBIWxdvs0YyxCJvPsyIfmEvd8CPug9A8bo1/ni77AMpAWuw2RbEBJMk3sxHqUsHlCX/aPTjEqPusictHuy3xoHc4DSxgE/IZkV/d4wOzOUHaM+W8oKvBy8X00rMMprQ1e81WUySkh4UwgplNoD/hHGuVD0EN94ISkjwOfPGW0ACP7bVkZ"
     ];
