@@ -57,3 +57,25 @@ resource "kubernetes_secret_v1" "monitor_token" {
     token = forgejo_personal_access_token.monitor.token
   }
 }
+
+# --- ftzm/dots ------------------------------------------------------------
+# Migrated from GitHub with Forgejo's migrator (issues, PRs, numbers kept);
+# taken over here, not created.
+
+import {
+  to = forgejo_repository.dots
+  id = "ftzm/dots"
+}
+
+resource "forgejo_repository" "dots" {
+  owner       = "ftzm"
+  name        = "dots"
+  description = "NixOS and k3s homelab configuration"
+  private     = true
+  has_wiki    = false
+  # Off until the workflows are ported to .forgejo/workflows: with that
+  # directory absent Forgejo runs .github/workflows
+  # (modules/actions/workflows.go ListWorkflows), the GitHub workflows,
+  # without their secrets.
+  has_actions = false
+}
