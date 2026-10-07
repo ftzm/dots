@@ -147,7 +147,12 @@ in
     };
 
     nodes.nuc = {
-      imports = [uplink (at 4)];
+      imports = [uplink (at 4) ../../role/k3s-local-images.nix];
+      # As machines/nuc/k3s.nix.
+      k3sLocalImages.forgejo-tofu = {
+        image = pkgs.callPackage ../../pkgs/forgejo-tofu-image.nix {};
+        ref = "localhost/forgejo-tofu:nix";
+      };
       networking.nameservers = ["192.168.1.3"];
       networking.firewall.enable = false;
       # New connections to every private and tailnet destination outside the

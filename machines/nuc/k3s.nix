@@ -1,4 +1,8 @@
-{config, ...}: {
+{
+  config,
+  pkgs,
+  ...
+}: {
   age.secrets.k3s = {
     file = ../../secrets/k3s.age;
   };
@@ -10,6 +14,15 @@
   networking.firewall.allowedUDPPorts = [
     # 8472 # k3s, flannel: required if using multi-node for inter-node networking
   ];
+  # nix-built images for the cluster, imported into k3s and pinned
+  # (role/k3s-local-images.nix): the Forgejo OpenTofu job's
+  # (cluster/lib/forgejo-tofu.libsonnet).
+  imports = [../../role/k3s-local-images.nix];
+  k3sLocalImages.forgejo-tofu = {
+    image = pkgs.callPackage ../../pkgs/forgejo-tofu-image.nix {};
+    ref = "localhost/forgejo-tofu:nix";
+  };
+
   services.k3s = {
     enable = true;
     role = "server";

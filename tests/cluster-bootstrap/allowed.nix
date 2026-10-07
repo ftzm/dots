@@ -15,4 +15,6 @@
   "ecr.aws"
   "cloudfront.net"
   "amazonaws.com"
+  # The OpenTofu registry (provider lookup for the forgejo-tofu Job).
+  "opentofu.org"
 ]
