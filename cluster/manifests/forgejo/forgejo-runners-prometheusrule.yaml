@@ -19,6 +19,17 @@ spec:
       for: 15m
       labels:
         severity: warning
+    - alert: ForgejoPushMirrorFailing
+      annotations:
+        description: 'Forgejo''s push mirror of {{ $labels.repo }} to {{ $labels.remote
+          }} reports: {{ $labels.last_error }}. If nas refused a non-fast-forward
+          push, Forgejo is behind or rewound relative to the nas mirror (the deploy
+          source): bring Forgejo''s master to nas''s and the next push succeeds.'
+        summary: Push mirror {{ $labels.repo }} -> {{ $labels.remote }} failing
+      expr: forgejo_push_mirror_info{last_error!=""} == 1
+      for: 10m
+      labels:
+        severity: warning
     - alert: ForgejoRunnerMonitorDown
       annotations:
         description: 'No forgejo_runner_info for 15 minutes: json_exporter (forgejo-runner-monitor)

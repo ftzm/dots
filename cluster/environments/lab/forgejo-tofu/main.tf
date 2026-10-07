@@ -45,7 +45,8 @@ resource "forgejo_user" "monitor" {
 resource "forgejo_personal_access_token" "monitor" {
   user   = forgejo_user.monitor.login
   name   = "runner-monitor"
-  scopes = ["read:admin"]
+  # read:repository for the push mirrors' last_error (ForgejoPushMirrorFailing).
+  scopes = ["read:admin", "read:repository"]
 }
 
 resource "kubernetes_secret_v1" "monitor_token" {

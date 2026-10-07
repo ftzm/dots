@@ -3503,10 +3503,15 @@ local patchTargetDown(resources) = {
                 # The setup also creates the git user's ~/.ssh as root; Forgejo
                 # (as git) then cannot write authorized_keys and exits. Not in
                 # `forgejo dump`, so a restore gets it from here: github.com's
-                # published host key (api.github.com/meta), pinned for the
-                # GitHub mirror.
+                # published host key (api.github.com/meta), and nas's (its key
+                # in secrets/secrets.nix) for the push mirror to the nas
+                # mirror -- Forgejo pushes with StrictHostKeyChecking=accept-new
+                # against this file, so pinning it means no first-use trust.
                 install -d -m 700 -o git -g git /data/git/.ssh
-                echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' >/data/git/.ssh/known_hosts
+                printf '%s\n' \
+                  'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
+                  '192.168.1.3 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoyzVr7G3uC7YJI4vH8jhYI+sJcIlcckhwzeMVZOYqn' \
+                  >/data/git/.ssh/known_hosts
                 chown -R git:git /data/git/.ssh
                 CONF=/data/gitea/conf/app.ini
                 su-exec git forgejo migrate --config "$CONF"
@@ -3556,6 +3561,16 @@ local patchTargetDown(resources) = {
     jsonExporterImage: images.jsonExporter,
     mainTf: importstr 'forgejo-tofu/main.tf',
     lockFile: importstr 'forgejo-tofu/.terraform.lock.hcl',
+    // master to the nas mirror, the deploy source of truth
+    // (FORGEJO_MIGRATION_PLAN.md -> Decisions).
+    pushMirrors: [{
+      repo: 'ftzm/dots',
+      remote_address: 'ssh://git@192.168.1.3/pool-1/git/dots.git',
+      use_ssh: true,
+      sync_on_commit: true,
+      branch_filter: 'master',
+      interval: '8h0m0s',
+    }],
     alerts: alerts,
   }),
 

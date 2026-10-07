@@ -82,9 +82,24 @@
                 cd /tmp/work
                 tofu init -input=false -no-color -lockfile=readonly
                 tofu apply -input=false -no-color -auto-approve
+
+                # Push mirrors (the provider has none): created if absent,
+                # with an SSH key Forgejo generates; its public half goes into
+                # the target's write keys (nas: role/git-mirror.nix).
+                api() { curl -sf -u "$FORGEJO_USERNAME:$FORGEJO_PASSWORD" -H 'Content-Type: application/json' "$@"; }
+                echo "$PUSH_MIRRORS" | jq -c '.[]' | while read -r m; do
+                  repo=$(jq -r .repo <<<"$m"); url=$(jq -r .remote_address <<<"$m")
+                  existing=$(api "$FORGEJO_HOST/api/v1/repos/$repo/push_mirrors" | jq -c --arg u "$url" '.[] | select(.remote_address == $u)')
+                  if [ -z "$existing" ]; then
+                    existing=$(jq 'del(.repo)' <<<"$m" | api -X POST --data @- "$FORGEJO_HOST/api/v1/repos/$repo/push_mirrors")
+                    echo "created push mirror $repo -> $url"
+                  fi
+                  echo "push mirror $repo -> $url: public key $(jq -r .public_key <<<"$existing")"
+                done
               |||],
               env: [
                 { name: 'FORGEJO_HOST', value: p.forgejoUrl },
+                { name: 'PUSH_MIRRORS', value: std.manifestJsonMinified(p.pushMirrors) },
                 { name: 'FORGEJO_USERNAME', valueFrom: { secretKeyRef: { name: 'forgejo-secrets', key: 'admin-username' } } },
                 { name: 'FORGEJO_PASSWORD', valueFrom: { secretKeyRef: { name: 'forgejo-secrets', key: 'admin-password' } } },
               ],
@@ -123,6 +138,20 @@
                 help: 'A runner registered with Forgejo, by status',
                 path: '{[*]}',
                 labels: { runner: '{.name}', status: '{.status}' },
+                values: { info: 1 },
+              }],
+            },
+            // A push mirror's last error ('' when its last push worked).
+            push_mirrors: {
+              http_client_config: {
+                authorization: { type: 'token', credentials_file: '/token/token' },
+              },
+              metrics: [{
+                name: 'forgejo_push_mirror',
+                type: 'object',
+                help: 'A push mirror, with its last error',
+                path: '{[*]}',
+                labels: { repo: '{.repo_name}', remote: '{.remote_address}', last_error: '{.last_error}' },
                 values: { info: 1 },
               }],
             },
@@ -180,7 +209,12 @@
           path: '/probe',
           params: { module: ['runners'], target: [runnersUrl] },
           interval: '60s',
-        }],
+        }] + [{
+          port: 'http',
+          path: '/probe',
+          params: { module: ['push_mirrors'], target: ['%s/api/v1/repos/%s/push_mirrors' % [p.forgejoUrl, m.repo]] },
+          interval: '60s',
+        } for m in p.pushMirrors],
       },
     },
     monitorRules: p.alerts.prometheusRule('forgejo-runners', ns, [
@@ -190,6 +224,16 @@
         '15m', 'warning',
         'Forgejo runner {{ $labels.runner }} offline',
         'Forgejo reports the runner {{ $labels.runner }} offline for 15 minutes, so no Actions job that needs it runs. Check its host (the nuc-microvm runner: `systemctl status microvm@*` on nuc) and its logs.',
+      ),
+      // The nas mirror refuses a push that would rewind master
+      // (receive.denyNonFastForwards): a stale Forgejo -- a restored dump, a
+      // force-push -- shows here (FORGEJO_MIGRATION_PLAN.md -> Decisions).
+      p.alerts.rule(
+        'ForgejoPushMirrorFailing',
+        'forgejo_push_mirror_info{last_error!=""} == 1',
+        '10m', 'warning',
+        'Push mirror {{ $labels.repo }} -> {{ $labels.remote }} failing',
+        'Forgejo\'s push mirror of {{ $labels.repo }} to {{ $labels.remote }} reports: {{ $labels.last_error }}. If nas refused a non-fast-forward push, Forgejo is behind or rewound relative to the nas mirror (the deploy source): bring Forgejo\'s master to nas\'s and the next push succeeds.',
       ),
       p.alerts.rule(
         'ForgejoRunnerMonitorDown',

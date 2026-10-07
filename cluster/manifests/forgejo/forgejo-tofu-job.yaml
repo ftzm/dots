@@ -22,12 +22,28 @@ spec:
           cd /tmp/work
           tofu init -input=false -no-color -lockfile=readonly
           tofu apply -input=false -no-color -auto-approve
+
+          # Push mirrors (the provider has none): created if absent,
+          # with an SSH key Forgejo generates; its public half goes into
+          # the target's write keys (nas: role/git-mirror.nix).
+          api() { curl -sf -u "$FORGEJO_USERNAME:$FORGEJO_PASSWORD" -H 'Content-Type: application/json' "$@"; }
+          echo "$PUSH_MIRRORS" | jq -c '.[]' | while read -r m; do
+            repo=$(jq -r .repo <<<"$m"); url=$(jq -r .remote_address <<<"$m")
+            existing=$(api "$FORGEJO_HOST/api/v1/repos/$repo/push_mirrors" | jq -c --arg u "$url" '.[] | select(.remote_address == $u)')
+            if [ -z "$existing" ]; then
+              existing=$(jq 'del(.repo)' <<<"$m" | api -X POST --data @- "$FORGEJO_HOST/api/v1/repos/$repo/push_mirrors")
+              echo "created push mirror $repo -> $url"
+            fi
+            echo "push mirror $repo -> $url: public key $(jq -r .public_key <<<"$existing")"
+          done
         command:
         - /bin/bash
         - -c
         env:
         - name: FORGEJO_HOST
           value: http://forgejo.forgejo.svc:3000
+        - name: PUSH_MIRRORS
+          value: '[{"branch_filter":"master","interval":"8h0m0s","remote_address":"ssh://git@192.168.1.3/pool-1/git/dots.git","repo":"ftzm/dots","sync_on_commit":true,"use_ssh":true}]'
         - name: FORGEJO_USERNAME
           valueFrom:
             secretKeyRef:

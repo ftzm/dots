@@ -2,6 +2,22 @@ apiVersion: v1
 data:
   config.yml: |-
     "modules":
+      "push_mirrors":
+        "http_client_config":
+          "authorization":
+            "credentials_file": "/token/token"
+            "type": "token"
+        "metrics":
+        - "help": "A push mirror, with its last error"
+          "labels":
+            "last_error": "{.last_error}"
+            "remote": "{.remote_address}"
+            "repo": "{.repo_name}"
+          "name": "forgejo_push_mirror"
+          "path": "{[*]}"
+          "type": "object"
+          "values":
+            "info": 1
       "runners":
         "http_client_config":
           "authorization":
