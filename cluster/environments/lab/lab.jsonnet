@@ -523,7 +523,13 @@ local patchTargetDown(resources) = {
           server: 'https://kubernetes.default.svc',
           namespace: ns,
         },
-        syncPolicy: syncPolicy,
+        // On a fresh cluster the wave-5 ServiceMonitors, PrometheusRule and
+        // IngressRouteTCP have no CRD until the wave-3/4 operators are
+        // Healthy; without this the sync's dry-run fails on them before wave
+        // 1 starts (found by the Cluster Bootstrap rehearsal).
+        syncPolicy: syncPolicy {
+          syncOptions+: ['SkipDryRunOnMissingResource=true'],
+        },
       },
     },
 

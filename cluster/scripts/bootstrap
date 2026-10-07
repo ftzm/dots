@@ -19,9 +19,10 @@
 #     Deployment is applied.
 #  2. ArgoCD: a server-side apply of cluster/manifests/argocd/ -- ArgoCD's
 #     install, the self-managing `argocd` Application, the operator
-#     Applications and the services ApplicationSet. From then on the `argocd`
-#     Application manages that directory and its sync waves bring up the rest
-#     (ARGOCD_APPLICATIONS_PLAN.md).
+#     Applications and the services ApplicationSet -- CRDs first, then the
+#     namespace, then the rest except kinds whose operators ArgoCD deploys.
+#     From then on the `argocd` Application manages that directory and its
+#     sync waves bring up the rest (ARGOCD_APPLICATIONS_PLAN.md).
 #
 # Committed manifests are applied with ArgoCD's own field manager,
 # argocd-controller, so each apply is exactly what the owning Application's
@@ -71,4 +72,32 @@ kubectl rollout status -n "$ss_ns" deploy/sealed-secrets --timeout=5m
 
 # --- 2. ArgoCD ---------------------------------------------------------------
 
-"${apply[@]}" -f "$cluster_dir/manifests/argocd/"
+# In three passes; one apply of the directory fails on a fresh cluster:
+# kubectl resolves every kind before the CRDs in the same apply exist, and
+# applies files alphabetically, the namespace after most of its objects.
+argocd_dir=$cluster_dir/manifests/argocd
+crds=() rest=()
+for f in "$argocd_dir"/*.yaml; do
+  [ "$(yq '.kind' "$f")" = CustomResourceDefinition ] && crds+=(-f "$f")
+done
+"${apply[@]}" "${crds[@]}"
+kubectl wait --for=condition=Established --timeout=2m "${crds[@]}" >/dev/null
+"${apply[@]}" -f "$argocd_dir/argocd-namespace.yaml"
+# The rest, except kinds not yet served: the ServiceMonitors, PrometheusRule
+# and IngressRouteTCP come from operators ArgoCD itself deploys (waves 3-4);
+# the argocd Application creates them in wave 5.
+served=$(kubectl api-resources --no-headers | awk '{print $NF}' | sort -u)
+for f in "$argocd_dir"/*.yaml; do
+  kind=$(yq '.kind' "$f")
+  [ "$kind" = CustomResourceDefinition ] && continue
+  if ! grep -qx "$kind" <<<"$served"; then
+    echo "bootstrap: $(basename "$f"): $kind not served yet, left to the argocd Application"
+    continue
+  fi
+  rest+=(-f "$f")
+done
+"${apply[@]}" "${rest[@]}"
+for d in $(kubectl get deploy -n argocd -o name); do
+  kubectl rollout status -n argocd "$d" --timeout=5m
+done
+kubectl rollout status -n argocd statefulset/argocd-application-controller --timeout=5m
