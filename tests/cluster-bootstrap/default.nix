@@ -52,6 +52,9 @@
 in
   pkgs.testers.runNixOSTest {
     name = "cluster-bootstrap";
+    # The driver kills the VMs after an hour by default; run holds them up
+    # for the whole rehearsal.
+    globalTimeout = 24 * 3600;
 
     nodes.nas = {
       imports = [uplink (at 3)];
@@ -142,6 +145,7 @@ in
             chain egress {
               type filter hook output priority 0;
               ct state established,related accept
+              fib daddr type local accept
               ip daddr 192.168.1.0/24 accept
               ip daddr 10.0.2.3 accept
               ip daddr @blocked drop
@@ -149,6 +153,7 @@ in
             chain forwarded {
               type filter hook forward priority 0;
               ct state established,related accept
+              fib daddr type local accept
               ip daddr 192.168.1.0/24 accept
               ip daddr @blocked drop
             }
@@ -170,6 +175,8 @@ in
           "--disable=servicelb"
           "--resolv-conf=/etc/k3s/resolv.conf"
           "--tls-san=127.0.0.1"
+          # The LAN address, as on nuc; not slirp's 10.0.2.15.
+          "--node-ip=192.168.1.4"
         ];
       };
       environment.etc."k3s/resolv.conf".text = "nameserver 192.168.1.3\n";
