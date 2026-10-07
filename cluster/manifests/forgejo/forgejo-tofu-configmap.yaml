@@ -159,6 +159,27 @@ data:
       # without their secrets.
       has_actions = false
     }
+
+    # --- The Job's own token -------------------------------------------------
+    # The push-mirror endpoints take a token, not basic auth (reqToken in
+    # Forgejo's API routes); the Job's script reads this one with
+    # `tofu output -raw job_token`.
+
+    variable "admin_username" {
+      description = "The sealed Forgejo admin (TF_VAR_admin_username)."
+      type        = string
+    }
+
+    resource "forgejo_personal_access_token" "job" {
+      user   = var.admin_username
+      name   = "forgejo-tofu"
+      scopes = ["write:repository"]
+    }
+
+    output "job_token" {
+      value     = forgejo_personal_access_token.job.token
+      sensitive = true
+    }
 kind: ConfigMap
 metadata:
   name: forgejo-tofu

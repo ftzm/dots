@@ -86,7 +86,9 @@
                 # Push mirrors (the provider has none): created if absent,
                 # with an SSH key Forgejo generates; its public half goes into
                 # the target's write keys (nas: role/git-mirror.nix).
-                api() { curl -sS --fail-with-body -u "$FORGEJO_USERNAME:$FORGEJO_PASSWORD" -H 'Content-Type: application/json' "$@"; }
+                hdr=$(mktemp)
+                printf 'Authorization: token %s\n' "$(tofu output -raw job_token)" >"$hdr"
+                api() { curl -sS --fail-with-body -H @"$hdr" -H 'Content-Type: application/json' "$@"; }
                 echo "$PUSH_MIRRORS" | jq -c '.[]' | while read -r m; do
                   repo=$(jq -r .repo <<<"$m"); url=$(jq -r .remote_address <<<"$m")
                   existing=$(api "$FORGEJO_HOST/api/v1/repos/$repo/push_mirrors" | jq -c --arg u "$url" '.[] | select(.remote_address == $u)')
@@ -102,6 +104,7 @@
                 { name: 'PUSH_MIRRORS', value: std.manifestJsonMinified(p.pushMirrors) },
                 { name: 'FORGEJO_USERNAME', valueFrom: { secretKeyRef: { name: 'forgejo-secrets', key: 'admin-username' } } },
                 { name: 'FORGEJO_PASSWORD', valueFrom: { secretKeyRef: { name: 'forgejo-secrets', key: 'admin-password' } } },
+                { name: 'TF_VAR_admin_username', valueFrom: { secretKeyRef: { name: 'forgejo-secrets', key: 'admin-username' } } },
               ],
               volumeMounts: [{ name: 'config', mountPath: '/config', readOnly: true }],
             }],
